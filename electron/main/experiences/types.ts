@@ -1,9 +1,9 @@
 import type { ProcessingMode } from "@electron/shared/domain/enums";
-import type { PipelineDescriptor } from "../services/pipeline/implementations/registry/pipeline-router";
-import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
-import type { SignalSourceType } from "@electron/shared/domain";
 import type { ExperienceCapabilities } from "@electron/shared/domain/experience";
-import type { ScriptedWorkerOutputs } from "../services/broker/mock/mock-scenario-worker-outputs";
+import type {
+  ExperiencePresetIds,
+  SignalDescriptor,
+} from "@electron/shared/domain/signal-descriptor";
 
 export type {
   ExperienceCapabilities,
@@ -13,22 +13,10 @@ export type {
 export interface ExperienceDescriptor {
   id: string;
   displayName: string;
+  description: string;
   capabilities: ExperienceCapabilities;
-  signalSource: {
-    type: SignalSourceType;
-    defaultConfig: Record<string, unknown>;
-  };
-  pipeline: PipelineDescriptor;
-  presets: {
-    posturePresetId: string;
-    rulesPresetId: string;
-    riskPresetId: string;
-    timeframePresetId: string;
-  };
-  /** Drives AI phase variantKey selection — decoupled from session posture toggles. */
+  pipelineId: string;
+  signals: SignalDescriptor[];
+  defaultPresets: ExperiencePresetIds;
   promptVariantKey: ProcessingMode;
-  mockFixtures: {
-    defaultScenario: MockScenarioKind;
-    scriptedWorkerOutputs: ScriptedWorkerOutputs;
-  };
 }

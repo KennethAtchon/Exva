@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 import { ALL_PIPELINES } from "../pipelines";
 
 describe("pipelines registration", () => {
-  it("declares all five shipped pipeline descriptors", () => {
-    expect(ALL_PIPELINES).toHaveLength(5);
+  it("declares all six shipped pipeline descriptors", () => {
+    expect(ALL_PIPELINES).toHaveLength(6);
     expect(ALL_PIPELINES.map((pipeline) => pipeline.id)).toEqual([
       "default-trade-cycle",
       "edgar-8k-cycle",
       "rules-mean-reversion-cycle",
       "rules-trend-following-cycle",
+      "rules-breakout-cycle",
       "prediction-event-cycle",
     ]);
   });
@@ -32,6 +33,7 @@ describe("pipelines registration", () => {
     expect(byId["rules-trend-following-cycle"]?.signalSources).toEqual([
       "timer",
     ]);
+    expect(byId["rules-breakout-cycle"]?.signalSources).toEqual(["timer"]);
   });
 
   it("marks exactly one pipeline as default", () => {
@@ -51,6 +53,7 @@ describe("pipelines registration", () => {
     for (const id of [
       "rules-mean-reversion-cycle",
       "rules-trend-following-cycle",
+      "rules-breakout-cycle",
     ]) {
       const pipeline = ALL_PIPELINES.find((entry) => entry.id === id);
       expect(pipeline?.phases).toEqual(["decision"]);

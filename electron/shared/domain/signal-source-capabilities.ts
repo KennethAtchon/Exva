@@ -37,7 +37,7 @@ export function extractSignalInstrumentClass(
     return "stock";
   }
   if (signal.sourceType === "mock") {
-    return "stock";
+    return null;
   }
   if (signal.sourceType === "prediction_event") {
     return "prediction_market";

@@ -11,6 +11,7 @@ import { buildInstrumentSelection } from "../scoring/selector-submission-builder
 import { computeTradeTradeExecutionProfile } from "../execution/trade-execution-profile";
 import { computeMeanReversionSignal } from "../rules/mean-reversion-signal";
 import { computeTrendFollowingSignal } from "../rules/trend-following-signal";
+import { computeBreakoutSignal } from "../rules/breakout-signal";
 
 export function registerTradeSignalEngines(): void {
   registerSignalEngine({
@@ -104,6 +105,14 @@ export function registerTradeSignalEngines(): void {
     inputSchema: z.any(),
     outputSchema: z.any(),
     run: (input) => computeTrendFollowingSignal(input as never),
+  });
+
+  registerSignalEngine({
+    id: "rules-breakout",
+    kind: "policy",
+    inputSchema: z.any(),
+    outputSchema: z.any(),
+    run: (input) => computeBreakoutSignal(input as never),
   });
 
   registerSignalEngine({

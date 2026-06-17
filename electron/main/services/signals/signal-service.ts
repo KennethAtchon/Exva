@@ -6,7 +6,7 @@ import type { SignalDeadLetterReason } from "@electron/shared/domain/signal-dead
 import { AppError } from "@electron/shared/infra/errors";
 import {
   ensureAllExperienceSignalSources,
-  ensureExperienceSignalSource,
+  ensureExperienceSignalSources,
 } from "../../experiences/ensure-experience-signal-sources";
 import {
   ensureMockRehearsalSignalSource,
@@ -89,13 +89,20 @@ export class SignalService {
     return source;
   }
 
-  ensureExperienceSignalSource(experienceId: string): SignalSourceRecord {
-    const source = ensureExperienceSignalSource(this.sourcesRepo, experienceId);
-    if (!this.registry.get(source.id)) {
-      this.registry.create(source);
-      void this.registry.start(source.id);
+  ensureExperienceSignalSource(experienceId: string): SignalSourceRecord[] {
+    const sources = ensureExperienceSignalSources(
+      this.sourcesRepo,
+      experienceId,
+    );
+    for (const source of sources) {
+      if (!this.registry.get(source.id)) {
+        this.registry.create(source);
+        if (source.enabled) {
+          void this.registry.start(source.id);
+        }
+      }
     }
-    return source;
+    return sources;
   }
 
   ensureAllExperienceSignalSources(): SignalSourceRecord[] {

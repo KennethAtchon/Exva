@@ -191,9 +191,8 @@ describe("session onboarding integration", () => {
   it.each([
     ["edgar-catalyst", "broker-stock", ["stock"]],
     ["rules-mean-reversion", "broker-stock", ["stock"]],
-    ["rules-qqq-mean-reversion", "broker-stock", ["stock"]],
-    ["btc-momentum-breakout", "broker-crypto", ["crypto"]],
-    ["commodities-trend-following", "broker-futures", ["futures"]],
+    ["rules-trend-following", "broker-futures", ["futures"]],
+    ["rules-breakout", "broker-crypto", ["crypto"]],
     ["prediction-event-edge", "broker-pm", ["prediction_market"]],
   ] as const)(
     "onboards %s through preflight and start",
@@ -204,6 +203,9 @@ describe("session onboarding integration", () => {
 
       const experience = requireExperience(experienceId);
       harness.ensureExperienceSignalSource(experienceId);
+      const firstSignal = experience.signals[0];
+      if (!firstSignal) throw new Error(`${experienceId} has no signals`);
+      const signalSourceIds = [`${experienceId}/${firstSignal.id}`];
       const { id: sessionId } = harness.sessionWrites.create({
         name: `${experience.displayName} Session`,
         objective: `Run ${experience.displayName}`,
@@ -217,7 +219,7 @@ describe("session onboarding integration", () => {
         brokerOverridesByInstrumentClass: {
           [instrumentClasses[0] as InstrumentClass]: brokerId,
         },
-        subscribedSourceIds: [`${experienceId}-signal`],
+        subscribedSourceIds: signalSourceIds,
       });
 
       await expect(harness.session.start(sessionId)).resolves.toBe("active");
@@ -629,23 +631,31 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     },
     ensureExperienceSignalSource(experienceId: string) {
       const experience = requireExperience(experienceId);
-      const sourceId = `${experienceId}-signal`;
-      if (!signalSourcesRepo.get(sourceId)) {
-        signalSourcesRepo.create({
-          id: sourceId,
-          type: experience.signalSource.type,
-          name: experience.displayName,
-          description: null,
-          enabled: true,
-          configJson: JSON.stringify(experience.signalSource.defaultConfig),
-        });
+      for (const signal of experience.signals) {
+        const sourceId = `${experienceId}/${signal.id}`;
+        if (!signalSourcesRepo.get(sourceId)) {
+          signalSourcesRepo.create({
+            id: sourceId,
+            type: signal.sourceType,
+            name: experience.displayName,
+            description: null,
+            enabled: true,
+            experienceId,
+            configJson: JSON.stringify({
+              signalId: signal.id,
+              symbol: signal.symbol,
+            }),
+          });
+        }
       }
     },
     subscribeExperienceSignal(sessionId: string, experienceId: string) {
       this.ensureExperienceSignalSource(experienceId);
-      signalSourcesRepo.replaceSessionSubscriptions(sessionId, [
-        `${experienceId}-signal`,
-      ]);
+      const experience = requireExperience(experienceId);
+      signalSourcesRepo.replaceSessionSubscriptions(
+        sessionId,
+        experience.signals.map((s) => `${experienceId}/${s.id}`),
+      );
     },
   };
 }

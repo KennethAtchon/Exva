@@ -1,186 +1,137 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { createTestDb } from "../../db/test-helpers";
-import { validateExperienceRegistry } from "../index";
+import { describeExperienceSteps, validateExperienceRegistry } from "../index";
+import {
+  registerPipeline,
+  requirePipelineDescriptor,
+} from "../../services/pipeline/implementations/registry/pipeline-router";
+import { ALL_PIPELINES } from "../../services/pipeline/implementations/registry/pipelines";
+import { signalDisplayName } from "@electron/shared/domain/signal-descriptor";
 import { loadExperiencePresetBundle } from "../session-bootstrap";
 import { validateExperienceSourceEmissions } from "../validate-source-capabilities";
-import { BTC_MOMENTUM_BREAKOUT_EXPERIENCE } from "../btc-momentum-breakout/descriptor";
-import { COMMODITIES_TREND_FOLLOWING_EXPERIENCE } from "../commodities-trend-following/descriptor";
 import { EDGAR_CATALYST_EXPERIENCE } from "../edgar-catalyst/descriptor";
 import { PREDICTION_EVENT_EDGE_EXPERIENCE } from "../prediction-event-edge/descriptor";
 import { RULES_MEAN_REVERSION_EXPERIENCE } from "../rules-mean-reversion/descriptor";
-import { RULES_QQQ_MEAN_REVERSION_EXPERIENCE } from "../rules-qqq-mean-reversion/descriptor";
+import { RULES_TREND_FOLLOWING_EXPERIENCE } from "../rules-trend-following/descriptor";
+import { RULES_BREAKOUT_EXPERIENCE } from "../rules-breakout/descriptor";
 import type { ExperienceDescriptor } from "../types";
+
+beforeAll(() => {
+  for (const p of ALL_PIPELINES) {
+    try {
+      registerPipeline(p);
+    } catch {
+      /* already registered in this worker */
+    }
+  }
+});
 
 type DescriptorContract = {
   experience: ExperienceDescriptor;
   id: string;
   displayName: string;
   pipelineId: string;
-  signalSourceType: ExperienceDescriptor["signalSource"]["type"];
+  signalIds: string[];
   instrumentClasses: ExperienceDescriptor["capabilities"]["instrumentClasses"];
-  brokerRequirement: ExperienceDescriptor["capabilities"]["brokerRequirement"];
   signalSourceTypes: ExperienceDescriptor["capabilities"]["signalSourceTypes"];
-  defaultInstrumentClass: ExperienceDescriptor["capabilities"]["defaultInstrumentClass"];
-  presets: ExperienceDescriptor["presets"];
-  defaultConfig: Record<string, unknown>;
+  brokerRequirement: ExperienceDescriptor["capabilities"]["brokerRequirement"];
+  defaultPresets: ExperienceDescriptor["defaultPresets"];
 };
 
 const SHIPPED_DESCRIPTOR_CONTRACTS: DescriptorContract[] = [
   {
     experience: EDGAR_CATALYST_EXPERIENCE,
     id: "edgar-catalyst",
-    displayName: "EDGAR 8-K catalyst drift",
+    displayName: "EDGAR Catalyst",
     pipelineId: "edgar-8k-cycle",
-    signalSourceType: "edgar_8k",
+    signalIds: ["edgar-8k-catalyst"],
     instrumentClasses: ["stock"],
+    signalSourceTypes: ["edgar_8k"],
     brokerRequirement: "any_supported_class",
-    signalSourceTypes: ["edgar_8k", "mock"],
-    defaultInstrumentClass: "stock",
-    presets: {
+    defaultPresets: {
       posturePresetId: "edgar_catalyst",
       rulesPresetId: "catalyst_entry",
       riskPresetId: "moderate",
       timeframePresetId: "catalyst",
     },
-    defaultConfig: {
-      itemCodeWhitelist: [
-        "1.01",
-        "1.03",
-        "2.02",
-        "2.03",
-        "3.02",
-        "5.02",
-        "8.01",
-      ],
-      minFilingAgeMinutes: 0,
-    },
   },
   {
     experience: RULES_MEAN_REVERSION_EXPERIENCE,
     id: "rules-mean-reversion",
-    displayName: "SPY 15m mean reversion (rules)",
+    displayName: "Rules: Mean Reversion",
     pipelineId: "rules-mean-reversion-cycle",
-    signalSourceType: "timer",
+    signalIds: ["spy-15m-meanrev", "qqq-15m-meanrev"],
     instrumentClasses: ["stock"],
-    brokerRequirement: "any_supported_class",
     signalSourceTypes: ["timer"],
-    defaultInstrumentClass: "stock",
-    presets: {
+    brokerRequirement: "any_supported_class",
+    defaultPresets: {
       posturePresetId: "manual_watchlist",
       rulesPresetId: "catalyst_entry",
       riskPresetId: "moderate",
       timeframePresetId: "swing",
     },
-    defaultConfig: {
-      symbol: "SPY",
-      cadence: "15m",
-      instrumentClass: "stock",
-    },
   },
   {
-    experience: RULES_QQQ_MEAN_REVERSION_EXPERIENCE,
-    id: "rules-qqq-mean-reversion",
-    displayName: "QQQ 15m mean reversion (rules)",
-    pipelineId: "rules-mean-reversion-cycle",
-    signalSourceType: "timer",
-    instrumentClasses: ["stock"],
-    brokerRequirement: "any_supported_class",
-    signalSourceTypes: ["timer"],
-    defaultInstrumentClass: "stock",
-    presets: {
-      posturePresetId: "manual_watchlist",
-      rulesPresetId: "catalyst_entry",
-      riskPresetId: "moderate",
-      timeframePresetId: "swing",
-    },
-    defaultConfig: {
-      symbol: "QQQ",
-      cadence: "15m",
-      instrumentClass: "stock",
-    },
-  },
-  {
-    experience: BTC_MOMENTUM_BREAKOUT_EXPERIENCE,
-    id: "btc-momentum-breakout",
-    displayName: "BTC-USD 1h momentum breakout (rules)",
-    pipelineId: "rules-mean-reversion-cycle",
-    signalSourceType: "timer",
-    instrumentClasses: ["crypto"],
-    brokerRequirement: "any_supported_class",
-    signalSourceTypes: ["timer"],
-    defaultInstrumentClass: "crypto",
-    presets: {
-      posturePresetId: "manual_watchlist",
-      rulesPresetId: "catalyst_entry",
-      riskPresetId: "moderate",
-      timeframePresetId: "swing",
-    },
-    defaultConfig: {
-      symbol: "BTC-USD",
-      cadence: "1h",
-      instrumentClass: "crypto",
-    },
-  },
-  {
-    experience: COMMODITIES_TREND_FOLLOWING_EXPERIENCE,
-    id: "commodities-trend-following",
-    displayName: "GC/CL 4h trend following (rules)",
+    experience: RULES_TREND_FOLLOWING_EXPERIENCE,
+    id: "rules-trend-following",
+    displayName: "Rules: Trend Following",
     pipelineId: "rules-trend-following-cycle",
-    signalSourceType: "timer",
+    signalIds: ["gc-4h-trend", "cl-4h-trend"],
     instrumentClasses: ["futures"],
-    brokerRequirement: "any_supported_class",
     signalSourceTypes: ["timer"],
-    defaultInstrumentClass: "futures",
-    presets: {
+    brokerRequirement: "any_supported_class",
+    defaultPresets: {
       posturePresetId: "manual_watchlist",
       rulesPresetId: "catalyst_entry",
       riskPresetId: "moderate",
       timeframePresetId: "swing",
     },
-    defaultConfig: {
-      symbol: "GC",
-      cadence: "4h",
-      instrumentClass: "futures",
+  },
+  {
+    experience: RULES_BREAKOUT_EXPERIENCE,
+    id: "rules-breakout",
+    displayName: "Rules: Momentum Breakout",
+    pipelineId: "rules-breakout-cycle",
+    signalIds: ["btc-1h-breakout"],
+    instrumentClasses: ["crypto"],
+    signalSourceTypes: ["timer"],
+    brokerRequirement: "any_supported_class",
+    defaultPresets: {
+      posturePresetId: "manual_watchlist",
+      rulesPresetId: "catalyst_entry",
+      riskPresetId: "moderate",
+      timeframePresetId: "swing",
     },
   },
   {
     experience: PREDICTION_EVENT_EDGE_EXPERIENCE,
     id: "prediction-event-edge",
-    displayName: "Prediction event edge",
+    displayName: "Prediction Event Edge",
     pipelineId: "prediction-event-cycle",
-    signalSourceType: "prediction_event",
+    signalIds: ["prediction-event-edge"],
     instrumentClasses: ["prediction_market"],
-    brokerRequirement: "polymarket_broker",
     signalSourceTypes: ["prediction_event"],
-    defaultInstrumentClass: "prediction_market",
-    presets: {
+    brokerRequirement: "polymarket_broker",
+    defaultPresets: {
       posturePresetId: "prediction_event_edge",
       rulesPresetId: "probability_edge",
       riskPresetId: "prediction_market",
       timeframePresetId: "prediction",
     },
-    defaultConfig: {
-      triggerKind: "odds_volume_dislocation",
-      pollIntervalMinutes: 15,
-      minLiquidityUsd: 5000,
-      minPriceDeviation: 0.12,
-      categoryWhitelist: [],
-    },
   },
 ];
 
 describe("experience descriptor contracts", () => {
-  it.each(
-    SHIPPED_DESCRIPTOR_CONTRACTS.map((contract) => [contract.id, contract]),
-  )(
-    "%s declares id, displayName, pipeline, signal source, and capabilities",
+  it.each(SHIPPED_DESCRIPTOR_CONTRACTS.map((c) => [c.id, c]))(
+    "%s declares id, displayName, pipelineId, signals, and capabilities",
     (_id, contract) => {
       const { experience } = contract;
 
       expect(experience.id).toBe(contract.id);
       expect(experience.displayName).toBe(contract.displayName);
-      expect(experience.pipeline.id).toBe(contract.pipelineId);
-      expect(experience.signalSource.type).toBe(contract.signalSourceType);
+      expect(experience.pipelineId).toBe(contract.pipelineId);
+      expect(experience.signals.length).toBeGreaterThanOrEqual(1);
+      expect(experience.signals.map((s) => s.id)).toEqual(contract.signalIds);
       expect(experience.capabilities.instrumentClasses).toEqual(
         contract.instrumentClasses,
       );
@@ -190,43 +141,25 @@ describe("experience descriptor contracts", () => {
       expect(experience.capabilities.signalSourceTypes).toEqual(
         contract.signalSourceTypes,
       );
-      expect(experience.capabilities.defaultInstrumentClass).toBe(
-        contract.defaultInstrumentClass,
-      );
-      expect(experience.capabilities.signalSourceTypes).toContain(
-        experience.signalSource.type,
-      );
-      expect(experience.pipeline.signalSources).toContain(
-        experience.signalSource.type,
-      );
     },
   );
 
-  it.each(
-    SHIPPED_DESCRIPTOR_CONTRACTS.map((contract) => [contract.id, contract]),
-  )(
-    "%s declares experience-specific signal source defaults",
-    (_id, contract) => {
-      expect(contract.experience.signalSource.defaultConfig).toEqual(
-        contract.defaultConfig,
-      );
-    },
-  );
-
-  it.each(
-    SHIPPED_DESCRIPTOR_CONTRACTS.map((contract) => [contract.id, contract]),
-  )(
-    "%s declares preset ids that resolve in the seeded database",
+  it.each(SHIPPED_DESCRIPTOR_CONTRACTS.map((c) => [c.id, c]))(
+    "%s declares defaultPresets that resolve in the seeded database",
     (_id, contract) => {
       const db = createTestDb();
       try {
         const bundle = loadExperiencePresetBundle(db, contract.id);
 
-        expect(bundle.posturePreset.id).toBe(contract.presets.posturePresetId);
-        expect(bundle.rulesPreset.id).toBe(contract.presets.rulesPresetId);
-        expect(bundle.riskPreset.id).toBe(contract.presets.riskPresetId);
+        expect(bundle.posturePreset.id).toBe(
+          contract.defaultPresets.posturePresetId,
+        );
+        expect(bundle.rulesPreset.id).toBe(
+          contract.defaultPresets.rulesPresetId,
+        );
+        expect(bundle.riskPreset.id).toBe(contract.defaultPresets.riskPresetId);
         expect(bundle.timeframePreset.id).toBe(
-          contract.presets.timeframePresetId,
+          contract.defaultPresets.timeframePresetId,
         );
       } finally {
         db.sqlite.close();
@@ -240,14 +173,87 @@ describe("experience descriptor validation", () => {
     expect(() => validateExperienceRegistry()).not.toThrow();
   });
 
-  it.each(
-    SHIPPED_DESCRIPTOR_CONTRACTS.map((contract) => [contract.id, contract]),
-  )(
-    "%s passes validateExperienceSourceEmissions for its signal source types",
+  it.each(SHIPPED_DESCRIPTOR_CONTRACTS.map((c) => [c.id, c]))(
+    "%s passes validateExperienceSourceEmissions",
     (_id, contract) => {
       expect(() =>
         validateExperienceSourceEmissions(contract.experience),
       ).not.toThrow();
     },
   );
+
+  it.each(SHIPPED_DESCRIPTOR_CONTRACTS.map((c) => [c.id, c]))(
+    "%s: every signal.sourceType is in its pipeline.signalSources (I1)",
+    (_id, contract) => {
+      const { experience } = contract;
+      const pipeline = requirePipelineDescriptor(experience.pipelineId);
+      for (const signal of experience.signals) {
+        expect(pipeline.signalSources).toContain(signal.sourceType);
+      }
+    },
+  );
+
+  it.each(SHIPPED_DESCRIPTOR_CONTRACTS.map((c) => [c.id, c]))(
+    "%s: capabilities.signalSourceTypes equals union of signals[].sourceType (I3)",
+    (_id, contract) => {
+      const { experience } = contract;
+      const signalTypes = new Set(experience.signals.map((s) => s.sourceType));
+      const capTypes = new Set(experience.capabilities.signalSourceTypes);
+      expect(signalTypes).toEqual(capTypes);
+    },
+  );
+
+  it("rules-mean-reversion has cadence and timeframe distinct on each signal (I4)", () => {
+    for (const signal of RULES_MEAN_REVERSION_EXPERIENCE.signals) {
+      expect(signal.pollCadence).not.toBe(signal.defaultAnalysisTimeframe);
+      expect(signal.pollCadence).toBeTruthy();
+      expect(signal.defaultAnalysisTimeframe).toBeTruthy();
+    }
+  });
+
+  it("no trend/breakout experience runs rules-mean-reversion-cycle (I5 regression)", () => {
+    const trendOrBreakout = SHIPPED_DESCRIPTOR_CONTRACTS.filter(
+      (c) => c.id.includes("trend") || c.id.includes("breakout"),
+    );
+    for (const { experience } of trendOrBreakout) {
+      expect(experience.pipelineId).not.toBe("rules-mean-reversion-cycle");
+    }
+  });
+
+  it("rules-breakout runs rules-breakout-cycle, not mean-reversion (I5)", () => {
+    expect(RULES_BREAKOUT_EXPERIENCE.pipelineId).toBe("rules-breakout-cycle");
+  });
+});
+
+describe("pipeline automation invariant (I2)", () => {
+  it("deterministic rules experiences describe steps with kind: deterministic", () => {
+    for (const id of [
+      "rules-mean-reversion",
+      "rules-trend-following",
+      "rules-breakout",
+    ]) {
+      const steps = describeExperienceSteps(id);
+      expect(steps.length).toBeGreaterThanOrEqual(1);
+      for (const step of steps) {
+        expect(step.kind).toBe("deterministic");
+      }
+    }
+  });
+
+  it("rules-mean-reversion has exactly [rules_decision, risk_gate] steps (G8)", () => {
+    const steps = describeExperienceSteps("rules-mean-reversion");
+    expect(steps.map((s) => s.id)).toEqual(["rules_decision", "risk_gate"]);
+    expect(steps.every((s) => s.kind === "deterministic")).toBe(true);
+  });
+});
+
+describe("signalDisplayName format", () => {
+  it("includes both analysisTimeframe and pollCadence distinctly", () => {
+    const spy = RULES_MEAN_REVERSION_EXPERIENCE.signals[0];
+    if (!spy) throw new Error("Expected at least one signal");
+    const name = signalDisplayName(spy);
+    expect(name).toContain(spy.defaultAnalysisTimeframe);
+    expect(name).toContain(spy.pollCadence ?? "");
+    expect(spy.pollCadence).not.toBe(spy.defaultAnalysisTimeframe);
+  });
 });

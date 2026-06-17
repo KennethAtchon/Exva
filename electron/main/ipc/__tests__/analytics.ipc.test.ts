@@ -29,7 +29,7 @@ describe("analytics IPC", () => {
       scorecards: Array<{ experienceId: string; displayName: string }>;
     };
 
-    expect(result.scorecards).toHaveLength(6);
+    expect(result.scorecards).toHaveLength(5);
     expect(result.scorecards.map((item) => item.experienceId)).toContain(
       "edgar-catalyst",
     );
@@ -153,7 +153,7 @@ describe("analytics IPC", () => {
     };
 
     expect(result.summary.generatedAt).toEqual(expect.any(String));
-    expect(result.summary.deltas.length).toBe(6);
+    expect(result.summary.deltas.length).toBe(5);
     expect(
       result.summary.deltas.find(
         (item) => item.experienceId === "edgar-catalyst",

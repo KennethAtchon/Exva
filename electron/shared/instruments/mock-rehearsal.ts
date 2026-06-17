@@ -30,13 +30,22 @@ export function resolveMockRehearsalTicker(
 }
 
 export function experienceSupportsMockRehearsal(
-  capabilities: Pick<ExperienceCapabilities, "signalSourceTypes">,
+  capabilities: Pick<
+    ExperienceCapabilities,
+    "signalSourceTypes" | "mockRehearsalEligible"
+  >,
 ): boolean {
-  return capabilities.signalSourceTypes.includes("mock");
+  return (
+    capabilities.mockRehearsalEligible === true ||
+    capabilities.signalSourceTypes.includes("mock")
+  );
 }
 
 export function sessionEligibleForMockRehearsal(input: {
-  experience: Pick<ExperienceCapabilities, "signalSourceTypes">;
+  experience: Pick<
+    ExperienceCapabilities,
+    "signalSourceTypes" | "mockRehearsalEligible"
+  >;
   brokerAccounts: readonly MockRehearsalBrokerSnapshot[];
   brokerAssignmentIds: readonly string[];
 }): boolean {
@@ -81,7 +90,10 @@ export function resolveMockRehearsalTickerFromBrokers(
 }
 
 export function resolvePreferredSubscribedSourceId(input: {
-  experience: Pick<ExperienceCapabilities, "signalSourceTypes"> & {
+  experience: Pick<
+    ExperienceCapabilities,
+    "signalSourceTypes" | "mockRehearsalEligible"
+  > & {
     id: string;
   };
   compatibleSourceIds: readonly string[];

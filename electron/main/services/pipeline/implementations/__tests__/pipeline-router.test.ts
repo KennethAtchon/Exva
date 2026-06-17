@@ -66,6 +66,7 @@ describe("pipeline router", () => {
       registerPipeline({
         id: "default-trade-cycle",
         displayName: "dup",
+        automation: "ai",
         phases: [...FOUR_PHASES],
         signalSources: [],
         plan: clonePlan("dup-plan"),
@@ -79,10 +80,12 @@ describe("pipeline router", () => {
       registerPipeline({
         id: "bad-phase",
         displayName: "bad",
+        automation: "ai",
         // @ts-expect-error intentionally invalid phase
         phases: ["not-a-phase"],
         signalSources: [],
         plan: clonePlan("bad-phase-plan"),
+        phaseWorkers: {},
       }),
     ).toThrow(/unknown phase/);
   });
@@ -92,6 +95,7 @@ describe("pipeline router", () => {
       registerPipeline({
         id: "mismatch",
         displayName: "mismatch",
+        automation: "ai",
         phases: ["technical"],
         signalSources: [],
         plan: clonePlan("mismatch-plan"), // plan runs all four
@@ -105,6 +109,7 @@ describe("pipeline router", () => {
     registerPipeline({
       id: "conflict",
       displayName: "conflict",
+      automation: "ai",
       phases: [...FOUR_PHASES],
       signalSources: ["web_search"], // already claimed by default-trade-cycle
       plan: clonePlan("conflict-plan"),

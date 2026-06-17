@@ -29,7 +29,12 @@ export function evaluateSignalDeliveryGate(input: {
   const experience = requireExperience(input.experienceId);
   const capabilities = experience.capabilities;
 
-  if (!capabilities.signalSourceTypes.includes(input.signal.sourceType)) {
+  const isMockRehearsalSignal =
+    input.signal.sourceType === "mock" && capabilities.mockRehearsalEligible;
+  if (
+    !isMockRehearsalSignal &&
+    !capabilities.signalSourceTypes.includes(input.signal.sourceType)
+  ) {
     return {
       ok: false,
       reason: "unsupported_by_experience",

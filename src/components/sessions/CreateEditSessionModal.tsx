@@ -965,7 +965,7 @@ export const CreateEditSessionModal = ({
                     {sessionSubscribedToMockRehearsal(subscribedSources)
                       ? "Mock rehearsal listens via synthetic filings. Instruments come from the fired signal — not from a manual ticker list."
                       : selectedExperience
-                        ? `${selectedExperience.displayName} listens via ${formatSignalSourceTypeLabel(selectedExperience.signalSourceType)}. Instruments come from the signal feed — not from a manual ticker list.`
+                        ? `${selectedExperience.displayName} listens via ${formatSignalSourceTypeLabel(selectedExperience.capabilities.signalSourceTypes[0] ?? "manual")}. Instruments come from the signal feed — not from a manual ticker list.`
                         : "Automatic listener — nothing to configure."}
                   </div>
                 )}

@@ -1,35 +1,37 @@
-import { PREDICTION_EVENT_PIPELINE } from "../../services/pipeline/implementations/registry/pipelines";
 import type { ExperienceDescriptor } from "../types";
 
 export const PREDICTION_EVENT_EDGE_EXPERIENCE: ExperienceDescriptor = {
   id: "prediction-event-edge",
-  displayName: "Prediction event edge",
+  displayName: "Prediction Event Edge",
+  description:
+    "AI-driven analysis of prediction-market odds/volume dislocations. Calls LLM for full cycle.",
   capabilities: {
     instrumentClasses: ["prediction_market"],
     signalSourceTypes: ["prediction_event"],
     brokerRequirement: "polymarket_broker",
     defaultInstrumentClass: "prediction_market",
   },
-  signalSource: {
-    type: "prediction_event",
-    defaultConfig: {
-      triggerKind: "odds_volume_dislocation",
-      pollIntervalMinutes: 15,
-      minLiquidityUsd: 5000,
-      minPriceDeviation: 0.12,
-      categoryWhitelist: [],
-    },
-  },
-  pipeline: PREDICTION_EVENT_PIPELINE,
-  presets: {
+  pipelineId: "prediction-event-cycle",
+  defaultPresets: {
     posturePresetId: "prediction_event_edge",
     rulesPresetId: "probability_edge",
     riskPresetId: "prediction_market",
     timeframePresetId: "prediction",
   },
   promptVariantKey: "catalyst",
-  mockFixtures: {
-    defaultScenario: "clean_breakout",
-    scriptedWorkerOutputs: {},
-  },
+  signals: [
+    {
+      id: "prediction-event-edge",
+      sourceType: "prediction_event",
+      instrumentClass: "prediction_market",
+      symbol: null,
+      pollCadence: null,
+      defaultAnalysisTimeframe: "1h",
+      enabledByDefault: true,
+      mockFixtures: {
+        defaultScenario: "clean_breakout",
+        scriptedWorkerOutputs: {},
+      },
+    },
+  ],
 };

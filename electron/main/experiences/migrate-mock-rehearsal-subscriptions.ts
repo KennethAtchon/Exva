@@ -5,7 +5,7 @@ import {
   sessionEligibleForMockRehearsal,
   type MockRehearsalBrokerSnapshot,
 } from "@electron/shared/instruments/mock-rehearsal";
-import { experienceSignalSourceId } from "@electron/shared/instruments/session-input-model";
+import { signalSourceId } from "@electron/shared/instruments/session-input-model";
 import type { SignalSourcesRepo } from "../services/signals/repos/signal-sources-repo";
 
 export function migrateEligibleSessionsToMockRehearsal(deps: {
@@ -40,7 +40,6 @@ export function migrateEligibleSessionsToMockRehearsal(deps: {
 
     const subscribedSourceIds =
       deps.signalSources.subscribedSourceIdsForSession(session.id);
-    const experienceSourceId = experienceSignalSourceId(session.experienceId);
     const alreadyOnMockRehearsal = subscribedSourceIds.includes(
       MOCK_REHEARSAL_SIGNAL_SOURCE_ID,
     );
@@ -55,10 +54,15 @@ export function migrateEligibleSessionsToMockRehearsal(deps: {
       continue;
     }
 
-    const onDefaultExperienceSource =
-      subscribedSourceIds.length === 1 &&
-      subscribedSourceIds[0] === experienceSourceId;
-    if (!onDefaultExperienceSource) {
+    // Session is on mock rehearsal candidate if ALL subscribed sources are
+    // experience-owned signal sources for this experience.
+    const experienceSignalSourceIds = new Set(
+      experience.signals.map((s) => signalSourceId(session.experienceId, s.id)),
+    );
+    const onlyExperienceSources =
+      subscribedSourceIds.length > 0 &&
+      subscribedSourceIds.every((id) => experienceSignalSourceIds.has(id));
+    if (!onlyExperienceSources) {
       continue;
     }
 

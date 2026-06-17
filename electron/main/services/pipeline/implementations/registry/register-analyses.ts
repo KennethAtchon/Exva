@@ -3,9 +3,11 @@ import { registerSignalEngineInputBuilder } from "../../execution/input-builder-
 import { CATALYST_DECISION_INPUT_BUILDERS } from "../inputs/catalyst-decision-input-builders";
 import { RULES_ENGINE_INPUT_BUILDERS } from "../inputs/rules-engine-input-builders";
 import { RULES_TREND_FOLLOWING_INPUT_BUILDERS } from "../inputs/rules-trend-following-input-builders";
+import { RULES_BREAKOUT_INPUT_BUILDERS } from "../inputs/rules-breakout-input-builders";
 import { TRADE_ENGINE_INPUT_BUILDERS } from "../inputs/trade-engine-input-builders";
 import { registerPipeline, validatePipelineRegistry } from "./pipeline-router";
 import { ALL_PIPELINES } from "./pipelines";
+import { validateExperienceRegistry } from "../../../../experiences/index";
 
 export function registerDefaultInstrumentAnalyses(): void {
   registerAllPipelineWorkers();
@@ -13,6 +15,7 @@ export function registerDefaultInstrumentAnalyses(): void {
     ...TRADE_ENGINE_INPUT_BUILDERS,
     ...RULES_ENGINE_INPUT_BUILDERS,
     ...RULES_TREND_FOLLOWING_INPUT_BUILDERS,
+    ...RULES_BREAKOUT_INPUT_BUILDERS,
     ...CATALYST_DECISION_INPUT_BUILDERS,
   ]) {
     registerSignalEngineInputBuilder(builder);
@@ -21,4 +24,5 @@ export function registerDefaultInstrumentAnalyses(): void {
     registerPipeline(pipeline);
   }
   validatePipelineRegistry();
+  validateExperienceRegistry();
 }

@@ -17,6 +17,7 @@ function descriptor(
   return {
     id: `test-${crypto.randomUUID()}`,
     displayName: "Test pipeline",
+    automation: "ai",
     phases: [...FOUR_PHASES],
     signalSources: [],
     plan: { ...DEFAULT_TRADE_CYCLE, id: `plan-${crypto.randomUUID()}` },

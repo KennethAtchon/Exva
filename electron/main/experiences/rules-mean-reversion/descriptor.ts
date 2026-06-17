@@ -1,33 +1,50 @@
-import { RULES_MEAN_REVERSION_PIPELINE } from "../../services/pipeline/implementations/registry/pipelines";
 import type { ExperienceDescriptor } from "../types";
 
 export const RULES_MEAN_REVERSION_EXPERIENCE: ExperienceDescriptor = {
   id: "rules-mean-reversion",
-  displayName: "SPY 15m mean reversion (rules)",
+  displayName: "Rules: Mean Reversion",
+  description:
+    "Deterministic mean-reversion entries on timer-polled liquid instruments. No LLM calls.",
   capabilities: {
     instrumentClasses: ["stock"],
     signalSourceTypes: ["timer"],
     brokerRequirement: "any_supported_class",
     defaultInstrumentClass: "stock",
   },
-  signalSource: {
-    type: "timer",
-    defaultConfig: {
-      symbol: "SPY",
-      cadence: "15m",
-      instrumentClass: "stock",
-    },
-  },
-  pipeline: RULES_MEAN_REVERSION_PIPELINE,
-  presets: {
+  pipelineId: "rules-mean-reversion-cycle",
+  defaultPresets: {
     posturePresetId: "manual_watchlist",
     rulesPresetId: "catalyst_entry",
     riskPresetId: "moderate",
     timeframePresetId: "swing",
   },
   promptVariantKey: "manual",
-  mockFixtures: {
-    defaultScenario: "clean_breakout",
-    scriptedWorkerOutputs: {},
-  },
+  signals: [
+    {
+      id: "spy-15m-meanrev",
+      sourceType: "timer",
+      instrumentClass: "stock",
+      symbol: "SPY",
+      pollCadence: "15m",
+      defaultAnalysisTimeframe: "1h",
+      enabledByDefault: true,
+      mockFixtures: {
+        defaultScenario: "clean_breakout",
+        scriptedWorkerOutputs: {},
+      },
+    },
+    {
+      id: "qqq-15m-meanrev",
+      sourceType: "timer",
+      instrumentClass: "stock",
+      symbol: "QQQ",
+      pollCadence: "15m",
+      defaultAnalysisTimeframe: "1h",
+      enabledByDefault: true,
+      mockFixtures: {
+        defaultScenario: "clean_breakout",
+        scriptedWorkerOutputs: {},
+      },
+    },
+  ],
 };

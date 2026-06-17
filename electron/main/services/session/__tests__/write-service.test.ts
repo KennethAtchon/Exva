@@ -431,14 +431,17 @@ function insertExperienceSignal(
 ): { signalSourcesRepo: SignalSourcesRepo; sourceId: string } {
   const signalSourcesRepo = new SignalSourcesRepo(db);
   const experience = requireExperience(experienceId);
-  const sourceId = `${experienceId}-signal`;
+  const signal = experience.signals[0];
+  if (!signal) throw new Error(`${experienceId} has no signals`);
+  const sourceId = `${experienceId}/${signal.id}`;
   signalSourcesRepo.create({
     id: sourceId,
-    type: experience.signalSource.type,
+    type: signal.sourceType,
     name: experience.displayName,
     description: null,
     enabled: true,
-    configJson: JSON.stringify(experience.signalSource.defaultConfig),
+    experienceId,
+    configJson: JSON.stringify({ signalId: signal.id, symbol: signal.symbol }),
   });
   return { signalSourcesRepo, sourceId };
 }

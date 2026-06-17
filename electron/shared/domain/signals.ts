@@ -64,6 +64,16 @@ export interface SignalSourceRecord {
   name: string;
   description: string | null;
   enabled: boolean;
+  /** Null for ad-hoc/user sources; set for experience-owned signal sources. */
+  experienceId?: string | null;
+  /** Instrument class this source produces; null for self-describing sources. */
+  instrumentClass?: string | null;
+  /** Timer poll gap (e.g. "15m"); null for event-driven sources. */
+  pollCadence?: string | null;
+  /** Strategy horizon that seeds session_timeframe_config; null for non-timer sources. */
+  analysisTimeframe?: string | null;
+  /** Denormalized from the owning experience's pipelineId. */
+  pipelineId?: string | null;
   configJson: string;
   createdAt: string;
   updatedAt: string;

@@ -32,14 +32,21 @@ describe("SignalService replayDeadLetter", () => {
           brokerRequirement: "any_supported_class",
           defaultInstrumentClass: "stock",
         },
-        signalSource: {
-          type: "timer",
-          defaultConfig: {
-            symbol: "ES",
-            cadence: "15m",
+        signals: [
+          {
+            id: "es-15m-test",
+            sourceType: "timer",
             instrumentClass: "stock",
+            symbol: "ES",
+            pollCadence: "15m",
+            defaultAnalysisTimeframe: "1h",
+            enabledByDefault: true,
+            mockFixtures: {
+              defaultScenario: "clean_breakout",
+              scriptedWorkerOutputs: {},
+            },
           },
-        },
+        ],
       });
     } catch {
       // already registered in this worker

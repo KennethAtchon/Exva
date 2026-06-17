@@ -25,16 +25,16 @@ export function loadExperiencePresetBundle(
   timeframePreset: TimeframePreset;
 } {
   const experience = requireExperience(experienceId);
-  const { presets } = experience;
+  const { defaultPresets } = experience;
 
   const postureRow = client.db
     .select()
     .from(researchPosturePresets)
-    .where(eq(researchPosturePresets.id, presets.posturePresetId))
+    .where(eq(researchPosturePresets.id, defaultPresets.posturePresetId))
     .get();
   if (!postureRow) {
     throw new AppError(
-      `Posture preset '${presets.posturePresetId}' not found for experience '${experienceId}'`,
+      `Posture preset '${defaultPresets.posturePresetId}' not found for experience '${experienceId}'`,
       "INTERNAL_ERROR",
     );
   }
@@ -42,11 +42,11 @@ export function loadExperiencePresetBundle(
   const rulesRow = client.db
     .select()
     .from(tradeRulePresets)
-    .where(eq(tradeRulePresets.id, presets.rulesPresetId))
+    .where(eq(tradeRulePresets.id, defaultPresets.rulesPresetId))
     .get();
   if (!rulesRow) {
     throw new AppError(
-      `Rules preset '${presets.rulesPresetId}' not found for experience '${experienceId}'`,
+      `Rules preset '${defaultPresets.rulesPresetId}' not found for experience '${experienceId}'`,
       "INTERNAL_ERROR",
     );
   }
@@ -54,11 +54,11 @@ export function loadExperiencePresetBundle(
   const riskRow = client.db
     .select()
     .from(riskPresets)
-    .where(eq(riskPresets.id, presets.riskPresetId))
+    .where(eq(riskPresets.id, defaultPresets.riskPresetId))
     .get();
   if (!riskRow) {
     throw new AppError(
-      `Risk preset '${presets.riskPresetId}' not found for experience '${experienceId}'`,
+      `Risk preset '${defaultPresets.riskPresetId}' not found for experience '${experienceId}'`,
       "INTERNAL_ERROR",
     );
   }
@@ -66,11 +66,11 @@ export function loadExperiencePresetBundle(
   const timeframeRow = client.db
     .select()
     .from(timeframePresets)
-    .where(eq(timeframePresets.id, presets.timeframePresetId))
+    .where(eq(timeframePresets.id, defaultPresets.timeframePresetId))
     .get();
   if (!timeframeRow) {
     throw new AppError(
-      `Timeframe preset '${presets.timeframePresetId}' not found for experience '${experienceId}'`,
+      `Timeframe preset '${defaultPresets.timeframePresetId}' not found for experience '${experienceId}'`,
       "INTERNAL_ERROR",
     );
   }

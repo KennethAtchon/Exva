@@ -10,9 +10,9 @@ export function registerExperienceHandlers(services: AppServices): void {
     return listExperiences().map((experience) => ({
       id: experience.id,
       displayName: experience.displayName,
-      signalSourceType: experience.signalSource.type,
-      pipelineId: experience.pipeline.id,
-      presets: experience.presets,
+      description: experience.description,
+      pipelineId: experience.pipelineId,
+      defaultPresets: experience.defaultPresets,
       capabilities: experience.capabilities,
     }));
   });

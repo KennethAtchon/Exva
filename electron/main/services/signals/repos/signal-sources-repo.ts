@@ -4,7 +4,7 @@ import {
   sessions,
   signalSources,
 } from "../../../db/schema";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, isNotNull } from "drizzle-orm";
 import type {
   SignalSourceRecord,
   SignalSourceType,
@@ -71,6 +71,15 @@ export class SignalSourcesRepo {
 
   delete(id: string): void {
     this.db.db.delete(signalSources).where(eq(signalSources.id, id)).run();
+  }
+
+  listExperienceOwned(): SignalSourceRecord[] {
+    return this.db.db
+      .select()
+      .from(signalSources)
+      .where(isNotNull(signalSources.experienceId))
+      .all()
+      .map((row) => ({ ...row, type: row.type as SignalSourceType }));
   }
 
   setEnabled(id: string, enabled: boolean): void {

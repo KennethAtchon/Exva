@@ -29,25 +29,36 @@ function stockSignal(overrides?: Partial<SignalEvent>): SignalEvent {
 
 describe("evaluateSignalDeliveryGate", () => {
   beforeAll(() => {
-    registerExperience({
-      ...RULES_MEAN_REVERSION_EXPERIENCE,
-      id: "test-multi-class-rules",
-      displayName: "Test multi-class rules",
-      capabilities: {
-        instrumentClasses: ["stock", "futures"],
-        signalSourceTypes: ["timer"],
-        brokerRequirement: "any_supported_class",
-        defaultInstrumentClass: "stock",
-      },
-      signalSource: {
-        type: "timer",
-        defaultConfig: {
-          symbol: "ES",
-          cadence: "15m",
-          instrumentClass: "stock",
+    try {
+      registerExperience({
+        ...RULES_MEAN_REVERSION_EXPERIENCE,
+        id: "test-multi-class-rules",
+        displayName: "Test multi-class rules",
+        capabilities: {
+          instrumentClasses: ["stock", "futures"],
+          signalSourceTypes: ["timer"],
+          brokerRequirement: "any_supported_class",
+          defaultInstrumentClass: "stock",
         },
-      },
-    });
+        signals: [
+          {
+            id: "es-15m-test",
+            sourceType: "timer",
+            instrumentClass: "stock",
+            symbol: "ES",
+            pollCadence: "15m",
+            defaultAnalysisTimeframe: "1h",
+            enabledByDefault: true,
+            mockFixtures: {
+              defaultScenario: "clean_breakout",
+              scriptedWorkerOutputs: {},
+            },
+          },
+        ],
+      });
+    } catch {
+      // already registered in this worker
+    }
   });
 
   it("accepts compatible EDGAR stock signals", () => {

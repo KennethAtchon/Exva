@@ -17,7 +17,7 @@ describe("validateExperienceSourceEmissions", () => {
     ).not.toThrow();
   });
 
-  it("rejects experiences whose timer default emits an unsupported class", () => {
+  it("rejects experiences whose signal emits an unsupported instrument class", () => {
     expect(() =>
       validateExperienceSourceEmissions({
         ...RULES_MEAN_REVERSION_EXPERIENCE,
@@ -25,15 +25,13 @@ describe("validateExperienceSourceEmissions", () => {
           ...RULES_MEAN_REVERSION_EXPERIENCE.capabilities,
           instrumentClasses: ["stock"],
         },
-        signalSource: {
-          type: "timer",
-          defaultConfig: {
-            symbol: "BTC-USD",
-            cadence: "1h",
-            instrumentClass: "crypto",
+        signals: [
+          {
+            ...(RULES_MEAN_REVERSION_EXPERIENCE.signals[0] ?? {}),
+            instrumentClass: "crypto", // crypto not in capabilities.instrumentClasses
           },
-        },
+        ],
       }),
-    ).toThrow(/emits 'crypto'/i);
+    ).toThrow(/instrumentClass 'crypto'/i);
   });
 });

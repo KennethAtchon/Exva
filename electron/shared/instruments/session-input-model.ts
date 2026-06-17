@@ -32,6 +32,10 @@ export function experienceSignalSourceId(experienceId: string): string {
   return `${experienceId}-signal`;
 }
 
+export function signalSourceId(experienceId: string, signalId: string): string {
+  return `${experienceId}/${signalId}`;
+}
+
 export function formatSignalSourceTypeLabel(type: SignalSourceType): string {
   switch (type) {
     case "edgar_8k":

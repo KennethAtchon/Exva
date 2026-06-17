@@ -7,11 +7,12 @@ import { createTestDb } from "../../db/test-helpers";
 import { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
 import { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import { SignalSourcesRepo } from "../../services/signals/repos/signal-sources-repo";
-import { ensureExperienceSignalSource } from "../ensure-experience-signal-sources";
+import { ensureExperienceSignalSources } from "../ensure-experience-signal-sources";
 import { ensureMockRehearsalSignalSource } from "../ensure-mock-rehearsal-signal-source";
 import { migrateEligibleSessionsToMockRehearsal } from "../migrate-mock-rehearsal-subscriptions";
 import { MOCK_REHEARSAL_SIGNAL_SOURCE_ID } from "@electron/shared/instruments/mock-rehearsal";
-import { experienceSignalSourceId } from "@electron/shared/instruments/session-input-model";
+import { signalSourceId } from "@electron/shared/instruments/session-input-model";
+import { EDGAR_CATALYST_EXPERIENCE } from "../edgar-catalyst/descriptor";
 
 describe("migrateEligibleSessionsToMockRehearsal", () => {
   let db = createTestDb();
@@ -24,12 +25,15 @@ describe("migrateEligibleSessionsToMockRehearsal", () => {
     db.sqlite.close();
   });
 
-  it("migrates mock-only EDGAR sessions off the default experience source", () => {
+  it("migrates mock-only EDGAR sessions off the default experience sources", () => {
     const sessions = new SessionRepo(db);
     const assignments = new SessionBrokerAssignmentsRepo(db);
     const signalSources = new SignalSourcesRepo(db);
     ensureMockRehearsalSignalSource(signalSources, "NVDA");
-    ensureExperienceSignalSource(signalSources, "edgar-catalyst");
+    const sources = ensureExperienceSignalSources(
+      signalSources,
+      "edgar-catalyst",
+    );
 
     const session = createMinimalSession(db, {
       experienceId: "edgar-catalyst",
@@ -43,9 +47,11 @@ describe("migrateEligibleSessionsToMockRehearsal", () => {
     assignments.replaceAssignments(session.id, [
       { brokerAccountId: "mock-broker", allocatedUsd: 1000 },
     ]);
-    signalSources.replaceSessionSubscriptions(session.id, [
-      experienceSignalSourceId("edgar-catalyst"),
-    ]);
+    // Subscribe to all experience-owned signal sources (the new model)
+    signalSources.replaceSessionSubscriptions(
+      session.id,
+      sources.map((s) => s.id),
+    );
 
     let syncedTicker = "";
     const migrated = migrateEligibleSessionsToMockRehearsal({
@@ -70,5 +76,17 @@ describe("migrateEligibleSessionsToMockRehearsal", () => {
     expect(signalSources.subscribedSourceIdsForSession(session.id)).toEqual([
       MOCK_REHEARSAL_SIGNAL_SOURCE_ID,
     ]);
+  });
+
+  it("edgar-catalyst signal source id is stable across re-provisioning", () => {
+    const repo = new SignalSourcesRepo(db);
+    const first = ensureExperienceSignalSources(repo, "edgar-catalyst");
+    const second = ensureExperienceSignalSources(repo, "edgar-catalyst");
+    expect(first.map((s) => s.id)).toEqual(second.map((s) => s.id));
+    const expectedId = signalSourceId(
+      "edgar-catalyst",
+      EDGAR_CATALYST_EXPERIENCE.signals[0]?.id ?? "",
+    );
+    expect(first[0]?.id).toBe(expectedId);
   });
 });

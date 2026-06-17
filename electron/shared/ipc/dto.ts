@@ -68,9 +68,9 @@ import type { ExperienceCapabilities } from "@electron/shared/domain/experience"
 export interface ExperienceSummary {
   id: string;
   displayName: string;
-  signalSourceType: import("@electron/shared/domain").SignalSourceType;
+  description: string;
   pipelineId: string;
-  presets: {
+  defaultPresets: {
     posturePresetId: string;
     rulesPresetId: string;
     riskPresetId: string;

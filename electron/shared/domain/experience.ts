@@ -8,4 +8,5 @@ export interface ExperienceCapabilities {
   signalSourceTypes: SignalSourceType[];
   brokerRequirement: BrokerRequirement;
   defaultInstrumentClass?: InstrumentClass;
+  mockRehearsalEligible?: boolean;
 }

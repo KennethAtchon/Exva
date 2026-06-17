@@ -148,7 +148,7 @@ describe("ExperienceScorecardService.generateForExperience", () => {
   it("returns empty scorecard with spend-only net PnL when no closed trades exist", () => {
     const db = createTestDb();
     const session = createMinimalSession(db, {
-      experienceId: "btc-momentum-breakout",
+      experienceId: "rules-breakout",
     });
     new ApiCallLogRepo(db).insert({
       id: "ai-only",
@@ -166,9 +166,8 @@ describe("ExperienceScorecardService.generateForExperience", () => {
       created_at: "2024-01-01T12:00:00Z",
     });
 
-    const scorecard = makeScorecardService(db).generateForExperience(
-      "btc-momentum-breakout",
-    );
+    const scorecard =
+      makeScorecardService(db).generateForExperience("rules-breakout");
 
     expect(scorecard.tradeCount).toBe(0);
     expect(scorecard.walkForward).toBeNull();
@@ -186,7 +185,7 @@ describe("ExperienceScorecardService.generateAll", () => {
     seedPaperExperienceTrades(db, "edgar-catalyst");
     const scorecards = makeScorecardService(db).generateAll();
 
-    expect(scorecards.length).toBe(6);
+    expect(scorecards.length).toBe(5);
     expect(scorecards.map((scorecard) => scorecard.experienceId)).toContain(
       "edgar-catalyst",
     );

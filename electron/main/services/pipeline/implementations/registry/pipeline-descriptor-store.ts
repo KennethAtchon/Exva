@@ -9,6 +9,8 @@ import type {
   InstrumentAnalysisState,
 } from "../../analysis/types";
 
+export type PipelineAutomation = "deterministic" | "ai" | "hybrid";
+
 /**
  * A routable pipeline: the per-instrument trade-cycle plan, plus the metadata
  * used to route signals to it.
@@ -16,12 +18,21 @@ import type {
 export interface PipelineDescriptor {
   id: string;
   displayName: string;
+  automation: PipelineAutomation;
   phases: readonly PipelinePhase[];
   signalSources: readonly SignalSourceType[];
   isDefault?: boolean;
   plan: InstrumentAnalysis<InstrumentAnalysisState>;
   phaseWorkers: Partial<Record<PipelinePhase, readonly string[]>>;
   selectorWorkerIds?: readonly string[];
+}
+
+export interface PipelineStep {
+  id: string;
+  phase: PipelinePhase;
+  kind: "deterministic" | "llm";
+  engines: readonly string[];
+  workers: readonly string[];
 }
 
 const DESCRIPTORS = new Map<string, PipelineDescriptor>();
@@ -47,6 +58,21 @@ export function validatePipelineDescriptor(
     }
   }
   assertPipelinePlanMatchesPhases(descriptor);
+
+  const hasWorkers =
+    Object.values(descriptor.phaseWorkers).some(
+      (ws) => (ws?.length ?? 0) > 0,
+    ) || (descriptor.selectorWorkerIds?.length ?? 0) > 0;
+  if (descriptor.automation === "deterministic" && hasWorkers) {
+    throw new Error(
+      `Pipeline '${descriptor.id}' marked deterministic but declares phase workers.`,
+    );
+  }
+  if (descriptor.automation === "ai" && !hasWorkers) {
+    throw new Error(
+      `Pipeline '${descriptor.id}' marked ai but declares no workers.`,
+    );
+  }
 }
 
 export function registerPipelineDescriptor(
@@ -115,6 +141,19 @@ export function requiredSignalPhasesForPipeline(
   return descriptor.phases.filter((phase) =>
     SIGNAL_PRODUCING_PHASES.includes(phase),
   );
+}
+
+export function describePipelineSteps(p: PipelineDescriptor): PipelineStep[] {
+  const primaryPhase: PipelinePhase =
+    p.plan.inspect.phaseStages[0] ?? "decision";
+  const workers = p.phaseWorkers[primaryPhase] ?? [];
+  return p.plan.inspect.stageIds.map((stageId) => ({
+    id: stageId,
+    phase: primaryPhase,
+    kind: workers.length > 0 ? "llm" : "deterministic",
+    engines: p.plan.inspect.engineStages,
+    workers,
+  }));
 }
 
 export function inspectPipelinePlanPhases(

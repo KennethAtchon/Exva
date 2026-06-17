@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb } from "../../db/test-helpers";
 import { loadExperiencePresetBundle } from "../session-bootstrap";
 import {
@@ -7,6 +7,18 @@ import {
   validateExperienceRegistry,
 } from "../index";
 import { EDGAR_CATALYST_EXPERIENCE } from "../edgar-catalyst/descriptor";
+import { registerPipeline } from "../../services/pipeline/implementations/registry/pipeline-router";
+import { ALL_PIPELINES } from "../../services/pipeline/implementations/registry/pipelines";
+
+beforeAll(() => {
+  for (const p of ALL_PIPELINES) {
+    try {
+      registerPipeline(p);
+    } catch {
+      /* already registered */
+    }
+  }
+});
 
 describe("loadExperiencePresetBundle", () => {
   let db = createTestDb();
@@ -50,7 +62,7 @@ describe("loadExperiencePresetBundle", () => {
 describe("experience registry", () => {
   it("validates all shipped experiences", () => {
     expect(() => validateExperienceRegistry()).not.toThrow();
-    expect(listExperiences()).toHaveLength(6);
+    expect(listExperiences()).toHaveLength(5);
   });
 
   it("rejects duplicate experience registration", () => {
@@ -59,19 +71,18 @@ describe("experience registry", () => {
     );
   });
 
-  it("lists all six shipped experience ids", () => {
+  it("lists all five shipped experience ids", () => {
     expect(
       listExperiences()
         .map((experience) => experience.id)
         .sort(),
     ).toEqual(
       [
-        "btc-momentum-breakout",
-        "commodities-trend-following",
         "edgar-catalyst",
         "prediction-event-edge",
+        "rules-breakout",
         "rules-mean-reversion",
-        "rules-qqq-mean-reversion",
+        "rules-trend-following",
       ].sort(),
     );
   });
