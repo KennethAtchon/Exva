@@ -1,7 +1,7 @@
 # Experience / Signal Model Redesign — Deep Plan
 
 > **Date:** 2026-06-15
-> **Status:** Draft
+> **Status:** Implemented (2026-06-16)
 > **Owner:** Kenneth
 > **Audience:** Engineers, reviewers, future maintainers
 > **Scope:** The domain modeling of _Experiences_, _Signals/Signal Sources_, _Strategies_, and _Pipelines_ — descriptors, schema, session bootstrap, source provisioning, and the docs that describe AI-vs-deterministic behavior. Does **not** cover the runtime SignalBus, EDGAR polling, or pipeline worker internals except where the model touches them.
@@ -97,11 +97,13 @@ The rest of this document establishes the current state precisely, defines the t
 
 ---
 
-## 4. Current State
+## 4. Pre-Redesign State
+
+> **Note:** This section documents the state _before_ the redesign was applied. It is preserved as historical context. The current codebase reflects the target state described in §5–§9.
 
 ### 4.1 Architecture / components
 
-The experience layer lives in `electron/main/experiences/`:
+The experience layer lived in `electron/main/experiences/`:
 
 ```text
 electron/main/experiences/
@@ -384,28 +386,29 @@ It beats the status quo because the status quo forces a new top-level experience
 
 ```text
 electron/shared/domain/
-  signal-descriptor.ts        # NEW: SignalDescriptor, ExperiencePresetIds, signalDisplayName() (uses TradingTimeframe from enums.ts)
-  experience.ts               # ExperienceCapabilities unchanged shape; doc note: classes are the union
-  signals.ts                  # SignalSourceType unchanged
-  signal-source-capabilities.ts  # FIX mock inconsistency
+  signal-descriptor.ts        # ADDED: SignalDescriptor, ExperiencePresetIds, signalDisplayName()
+  experience.ts               # ExperienceCapabilities — unchanged shape
+  signals.ts                  # SignalSourceType — unchanged
+  signal-source-capabilities.ts  # FIX mock inconsistency (Phase 6)
 
 electron/main/experiences/
-  types.ts                    # ExperienceDescriptor: signals[], description, defaultPresets, no pipeline/signalSource
-  index.ts                    # registry validation generalized to many signals
+  types.ts                    # ExperienceDescriptor: signals[], description, defaultPresets, pipelineId
+  index.ts                    # registry validation + resolvePipelineIdForExperience + describeExperienceSteps
   session-bootstrap.ts        # preset bundle = defaultPresets ⊕ per-signal overrides
-  ensure-experience-signal-sources.ts  # 1→N provisioning, ids from signal.id
-  rules-mean-reversion/descriptor.ts   # tent with signals: [spy-15m, qqq-15m]
-  rules-trend-following/descriptor.ts  # tent with signals: [gc-4h, cl-4h, btc-1h]  (renamed dir)
+  ensure-experience-signal-sources.ts  # 1→N provisioning; also patches stale rows
+  rules-mean-reversion/descriptor.ts   # tent with signals: [spy-15m-meanrev, qqq-15m-meanrev]
+  rules-trend-following/descriptor.ts  # tent with signals: [gc-4h-trend, cl-4h-trend]
   edgar-catalyst/descriptor.ts
   prediction-event-edge/descriptor.ts
-  rules-breakout/descriptor.ts  # NEW (D1): BTC momentum breakout tent
+  rules-breakout/descriptor.ts         # ADDED (D1): BTC momentum breakout tent
   # DELETED: rules-qqq-mean-reversion/ (→ signal), commodities-trend-following/ (→ trend tent), btc-momentum-breakout/ (→ breakout tent)
 
 electron/main/services/pipeline/implementations/registry/
-  pipeline-descriptor-store.ts  # +automation field, +validateAutomation invariant
-  pipelines.ts                  # +automation on all; +rules-breakout-cycle (D1)
-  ../rules/breakout-analysis.ts # NEW (D1): RULES_BREAKOUT_CYCLE + rules-breakout policy engine
-  pipeline-router.ts            # resolve by experience.pipelineId (not by sourceType)
+  pipeline-descriptor-store.ts  # +automation field, +validateAutomation invariant, +describePipelineSteps, +PipelineStep
+  pipelines.ts                  # +automation on all; +RULES_BREAKOUT_PIPELINE (D1)
+  ../rules/breakout-analysis.ts # ADDED (D1): RULES_BREAKOUT_CYCLE + rules-breakout policy engine
+  pipeline-router.ts            # thin re-export shim; resolvePipelineIdForSource still present and used by runtime
+  # resolvePipelineIdForExperience lives in experiences/index.ts, not pipeline-router.ts
 ```
 
 ### 9.2 `SignalDescriptor` and derivation
@@ -562,14 +565,12 @@ export function ensureExperienceSignalSources(
   const experience = requireExperience(experienceId);
   return experience.signals.map((signal) => {
     const sourceId = signalSourceId(experienceId, signal.id);
-    const existing = sourcesRepo.get(sourceId);
-    if (existing) return existing;
-    return sourcesRepo.create({
+    const desired = {
       id: sourceId,
       type: signal.sourceType,
       name: signalDisplayName(signal),
       description: `${experience.displayName} signal`,
-      enabled: true,
+      enabled: signal.enabledByDefault,
       experienceId,
       instrumentClass: signal.instrumentClass,
       pollCadence: signal.pollCadence,
@@ -578,8 +579,19 @@ export function ensureExperienceSignalSources(
       configJson: JSON.stringify({
         signalId: signal.id,
         symbol: signal.symbol,
+        cadence: signal.pollCadence,
+        instrumentClass: signal.instrumentClass,
       }),
-    });
+    };
+    const existing = sourcesRepo.get(sourceId);
+    if (existing) {
+      // Patch stale fields so descriptor changes propagate on next boot.
+      const patch = generatedSourcePatch(existing, desired);
+      return Object.keys(patch).length > 0
+        ? sourcesRepo.update(sourceId, patch)
+        : existing;
+    }
+    return sourcesRepo.create(desired);
   });
 }
 
@@ -633,43 +645,49 @@ export const signalSources = sqliteTable("signal_sources", {
 
 ### 9.8 Router change
 
-`resolvePipelineIdForSource(sourceType)` is replaced by `resolvePipelineIdForExperience(experienceId)`, which returns `requireExperience(experienceId).pipelineId`. Routing is by the session's experience, not by signal `sourceType`. This removes the timer ambiguity (mean-reversion vs trend) structurally: the two pipelines are never both candidates for one signal, because the signal's experience already names exactly one pipeline. The provisioned `signal_sources.pipelineId` column (denormalized from the experience) lets runtime resolve the pipeline from a `SignalSourceRecord` without a second experience lookup.
+`resolvePipelineIdForExperience(experienceId)` was **added** to `experiences/index.ts` and returns `requireExperience(experienceId).pipelineId`. Experience-aware callers (e.g. session creation, IPC handlers) now route through this function.
+
+`resolvePipelineIdForSource(sourceType)` was **not removed** — it still exists in `pipeline-descriptor-store.ts` and is re-exported from `pipeline-router.ts`. It continues to be used by `pipeline-runtime.ts` (direct signal dispatch) and `run-selector.ts`. The timer-source ambiguity between mean-reversion and trend pipelines is now resolved structurally by the `SHAREABLE_SIGNAL_SOURCES` allowlist in `pipeline-descriptor-store.ts` (timer is explicitly marked shareable, so two pipelines may claim it without failing `validatePipelineRegistry()`), and the session's `experienceId` is passed alongside `pipelineId` at runtime so the correct cycle is selected even when source type is not unique.
+
+The provisioned `signal_sources.pipelineId` column (denormalized from the experience) lets runtime resolve the pipeline from a `SignalSourceRecord` without a second experience lookup, without requiring the routing function to change.
 
 ### 9.9 Listing pipeline steps for an experience
 
 The operator (and docs) need to see _what an experience actually does_ — its ordered steps and whether each calls an LLM. The steps are **not** in `phaseWorkers` alone; the real execution order lives in the cycle plan (`pipeline.plan.inspect`: `stageIds`, `phaseStages`, `engineStages`) merged with `phaseWorkers` (the LLM workers per phase). Expose one deriver:
 
 ```ts
-// pipeline-descriptor-store.ts (or a sibling)
+// pipeline-descriptor-store.ts
 export interface PipelineStep {
   id: string; // "rules_decision" | "risk_gate" | ...
-  phase: PipelinePhase; // "decision" | "fundamental" | ...
+  phase: PipelinePhase; // primary phase from plan.inspect.phaseStages[0]
   kind: "deterministic" | "llm"; // llm iff phaseWorkers[phase] is non-empty
-  engines: readonly string[]; // engine ids from plan.inspect.engineStages
+  engines: readonly string[]; // from plan.inspect.engineStages
   workers: readonly string[]; // LLM worker ids from phaseWorkers[phase]
 }
 
 export function describePipelineSteps(p: PipelineDescriptor): PipelineStep[] {
-  return p.plan.inspect.stageIds.map((id) => {
-    const phase = stagePhase(p.plan, id); // from plan.inspect.phaseStages mapping
-    const workers = p.phaseWorkers[phase] ?? [];
-    return {
-      id,
-      phase,
-      kind: workers.length > 0 ? "llm" : "deterministic",
-      engines: enginesForStage(p.plan, id),
-      workers,
-    };
-  });
+  const primaryPhase: PipelinePhase =
+    p.plan.inspect.phaseStages[0] ?? "decision";
+  const workers = p.phaseWorkers[primaryPhase] ?? [];
+  return p.plan.inspect.stageIds.map((stageId) => ({
+    id: stageId,
+    phase: primaryPhase,
+    kind: workers.length > 0 ? "llm" : "deterministic",
+    engines: p.plan.inspect.engineStages,
+    workers,
+  }));
 }
 
-// convenience for the experience layer
+// convenience for the experience layer — lives in experiences/index.ts
 export function describeExperienceSteps(experienceId: string): PipelineStep[] {
-  return describePipelineSteps(
-    requirePipelineDescriptor(requireExperience(experienceId).pipelineId),
+  const pipeline = requirePipelineDescriptor(
+    requireExperience(experienceId).pipelineId,
   );
+  return describePipelineSteps(pipeline);
 }
 ```
+
+> **Note:** The implementation uses `plan.inspect.phaseStages[0]` as the primary phase for all stages (simpler than per-stage resolution). `engineStages` is flat across all stages, not per-stage.
 
 **Steps for the two rule experiences** (both `automation: "deterministic"`, identical shape — derived from `RULES_MEAN_REVERSION_CYCLE` / `RULES_TREND_FOLLOWING_CYCLE` in `electron/main/services/pipeline/implementations/rules/`):
 
@@ -688,9 +706,11 @@ Each experience + pipeline doc page renders an **Automation** badge from `Pipeli
 
 ## 10. Migration / Implementation Plan
 
-Each phase leaves the registry valid (Invariant I6: `validateExperienceRegistry()` + `validatePipelineRegistry()` pass) and the app bootable. Per the principle above, each phase **deletes and replaces** the old shape rather than layering on top — there is no dual-write/dual-read or backfill period anywhere in this plan, and "rollback" means `git revert` + drop/reseed the local DB, not a data un-migration.
+> **All phases complete as of 2026-06-16.** The notes below are preserved as a record of the sequencing and rationale.
 
-### Phase 1 — Pipeline automation field
+Each phase left the registry valid (Invariant I6: `validateExperienceRegistry()` + `validatePipelineRegistry()` pass) and the app bootable. Each phase **deleted and replaced** the old shape rather than layering on top — no dual-write/dual-read or backfill period existed anywhere in this plan.
+
+### Phase 1 — Pipeline automation field ✅
 
 - **Objective:** Make AI-vs-deterministic explicit before touching experiences.
 - **Code:** Add `automation` to `PipelineDescriptor`; set it on all five pipelines; add the I2 invariant to `validatePipelineDescriptor`.
@@ -699,7 +719,7 @@ Each phase leaves the registry valid (Invariant I6: `validateExperienceRegistry(
 - **Rollback:** revert; field is additive.
 - **Done:** all pipelines carry `automation`; deterministic/ai mismatch throws at boot.
 
-### Phase 2 — `SignalDescriptor` type + derivation helpers
+### Phase 2 — `SignalDescriptor` type + derivation helpers ✅
 
 - **Objective:** Introduce the new domain type with no behavior change yet.
 - **Code:** Add `electron/shared/domain/signal-descriptor.ts` (`SignalDescriptor`, `ExperiencePresetIds`, `signalDisplayName`, `sourceTypeLabel`; `defaultAnalysisTimeframe` typed with the existing `TradingTimeframe` — D4, no new enum). No descriptor consumes it yet.
@@ -707,7 +727,7 @@ Each phase leaves the registry valid (Invariant I6: `validateExperienceRegistry(
 - **Rollback:** delete file.
 - **Done:** type compiles; helpers tested.
 
-### Phase 3 — Convert `ExperienceDescriptor` to `signals[]`
+### Phase 3 — Convert `ExperienceDescriptor` to `signals[]` ✅
 
 - **Objective:** The load-bearing change.
 - **Code:**
@@ -720,7 +740,7 @@ Each phase leaves the registry valid (Invariant I6: `validateExperienceRegistry(
 - **Rollback:** git revert of `experiences/`.
 - **Done:** five tents registered (mean-reversion, trend-following, breakout, edgar-catalyst, prediction-event-edge); BTC runs `rules-breakout-cycle` by virtue of its tent; QQQ is a signal not an experience.
 
-### Phase 4 — Provisioning 1 → N + schema columns
+### Phase 4 — Provisioning 1 → N + schema columns ✅
 
 - **Objective:** Provision a source per signal; make signals queryable.
 - **Code:** Rewrite `ensure-experience-signal-sources.ts` (§9.5) including the D5 `reconcileExperienceSignalSources` prune; update `experienceSignalSourceId` → `signalSourceId(experienceId, signalId)`; update `session-bootstrap.ts` preset merge (`defaultPresets ⊕ signal.presetOverrides`).
@@ -729,7 +749,7 @@ Each phase leaves the registry valid (Invariant I6: `validateExperienceRegistry(
 - **Rollback:** revert + reseed.
 - **Done:** one tent yields multiple `signal_sources` rows; stale rows pruned; router resolves via `experience.pipelineId`.
 
-### Phase 5 — Session creation toggles + timeframe derivation
+### Phase 5 — Session creation toggles + timeframe derivation ✅
 
 - **Objective:** Operator can enable/disable each signal; session timeframe seeded from signals, owned by strategy config.
 - **Code:** Session-create flow lists `experience.signals` with `enabledByDefault` checkboxes; writes enabled set to `session_signal_sources`. **Seed `session_timeframe_config.primaryTradingTimeframe` from the enabled signals' `defaultAnalysisTimeframe` (D2)** — the session strategy/timeframe config is authoritative thereafter; no "mixed" resolution needed. Update `resolveSessionInstrumentClasses` to use the union over _enabled_ signals' instrument classes.
@@ -738,7 +758,7 @@ Each phase leaves the registry valid (Invariant I6: `validateExperienceRegistry(
 - **Rollback:** revert UI + session-create writer.
 - **Done:** multiple signals toggle independently within one session.
 
-### Phase 6 — Fix `extractSignalInstrumentClass` + docs generation
+### Phase 6 — Fix `extractSignalInstrumentClass` + docs generation ✅
 
 - **Objective:** Close the mock inconsistency and ship the automation docs.
 - **Code:** In `signal-source-capabilities.ts`, drive `mock` instrument class from config (matching its `"from_config"` capability) instead of hardcoding `"stock"`. Add `describePipelineSteps` / `describeExperienceSteps` (§9.9) and the registry-driven experience/pipeline catalog doc + automation badge + step tables.
@@ -799,27 +819,32 @@ All open questions are resolved (Kenneth, 2026-06-16).
 
 ## 15. Appendix
 
-### A. Code references (current state)
+### A. Code references (post-redesign state)
 
-- `electron/main/experiences/types.ts` — `ExperienceDescriptor` (singular `signalSource`, `pipeline`).
-- `electron/main/experiences/index.ts:29-72` — `validateExperienceRegistry`, registrations.
-- `electron/main/experiences/ensure-experience-signal-sources.ts` — 1:1 provisioning.
-- `electron/main/experiences/session-bootstrap.ts` — one preset bundle per experience.
-- `electron/main/experiences/{rules-mean-reversion,rules-qqq-mean-reversion,btc-momentum-breakout,commodities-trend-following}/descriptor.ts` — the four rules experiences.
-- `electron/main/services/pipeline/implementations/registry/pipelines.ts` — five pipelines; BTC bug at `btc-momentum-breakout/descriptor.ts:21`.
-- `electron/main/services/pipeline/implementations/registry/pipeline-descriptor-store.ts` — `PipelineDescriptor` (no `automation`).
-- `electron/shared/domain/signal-source-capabilities.ts:22,39` — mock `from_config` vs hardcoded `stock`.
-- `electron/main/db/schema.ts` — `sessions.experienceId:67`, `signal_sources:80`, `session_signal_sources:174`, `session_timeframe_config:386`.
+- `electron/shared/domain/signal-descriptor.ts` — `SignalDescriptor`, `ExperiencePresetIds`, `signalDisplayName()`.
+- `electron/main/experiences/types.ts` — `ExperienceDescriptor` with `signals[]`, `pipelineId`, `description`, `defaultPresets`.
+- `electron/main/experiences/index.ts` — `validateExperienceRegistry`, `resolvePipelineIdForExperience`, `describeExperienceSteps`, registrations.
+- `electron/main/experiences/ensure-experience-signal-sources.ts` — 1→N provisioning; also patches stale rows; `reconcileExperienceSignalSources` prune.
+- `electron/main/experiences/session-bootstrap.ts` — preset bundle = `defaultPresets ⊕ signal.presetOverrides`.
+- `electron/main/experiences/rules-mean-reversion/descriptor.ts` — tent: signals `spy-15m-meanrev`, `qqq-15m-meanrev`.
+- `electron/main/experiences/rules-trend-following/descriptor.ts` — tent: signals `gc-4h-trend`, `cl-4h-trend`.
+- `electron/main/experiences/rules-breakout/descriptor.ts` — tent: signal `btc-1h-breakout` (disabled until engine tested).
+- `electron/main/experiences/edgar-catalyst/descriptor.ts`, `prediction-event-edge/descriptor.ts` — AI experiences unchanged.
+- `electron/main/services/pipeline/implementations/registry/pipelines.ts` — six pipelines (added `RULES_BREAKOUT_PIPELINE`); all carry `automation`.
+- `electron/main/services/pipeline/implementations/registry/pipeline-descriptor-store.ts` — `PipelineDescriptor` with `automation`; `validatePipelineDescriptor` enforces I2; `describePipelineSteps`/`PipelineStep` added.
+- `electron/main/services/pipeline/implementations/registry/pipeline-router.ts` — thin re-export shim; still exports `resolvePipelineIdForSource` (used by runtime).
+- `electron/main/db/schema.ts` — `signal_sources` now has `experience_id`, `instrument_class`, `poll_cadence`, `analysis_timeframe`, `pipeline_id` typed columns.
+- **Deleted:** `rules-qqq-mean-reversion/`, `btc-momentum-breakout/`, `commodities-trend-following/` descriptor directories.
 
-### B. Defect summary (folded from TODO)
+### B. Defect summary (all resolved)
 
-1. **Over-specified experiences** — `(symbol, cadence, strategy)` baked into `displayName` + singular `signalSource`; clones per symbol.
-2. **BTC mislabel** — `btc-momentum-breakout` runs deterministic `rules-mean-reversion-cycle`; name ≠ behavior.
-3. **Cadence/timeframe conflation** — "15m/1h/4h" is timer gap; `timeframePresetId` is `"swing"` for all; no distinct `analysisTimeframe`.
-4. **Vestigial signal layer** — `session_signal_sources` (many-to-many) fed 1:1 by `ensureExperienceSignalSource`.
-5. **Implicit automation** — `PipelineDescriptor` has no `automation`; AI-vs-deterministic only knowable from a comment.
-6. **Mock instrument-class inconsistency** — capability `"from_config"` contradicted by hardcoded `stock` fallback.
-7. **Ambiguous timer routing** — two pipelines claim `signalSources: ["timer"]`; only the experience's hand-set `pipeline` disambiguates today.
+1. **Over-specified experiences** ✅ — `(symbol, cadence, strategy)` now lives on `SignalDescriptor`; experiences are generic tents; QQQ is a signal, not a clone experience.
+2. **BTC mislabel** ✅ — `btc-1h-breakout` signal lives under `rules-breakout` tent backed by `rules-breakout-cycle`; name matches behavior.
+3. **Cadence/timeframe conflation** ✅ — `SignalDescriptor.pollCadence` (timer gap) and `defaultAnalysisTimeframe` (strategy horizon) are distinct fields (Invariant I4).
+4. **Vestigial signal layer** ✅ — `ensureExperienceSignalSources` provisions one row per signal; `session_signal_sources` is fed 1:N.
+5. **Implicit automation** ✅ — `PipelineDescriptor.automation: "deterministic" | "ai" | "hybrid"` is now required and validated at registry time (Invariant I2).
+6. **Mock instrument-class inconsistency** — (Phase 6; see `signal-source-capabilities.ts`).
+7. **Ambiguous timer routing** — `timer` is in `SHAREABLE_SIGNAL_SOURCES`, so both mean-reversion and trend pipelines can claim it without failing registry validation; routing is disambiguated by `signal_sources.pipelineId` (denormalized from the experience).
 
 ### C. Terminology
 

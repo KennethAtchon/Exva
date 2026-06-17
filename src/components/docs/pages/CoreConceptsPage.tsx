@@ -14,9 +14,9 @@ export function CoreConceptsPage() {
           [
             "Experience",
             <>
-              A packaged trading setup: signal source type, pipeline, instrument
-              classes, and default strategy presets. See{" "}
-              <DocLink to="experiences">Experiences</DocLink>.
+              A trading theme that groups one or more toggleable signals under
+              one pipeline. Sessions pick an experience and enable the signals
+              they want. See <DocLink to="experiences">Experiences</DocLink>.
             </>,
           ],
           [

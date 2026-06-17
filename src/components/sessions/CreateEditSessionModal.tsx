@@ -35,8 +35,8 @@ import {
 import {
   deriveSessionInputModel,
   deriveSessionReadiness,
-  experienceSignalSourceId,
   formatReadinessSummary,
+  formatApproximateTradeHoldLabel,
   formatSignalScopeSectionCaption,
   formatSignalSourceTypeLabel,
   countManualTickers,
@@ -46,6 +46,7 @@ import {
   sourceIsCompatibleWithExperience,
 } from "@electron/shared/instruments/session-input-model";
 import {
+  MOCK_REHEARSAL_SIGNAL_SOURCE_ID,
   resolvePreferredSubscribedSourceId,
   sessionEligibleForMockRehearsal,
   sessionSubscribedToMockRehearsal,
@@ -181,19 +182,11 @@ export const CreateEditSessionModal = ({
         if (cancelled) return;
         const filtered = sources.filter((source) => source.type !== "manual");
         if (!initialSession) {
-          const defaultExperienceId = "edgar-catalyst";
-          const preferredSourceId =
-            experienceSignalSourceId(defaultExperienceId);
           dispatchData({
             signalSources: filtered,
-            subscribedSourceIds: filtered.some(
-              (source) => source.id === preferredSourceId,
-            )
-              ? [preferredSourceId]
-              : filtered
-                  .filter((source) => source.type === "edgar_8k")
-                  .map((source) => source.id)
-                  .slice(0, 1),
+            subscribedSourceIds: filtered
+              .filter((source) => source.type === "edgar_8k" && source.enabled)
+              .map((source) => source.id),
             signalSourcesLoaded: true,
           });
           return;
@@ -645,17 +638,27 @@ export const CreateEditSessionModal = ({
                               brokerAssignmentIds: assignedBrokerIds,
                             })
                           : null;
-                        const preferredSource = preferredSourceId
-                          ? signalSources.find(
-                              (source) => source.id === preferredSourceId,
-                            )
-                          : null;
-                        const preferredSubscribedSources = preferredSource
-                          ? [{ type: preferredSource.type }]
-                          : [];
+                        // Mock-rehearsal: single source. Otherwise: all compatible+enabled sources.
+                        const nextSubscribedSourceIds =
+                          preferredSourceId === MOCK_REHEARSAL_SIGNAL_SOURCE_ID
+                            ? [preferredSourceId]
+                            : signalSources
+                                .filter(
+                                  (s) =>
+                                    matchingSourceIds.includes(s.id) &&
+                                    s.enabled,
+                                )
+                                .map((s) => s.id);
+                        const nextSubscribedSources =
+                          nextSubscribedSourceIds.flatMap((id) => {
+                            const s = signalSources.find(
+                              (src) => src.id === id,
+                            );
+                            return s ? [{ type: s.type }] : [];
+                          });
                         setForm((prev) => {
                           const nextInputModel = deriveSessionInputModel({
-                            subscribedSources: preferredSubscribedSources,
+                            subscribedSources: nextSubscribedSources,
                             instrumentScope: prev.instrumentScope,
                           });
                           return {
@@ -664,7 +667,7 @@ export const CreateEditSessionModal = ({
                             instrumentClasses: experience?.capabilities
                               .instrumentClasses ?? ["stock"],
                             selectionMode: resolveSelectionModeForInput({
-                              subscribedSources: preferredSubscribedSources,
+                              subscribedSources: nextSubscribedSources,
                               instrumentScope: prev.instrumentScope,
                               selectorSettings: prev.selectorSettings,
                             }),
@@ -679,9 +682,7 @@ export const CreateEditSessionModal = ({
                           };
                         });
                         dispatchData({
-                          subscribedSourceIds: preferredSourceId
-                            ? [preferredSourceId]
-                            : [],
+                          subscribedSourceIds: nextSubscribedSourceIds,
                         });
                       }}
                       options={experiences.map((experience) => ({
@@ -784,13 +785,21 @@ export const CreateEditSessionModal = ({
                     {compatibleSignalSources.map((source) => {
                       const checked = subscribedSourceIds.includes(source.id);
                       const isSearchStyle = source.type === "web_search";
+                      const holdEstimate = formatApproximateTradeHoldLabel({
+                        id: source.id,
+                        type: source.type,
+                      });
                       return (
                         <label key={source.id} className={brokerRowClass}>
                           <Switch
                             checked={checked}
                             onCheckedChange={(next) =>
                               dispatchData({
-                                subscribedSourceIds: next ? [source.id] : [],
+                                subscribedSourceIds: next
+                                  ? [...subscribedSourceIds, source.id]
+                                  : subscribedSourceIds.filter(
+                                      (id) => id !== source.id,
+                                    ),
                               })
                             }
                           />
@@ -821,6 +830,11 @@ export const CreateEditSessionModal = ({
                                 ? " · Disabled globally — does not count as a live input"
                                 : ""}
                             </span>
+                            {holdEstimate ? (
+                              <span className="mt-px block text-[12px] text-[var(--text3)]">
+                                Approx. avg hold: {holdEstimate}
+                              </span>
+                            ) : null}
                           </span>
                         </label>
                       );

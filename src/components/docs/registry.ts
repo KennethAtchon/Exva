@@ -242,7 +242,8 @@ const DOC_PAGES: DocPageDefinition[] = [
   {
     slug: "experiences",
     title: "Experiences",
-    description: "Packaged trading setups and capability declarations.",
+    description:
+      "Trading themes, toggleable signals, pipelines, and capability declarations.",
     category: "Operations",
     order: 130,
     related: ["core-concepts", "edgar-pipeline", "signal-source-types"],

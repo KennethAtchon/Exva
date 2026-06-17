@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   deriveSessionInputModel,
   deriveSessionReadiness,
+  formatApproximateTradeHoldLabel,
   formatInstrumentOriginLabel,
   formatReadinessSummary,
   formatSelectionModeChip,
@@ -105,5 +106,28 @@ describe("session-input-model", () => {
     expect(formatSignalSourceTypeLabel("prediction_event")).toBe(
       "Prediction Event",
     );
+  });
+
+  it("formats research-based hold estimates for known timer signals", () => {
+    expect(
+      formatApproximateTradeHoldLabel({
+        id: "rules-mean-reversion/spy-15m-meanrev",
+        type: "timer",
+      }),
+    ).toBe("~1 trading day");
+
+    expect(
+      formatApproximateTradeHoldLabel({
+        id: "rules-trend-following/gc-4h-trend",
+        type: "timer",
+      }),
+    ).toBe("~1-2 weeks");
+
+    expect(
+      formatApproximateTradeHoldLabel({
+        id: "rules-breakout/btc-1h-breakout",
+        type: "timer",
+      }),
+    ).toBe("~2-5 days");
   });
 });

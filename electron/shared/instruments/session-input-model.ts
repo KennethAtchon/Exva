@@ -55,6 +55,22 @@ export function formatSignalSourceTypeLabel(type: SignalSourceType): string {
   }
 }
 
+const APPROXIMATE_TRADE_HOLD_LABELS: Record<string, string> = {
+  [signalSourceId("rules-mean-reversion", "spy-15m-meanrev")]: "~1 trading day",
+  [signalSourceId("rules-mean-reversion", "qqq-15m-meanrev")]: "~1 trading day",
+  [signalSourceId("rules-trend-following", "gc-4h-trend")]: "~1-2 weeks",
+  [signalSourceId("rules-trend-following", "cl-4h-trend")]: "~4-7 days",
+  [signalSourceId("rules-breakout", "btc-1h-breakout")]: "~2-5 days",
+};
+
+export function formatApproximateTradeHoldLabel(source: {
+  id: string;
+  type: SignalSourceType;
+}): string | null {
+  if (source.type !== "timer") return null;
+  return APPROXIMATE_TRADE_HOLD_LABELS[source.id] ?? null;
+}
+
 export function countManualTickers(instrumentScope: string): number {
   return instrumentScope
     .split(/[\n,]/)

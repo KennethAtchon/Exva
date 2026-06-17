@@ -13,12 +13,15 @@ export function ExperiencesPage() {
   return (
     <>
       <DocParagraph>
-        An <DocStrong>experience</DocStrong> bundles everything a session needs
-        except runtime state: a signal source, a pipeline, default strategy
-        presets, and a capability declaration. When you create a session you
-        pick an experience, and Exva provisions the matching signal source type
-        and pipeline automatically. The experience decides <em>what</em> a
-        session can do; the <DocLink to="strategy">Strategy</DocLink> tab tunes{" "}
+        An <DocStrong>experience</DocStrong> is a general trading theme — a
+        &quot;tent&quot; — that groups one or more{" "}
+        <DocStrong>signals</DocStrong> you can toggle independently per session.
+        It declares a pipeline (the strategy that defines the tent), capability
+        constraints, and default presets. When you create a session you pick an
+        experience, choose which of its signals to enable, and Exva provisions
+        the matching signal sources and routes them to the experience&apos;s
+        pipeline automatically. The experience decides <em>what</em> a session
+        can do; the <DocLink to="strategy">Strategy</DocLink> tab tunes{" "}
         <em>how</em>.
       </DocParagraph>
 
@@ -36,16 +39,25 @@ export function ExperiencesPage() {
             pipeline budget.
           </>,
           <>
-            <DocStrong>Signal source</DocStrong> — the default feed and its
-            config (e.g. EDGAR item codes, a timer symbol and cadence).
+            <DocStrong>Signals</DocStrong> — one or more toggleable{" "}
+            <DocStrong>signal descriptors</DocStrong>, each specifying a source
+            type, instrument class, symbol, poll cadence (timer gap), and
+            analysis timeframe. You enable or disable each signal when creating
+            a session; enabled signals are provisioned into{" "}
+            <DocInlineCode>signal_sources</DocInlineCode> and linked to the
+            session via the many-to-many join. Adding a symbol does not require
+            a new experience — it is a new signal within the same tent.
           </>,
           <>
-            <DocStrong>Pipeline</DocStrong> — the analysis flow that runs when a
-            signal arrives.
+            <DocStrong>Pipeline</DocStrong> — the analysis flow that runs when
+            any of the experience&apos;s signals arrives. One pipeline per
+            experience; every signal in the tent routes to the same cycle.
           </>,
           <>
             <DocStrong>Default presets</DocStrong> — the Style, Rules, Risk, and
-            Timeframe presets a new session starts with.
+            Timeframe presets a new session starts with. Individual signals may
+            declare preset overrides that are merged on top of the tent&apos;s
+            defaults.
           </>,
         ]}
       />
@@ -54,17 +66,17 @@ export function ExperiencesPage() {
         From signal to trade
       </DocHeading>
       <DocParagraph>
-        Every experience follows the same path: the signal source{" "}
+        Every experience follows the same path: an enabled signal source{" "}
         <DocStrong>detects</DocStrong> an event and emits a signal, the{" "}
         <DocLink to="signal-architecture">SignalBus</DocLink> fans it out to
         each subscribed session as a queued delivery, the delivery gate checks
         it against the experience&apos;s capabilities, and the pipeline turns it
         into a trade or no-trade decision. What differs between experiences is
-        how the signal is calculated and which pipeline runs.
+        the set of signals offered and which pipeline runs.
       </DocParagraph>
 
       <DocTable
-        headers={["Experience", "Signal", "Instruments", "Pipeline"]}
+        headers={["Experience", "Signal(s)", "Instruments", "Pipeline"]}
         rows={[
           [
             "EDGAR 8-K catalyst drift",
@@ -73,22 +85,28 @@ export function ExperiencesPage() {
             <DocLink to="edgar-pipeline">Catalyst → review → decision</DocLink>,
           ],
           [
-            "SPY / QQQ 15m mean reversion (rules)",
-            <DocInlineCode>timer</DocInlineCode>,
+            "Rules: Mean Reversion",
+            <>
+              <DocInlineCode>timer</DocInlineCode> — SPY · 15m, QQQ · 15m
+            </>,
             "Stocks",
-            "Rule-based mean reversion",
+            "Deterministic mean reversion",
           ],
           [
-            "BTC-USD 1h momentum breakout (rules)",
-            <DocInlineCode>timer</DocInlineCode>,
-            "Crypto",
-            "Rule-based momentum (shared rules pipeline)",
-          ],
-          [
-            "GC/CL 4h trend following (rules)",
-            <DocInlineCode>timer</DocInlineCode>,
+            "Rules: Trend Following",
+            <>
+              <DocInlineCode>timer</DocInlineCode> — GC · 4h, CL · 4h
+            </>,
             "Futures",
-            "Rule-based trend following",
+            "Deterministic SMA-crossover trend",
+          ],
+          [
+            "Rules: Momentum Breakout",
+            <>
+              <DocInlineCode>timer</DocInlineCode> — BTC-USD · 1h
+            </>,
+            "Crypto",
+            "Deterministic resistance breakout",
           ],
           [
             "Prediction event edge",
@@ -120,43 +138,51 @@ export function ExperiencesPage() {
         Rule-based experiences (timer)
       </DocHeading>
       <DocParagraph>
-        The mean-reversion, momentum, and trend-following experiences are{" "}
-        <DocStrong>rule-based</DocStrong>: a{" "}
+        The mean-reversion, trend-following, and momentum-breakout experiences
+        are <DocStrong>rule-based</DocStrong>: a{" "}
         <DocLink to="timer-signals">timer source</DocLink> fires on a fixed
         cadence per symbol, and a deterministic engine computes the setup from
-        OHLCV data with minimal or no LLM involvement. The signal is the timer
-        tick; the &quot;edge&quot; is the rule math.
+        OHLCV data with no LLM involvement. The signal is the timer tick; the
+        &quot;edge&quot; is the rule math. Each experience offers multiple
+        symbols as toggleable signals — enabling both SPY and QQQ in one session
+        runs the same mean-reversion pipeline for each independently.
       </DocParagraph>
       <DocTable
-        headers={["Experience", "Symbol · cadence", "Engine"]}
+        headers={["Experience", "Signals (toggleable)", "Engine"]}
         rows={[
           [
-            "SPY 15m mean reversion",
-            <DocInlineCode>SPY · 15m</DocInlineCode>,
-            "Mean reversion on stocks.",
+            "Rules: Mean Reversion",
+            <>
+              <DocInlineCode>SPY · 1h TF · every 15m</DocInlineCode>
+              <br />
+              <DocInlineCode>QQQ · 1h TF · every 15m</DocInlineCode>
+            </>,
+            "Deterministic mean reversion on liquid stocks.",
           ],
           [
-            "QQQ 15m mean reversion",
-            <DocInlineCode>QQQ · 15m</DocInlineCode>,
-            "Mean reversion focused on QQQ.",
+            "Rules: Trend Following",
+            <>
+              <DocInlineCode>GC · 4h TF · every 4h</DocInlineCode>
+              <br />
+              <DocInlineCode>CL · 4h TF · every 4h</DocInlineCode>
+            </>,
+            "Deterministic SMA-crossover trend on commodity futures.",
           ],
           [
-            "BTC-USD 1h momentum breakout",
-            <DocInlineCode>BTC-USD · 1h</DocInlineCode>,
-            "Momentum breakout (runs the shared rules pipeline).",
-          ],
-          [
-            "GC/CL 4h trend following",
-            <DocInlineCode>GC · 4h</DocInlineCode>,
-            "Trend following on commodity futures.",
+            "Rules: Momentum Breakout",
+            <DocInlineCode>BTC-USD · 4h TF · every 1h</DocInlineCode>,
+            "Deterministic resistance-breakout on crypto. Disabled by default until the breakout engine is fully tested.",
           ],
         ]}
       />
       <DocParagraph>
-        All four ship with Manual Watchlist style, Moderate risk, and a Swing
-        timeframe by default. Because the setup is computed deterministically,
-        these experiences spend far less on AI than catalyst or prediction
-        flows.
+        All three rules experiences ship with Manual Watchlist style, Moderate
+        risk, and a Swing timeframe by default. Each signal carries its own{" "}
+        <DocStrong>poll cadence</DocStrong> (how often the timer fires) and{" "}
+        <DocStrong>analysis timeframe</DocStrong> (the bar horizon the rule
+        reasons over) — these are distinct values and are both shown in the
+        signal label above. Because setup is computed deterministically, rules
+        experiences spend far less on AI than catalyst or prediction flows.
       </DocParagraph>
 
       <DocHeading id="prediction" level={2}>

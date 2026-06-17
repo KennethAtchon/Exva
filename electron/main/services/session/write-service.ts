@@ -157,15 +157,6 @@ export class SessionWriteService {
     }
 
     const subscribedSourceIds = input.subscribedSourceIds ?? [];
-    // A session runs on a single active signal at a time. The broker hosts the
-    // session, so this keeps one active signal per broker.
-    if (new Set(subscribedSourceIds).size > 1) {
-      throw new AppError(
-        "A session can subscribe to only one signal source.",
-        "VALIDATION_FAILED",
-        { field: "subscribedSourceIds" },
-      );
-    }
     const requiresInstrumentScope =
       this.deps.signals?.requiresInstrumentScopeForSourceIds(
         subscribedSourceIds,

@@ -46,7 +46,7 @@ export function GlossaryPage() {
       <GlossaryTerm
         id="term-experience"
         term="Experience"
-        definition="Packaged trading setup combining signal source type, pipeline, presets, and supported instruments."
+        definition="A general trading theme that groups one or more toggleable signals, one pipeline, capability constraints, and default presets. Sessions pick an experience and enable the signals they want; all enabled signals route to the same pipeline."
         related={
           <>
             <DocLink to="experiences">Experiences</DocLink>
