@@ -13,6 +13,7 @@ import { migrateEligibleSessionsToMockRehearsal } from "../migrate-mock-rehearsa
 import { MOCK_REHEARSAL_SIGNAL_SOURCE_ID } from "@electron/shared/instruments/mock-rehearsal";
 import { signalSourceId } from "@electron/shared/instruments/session-input-model";
 import { EDGAR_CATALYST_EXPERIENCE } from "../edgar-catalyst/descriptor";
+import { RULES_MEAN_REVERSION_EXPERIENCE } from "../rules-mean-reversion/descriptor";
 
 describe("migrateEligibleSessionsToMockRehearsal", () => {
   let db = createTestDb();
@@ -88,5 +89,45 @@ describe("migrateEligibleSessionsToMockRehearsal", () => {
       EDGAR_CATALYST_EXPERIENCE.signals[0]?.id ?? "",
     );
     expect(first[0]?.id).toBe(expectedId);
+  });
+
+  it("repairs existing timer signal source config from descriptors", () => {
+    const repo = new SignalSourcesRepo(db);
+    const signal = RULES_MEAN_REVERSION_EXPERIENCE.signals[0];
+    if (!signal) throw new Error("Expected mean-reversion signal");
+    const sourceId = signalSourceId(
+      RULES_MEAN_REVERSION_EXPERIENCE.id,
+      signal.id,
+    );
+    repo.create({
+      id: sourceId,
+      type: signal.sourceType,
+      name: "Stale timer source",
+      description: null,
+      enabled: false,
+      experienceId: RULES_MEAN_REVERSION_EXPERIENCE.id,
+      instrumentClass: null,
+      pollCadence: null,
+      analysisTimeframe: null,
+      pipelineId: null,
+      configJson: JSON.stringify({
+        signalId: signal.id,
+        symbol: signal.symbol,
+      }),
+    });
+
+    const [repaired] = ensureExperienceSignalSources(
+      repo,
+      RULES_MEAN_REVERSION_EXPERIENCE.id,
+    );
+
+    expect(repaired?.enabled).toBe(false);
+    expect(repaired?.pollCadence).toBe(signal.pollCadence);
+    expect(JSON.parse(repaired?.configJson ?? "{}")).toMatchObject({
+      signalId: signal.id,
+      symbol: signal.symbol,
+      cadence: signal.pollCadence,
+      instrumentClass: signal.instrumentClass,
+    });
   });
 });

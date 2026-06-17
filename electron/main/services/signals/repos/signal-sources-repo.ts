@@ -55,6 +55,11 @@ export class SignalSourcesRepo {
       name: string;
       description: string | null;
       enabled: boolean;
+      experienceId: string | null;
+      instrumentClass: string | null;
+      pollCadence: string | null;
+      analysisTimeframe: string | null;
+      pipelineId: string | null;
       configJson: string;
     }>,
   ): SignalSourceRecord {

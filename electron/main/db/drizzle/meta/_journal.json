@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1781483670776,
+      "when": 1781672593509,
       "tag": "0000_initial",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1781588528102,
-      "tag": "0001_organic_nuke",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1781661178406,
-      "tag": "0002_dapper_naoko",
       "breakpoints": true
     }
   ]
