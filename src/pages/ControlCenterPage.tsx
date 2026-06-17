@@ -9,6 +9,7 @@ import {
   Composer,
 } from "@/components/control/ConversationView";
 import { ScopeChip } from "@/components/control/ScopeChip";
+import { AssistantRuntimeMeta } from "@/components/control/AssistantRuntimeMeta";
 
 const EXAMPLES = [
   "Create an EDGAR catalyst session on my paper broker",
@@ -114,6 +115,7 @@ export function ControlCenterPage() {
             <h1 className="truncate text-sm font-semibold text-foreground">
               {convo.conversation?.title ?? "Assistant"}
             </h1>
+            <AssistantRuntimeMeta />
           </div>
           <ScopeChip conversation={convo.conversation} />
           <Button

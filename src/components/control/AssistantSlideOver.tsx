@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Plus, SquareArrowOutUpRight, X } from "lucide-react";
+import { Pencil, Plus, SquareArrowOutUpRight, X } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useControlStore } from "@/store/controlStore";
 import { useControlConversation } from "@/hooks/useControlConversation";
@@ -9,6 +9,7 @@ import {
   ConversationTranscript,
 } from "@/components/control/ConversationView";
 import { ScopeChip } from "@/components/control/ScopeChip";
+import { AssistantRuntimeMeta } from "@/components/control/AssistantRuntimeMeta";
 
 const EXAMPLES = [
   "What's my open risk right now?",
@@ -22,10 +23,19 @@ export function AssistantSlideOver({
 }) {
   const open = useControlStore((s) => s.slideOverOpen);
   const close = useControlStore((s) => s.closeSlideOver);
-  const { activeId, createNew } = useControlConversations({
+  const { activeId, createNew, rename } = useControlConversations({
     autoCreate: open,
   });
   const convo = useControlConversation(open ? activeId : null);
+
+  const handleRename = async () => {
+    if (!convo.conversation) return;
+    const next = window.prompt("Rename conversation", convo.conversation.title);
+    if (next && next.trim()) {
+      await rename(convo.conversation.id, next.trim());
+      await convo.refetch();
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -47,11 +57,26 @@ export function AssistantSlideOver({
       />
       <div className="relative flex h-full w-[420px] max-w-[90vw] flex-col border-l border-border bg-background shadow-2xl">
         <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <span className="text-sm font-semibold text-foreground">
-            Assistant
-          </span>
-          <ScopeChip conversation={convo.conversation} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="truncate text-sm font-semibold text-foreground">
+                {convo.conversation?.title ?? "Assistant"}
+              </span>
+              <ScopeChip conversation={convo.conversation} />
+            </div>
+            <AssistantRuntimeMeta />
+          </div>
           <div className="ml-auto flex items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              title="Rename conversation"
+              onClick={() => void handleRename()}
+              disabled={!convo.conversation}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
             <Button
               size="icon"
               variant="ghost"

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import type { ControlItem } from "@/hooks/useControlConversation";
 import { ToolCallCard } from "./ToolCallCard";
 import { ConfirmationCard } from "./ConfirmationCard";
+import { MarkdownContent } from "./MarkdownContent";
 
 function MessageBubble({
   item,
@@ -33,12 +34,10 @@ function MessageBubble({
         <Sparkles className="h-3.5 w-3.5" />
       </div>
       <div className="max-w-[85%] text-sm text-foreground">
-        <p className="whitespace-pre-wrap break-words leading-relaxed">
-          {item.content}
-          {item.status === "streaming" ? (
-            <span className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse bg-primary align-middle" />
-          ) : null}
-        </p>
+        <MarkdownContent content={item.content} />
+        {item.status === "streaming" ? (
+          <span className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse bg-primary align-middle" />
+        ) : null}
       </div>
     </div>
   );
