@@ -20,10 +20,8 @@ import type {
 } from "@electron/shared/ai/ai-phase";
 import type { AIPhase } from "../phases/types";
 import { ALL_PHASES } from "./all-phases";
-import { requirePipelineDescriptor } from "../implementations/registry/pipeline-descriptor-store";
 import { DEFAULT_PIPELINE_ID } from "../pipeline-constants";
 import { resolvePipelinePhaseWorkers } from "../pipeline-phase-worker-resolver";
-import { PIPELINE_WORKER_SETS, resolveWorkersByIds } from "../worker-registry";
 
 function requireCatalog(
   phase: AIPhase<unknown, unknown>,
@@ -52,22 +50,14 @@ for (const phase of PHASE_INDEX.values()) {
 
 /**
  * Resolves workers for a pipeline phase from the pipeline descriptor graph.
+ * The selector is an ordinary phase: it reads phaseWorkers[phase] exactly like
+ * every other phase. A pipeline with no phaseWorkers.selector resolves to [].
  */
 export function resolvePhaseWorkers(
   phase: PipelinePhase,
   pipelineId = DEFAULT_PIPELINE_ID,
 ): readonly WorkerDefinition[] {
   try {
-    if (phase === "selector") {
-      try {
-        const descriptor = requirePipelineDescriptor(pipelineId);
-        const ids = descriptor.selectorWorkerIds ?? [];
-        if (ids.length > 0) return resolveWorkersByIds(ids);
-      } catch {
-        // Registry not populated yet at module load — fall back to default graph.
-      }
-      return resolveWorkersByIds(PIPELINE_WORKER_SETS.selector.standard);
-    }
     return resolvePipelinePhaseWorkers(pipelineId, phase);
   } catch {
     return [];

@@ -1,6 +1,15 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { scheduleCycleRefillIfIdle } from "../cycle-refill";
 import { TradingCycleContext } from "../../trading-cycle-context";
+import { registerDefaultInstrumentAnalyses } from "../../../../pipeline/implementations/registry/register-analyses";
+
+// A pipeline that researches its own universe — autonomous refill only runs for
+// pipelines whose experience declares selector workers.
+const RESEARCHING_EXPERIENCE = "prediction-event-edge";
+
+beforeAll(() => {
+  registerDefaultInstrumentAnalyses();
+});
 
 describe("scheduleCycleRefillIfIdle", () => {
   it("queues a selector cycle when the orchestrator queue is idle", async () => {
@@ -107,6 +116,10 @@ function createContext(input: {
   const ctx = new TradingCycleContext("session-1", {
     sessionRepo: {
       getStatus: () => input.sessionStatus ?? "active",
+      requireById: () => ({
+        id: "session-1",
+        experienceId: RESEARCHING_EXPERIENCE,
+      }),
     },
     strategyContextService: {
       get: () => ({

@@ -46,7 +46,26 @@ describe("pipelines registration", () => {
     const prediction = ALL_PIPELINES.find(
       (pipeline) => pipeline.id === "prediction-event-cycle",
     );
-    expect(prediction?.selectorWorkerIds?.length).toBeGreaterThan(0);
+    expect(prediction?.phaseWorkers.selector?.length).toBeGreaterThan(0);
+  });
+
+  it("declares selector workers only for pipelines that research", () => {
+    const byId = Object.fromEntries(
+      ALL_PIPELINES.map((pipeline) => [pipeline.id, pipeline]),
+    );
+    // default + prediction-event research their own universe.
+    expect(
+      byId["default-trade-cycle"]?.phaseWorkers.selector?.length,
+    ).toBeGreaterThan(0);
+    // signal-fed pipelines declare no selector workers.
+    for (const id of [
+      "edgar-8k-cycle",
+      "rules-mean-reversion-cycle",
+      "rules-trend-following-cycle",
+      "rules-breakout-cycle",
+    ]) {
+      expect(byId[id]?.phaseWorkers.selector ?? []).toEqual([]);
+    }
   });
 
   it("uses rules-only decision phases for deterministic pipelines", () => {

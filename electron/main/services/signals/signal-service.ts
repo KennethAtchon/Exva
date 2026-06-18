@@ -14,7 +14,6 @@ import {
 } from "../../experiences/ensure-mock-rehearsal-signal-source";
 import { migrateEligibleSessionsToMockRehearsal } from "../../experiences/migrate-mock-rehearsal-subscriptions";
 import { resolveMockRehearsalTicker } from "@electron/shared/instruments/mock-rehearsal";
-import { classifyInstrumentBySymbol } from "@electron/shared/instruments/instrument-classification";
 import { SignalDeadLettersRepo } from "./repos/signal-dead-letters-repo";
 import { SignalDeliveriesRepo } from "./repos/signal-deliveries-repo";
 import { SignalEventsRepo } from "./repos/signal-events-repo";
@@ -328,37 +327,6 @@ export class SignalService {
       if (source.enabled) {
         void this.registry.start(source.id);
       }
-    }
-  }
-
-  injectManualTickers(sessionId: string, instrumentScope: string): void {
-    const tickers = instrumentScope
-      .split(/[\n,]/)
-      .map((part) => part.trim())
-      .filter(Boolean);
-    for (const rawTicker of tickers) {
-      // Classify by symbol shape so a manual "BTC-USD" or option contract is not
-      // forced to stock; the delivery gate then enforces broker support. Keep
-      // `pm:` casing; everything else is upper-cased like a ticker.
-      const instrumentClass = classifyInstrumentBySymbol(rawTicker);
-      const ticker = rawTicker.startsWith("pm:")
-        ? rawTicker
-        : rawTicker.toUpperCase();
-      this.signalBus.injectManual(
-        {
-          id: crypto.randomUUID(),
-          sourceId: MANUAL_SOURCE_ID,
-          sourceType: "manual",
-          ticker,
-          companyName: null,
-          documentUrl: null,
-          accessionNumber: null,
-          payloadJson: { instrumentClass },
-          filedAt: new Date().toISOString(),
-          detectedAt: new Date().toISOString(),
-        },
-        sessionId,
-      );
     }
   }
 

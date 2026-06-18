@@ -39,7 +39,7 @@ import { AIPhaseRunner } from "../phases/interpreter";
 import { requireAIPhase } from "../phases/registry";
 import type { AIPhaseServices } from "../phases/services";
 import { InstrumentAnalysisRunner } from "../analysis/interpreter";
-import { resolvePipelineIdForSource } from "../implementations/registry/pipeline-router";
+import { resolvePipelineIdForExperience } from "../../../experiences";
 import { requireInstrumentAnalysis } from "../analysis/registry";
 import { requireAnalysis } from "../implementations/registry/analysis-resolver";
 import type { InstrumentAnalysisServices } from "../analysis/services";
@@ -200,14 +200,11 @@ export class PipelineRuntime {
   > {
     const plan = requireAnalysis(planId);
     if (plan.kind === "phase") {
-      const trigger = (
-        opts.input as {
-          signalTrigger?: {
-            sourceType?: import("@electron/shared/domain").SignalSourceType;
-          };
-        }
-      )?.signalTrigger;
-      const pipelineId = resolvePipelineIdForSource(trigger?.sourceType);
+      // A phase's pipeline is knowable only from the session's experience —
+      // never from the signal source type (timer is shared by three pipelines,
+      // and a trigger-less cycle has no source at all).
+      const session = this.deps.sessionRepo.requireById(opts.sessionId);
+      const pipelineId = resolvePipelineIdForExperience(session.experienceId);
       return this.runAIPhase({
         phase: plan.id,
         pipelineId,

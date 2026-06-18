@@ -3,7 +3,6 @@ import {
   type PipelinePhase,
 } from "@electron/shared/ai/ai-phase";
 import type { SignalSourceType } from "@electron/shared/domain";
-import { DEFAULT_PIPELINE_ID } from "../../pipeline-constants";
 import type {
   InstrumentAnalysis,
   InstrumentAnalysisState,
@@ -23,8 +22,10 @@ export interface PipelineDescriptor {
   signalSources: readonly SignalSourceType[];
   isDefault?: boolean;
   plan: InstrumentAnalysis<InstrumentAnalysisState>;
+  // Selector workers live in phaseWorkers.selector — the selector is an
+  // ordinary phase. An absent/empty selector key means the pipeline does not
+  // research its own universe (it is purely signal-fed).
   phaseWorkers: Partial<Record<PipelinePhase, readonly string[]>>;
-  selectorWorkerIds?: readonly string[];
 }
 
 export interface PipelineStep {
@@ -59,10 +60,9 @@ export function validatePipelineDescriptor(
   }
   assertPipelinePlanMatchesPhases(descriptor);
 
-  const hasWorkers =
-    Object.values(descriptor.phaseWorkers).some(
-      (ws) => (ws?.length ?? 0) > 0,
-    ) || (descriptor.selectorWorkerIds?.length ?? 0) > 0;
+  const hasWorkers = Object.values(descriptor.phaseWorkers).some(
+    (ws) => (ws?.length ?? 0) > 0,
+  );
   if (descriptor.automation === "deterministic" && hasWorkers) {
     throw new Error(
       `Pipeline '${descriptor.id}' marked deterministic but declares phase workers.`,
@@ -107,24 +107,6 @@ export function validatePipelineRegistry(): void {
       }
     }
   }
-}
-
-function defaultPipelineId(): string {
-  for (const descriptor of DESCRIPTORS.values()) {
-    if (descriptor.isDefault) return descriptor.id;
-  }
-  return DEFAULT_PIPELINE_ID;
-}
-
-export function resolvePipelineIdForSource(
-  sourceType: SignalSourceType | undefined,
-): string {
-  if (sourceType) {
-    for (const descriptor of DESCRIPTORS.values()) {
-      if (descriptor.signalSources.includes(sourceType)) return descriptor.id;
-    }
-  }
-  return defaultPipelineId();
 }
 
 export function requirePipelineDescriptor(id: string): PipelineDescriptor {

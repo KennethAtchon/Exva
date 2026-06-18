@@ -1,8 +1,16 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { TradingCycleContext } from "../../trading-cycle-context";
+import { registerDefaultInstrumentAnalyses } from "../../../../pipeline/implementations/registry/register-analyses";
 import { handleResolvedInstruments } from "../instrument-queue";
 
+// Researching pipeline so the no-instrument retry path schedules a refill.
+const RESEARCHING_EXPERIENCE = "prediction-event-edge";
+
 describe("instrument-queue", () => {
+  beforeAll(() => {
+    registerDefaultInstrumentAnalyses();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
@@ -121,6 +129,10 @@ function createContext(options: { runtimeActive: boolean }) {
   return new TradingCycleContext("session-1", {
     sessionRepo: {
       getStatus: () => "active",
+      requireById: () => ({
+        id: "session-1",
+        experienceId: RESEARCHING_EXPERIENCE,
+      }),
     },
     strategyContextService: {
       get: () => ({

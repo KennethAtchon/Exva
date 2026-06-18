@@ -1,6 +1,5 @@
 import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import type { PipelinePhase } from "@electron/shared/ai/ai-phase";
-import type { SignalSourceType } from "@electron/shared/domain";
 
 /** All registered workers indexed by stable id. */
 const WORKER_INDEX = new Map<string, WorkerDefinition>();
@@ -55,24 +54,4 @@ export function resolvePipelinePhaseWorkerIds(
   phase: PipelinePhase,
 ): readonly string[] {
   return phaseWorkers[phase] ?? [];
-}
-
-/** Selector discovery workers by signal source (front-door routing). */
-export function resolveSelectorWorkerIds(
-  sourceType: SignalSourceType | undefined,
-): readonly string[] {
-  if (!sourceType) {
-    return [...PIPELINE_WORKER_SETS.selector.standard];
-  }
-  if (sourceType === "edgar_8k" || sourceType === "mock") {
-    return [];
-  }
-  if (sourceType === "timer") return [];
-  if (sourceType === "prediction_event") {
-    return [...PIPELINE_WORKER_SETS.selector.event];
-  }
-  if (sourceType === "web_search" || sourceType === "manual") {
-    return [...PIPELINE_WORKER_SETS.selector.standard];
-  }
-  return [...PIPELINE_WORKER_SETS.selector.standard];
 }

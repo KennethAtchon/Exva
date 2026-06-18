@@ -145,7 +145,6 @@ export interface ApprovalRecheckInput {
 
 export interface SessionRuntimeManagerDeps extends OrchestratorDeps {
   signals?: {
-    injectManualTickers(sessionId: string, instrumentScope: string): void;
     onSessionResumed(sessionId: string): void;
     replayStartup(): void;
   };

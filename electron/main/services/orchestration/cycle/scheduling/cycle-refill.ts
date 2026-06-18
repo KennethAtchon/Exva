@@ -1,4 +1,4 @@
-import { canScheduleSelector } from "../../../session/session-trade-state";
+import { canScheduleAutonomousSelector } from "../../../session/session-trade-state";
 import type { TradingCycleContext } from "../trading-cycle-context";
 
 export type ScheduleSelectorCycleFn = (label: string) => Promise<void>;
@@ -13,13 +13,13 @@ export function scheduleCycleRefillIfIdle(
   }
   if (ctx.stopped || !ctx.runtimeIsActive()) return;
   if (ctx.cycleRestartInFlight) return;
-  if (!canScheduleSelector(ctx)) return;
+  if (!canScheduleAutonomousSelector(ctx)) return;
 
   void ctx.queue.onIdle().then(() => {
     if (ctx.stopped || !ctx.runtimeIsActive()) return;
     if (ctx.cycleRestartInFlight) return;
     if (ctx.queue.pending > 0 || ctx.queue.size > 0) return;
-    if (!canScheduleSelector(ctx)) return;
+    if (!canScheduleAutonomousSelector(ctx)) return;
 
     ctx.cycleRestartInFlight = true;
     ctx.emitEvent(

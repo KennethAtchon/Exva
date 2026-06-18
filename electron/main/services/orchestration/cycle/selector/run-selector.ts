@@ -1,6 +1,6 @@
 import type { InstrumentSelection } from "@/lib/schemas";
 import type { SessionConfig, WorkspaceSession } from "@/lib/types";
-import { resolvePipelineIdForSource } from "../../../pipeline/implementations/registry/pipeline-router";
+import { resolvePipelineIdForExperience } from "../../../../experiences";
 import { resolveMockToolContext } from "../../../pipeline/worker-tools/resolve-mock-tool-context";
 import { MarketHoursService } from "../market-hours-service";
 import type { TradingCycleContext } from "../trading-cycle-context";
@@ -59,7 +59,7 @@ export async function runSelector(
     "selector pipeline run complete",
   );
 
-  const pipelineId = resolvePipelineIdForSource(signalTrigger?.sourceType);
+  const pipelineId = resolvePipelineIdForExperience(session.experienceId);
 
   const signalDeliveryId = signalTrigger?.deliveryId;
   const instruments: ResolvedInstrument[] = result.output.instruments.map(

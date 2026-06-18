@@ -36,7 +36,7 @@ function validInput(
     brokerRouteAvailable: true,
     sideBias: "long_only",
     holdingStyle: "multi_day_swing",
-    selectionMode: "signal_driven",
+    selectionSource: "ai_picker",
     selectorTrace: [
       {
         step: 1,
@@ -142,6 +142,32 @@ describe("CandidateValidationService", () => {
     );
     expect(noEvidence.allowed).toBe(false);
     expect(noEvidence.reasons.length).toBeGreaterThan(0);
+  });
+
+  it("skips evidence requirement for entry-engine-supplied instruments (CV-6)", () => {
+    const supplied = service.validate(
+      validInput({
+        // Not ai_picker: a signal-seeded / manual-shortlist instrument.
+        selectionSource: "phase",
+        selectorTrace: [],
+        instrument: {
+          symbol: "AAPL",
+          instrumentClass: "stock",
+          selectorEvidence: selectorEvidence({
+            summary: "supplied directly by signal",
+            hasSearchEvidence: false,
+            hasQuoteEvidence: false,
+            hasOhlcvEvidence: false,
+            hasFetchEvidence: false,
+          }),
+        },
+      }),
+    );
+    expect(
+      supplied.reasons.some((reason) =>
+        reason.includes("No symbol-specific evidence"),
+      ),
+    ).toBe(false);
   });
 
   it("rejects low volume and wide spreads (CV-8/CV-9)", () => {

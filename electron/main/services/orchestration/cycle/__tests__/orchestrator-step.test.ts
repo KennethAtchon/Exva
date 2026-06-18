@@ -1,10 +1,15 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { TradingCycleContext } from "../trading-cycle-context";
+import { registerDefaultInstrumentAnalyses } from "../../../pipeline/implementations/registry/register-analyses";
 import {
   enqueueCycleTask,
   runOrchestratorStep,
   runPhaseCycle,
 } from "../orchestrator-step";
+
+beforeAll(() => {
+  registerDefaultInstrumentAnalyses();
+});
 
 describe("enqueueCycleTask", () => {
   afterEach(() => {
@@ -211,6 +216,7 @@ function createContext(options: { runtimeActive: boolean }) {
       requireById: () => ({
         id: "session-1",
         instrumentClasses: ["stock"],
+        experienceId: "prediction-event-edge",
       }),
     },
     strategyContextService: {

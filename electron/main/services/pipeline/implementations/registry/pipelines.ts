@@ -14,8 +14,10 @@ export const DEFAULT_PIPELINE: PipelineDescriptor = {
   signalSources: ["web_search", "manual"],
   isDefault: true,
   plan: DEFAULT_TRADE_CYCLE,
-  phaseWorkers: PIPELINE_WORKER_SETS.defaultTrade,
-  selectorWorkerIds: PIPELINE_WORKER_SETS.selector.standard,
+  phaseWorkers: {
+    ...PIPELINE_WORKER_SETS.defaultTrade,
+    selector: PIPELINE_WORKER_SETS.selector.standard,
+  },
 };
 
 export const EDGAR_8K_PIPELINE: PipelineDescriptor = {
@@ -26,7 +28,6 @@ export const EDGAR_8K_PIPELINE: PipelineDescriptor = {
   signalSources: ["edgar_8k", "mock"],
   plan: EDGAR_8K_TRADE_CYCLE,
   phaseWorkers: PIPELINE_WORKER_SETS.catalystTwoCall,
-  selectorWorkerIds: [],
 };
 
 export const RULES_MEAN_REVERSION_PIPELINE: PipelineDescriptor = {
@@ -37,7 +38,6 @@ export const RULES_MEAN_REVERSION_PIPELINE: PipelineDescriptor = {
   signalSources: ["timer"],
   plan: RULES_MEAN_REVERSION_CYCLE,
   phaseWorkers: { decision: [] },
-  selectorWorkerIds: [],
 };
 
 export const RULES_TREND_FOLLOWING_PIPELINE: PipelineDescriptor = {
@@ -48,7 +48,6 @@ export const RULES_TREND_FOLLOWING_PIPELINE: PipelineDescriptor = {
   signalSources: ["timer"],
   plan: RULES_TREND_FOLLOWING_CYCLE,
   phaseWorkers: { decision: [] },
-  selectorWorkerIds: [],
 };
 
 export const RULES_BREAKOUT_PIPELINE: PipelineDescriptor = {
@@ -59,7 +58,6 @@ export const RULES_BREAKOUT_PIPELINE: PipelineDescriptor = {
   signalSources: ["timer"],
   plan: RULES_BREAKOUT_CYCLE,
   phaseWorkers: { decision: [] },
-  selectorWorkerIds: [],
 };
 
 export const PREDICTION_EVENT_PIPELINE: PipelineDescriptor = {
@@ -69,8 +67,10 @@ export const PREDICTION_EVENT_PIPELINE: PipelineDescriptor = {
   phases: ["technical", "fundamental", "review", "decision"],
   signalSources: ["prediction_event"],
   plan: DEFAULT_TRADE_CYCLE,
-  phaseWorkers: PIPELINE_WORKER_SETS.defaultTrade,
-  selectorWorkerIds: PIPELINE_WORKER_SETS.selector.event,
+  phaseWorkers: {
+    ...PIPELINE_WORKER_SETS.defaultTrade,
+    selector: PIPELINE_WORKER_SETS.selector.event,
+  },
 };
 
 export const ALL_PIPELINES: readonly PipelineDescriptor[] = [

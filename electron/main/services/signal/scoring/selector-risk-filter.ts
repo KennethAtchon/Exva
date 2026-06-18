@@ -123,6 +123,9 @@ export class SelectorRiskFilter {
       brokerRouteAvailable: true,
       sideBias: this.deps.strategyContext.rules.sideBias,
       holdingStyle: this.deps.strategyContext.timeframe.holdingStyle,
+      // The risk filter only ever evaluates researcher-discovered candidates;
+      // entry-engine-supplied instruments never reach this stage.
+      selectionSource: "ai_picker",
       selectorTrace: candidate.selectorTraces as ToolLLMToolStepTrace[],
       quoteSnapshot,
     });

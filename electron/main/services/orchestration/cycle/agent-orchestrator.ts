@@ -1,10 +1,11 @@
 import type { ExecutionStage, SessionConfig } from "@/lib/types";
-import {
-  sessionRequiresInstrumentScope,
-  type SignalSourceType,
-} from "@electron/shared/domain";
+import type { SignalSourceType } from "@electron/shared/domain";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../../session";
-import { canScheduleSelector } from "../../session/session-trade-state";
+import {
+  canScheduleAutonomousSelector,
+  canScheduleSelector,
+  pipelineResearches,
+} from "../../session/session-trade-state";
 import { TradingCycleContext } from "./trading-cycle-context";
 import { runPhaseCycle } from "./orchestrator-step";
 import { handleResolvedInstruments } from "./scheduling/instrument-queue";
@@ -99,6 +100,9 @@ export class AgentOrchestrator {
     this.ctx.queue.start();
     if (!this.ctx.started) {
       await this.start();
+      return;
+    }
+    if (!canScheduleAutonomousSelector(this.ctx)) {
       return;
     }
     const cycleId = crypto.randomUUID();
@@ -345,16 +349,7 @@ export class AgentOrchestrator {
 
   private shouldRunInitialSelectorCycle(): boolean {
     const session = this.deps.sessionRepo.requireById(this.sessionId);
-    if (session.instrumentScope.trim()) {
-      return true;
-    }
-    const subscribedSourceTypes =
-      this.deps.signalSourcesRepo.subscribedSourceTypesForSession(
-        this.sessionId,
-      );
-    return sessionRequiresInstrumentScope(
-      subscribedSourceTypes.map((type) => ({ type })),
-    );
+    return pipelineResearches(session);
   }
 }
 

@@ -3,11 +3,8 @@ import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
 import { AppError } from "@electron/shared/infra/errors";
 import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/instruments/search-providers";
-import type { SignalSourceType } from "@electron/shared/domain";
-import {
-  resolveSelectorWorkerIds,
-  resolveWorkersByIds,
-} from "../worker-registry";
+import { resolveWorkersByIds } from "../worker-registry";
+import { requirePipelineDescriptor } from "../implementations/registry/pipeline-descriptor-store";
 import type { LLMRunResult } from "../../llm/llm-types";
 import type { AIPhase } from "../phases/types";
 import type { FailureHistoryEntry } from "../../orchestration/cycle/runtime-outcome";
@@ -209,10 +206,8 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
       id: "discovery",
       frontier: 0,
       resolveWorkers(ctx) {
-        const trigger = ctx.input?.signalTrigger as
-          | { sourceType?: SignalSourceType }
-          | undefined;
-        const ids = resolveSelectorWorkerIds(trigger?.sourceType);
+        const ids =
+          requirePipelineDescriptor(ctx.pipelineId).phaseWorkers.selector ?? [];
         return [...resolveWorkersByIds(ids)];
       },
       buildTask(ctx) {

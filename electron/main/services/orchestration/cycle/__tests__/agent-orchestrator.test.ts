@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionConfig, WorkspaceSession } from "@/lib/types";
 import { buildSearchEverythingScope } from "@electron/shared/instruments/session-instrument-classes";
 import { registerAllPhases } from "../../../pipeline/definitions";
+import { registerDefaultInstrumentAnalyses } from "../../../pipeline/implementations/registry/register-analyses";
 import {
   resolveEngine,
   type InputEngine,
@@ -10,6 +11,13 @@ import { AgentOrchestrator } from "../agent-orchestrator";
 import * as runSelectorModule from "../selector/run-selector";
 
 registerAllPhases();
+// The orchestrator decides whether to run an initial/refill research cycle from
+// the session's experience pipeline — so the registry must be populated.
+registerDefaultInstrumentAnalyses();
+
+// Experiences whose pipelines do / don't research their own universe.
+const RESEARCHING_EXPERIENCE = "prediction-event-edge";
+const SIGNAL_FED_EXPERIENCE = "edgar-catalyst";
 
 async function buildCompositeInput(
   builderIds: readonly string[],
@@ -211,6 +219,9 @@ describe("AgentOrchestrator", () => {
       noInstrumentRetryMinutes: 5,
       session: {
         instrumentScope: "",
+        // A signal-fed pipeline declares no selector workers → no autonomous
+        // research, even at start.
+        experienceId: SIGNAL_FED_EXPERIENCE,
       },
       signalSourceTypes: ["edgar_8k"],
     });
@@ -353,7 +364,7 @@ function createDeps({
     instrumentScope: session?.instrumentScope ?? "AAPL",
     defaultSearchProviderId: null,
     executionMode: "paper_only",
-    experienceId: "edgar-catalyst",
+    experienceId: session?.experienceId ?? RESEARCHING_EXPERIENCE,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

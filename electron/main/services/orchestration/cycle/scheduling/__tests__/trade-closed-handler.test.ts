@@ -1,12 +1,23 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Trade } from "@/lib/types";
 import { TradingCycleContext } from "../../trading-cycle-context";
+import { registerDefaultInstrumentAnalyses } from "../../../../pipeline/implementations/registry/register-analyses";
 import {
   attachTradeClosedListener,
   detachTradeClosedListener,
 } from "../trade-closed-handler";
 
+// A pipeline that researches its own universe vs. a purely signal-fed one — the
+// runtime decides "should I autonomously restart research" from the session's
+// experience, not from selectionMode.
+const RESEARCHING_EXPERIENCE = "prediction-event-edge";
+const SIGNAL_FED_EXPERIENCE = "rules-mean-reversion";
+
 describe("attachTradeClosedListener", () => {
+  beforeAll(() => {
+    registerDefaultInstrumentAnalyses();
+  });
+
   it("does not schedule selector restart while sibling trades remain open", async () => {
     const scheduleSelectorCycle = vi.fn(async () => undefined);
     const ctx = createContext({
@@ -50,7 +61,7 @@ describe("attachTradeClosedListener", () => {
     const ctx = createContext({
       openTradeCount: 0,
       runtimeActive: true,
-      selectionMode: "signal_driven",
+      experienceId: SIGNAL_FED_EXPERIENCE,
     });
 
     attachTradeClosedListener(ctx, scheduleSelectorCycle);
@@ -100,7 +111,7 @@ function createContext(input: {
   openTradeCount: number;
   runtimeActive: boolean;
   sessionStatus?: "active" | "monitoring_only";
-  selectionMode?: "manual_shortlist" | "signal_driven" | "ai_selected_universe";
+  experienceId?: string;
 }): TradingCycleContext {
   const listeners = new Map<string, (payload: unknown) => void>();
   const ctx = new TradingCycleContext("session-1", {
@@ -108,7 +119,7 @@ function createContext(input: {
       getStatus: () => input.sessionStatus ?? "active",
       requireById: () => ({
         id: "session-1",
-        selectionMode: input.selectionMode ?? "manual_shortlist",
+        experienceId: input.experienceId ?? RESEARCHING_EXPERIENCE,
       }),
     },
     strategyContextService: {

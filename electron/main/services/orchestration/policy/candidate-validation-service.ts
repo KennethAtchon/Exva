@@ -25,7 +25,12 @@ export interface CandidateValidationInput {
   brokerRouteAvailable?: boolean;
   sideBias?: StrategySideBias;
   holdingStyle?: HoldingStyle;
-  selectionMode?: string;
+  /**
+   * Where this instrument came from. Only researcher-discovered instruments
+   * (`ai_picker`) must carry symbol-specific search evidence; instruments
+   * supplied by an entry engine (signal-seeded, manual shortlist) must not.
+   */
+  selectionSource?: string;
   selectorTrace: ToolLLMToolStepTrace[];
   quoteSnapshot: MarketSnapshot;
   now?: string;
@@ -123,8 +128,10 @@ export class CandidateValidationService {
 
     const structuredEvidence = instrument.selectorEvidence;
 
-    // CV-6: Symbol-specific evidence (skipped for manual shortlist — user explicitly chose these symbols)
-    if (input.selectionMode !== "manual_shortlist") {
+    // CV-6: Symbol-specific evidence. Required only for researcher-discovered
+    // instruments; an instrument supplied by an entry engine (signal-seeded,
+    // manual shortlist) is not required to carry search evidence.
+    if (input.selectionSource === "ai_picker") {
       const hasSearchEvidence = selectorTrace.some((step) =>
         step.toolCalls.some((call) => {
           if (call.tool !== "search_web") return false;

@@ -1,26 +1,32 @@
-# Instrument Sourcing & Researcher-Kickoff Decoupling — Feature Specification
+# Selector-as-Ordinary-Phase — Researcher Decoupling Specification
 
-> **Date:** 2026-06-18
-> **Status:** Draft
-> **Feature area:** Session orchestration, pipeline registry, instrument sourcing, signal delivery
-> **Depends on:** Existing orchestrator (`AgentOrchestrator`), pipeline descriptor registry, signal source system, `docs/specs/signal-driven-architecture.md`
+> **Date:** 2026-06-18 (rewritten 2026-06-18 after code audit)
+> **Status:** Draft v2 — supersedes the `instrumentSourcing` policy-object design
+> **Feature area:** Session orchestration, pipeline registry, selector phase, signal delivery
+> **Depends on:** Existing orchestrator (`AgentOrchestrator`), pipeline descriptor registry, phase/worker registry, `docs/specs/signal-driven-architecture.md`
+
+---
+
+> **Why this was rewritten**
+>
+> The first draft proposed a new declarative field `PipelineDescriptor.instrumentSourcing` (`mode: "signal" | "autonomous_research"` + a `researchTriggers` matrix) plus an `InstrumentSourcingPolicy` resolver and a `canRunResearchCycle` gate. A code audit showed that design **adds a third source of truth that must be kept in agreement** with two fields that already encode the same fact — which is precisely the "tangle of things that must agree but are checked independently" the spec set out to remove. The selector is the *only* phase whose workers are routed by signal source type and stored in a side-channel field (`selectorWorkerIds`) instead of `phaseWorkers`. **Make the selector an ordinary phase and the policy object becomes unnecessary.** This version does that.
 
 ---
 
 > **Architecture Principle — No Backward Compatibility**
 >
-> There are no production sessions or users to preserve. Backward compatibility is **not a goal**. When existing code conflicts with this design, delete and redesign it — no shims, no optional chaining around removed fields. If a path must be gutted to fit, gut it. This spec exists because the *last* migration left coupling and half-applied guards behind (and left dead plumbing like the unwired `manual` signal source); do not repeat that. (Note: this principle does **not** mean delete `manual_shortlist` — it is live and stays; see §3.)
+> There are no production sessions or users to preserve. Backward compatibility is **not a goal**. When existing code conflicts with this design, delete and redesign it — no shims, no optional chaining around removed fields. This spec exists because the *last* migration left coupling and half-applied guards behind (and left dead plumbing like the unwired `manual` signal source); do not repeat that. (This principle does **not** mean delete `manual_shortlist` — it is live and stays; see §3.)
 
 ---
 
 > **Migration Discipline (the root-cause rule this spec exists to enforce)**
 >
-> The repeated failure mode in this codebase is the **half-dead migration**: a new system is built, the old path is left *wired but dormant*, and the dormant path later wakes up and executes — silently — causing bugs (the no-trade researcher kickoff; the default-pipeline fallthrough; `injectManualTickers`). Dormant-but-reachable is the trap.
+> The repeated failure mode in this codebase is the **half-dead migration**: a new system is built, the old path is left *wired but dormant*, and the dormant path later wakes up and executes — silently — causing bugs. Dormant-but-reachable is the trap.
 >
 > **Rules, enforced by CI, not by memory:**
 > 1. **Replace = delete, same change.** When a path is superseded, the old path is removed in the same change. Never "keep it for now."
-> 2. **No second live entry point for one capability.** One feature ⇒ one reachable code path. If two exist, one is a bug waiting to fire.
-> 3. **Dormant code is illegal.** Code that is exported/registered/type-wired but has no reachable caller fails the build. There is no "we'll wire it later" — wire it now or don't add it.
+> 2. **No second live entry point for one capability.** One feature ⇒ one reachable code path.
+> 3. **Dormant code is illegal.** Code that is exported/registered/type-wired but has no reachable caller fails the build.
 > 4. **If it must be staged, it is OFF and unreachable** (behind a flag whose disabled branch is provably dead), never a parallel live path.
 >
 > See §15 for the enforcement mechanism.
@@ -29,9 +35,23 @@
 
 ## 1. Summary
 
-Today, the decision "should this session autonomously kick off a researcher to go hunt for new instruments?" is made ad-hoc in **five+ different places** inside the orchestrator, each with its own inline logic. Some places check `selectionMode`; others don't. Because of one missing guard, a **signal-driven** session (e.g. Rules: Mean Reversion) that returns *no trade* on a signal incorrectly launches an autonomous LLM web-search research cycle — borrowing the **default pipeline's** researcher, even though the session's own pipeline declares **zero** selector workers.
+The selector (the phase that produces the instruments a session trades) is the **only** pipeline phase that does not behave like the others. Every other phase resolves its workers from the session's pipeline descriptor (`phaseWorkers[phase]`). The selector instead:
 
-This feature **extracts the instrument-sourcing policy into declarative per-pipeline config** (`PipelineDescriptor.instrumentSourcing`), routes every orchestrator kickoff site through a **single policy gate** that reads that config, and makes the orchestrator/selector consult the **session's own pipeline** rather than a global default. After this change, whether and when a researcher runs is a property of the pipeline definition — not scattered imperative code. `manual_shortlist` is **kept as-is** (it is the only live fixed-ticker path — see §3 / §6.3); retiring it is deferred.
+- stores its workers in a **side-channel field** `PipelineDescriptor.selectorWorkerIds` rather than in `phaseWorkers`;
+- resolves those workers at runtime by **signal source type** (`resolveSelectorWorkerIds(sourceType)`), never consulting the session's actual pipeline;
+- resolves its own **pipeline id** by signal source type (`resolvePipelineIdForSource(sourceType)`), which falls back to the **default pipeline** whenever there is no signal trigger.
+
+This is why a signal-driven session (e.g. Rules: Mean Reversion) that returns *no trade* and then runs a trigger-less refill cycle launches the **default pipeline's web-search researcher** — even though the session's own pipeline declares **zero** selector workers. With no trigger, `resolvePipelineIdForSource(undefined)` returns `default-trade-cycle`, and `resolveSelectorWorkerIds(undefined)` returns the standard web-scout. The session's own pipeline is never consulted.
+
+**The deeper root cause** is that *pipeline identity is derived from signal source type at all.* It cannot be: `timer` is shared by `rules-mean-reversion-cycle`, `rules-trend-following-cycle`, and `rules-breakout-cycle` (the registry has a `SHAREABLE_SIGNAL_SOURCES` set specifically to permit this collision). `resolvePipelineIdForSource("timer")` returns whichever of the three registered first. **A session's pipeline is only knowable from `session.experienceId`** — and the resolver for that, `resolvePipelineIdForExperience(experienceId)`, already exists.
+
+**This feature makes the selector an ordinary phase:**
+
+1. Selector workers move into `phaseWorkers.selector` (already type-valid — `selector` is already a `PipelinePhase`). The `selectorWorkerIds` field is deleted.
+2. Selector worker resolution reads `requirePipelineDescriptor(ctx.pipelineId).phaseWorkers.selector`, the same path every other phase uses. `resolveSelectorWorkerIds` is deleted.
+3. The selector phase's `pipelineId` is resolved from the **session's experience**, never from the signal source type. `resolvePipelineIdForSource` is removed from the selector/trade-cycle path.
+
+After this change, **whether a pipeline researches its own universe is encoded by exactly one fact: does its `phaseWorkers.selector` list have entries.** No new config object, no `mode` enum, no `researchTriggers`. The orchestrator's "should I autonomously start a selector cycle?" decision collapses to one derived predicate that reads that list. `manual_shortlist` is **kept as-is** (§3 / §6.3).
 
 ---
 
@@ -44,12 +64,12 @@ This feature **extracts the instrument-sourcing policy into declarative per-pipe
 Secondary:
 
 > **As an** engineer extending Exva with a new experience/pipeline,
-> **I want** to declare "this pipeline gets its instruments from signals" vs "this pipeline researches its own universe" in one config object,
-> **So that** I don't have to find and patch five orchestrator branches and hope I got them all.
+> **I want** to declare a pipeline's research workers in the same `phaseWorkers` map as every other phase,
+> **So that** "does this pipeline research its own universe" is a property of its worker list — not a separate policy field I can forget to set, and not five orchestrator branches I have to find and patch.
 
-> **As a** trader running an `ai_selected_universe` (web-search) experience,
-> **I want** the researcher to run on the cadence the pipeline declares (start, after a flat cycle, after a trade closes),
-> **So that** autonomous discovery keeps working exactly as before for the experiences that actually want it.
+> **As a** trader running a web-search experience,
+> **I want** the researcher to run exactly as before,
+> **So that** autonomous discovery keeps working for the experiences that actually declare selector workers.
 
 ---
 
@@ -57,22 +77,23 @@ Secondary:
 
 **In scope:**
 
-1. New declarative field `instrumentSourcing` on `PipelineDescriptor`.
-2. A single `InstrumentSourcingPolicy` resolver + one orchestrator gate (`canRunResearchCycle`) that replaces all scattered kickoff conditionals.
-3. Fixing the no-trade refill bug (`cycle-refill.ts` / `canScheduleSelector`) by routing it through the gate.
-4. Making `shouldRunInitialSelectorCycle`, the trade-closed handler, attention-restart, and resolved-instrument retry all consult the same gate.
-5. Making the selector resolve the **session's own pipeline descriptor**, never the global default, when there is no signal trigger.
-6. Tests that lock the invariants so this class of bug cannot regress.
+1. Move selector workers from `PipelineDescriptor.selectorWorkerIds` into `PipelineDescriptor.phaseWorkers.selector`; delete the field.
+2. Resolve selector workers from the session's pipeline descriptor (`ctx.pipelineId`), deleting `resolveSelectorWorkerIds`.
+3. Resolve the selector phase's `pipelineId` (and the trade instrument's stamped `pipelineId`) from `session.experienceId` via `resolvePipelineIdForExperience`, deleting the `resolvePipelineIdForSource` call from the selector and trade-cycle paths.
+4. Replace every scattered "should I autonomously kick off a selector cycle?" check with one derived predicate, `pipelineResearches(session)`, that reads `phaseWorkers.selector`. No orchestrator code reads `selectionMode`.
+5. A defense-in-depth invariant: a pipeline with no selector workers that somehow enters a trigger-less selector cycle produces zero instruments by construction (empty discovery stage) and is logged, not errored.
+6. Repoint the `candidate-validation-service` CV-6 evidence check off `selectionMode` and onto selection *source* (discovered vs supplied).
+7. Tests that lock the invariants so this class of bug cannot regress.
 
-**Explicitly NOT deleted (corrected 2026-06-18):** `manual_shortlist` is **kept**. It is the *only live* path for fixed-ticker sessions — the `manual-shortlist` entry engine reads `instrumentScope` directly in the selector phase. The `manual` **signal source** (`injectManualTickers` / `MANUAL_SOURCE_ID`) is **dead code** — it has no caller and `session-runtime-manager.test.ts` asserts `injectManualTickers` is never called. The two were conflated in the first draft; they are different implementations and only the entry-engine one runs. Retiring `manual_shortlist` in favor of the manual signal source is a separate future effort (see §13 Q5), not part of this fix.
+**Explicitly NOT deleted:** `manual_shortlist` is **kept**. The `manual-shortlist` entry engine is the only live fixed-ticker path; it reads `session.instrumentScope` in the selector phase. `SelectionMode` keeps all three members. The `manual` **signal source** (`injectManualTickers` / `MANUAL_SOURCE_ID`) is dead code with no caller and is deleted (§14).
 
 **Out of scope:**
 
-- Changing how signal-seeded selection materializes an instrument from a signal (the `signal-seeded` entry engine stays as-is).
-- Changing the LLM selector worker prompts or the `submit_result` terminal-tool mechanics (the gemma failure was a *symptom*; the root fix is not running the researcher at all for signal-driven sessions).
+- Changing how the `signal-seeded` entry engine materializes an instrument from a signal (stays as-is).
+- Changing selector worker prompts or `submit_result` terminal-tool mechanics.
 - Model/provider assignment per role.
-- Deleting `manual_shortlist` or wiring the dormant `manual` signal source (deferred — §13 Q5).
-- The broader signal-source vision already covered by `signal-driven-architecture.md`.
+- Deleting `manual_shortlist` or wiring the dormant `manual` signal source (deferred — §13 Q4).
+- The broader signal-source vision in `signal-driven-architecture.md`.
 
 ---
 
@@ -80,89 +101,95 @@ Secondary:
 
 ### 4.1 Current state (the problem)
 
-**Where instruments come from today** is implied by a tangle of three things that must agree but are checked independently:
+Three fields imply "where do instruments come from," checked independently and never reconciled:
 
-| Layer | Field | Values | Authority for… |
-|-------|-------|--------|----------------|
-| Session (derived) | `selectionMode` | `signal_driven` \| `ai_selected_universe` \| `manual_shortlist` | UI labeling, *some* orchestrator guards |
-| Pipeline descriptor | `selectorWorkerIds` | `string[]` (empty ⇒ no researcher) | Which selector workers exist |
-| Pipeline descriptor | `signalSources` | `SignalSourceType[]` | Signal→pipeline routing |
+| Layer | Field | Authority for… | Problem |
+|-------|-------|----------------|---------|
+| Session (derived) | `selectionMode` | UI labeling, *some* orchestrator guards | Inline `signal_driven` check in trade-closed only; not propagated to refill |
+| Pipeline descriptor | `selectorWorkerIds` | Which selector workers exist | Side-channel; not in `phaseWorkers`; resolved by source type, not pipeline |
+| Pipeline descriptor | `signalSources` | Signal→pipeline routing | Ambiguous: `timer` maps to 3 pipelines |
 
-**Researcher-kickoff sites (every place that can launch an autonomous selector cycle):**
+**Selector worker + pipeline resolution today (the two coupled bugs):**
 
-| # | Site | File | Reads `selectionMode`? | Correct today? |
-|---|------|------|------------------------|----------------|
-| 1 | Initial cycle on start | `agent-orchestrator.ts` `shouldRunInitialSelectorCycle()` | No — checks `instrumentScope` + source-requires-scope | Partially |
-| 2 | No-trade refill | `cycle-refill.ts` via `canScheduleSelector()` | **No** | ❌ **the bug** |
-| 3 | Trade-closed restart | `trade-closed-handler.ts` | **Yes** (`signal_driven` skip) | ✅ |
-| 4 | Restart from attention | `agent-orchestrator.ts` `restartFromAttention()` | No | Unverified |
-| 5 | Resolved-instrument retry | `agent-orchestrator.ts` `handleResolvedInstruments()` | No | Unverified |
-| 6 | Signal delivery (signal-seeded) | `attachSignalListener()` | N/A — always carries a `signalTrigger` | ✅ (different path) |
+- `selector.phase.ts` `stages[0].resolveWorkers(ctx)` → `resolveSelectorWorkerIds(ctx.input.signalTrigger?.sourceType)`. Routes by source type. `undefined` → standard web-scout.
+- `pipeline-runtime.ts` `runPlan("selector")` → `resolvePipelineIdForSource(trigger?.sourceType)`. `undefined` → `default-trade-cycle`. This becomes `ctx.pipelineId`.
+- `run-selector.ts:62` stamps each resolved instrument with `resolvePipelineIdForSource(signalTrigger?.sourceType)` — so the *trade cycle* also runs the wrong pipeline for trigger-less cycles.
 
-Sites 1–5 all call `scheduleSelectorCycle(label)` **without a `signalTrigger`**. With no trigger, `runSelector` → `ai.runPlan("selector")` resolves its entry engine to the **AI picker** (autonomous discovery) using the **default** pipeline's `selectorWorkerIds`, because `resolvePipelineIdForSource(undefined)` returns `default-trade-cycle`. **The session's own pipeline is never consulted.** That is how a Mean Reversion session (pipeline `rules-mean-reversion-cycle`, `selectorWorkerIds: []`) ran the web-search researcher from `default-trade-cycle`.
+**Researcher-kickoff sites** (every place that can launch a trigger-less selector cycle): initial-on-start (`shouldRunInitialSelectorCycle`, an `instrumentScope` heuristic), no-trade refill (`cycle-refill.ts` → `canScheduleSelector`, capacity-only — **the reported bug**), trade-closed restart (`trade-closed-handler.ts`, inline `selectionMode === "signal_driven"` skip), attention-restart, resolved-instrument retry. They disagree on whether they check sourcing at all. Signal delivery is a separate path — it always carries a `signalTrigger`.
 
-The single guard that *is* correct (site 3) hardcodes `selectionMode === "signal_driven"` inline. It was added in the trade-closed path and never propagated to the no-trade path. That divergence is the literal bug.
+The single guard that *is* correct (trade-closed) hardcodes `selectionMode === "signal_driven"` inline and was never propagated. That divergence is the literal reported bug; the source-type pipeline resolution is the structural one underneath it.
 
 ### 4.2 Target state (the fix)
 
-**One declarative policy, one gate, consulted everywhere.**
+**The selector is an ordinary phase. Its worker list is the policy.**
 
 ```
-PipelineDescriptor.instrumentSourcing   ← single source of truth (config)
-            │
-            ▼
-resolveInstrumentSourcingPolicy(sessionId)  ← resolves session → its pipeline → policy
-            │
-            ▼
-canRunResearchCycle(ctx, trigger)       ← the ONE gate
-            │
-   ┌────────┴───────────────────────────────────┐
-   ▼            ▼            ▼            ▼         ▼
- start     no-trade    trade-closed  attention  retry
-(site 1)   (site 2)     (site 3)     (site 4)  (site 5)
+session.experienceId
+        │  resolvePipelineIdForExperience(experienceId)   ← already exists; unambiguous
+        ▼
+   pipelineId  ──────────────► requirePipelineDescriptor(pipelineId).phaseWorkers.selector
+        │                                   │
+        │                                   ▼
+        │                     [] ⇒ pipeline does not research
+        │                     [ids] ⇒ pipeline researches its own universe
+        ▼
+  pipelineResearches(session) := (phaseWorkers.selector ?? []).length > 0
+        │
+   ┌────┴──── single predicate, consulted at every kickoff site ────┐
+   ▼          ▼            ▼              ▼              ▼
+ start     no-trade    trade-closed   attention      retry
 ```
 
-Every kickoff site asks `canRunResearchCycle`. No site reads `selectionMode` directly. No site falls through to the default pipeline.
+- **Selector worker resolution** (in `SELECTOR_PHASE`) reads `requirePipelineDescriptor(ctx.pipelineId).phaseWorkers.selector ?? []` and runs them through `resolveWorkersByIds`. Identical to how `technical`, `fundamental`, etc. resolve. No source-type branch.
+- **`ctx.pipelineId` is the session's real pipeline** (`resolvePipelineIdForExperience(session.experienceId)`), so a Mean Reversion session resolves `rules-mean-reversion-cycle`, whose `phaseWorkers.selector` is absent ⇒ the discovery stage has zero workers ⇒ stage skipped ⇒ selector returns no instruments ⇒ no researcher. **Correct by construction**, even if a trigger-less cycle is scheduled.
+- **The orchestrator gate becomes an optimization**, not the correctness boundary: `pipelineResearches(session)` answers "is it worth scheduling an autonomous selector cycle." The capacity / open-trade / attention / stopped checks are unchanged and still apply.
 
-**Pipeline classification under the new policy:**
+**Pipeline classification under the new model:**
 
-| Pipeline | `signalSources` | `selectorWorkerIds` | `instrumentSourcing.mode` | Researcher runs? |
-|----------|-----------------|---------------------|---------------------------|------------------|
-| `rules-mean-reversion-cycle` | `["timer"]` | `[]` | `signal` | **Never** |
-| `rules-trend-following-cycle` | `["timer"]` | `[]` | `signal` | Never |
-| `rules-breakout-cycle` | `["timer"]` | `[]` | `signal` | Never |
-| `edgar-8k-cycle` | `["edgar_8k","mock"]` | `[]` | `signal` | Never |
-| `prediction-event-cycle` | `["prediction_event"]` | `event` | `signal` | Never (signal supplies the market) |
-| `default-trade-cycle` | `["web_search","manual"]` | `standard` | `autonomous_research` | Per declared triggers |
+| Pipeline | `automation` | `phaseWorkers.selector` | Researches? |
+|----------|--------------|--------------------------|-------------|
+| `rules-mean-reversion-cycle` | deterministic | *(absent)* | **No** |
+| `rules-trend-following-cycle` | deterministic | *(absent)* | No |
+| `rules-breakout-cycle` | deterministic | *(absent)* | No |
+| `edgar-8k-cycle` | ai | *(absent)* | No (ai phases are trade-cycle only; signal-fed) |
+| `prediction-event-cycle` | ai | **decision pending — see §13 Q1** | see §13 Q1 |
+| `default-trade-cycle` | ai | `["web-scout"]` | **Yes** |
 
-> Note: `selectorWorkerIds` non-empty is **necessary but not sufficient** to define a researcher pipeline. `prediction-event-cycle` carries event-selector workers yet is still signal-fed (the prediction event *is* the signal). The explicit `instrumentSourcing.mode` removes this ambiguity instead of inferring it from `selectorWorkerIds.length`.
+> Note: `automation` and "researches" are **orthogonal**, and the code already treats them so. `edgar-8k-cycle` is an `ai` pipeline (its trade-cycle phases use LLM workers) yet has no selector workers and is purely signal-fed. This dissolves the first draft's Q4 ("should deterministic imply signal-only?") — it never needed to, because the selector worker list, not `automation`, governs research.
 
-### 4.3 New component: `InstrumentSourcingPolicy`
+### 4.3 The derived predicate
 
-A pure resolver, no orchestrator state. Lives in `electron/main/services/pipeline/implementations/registry/` (next to the descriptor store) or a new `instrument-sourcing/` module under orchestration. It takes a session, finds its pipeline descriptor, and returns the policy.
+A pure function, no orchestrator state:
 
+```typescript
+function pipelineResearches(
+  session: WorkspaceSession,
+): boolean {
+  const pipelineId = resolvePipelineIdForExperience(session.experienceId);
+  const selectorWorkers =
+    requirePipelineDescriptor(pipelineId).phaseWorkers.selector ?? [];
+  return selectorWorkers.length > 0;
+}
 ```
-resolveInstrumentSourcingPolicy(deps, sessionId)
-  → load session
-  → resolve pipelineId for session   (experience.pipelineId — NOT the default fallback)
-  → requirePipelineDescriptor(pipelineId).instrumentSourcing
-  → return policy
+
+This replaces `instrumentSourcing` + `resolveInstrumentSourcingPolicy` + the `canRunResearchCycle` policy gate from the first draft. There is no new config field to validate and no `mode` to keep in sync — the worker list *is* the configuration.
+
+### 4.4 The kickoff guard
+
+The existing `canScheduleSelector(ctx)` (capacity + open-trade) is widened with the predicate and reused at every trigger-less site. Keep the typed-result shape only if logging the reason is wanted; a boolean is sufficient:
+
+```typescript
+function canScheduleAutonomousSelector(ctx): boolean {
+  if (ctx.stopped || !ctx.runtimeIsActive()) return false;            // runtime_inactive
+  if (sessionStatus === "attention_required") return false;          // session_attention (where applicable)
+  if (!pipelineResearches(session)) return false;                    // pipeline does not research
+  if (hasAnyOpenTrade(...)) return false;                            // open_trades_remain
+  if (openAndPending >= max_concurrent_trades) return false;         // capacity_full
+  return true;
+}
 ```
 
-### 4.4 New component: `canRunResearchCycle` gate
-
-Replaces `canScheduleSelector` (renamed + widened) and the inline guard in `trade-closed-handler`. Returns a typed result so callers can log *why* it declined.
-
-```
-canRunResearchCycle(ctx, { triggerEvent }) → { ok: true } | { ok: false; reason }
-  reasons:
-    "policy_signal_only"        → pipeline is signal-fed; researcher never runs
-    "trigger_not_enabled"       → autonomous pipeline, but this trigger (onNoTrade/…) is off
-    "open_trades_remain"        → capacity guard (existing)
-    "capacity_full"             → capacity guard (existing)
-    "session_attention"         → existing attention_required guard
-    "runtime_inactive"          → stopped / not active
-```
+Signal delivery does **not** go through this guard — signal-seeded cycles always run (they are the point of a signal pipeline). The guard governs only **autonomous** (trigger-less) cycles.
 
 ---
 
@@ -172,86 +199,58 @@ canRunResearchCycle(ctx, { triggerEvent }) → { ok: true } | { ok: false; reaso
 
 ```mermaid
 flowchart TD
-    A[Session created] --> B[Derive selectionMode + pipelineId from inputs/experience]
-    B --> C[Session start: orchestrator.start]
+    A[Session created] --> B[Resolve pipelineId from experienceId]
+    B --> C[orchestrator.start]
     C --> D[attachSignalListener]
     C --> E[attachTradeClosedListener]
-    C --> F{canRunResearchCycle ctx, onStart?}
-    F -- ok --> G[Run initial research cycle]
-    F -- policy_signal_only --> H[Do nothing; wait for signals]
+    C --> F{pipelineResearches?}
+    F -- yes --> G[Run initial research cycle]
+    F -- no --> H[Do nothing; wait for signals]
 
     subgraph Signal path - all pipelines
       I[Signal delivered: status=queued] --> J[scheduleSelectorCycle WITH signalTrigger]
-      J --> K[signal-seeded engine: instrument = signal ticker]
+      J --> K[signal-seeded entry engine: instrument = signal ticker]
       K --> L[Trade cycle for that instrument]
     end
 
     subgraph After a cycle
       L --> M{Outcome}
       M -- traded --> N[Position open; monitor]
-      M -- no_trade --> O{canRunResearchCycle ctx, onNoTrade?}
-      O -- policy_signal_only --> P[STOP. Wait for next signal]
-      O -- ok --> Q[scheduleSelectorCycle research]
-      N -- trade_closed --> R{canRunResearchCycle ctx, onTradeClosed?}
-      R -- policy_signal_only --> P
-      R -- ok --> Q
+      M -- no_trade --> O{canScheduleAutonomousSelector?}
+      O -- no --> P[STOP. Wait for next signal]
+      O -- yes --> Q[scheduleSelectorCycle research]
+      N -- trade_closed --> R{canScheduleAutonomousSelector?}
+      R -- no --> P
+      R -- yes --> Q
     end
 ```
 
-**Happy path — Mean Reversion (signal pipeline):**
+**Happy path — Mean Reversion (no selector workers):**
 
-1. Session created subscribed to the `timer` mean-reversion source → `selectionMode = signal_driven`, `pipelineId = rules-mean-reversion-cycle`, whose descriptor declares `instrumentSourcing.mode = "signal"`.
-2. `orchestrator.start()`: attaches signal + trade-closed listeners. Calls `canRunResearchCycle(ctx, { triggerEvent: "onStart" })` → `{ ok: false, reason: "policy_signal_only" }`. No initial research cycle. Emits info log, **not** an error.
+1. Session created on the mean-reversion experience → `experienceId` resolves to `rules-mean-reversion-cycle`, whose `phaseWorkers.selector` is absent → `pipelineResearches` = false.
+2. `orchestrator.start()`: attaches listeners. `pipelineResearches` is false → no initial research cycle. Info log, not an error.
 3. Every 15m the timer source emits a signal for SPY/QQQ. Delivery gate passes → delivery `queued`.
-4. Signal listener fires → `scheduleSelectorCycle("Signal delivery queued", signalTrigger)` → `signal-seeded` engine returns the signal's ticker directly (no LLM discovery) → one trade cycle.
-5. Trade cycle runs the deterministic `rules-mean-reversion-cycle` pipeline. Returns **no trade**.
-6. `finishWithoutOpenPosition` → `scheduleCycleRefillAfterDelayIfIdle` → `canRunResearchCycle(ctx, { triggerEvent: "onNoTrade" })` → `{ ok: false, reason: "policy_signal_only" }`. **Nothing scheduled.** Cycle ends. System idles until the next 15m signal.
+4. Signal listener fires → `scheduleSelectorCycle("Signal delivery queued", signalTrigger)`. `ctx.pipelineId` = `rules-mean-reversion-cycle`. The `signal-seeded` entry engine matches (trigger present, source not search-style) → returns the signal's ticker directly. Discovery stage never reached. One trade cycle on the deterministic plan.
+5. Trade cycle returns **no trade**.
+6. `finishWithoutOpenPosition` → refill path → `canScheduleAutonomousSelector` → `pipelineResearches` false → **nothing scheduled.** Idle until the next signal.
 
-No researcher. No COIN/STRK/IOTX. No gemma verification failure. No session-stopping error.
+Even if step 6 *did* schedule a trigger-less cycle (belt-and-suspenders), `resolveWorkers` would read `rules-mean-reversion-cycle.phaseWorkers.selector` = `[]` → discovery stage skipped → empty instruments → no researcher, no COIN/STRK/IOTX, no LLM call.
 
-**Happy path — Web Search (autonomous_research pipeline):** identical wiring, but the policy is `{ mode: "autonomous_research", researchTriggers: { onStart: true, onNoTrade: true, onTradeClosed: true, onAttentionRestart: true } }`, so each gate returns `{ ok: true }` (subject to capacity) and the researcher runs exactly as it does today.
+**Happy path — Web Search (`default-trade-cycle`, has selector workers):** identical wiring; `pipelineResearches` = true, so each autonomous site schedules a cycle (subject to capacity) and the researcher runs exactly as today.
 
 ### 5.2 Deviations
 
-- **If the session has open trades / is at capacity:** gate returns `open_trades_remain` / `capacity_full` (existing behavior preserved), regardless of policy.
-- **If the session is `attention_required`:** gate returns `session_attention`; no cycle (existing behavior preserved).
-- **If a signal arrives for a signal pipeline while a research cycle is somehow in flight:** signal path is independent of the research gate; signal-seeded cycles always run (they are the *point* of a signal pipeline). The gate governs only **autonomous** (trigger-less) cycles.
-- **If `instrumentSourcing` is missing on a descriptor:** registry validation fails at startup (see §8). The app refuses to boot rather than silently defaulting — a missing policy is a developer error, not a runtime fallback.
+- **Open trades / at capacity / attention_required:** guard returns false for those reasons (existing behavior preserved), regardless of worker list.
+- **Signal arrives while an autonomous cycle is in flight:** signal path is independent of the autonomous guard; signal-seeded cycles always run.
+- **`phaseWorkers.selector` present but trade-cycle resolves a different pipeline:** cannot happen — both the selector phase and the trade instrument now stamp `pipelineId` from the same `resolvePipelineIdForExperience(session.experienceId)`.
 
 ---
 
 ## 6. Data & Config Mapping
 
-### 6.1 New config type: `InstrumentSourcing`
-
-Add to `PipelineDescriptor` (`pipeline-descriptor-store.ts`):
+### 6.1 Descriptor change
 
 ```typescript
-export type InstrumentSourcingMode = "signal" | "autonomous_research";
-
-export interface InstrumentSourcing {
-  /**
-   * Where this pipeline's instruments come from.
-   * - "signal": instruments are supplied by signal deliveries only. The
-   *   orchestrator NEVER autonomously launches a research/selector cycle.
-   * - "autonomous_research": the pipeline runs a selector to discover its own
-   *   instrument universe, on the cadence declared in researchTriggers.
-   */
-  mode: InstrumentSourcingMode;
-
-  /**
-   * Only consulted when mode === "autonomous_research". For mode === "signal"
-   * this MUST be omitted (validation enforces it). Declares which lifecycle
-   * events are allowed to (re)launch the researcher.
-   */
-  researchTriggers?: {
-    onStart: boolean;          // initial cycle when the session starts
-    onNoTrade: boolean;        // after a cycle completes with no open position
-    onTradeClosed: boolean;    // after an open position closes and none remain
-    onAttentionRestart: boolean; // when restarting from attention_required
-  };
-}
-
 export interface PipelineDescriptor {
   id: string;
   displayName: string;
@@ -261,106 +260,98 @@ export interface PipelineDescriptor {
   isDefault?: boolean;
   plan: InstrumentAnalysis<InstrumentAnalysisState>;
   phaseWorkers: Partial<Record<PipelinePhase, readonly string[]>>;
-  selectorWorkerIds?: readonly string[];
-  instrumentSourcing: InstrumentSourcing; // NEW — required
+  // selectorWorkerIds REMOVED — selector workers live in phaseWorkers.selector
 }
 ```
 
+`selector` is already a member of `PipelinePhase`, so `phaseWorkers.selector` needs no type change.
+
 ### 6.2 Per-pipeline values to set
 
-| Pipeline | `instrumentSourcing` |
-|----------|----------------------|
-| `rules-mean-reversion-cycle` | `{ mode: "signal" }` |
-| `rules-trend-following-cycle` | `{ mode: "signal" }` |
-| `rules-breakout-cycle` | `{ mode: "signal" }` |
-| `edgar-8k-cycle` | `{ mode: "signal" }` |
-| `prediction-event-cycle` | `{ mode: "signal" }` |
-| `default-trade-cycle` | `{ mode: "autonomous_research", researchTriggers: { onStart: true, onNoTrade: true, onTradeClosed: true, onAttentionRestart: true } }` |
+| Pipeline | `phaseWorkers` |
+|----------|----------------|
+| `default-trade-cycle` | `{ ...defaultTrade, selector: PIPELINE_WORKER_SETS.selector.standard }` |
+| `prediction-event-cycle` | `{ ...defaultTrade }` *(selector dropped — see §13 Q1; or `selector: …event` if Q1 chooses "researches")* |
+| `edgar-8k-cycle` | `{ ...catalystTwoCall }` *(no selector key)* |
+| `rules-mean-reversion-cycle` | `{ decision: [] }` *(no selector key)* |
+| `rules-trend-following-cycle` | `{ decision: [] }` |
+| `rules-breakout-cycle` | `{ decision: [] }` |
 
-### 6.3 `selectionMode` — unchanged
+`PIPELINE_WORKER_SETS.selector.{standard,event,catalyst}` constants are **kept** — they are now referenced from `phaseWorkers.selector`. The router function `resolveSelectorWorkerIds` is **deleted**.
 
-`SelectionMode` keeps all three members: `signal_driven | ai_selected_universe | manual_shortlist`. `selectionMode` stays a derived/UI concept. The runtime authority for "does the researcher run" is `instrumentSourcing` on the **pipeline** — and the mapping holds because of how sessions route to pipelines:
+### 6.3 `selectionMode` — unchanged, and no longer read by the runtime
 
-| selectionMode | Pipeline it rides | `instrumentSourcing.mode` | Selector cycle behavior |
-|---------------|-------------------|---------------------------|-------------------------|
-| `signal_driven` | a signal pipeline (timer/edgar/prediction) | `signal` | Runs only on signal delivery (signal-seeded). **No autonomous refill.** |
-| `manual_shortlist` | `default-trade-cycle` | `autonomous_research` | Refills autonomously, but the selector resolves to the **deterministic `manual-shortlist` entry engine** (re-lists `instrumentScope`, no LLM). |
-| `ai_selected_universe` | `default-trade-cycle` | `autonomous_research` | Refills autonomously; selector runs the LLM discovery workers. |
+`SelectionMode` keeps all three members (`signal_driven | ai_selected_universe | manual_shortlist`) as a derived/UI concept. The runtime authority for "does the researcher run" is `phaseWorkers.selector` on the **pipeline**, resolved from the session's experience. The mapping holds:
 
-So `manual_shortlist` and `ai_selected_universe` both legitimately run autonomous refill cycles — the difference is which entry engine matches inside the selector phase (deterministic vs LLM). Only `signal_driven` must be blocked from autonomous refill. **That is exactly what the gate enforces via `policy_signal_only` (pipeline `mode === "signal"`).** No `manual_shortlist` deletion is required for the fix.
+| selectionMode | Pipeline it rides | `phaseWorkers.selector` | Selector behavior |
+|---------------|-------------------|-------------------------|-------------------|
+| `signal_driven` | a signal pipeline | absent | Runs only on signal delivery (signal-seeded). No autonomous refill. |
+| `manual_shortlist` | `default-trade-cycle` | present | Autonomous cycles run, but the `manual-shortlist` entry engine matches first and re-lists `instrumentScope` (no LLM). |
+| `ai_selected_universe` | `default-trade-cycle` | present | Autonomous cycles run the LLM discovery workers. |
 
-> ⚠️ Fragility to track (§13 Q5): the mapping above relies on `signal_driven` sessions never riding the `default-trade-cycle` pipeline. The dormant `manual` signal source, if ever wired, would make a manual-ticker session `signal_driven` on the `default-trade-cycle` (autonomous_research) pipeline — at which point pipeline-level mode and session selectionMode disagree. Until that path is wired, the invariant holds. The robust long-term model derives a session-level sourcing classification at config time; deferred.
+`manual_shortlist` and `ai_selected_universe` both legitimately schedule autonomous cycles on `default-trade-cycle`; which entry engine matches inside the selector decides deterministic-relist vs LLM-discovery. Only `signal_driven` must be blocked from autonomous refill — and it is, because its pipeline has no selector workers. **No `manual_shortlist` deletion is required.**
 
-### 6.4 Schema changes required
+> Fragility tracked in §13 Q4: this relies on `signal_driven` sessions never riding `default-trade-cycle`. Wiring the dormant `manual` signal source would break that. Until then the invariant holds. The robust long-term model derives a session-level classification at config time; deferred.
 
-**None.** `selection_mode` column, default (`manual_shortlist`), and enum are unchanged by this fix.
+### 6.4 `candidate-validation-service` CV-6 (repoint off `selectionMode`)
 
-### 6.5 Code touched for `manual_shortlist` (audit, not delete)
+CV-6 today skips the "symbol must have search evidence" check when `selectionMode === "manual_shortlist"`. The real discriminator is **discovered vs supplied**: an instrument that came from the researcher (`AIPhaseResult.source === "ai_picker"`) must carry evidence; an instrument supplied by an entry engine (`signal-seeded` → `phase`, `manual-shortlist` → `manual_shortlist`) must not be required to. Repoint CV-6 to skip when the selection source is not `ai_picker`. This removes the last meaningful `selectionMode` read in the policy layer and is robust to the `manual`-signal future.
 
-These existing `manual_shortlist` references are **left as-is** unless the §13 Q3 audit finds them obsolete. They are listed so the implementer does not mistake them for the bug:
+### 6.5 Schema changes required
 
-| File | Status |
-|------|--------|
-| `electron/main/services/pipeline/engines/entry-mode/manual-shortlist.ts` | **Keep.** Live path for fixed-ticker sessions. |
-| `electron/main/services/signals/signal-service.ts` `injectManualTickers` | Dead code (no caller; test asserts not-called). Leave for now; remove only as part of Q5. |
-| `candidate-validation-service.ts:127`, `instrument-conflict-check.ts:19` | Audit during implementation (Q3); leave if still meaningful. |
+**None.** `selection_mode` column, default, and enum are unchanged.
 
 ---
 
 ## 7. Internal Contracts / Interfaces
 
-### 7.1 `resolveInstrumentSourcingPolicy`
+### 7.1 Selector worker resolution (in `SELECTOR_PHASE`)
 
 ```typescript
-function resolveInstrumentSourcingPolicy(
-  deps: { sessionRepo: SessionRepo; /* experience → pipelineId resolver */ },
-  sessionId: string,
-): InstrumentSourcing;
+// definitions/selector.phase.ts — stages[0].resolveWorkers
+resolveWorkers(ctx) {
+  const ids = requirePipelineDescriptor(ctx.pipelineId).phaseWorkers.selector ?? [];
+  return [...resolveWorkersByIds(ids)];
+}
 ```
 
-**Resolution rule:** session → `experienceId` → `requireExperience(experienceId).pipelineId` → `requirePipelineDescriptor(pipelineId).instrumentSourcing`. **Never** `resolvePipelineIdForSource(undefined)` — that default fallback is the coupling bug and is forbidden in this path.
+No `signalTrigger.sourceType` branch. Same shape as every other phase's worker resolution.
 
-### 7.2 `canRunResearchCycle` (replaces `canScheduleSelector`)
+### 7.2 Selector pipeline-id resolution (in `pipeline-runtime.runPlan`)
 
 ```typescript
-type ResearchTriggerEvent =
-  | "onStart" | "onNoTrade" | "onTradeClosed" | "onAttentionRestart";
-
-type ResearchGateResult =
-  | { ok: true }
-  | { ok: false; reason:
-        | "policy_signal_only" | "trigger_not_enabled"
-        | "open_trades_remain" | "capacity_full"
-        | "session_attention" | "runtime_inactive" };
-
-function canRunResearchCycle(
-  ctx: TradingCycleContext,
-  input: { triggerEvent: ResearchTriggerEvent },
-): ResearchGateResult;
+// core/pipeline-runtime.ts — runPlan, phase branch
+const session = this.deps.sessionRepo.requireById(opts.sessionId);
+const pipelineId = resolvePipelineIdForExperience(session.experienceId);
+return this.runAIPhase({ phase: plan.id, pipelineId, ... });
 ```
 
-**Order of checks (first failing wins):**
-1. `runtime_inactive` — `ctx.stopped || !ctx.runtimeIsActive()`
-2. `session_attention` — status `attention_required`
-3. `policy_signal_only` — `policy.mode === "signal"`
-4. `trigger_not_enabled` — `!policy.researchTriggers[triggerEvent]`
-5. `open_trades_remain` — any open trade
-6. `capacity_full` — open+pending ≥ `max_concurrent_trades`
-7. else `{ ok: true }`
+`resolvePipelineIdForSource` is removed from this path. (It may remain only if some non-selector caller still needs source→pipeline routing; the §14 audit confirms removal.)
 
-### 7.3 Call-site changes
+### 7.3 Instrument stamping (in `run-selector.ts`)
+
+```typescript
+// selector/run-selector.ts:62 — replace resolvePipelineIdForSource(signalTrigger?.sourceType)
+const pipelineId = resolvePipelineIdForExperience(session.experienceId);
+```
+
+So the trade cycle for each resolved instrument runs the session's real pipeline, not the default.
+
+### 7.4 Kickoff predicate
+
+`pipelineResearches(session)` (§4.3) + `canScheduleAutonomousSelector(ctx)` (§4.4). Call-site changes:
 
 | Site | Before | After |
 |------|--------|-------|
-| `shouldRunInitialSelectorCycle()` | bespoke `instrumentScope`/source check | `canRunResearchCycle(ctx, { triggerEvent: "onStart" }).ok` |
-| `cycle-refill.ts` (`canScheduleSelector`) | open-trade + capacity only | call `canRunResearchCycle(ctx, { triggerEvent: "onNoTrade" })` |
-| `trade-closed-handler.ts` | inline `signal_driven` skip | `canRunResearchCycle(ctx, { triggerEvent: "onTradeClosed" })` |
-| `restartFromAttention()` | unguarded research enqueue | `canRunResearchCycle(ctx, { triggerEvent: "onAttentionRestart" })` |
-| `handleResolvedInstruments()` retry | unguarded | route retry through the gate (`onNoTrade` semantics) |
+| `shouldRunInitialSelectorCycle()` | `instrumentScope`/source heuristic | `pipelineResearches(session)` |
+| `cycle-refill.ts` (`canScheduleSelector`) | open-trade + capacity only | `canScheduleAutonomousSelector(ctx)` |
+| `trade-closed-handler.ts` | inline `selectionMode === "signal_driven"` skip | `canScheduleAutonomousSelector(ctx)` |
+| `restartFromAttention()` | unguarded enqueue | `canScheduleAutonomousSelector(ctx)` |
+| `handleResolvedInstruments()` retry | unguarded | `canScheduleAutonomousSelector(ctx)` |
 
-### 7.4 `selector` resolution change
+### 7.5 Defense-in-depth (optional throw)
 
-In `runSelector` / `ai.runPlan("selector")`, when there is **no** `signalTrigger`, the selector workers used MUST come from the **session's resolved pipeline descriptor** (`selectorWorkerIds` of *that* pipeline), not the default. If that pipeline has `mode === "signal"` (hence empty `selectorWorkerIds`), a trigger-less selector cycle is unreachable by construction (the gate blocked it) — but as defense in depth, `runSelector` throws `AppError("research cycle requested for signal-only pipeline", "INVARIANT_VIOLATION")` if it is ever entered without a trigger for a signal pipeline.
+A trigger-less selector cycle for a non-researching pipeline is now a no-op (empty discovery stage). No throw is required for correctness. If a louder signal is wanted, `runSelector` MAY assert that a trigger-less cycle for a pipeline with empty `phaseWorkers.selector` never reaches discovery — but since the stage skip already handles it cleanly, an info log is preferred over an error.
 
 ---
 
@@ -368,15 +359,14 @@ In `runSelector` / `ai.runPlan("selector")`, when there is **no** `signalTrigger
 
 | # | Invariant | Enforced where |
 |---|-----------|----------------|
-| 1 | Every `PipelineDescriptor` has an `instrumentSourcing`. | `validatePipelineDescriptor` throws at registration if missing. |
-| 2 | `mode: "signal"` descriptors MUST NOT declare `researchTriggers` and MUST have empty `selectorWorkerIds`. | `validatePipelineDescriptor`. |
-| 3 | `mode: "autonomous_research"` descriptors MUST declare all four `researchTriggers` and non-empty `selectorWorkerIds`. | `validatePipelineDescriptor`. |
-| 4 | A signal-only pipeline never enters a trigger-less selector cycle. | `canRunResearchCycle` (gate) + `runSelector` invariant throw (defense in depth). |
-| 5 | No orchestrator code reads `selectionMode` to decide kickoff. | Lint/grep check in CI + code review; `selectionMode` references in `orchestration/` are forbidden. |
-| 6 | The selector never resolves to the default pipeline when sourcing instruments for a session; it uses the session's experience pipeline. | `resolveInstrumentSourcingPolicy` + selector worker resolution. |
-| 7 | A session whose pipeline is `signal` with `automation: deterministic` makes **zero** LLM calls across its entire lifecycle. | Covered by integration test (§9 / §12). |
+| 1 | The selector resolves workers from the session's pipeline descriptor, never by signal source type. | `SELECTOR_PHASE.resolveWorkers` reads `phaseWorkers.selector`. |
+| 2 | The selector's `pipelineId` (and each resolved instrument's `pipelineId`) is the session's experience pipeline, never the default fallback. | `resolvePipelineIdForExperience` in `runPlan` + `run-selector`. |
+| 3 | A pipeline with no selector workers performs zero autonomous discovery — by construction (empty stage), not by guard. | Phase interpreter skips empty stages. Covered by test. |
+| 4 | No orchestrator code reads `selectionMode` to decide kickoff. | Grep guard in CI; `selectionMode` references under `services/orchestration/` forbidden. |
+| 5 | A session whose pipeline is `deterministic` with no selector workers makes **zero** LLM calls across its lifecycle. | Integration test (§12). |
+| 6 | `selectorWorkerIds` and `resolveSelectorWorkerIds` no longer exist. | `knip` + grep; build fails on reference. |
 
-There is no per-user permission dimension to this feature; access is governed by existing session ownership.
+There is no per-user permission dimension; access is governed by existing session ownership.
 
 ---
 
@@ -384,26 +374,26 @@ There is no per-user permission dimension to this feature; access is governed by
 
 | Scenario | Trigger | System behavior | User-visible |
 |----------|---------|-----------------|--------------|
-| Signal pipeline returns no trade | `no_trade` outcome | Gate → `policy_signal_only`; nothing scheduled | Info log: "research cycle skipped: signal-driven pipeline waits for next delivery". **No ERROR event.** |
-| Signal pipeline, position closes | `trade_closed` | Gate → `policy_signal_only`; nothing scheduled | Info log (same family). |
-| Autonomous pipeline, no trade, `onNoTrade: true` | `no_trade` | Gate → `ok` (if capacity) → research cycle | Existing "scheduling selector research cycle" info event. |
-| Autonomous pipeline, no trade, `onNoTrade: false` | `no_trade` | Gate → `trigger_not_enabled`; nothing scheduled | Info log: "research cycle skipped: onNoTrade disabled for pipeline". |
-| Descriptor missing `instrumentSourcing` | App boot, `validatePipelineRegistry` | Throw; app refuses to start | Startup crash with explicit message (developer error). |
-| Trigger-less selector somehow reached for signal pipeline | Programming error | `runSelector` throws `INVARIANT_VIOLATION` | ERROR event surfaced; cycle fails loudly (no silent fallback). |
-| `manual_shortlist` session, no trade | `no_trade` on `default-trade-cycle` | Gate → `ok` (autonomous_research, `onNoTrade: true`); selector reruns and resolves to the **deterministic** `manual-shortlist` entry engine | Re-lists `instrumentScope`; no LLM; keeps cycling as today. |
-| Open trades remain when a cycle would refill | refill path | Gate → `open_trades_remain` | Existing info log preserved. |
+| Non-researching pipeline returns no trade | `no_trade` | `canScheduleAutonomousSelector` false (`!pipelineResearches`); nothing scheduled | Info log: "autonomous selector skipped: pipeline has no selector workers". No ERROR. |
+| Non-researching pipeline, position closes | `trade_closed` | Same as above | Info log (same family). |
+| Researching pipeline, no trade, capacity free | `no_trade` | Guard true → research cycle | Existing "scheduling selector research cycle" info event. |
+| Researching pipeline, no trade, capacity full | `no_trade` | Guard false (`capacity_full`) | Existing info log preserved. |
+| Trigger-less cycle somehow reaches a non-researching pipeline | programming error | Discovery stage resolves 0 workers → skipped → empty instruments | Info log "phase stage skipped (no workers)"; cycle ends cleanly. |
+| `manual_shortlist` session, no trade | `no_trade` on `default-trade-cycle` | Guard true (has selector workers); `manual-shortlist` entry engine matches → re-lists `instrumentScope` | No LLM; keeps cycling as today. |
+| Signal arrives for a non-researching pipeline | signal delivery | `signal-seeded` matches → ticker resolved directly | One trade cycle; never touches discovery. |
 
 ---
 
 ## 10. Build sequence (phased)
 
-1. **Config plumbing (no behavior change):** add `instrumentSourcing` to the type + all descriptors; add registry validation (invariants 1–3). App still behaves as today because nothing reads the field yet. Land + verify boot.
-2. **Gate introduction:** implement `resolveInstrumentSourcingPolicy` + `canRunResearchCycle`. Unit-test the gate matrix exhaustively.
-3. **Route call sites:** replace `canScheduleSelector`, the trade-closed inline guard, `shouldRunInitialSelectorCycle`, attention-restart, and resolved-instrument retry to use the gate. This is the step that **fixes the bug**.
-4. **Selector pipeline correctness:** make trigger-less selection use the session's pipeline; add the `runSelector` invariant throw (invariant 4/6).
-5. **CI guard:** add the grep/lint check for invariant 5.
+1. **Move workers, no behavior change yet:** add `selector` keys to `phaseWorkers` for `default-trade-cycle` (and decide §13 Q1 for prediction-event); keep `selectorWorkerIds` temporarily reading the same constants so nothing breaks. Land + verify boot.
+2. **Repoint readers:** update `phase-catalog.ts:resolvePhaseWorkers` and `effective-ai-phase-config` to read `phaseWorkers.selector`; update `SELECTOR_PHASE.resolveWorkers` to read the descriptor. Delete `resolveSelectorWorkerIds`.
+3. **Fix pipeline-id resolution:** `runPlan` selector branch + `run-selector` stamp use `resolvePipelineIdForExperience(session.experienceId)`. **This is the step that fixes the bug.**
+4. **Single kickoff predicate:** introduce `pipelineResearches` + `canScheduleAutonomousSelector`; route all five sites through it; delete the inline `selectionMode` check in `trade-closed-handler`; repoint CV-6 (§6.4).
+5. **Delete the field + dead code:** remove `selectorWorkerIds` from `PipelineDescriptor` and `validatePipelineDescriptor`; delete `injectManualTickers` (§14).
+6. **CI guards:** grep guard for `selectionMode` under `services/orchestration/`; `knip` for the deleted exports (§15).
 
-Each phase is independently landable and testable; the bug is gone after phase 3. `manual_shortlist` is untouched throughout.
+The bug is gone after step 3; steps 4–6 remove the structural debt. `manual_shortlist` is untouched throughout.
 
 ---
 
@@ -411,12 +401,11 @@ Each phase is independently landable and testable; the bug is gone after phase 3
 
 | Location | String | Level | Notes |
 |----------|--------|-------|-------|
-| Gate: signal-only skip | `research cycle skipped: signal-driven pipeline waits for next delivery` | INFO log | Replaces the prior silent/incorrect kickoff. Not an emitted session ERROR. |
-| Gate: trigger disabled | `research cycle skipped: {triggerEvent} disabled for pipeline {pipelineId}` | INFO log | — |
-| Gate: open trades | `research cycle skipped: open trades remain` | INFO log | Preserve existing wording where present. |
-| Autonomous kickoff (unchanged) | `{label}; scheduling selector research cycle.` | INFO event | Only emitted when gate returns `ok`. |
-| Invariant violation | `Research cycle requested for signal-only pipeline {pipelineId}` | ERROR event | Should be unreachable; fail loud if reached. |
-| Registry validation | `Pipeline '{id}' is missing instrumentSourcing.` / `…declares researchTriggers but mode is "signal".` | Throw | Startup. |
+| Guard: pipeline doesn't research | `autonomous selector skipped: pipeline has no selector workers` | INFO log | Replaces the prior incorrect kickoff. Not an emitted session ERROR. |
+| Guard: open trades | `selector scheduling blocked: open trades remain` | INFO log | Existing wording preserved. |
+| Guard: capacity | `selector scheduling blocked: trade capacity full` | INFO log | Existing wording preserved. |
+| Autonomous kickoff (unchanged) | `{label}; scheduling selector research cycle.` | INFO event | Only when the guard returns true. |
+| Empty discovery stage | `phase stage skipped (no workers)` | INFO log | Existing interpreter log; now the proof that a non-researching pipeline discovers nothing. |
 
 ---
 
@@ -424,13 +413,15 @@ Each phase is independently landable and testable; the bug is gone after phase 3
 
 | Test | Asserts |
 |------|---------|
-| Gate matrix unit test | Every `(mode, triggerEvent, openTrades, capacity, status)` combination → expected `ResearchGateResult`. |
-| Mean-reversion no-trade integration test | Signal → no-trade cycle → **no** selector/research cycle scheduled; **zero** LLM calls recorded for the whole session (invariant 7). This test is the regression guard for the reported bug. |
-| Trade-closed signal pipeline test | Position closes on a `signal` pipeline → no research cycle (parity with the pre-existing trade-closed guard, now via the gate). |
-| Autonomous pipeline test | `default-trade-cycle` with `onNoTrade: true` → research cycle scheduled after no-trade (no regression for web-search experiences). |
-| Registry validation test | Descriptor missing `instrumentSourcing` / mismatched `mode`+`researchTriggers` → registration throws. |
-| No-`selectionMode`-in-orchestration test | Static check: no `selectionMode` reference under `services/orchestration/` (invariant 5). |
-| Selector default-pipeline test | Trigger-less selection for a session resolves that session's pipeline, never `default-trade-cycle` (invariant 6). |
+| Selector worker resolution test | `SELECTOR_PHASE.resolveWorkers` returns `default-trade-cycle`'s selector workers for a default session and `[]` for a mean-reversion session, regardless of `signalTrigger`. |
+| Pipeline-id resolution test | A trigger-less selector cycle for a mean-reversion session resolves `rules-mean-reversion-cycle`, never `default-trade-cycle` (invariant 2). Covers the `timer`-ambiguity case explicitly. |
+| Mean-reversion no-trade integration test | Signal → no-trade cycle → **no** selector cycle scheduled; **zero** LLM calls for the whole session (invariant 5). Regression guard for the reported bug. |
+| Trade-closed non-researching pipeline test | Position closes on a no-selector-worker pipeline → no research cycle (parity with the removed inline guard). |
+| Researching pipeline test | `default-trade-cycle` → research cycle scheduled after no-trade (no regression for web-search). |
+| Empty-stage test | A trigger-less cycle on a no-selector-worker pipeline produces zero instruments and logs the skipped stage (invariant 3). |
+| No-`selectionMode`-in-orchestration test | Static check: no `selectionMode` reference under `services/orchestration/` (invariant 4). |
+| Knip/grep test | `selectorWorkerIds` / `resolveSelectorWorkerIds` absent from the tree (invariant 6). |
+| `pipelines-registration.test.ts` update | Replace `prediction?.selectorWorkerIds?.length` assertion with a `phaseWorkers.selector` assertion consistent with §13 Q1. |
 
 ---
 
@@ -438,32 +429,30 @@ Each phase is independently landable and testable; the bug is gone after phase 3
 
 | # | Question | Impact if unresolved | Recommendation |
 |---|----------|----------------------|----------------|
-| 1 | Should `researchTriggers` be per-pipeline only, or also per-session overridable (e.g. a user toggling "keep researching between trades")? | If session-overridable, the policy resolver must merge session settings over pipeline defaults; adds a field + UI. | Pipeline-only for now (matches "decouple, declarative"). Add session override later behind a new spec if a real need appears. |
-| 2 | Does `prediction-event-cycle` ever need an autonomous discovery mode (hunt prediction markets without an event signal), or is it always signal-fed? | Determines whether it stays `mode: "signal"` or becomes `autonomous_research`. | Treat as `signal` now; the prediction event *is* the trigger. Revisit if a "browse all markets" experience is built. |
-| 3 | Do the `candidate-validation-service:127` and `instrument-conflict-check:19` `manual_shortlist` guards still have a real purpose, or are they dead branches? | Could leave dead branches or remove needed validation. | Audit during implementation; repoint to `mode === "autonomous_research"` if the check is about discovered (vs supplied) instruments, else delete. Do not leave them ambiguous. |
-| 4 | Should `automation: "deterministic"` imply `mode: "signal"` automatically (a deterministic pipeline can't research via LLM), or stay independent and validated? | Affects whether mode is inferred or always explicit. | Keep explicit + validated (invariants 2/3). Explicit config is the whole point; no inference. |
-| 5 | Retire `manual_shortlist` by wiring the dormant `manual` signal source (so fixed-ticker sessions become `signal_driven` fed by manual signals), then delete the `manual-shortlist` entry engine? | Removes the §6.3 fragility (pipeline mode vs session mode divergence) and collapses two manual implementations into one. Non-trivial: must wire `injectManualTickers`, re-route the default pipeline, migrate sessions. | Defer to its own spec. Out of scope here. The current fix is correct without it. |
+| 1 | Does `prediction-event-cycle` research autonomously, or is it purely signal-fed? Its old `selectorWorkerIds: event` and the first draft's `mode: signal` contradicted each other. `prediction_event` is **not** search-style, so `signal-seeded` matches on delivery and the `event-web-scout`/`event-prediction-scout` workers only ever run on a *trigger-less* cycle. | Determines whether `phaseWorkers.selector` is set for this pipeline, and whether the event scout workers are live or dead. | **Decide explicitly.** If prediction-event is signal-fed today (recommended), **omit** `phaseWorkers.selector`; the event scouts then have no caller and must be deleted (per the no-dormant-code rule / knip), or kept only when a future "browse prediction markets" experience wires them. Do not leave them registered-but-unreachable. |
+| 2 | Do the `candidate-validation-service:127` and `instrument-conflict-check:19` `selectionMode` guards have a real purpose? | Could leave dead branches or drop needed validation. | §6.4 repoints CV-6 onto selection *source* (`ai_picker` vs supplied). Audit `instrument-conflict-check:19` the same way; repoint to source or delete. Do not leave ambiguous. |
+| 3 | Should the autonomous guard return a typed reason (for richer logging) or a boolean? | Cosmetic; affects log granularity. | Boolean + targeted info logs is enough. Add a typed result only if a UI surfaces the reason. |
+| 4 | Retire `manual_shortlist` by wiring the dormant `manual` signal source, then delete the `manual-shortlist` entry engine? | Removes the §6.3 fragility and collapses two manual implementations into one. Non-trivial. | Defer to its own spec. Out of scope. The current fix is correct without it. |
 
 ---
 
 ## 14. Dead-code that this fix must also remove
 
-The bug investigation surfaced dormant code that is part of *this* problem family. Remove or wire it as part of this work (don't leave it for "later" — that is the exact pattern we are killing):
-
 | Item | State | Action |
 |------|-------|--------|
-| `SignalService.injectManualTickers` + its interface entry in `session-types.ts` | Exported, type-wired, **zero runtime callers**; a test asserts it is never called | Delete it (and the never-called test assertion), OR wire it as part of Q5 — but not both-and-dormant. Default: **delete**. |
-| Selector fallthrough to `resolvePipelineIdForSource(undefined)` → `default-trade-cycle` for trigger-less cycles | Reachable, wrong | Removed by §7.4 (selector uses the session's pipeline). |
+| `PipelineDescriptor.selectorWorkerIds` | Side-channel field, superseded by `phaseWorkers.selector` | Delete (incl. the `validatePipelineDescriptor` branch at line 65 and the `pipelines-registration.test.ts` assertion). |
+| `resolveSelectorWorkerIds` (`worker-registry.ts`) | Source-type router, superseded by descriptor lookup | Delete. |
+| `resolvePipelineIdForSource` call in `pipeline-runtime.runPlan` selector branch + `run-selector.ts:62` | Reachable, wrong (default fallthrough; `timer` ambiguity) | Replace with `resolvePipelineIdForExperience`. Delete `resolvePipelineIdForSource` entirely if no other caller remains after the audit. |
+| `SignalService.injectManualTickers` + its `session-types.ts` interface entry | Exported, type-wired, **zero runtime callers**; a test asserts it is never called | Delete it (and the never-called test assertion). Do not "wire it later" (that is Q4, a separate spec). |
+| `event-web-scout` / `event-prediction-scout` workers | Live only if §13 Q1 chooses "prediction-event researches" | Per Q1: keep referenced from `phaseWorkers.selector`, or delete if unreferenced. |
 
 ---
 
 ## 15. Enforcement: stop half-dead migrations at CI
 
-Willpower has failed repeatedly. Add tooling so a dormant path **fails the build**:
+1. **Add `knip`** (`bun add -D knip`) covering `electron/` and `src/`. It reports unused files/exports/deps — exactly the "exported but never called" signature of `injectManualTickers`, `resolveSelectorWorkerIds`, and any orphaned selector workers. Append `knip` to `bun run check`.
+2. **CI gate:** `knip --no-progress`; non-zero exit fails the build. Seed an allowlist only for genuine public API surfaces (preload bridge, string-registered IPC handlers) and document each entry.
+3. **Grep guards:** (a) no `selectionMode` under `services/orchestration/`; (b) no `selectorWorkerIds` / `resolveSelectorWorkerIds` / `resolvePipelineIdForSource` anywhere after this lands.
+4. **Definition-of-done for any migration PR** (checklist): old path deleted in the same PR; `knip` clean; no new exported symbol without a reachable caller; one capability = one reachable path.
 
-1. **Add `knip`** (`bun add -D knip`) with a config covering `electron/` and `src/`. `knip` reports unused files, unused exports, and unused dependencies — i.e. exactly the "exported but never called" signature of `injectManualTickers`. Wire it into the `check` script (`bun run check` already runs typecheck + lint + format + test; append `knip`).
-2. **CI gate:** `knip --no-progress` in the pipeline; non-zero exit fails the build. Seed an allowlist only for genuinely-public API surfaces (preload bridge, IPC handlers registered by string) and document each entry — an allowlist entry is a deliberate decision, not a dumping ground.
-3. **Invariant-5 grep guard** (already in §12): no `selectionMode` references under `services/orchestration/`. Generalize the idea: when a concept is relocated to a single authority, add a grep guard forbidding the old access pattern in the layers that must not use it.
-4. **Definition-of-done for any migration PR** (checklist in PR template): (a) old path deleted in this PR, (b) `knip` clean, (c) no new exported symbol without a reachable caller, (d) one capability = one reachable path.
-
-This section is the actual deliverable that prevents recurrence. The instrument-sourcing fix removes *this* instance; `knip` + the guards stop the *next* one.
+This section is the deliverable that prevents recurrence. The selector-as-phase fix removes *this* instance; `knip` + the guards stop the *next* one.

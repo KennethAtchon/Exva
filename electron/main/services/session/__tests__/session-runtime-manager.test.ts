@@ -97,7 +97,6 @@ describe("SessionRuntimeManager drain completion", () => {
       stop: vi.fn(async () => undefined),
     };
     const createRuntime = vi.fn(async () => runtime);
-    const injectManualTickers = vi.fn();
 
     const manager = new SessionRuntimeManager(
       {
@@ -130,7 +129,6 @@ describe("SessionRuntimeManager drain completion", () => {
           emit: vi.fn(),
         },
         signals: {
-          injectManualTickers,
           onSessionResumed: vi.fn(),
           replayStartup: vi.fn(),
         },
@@ -146,6 +144,5 @@ describe("SessionRuntimeManager drain completion", () => {
 
     expect(createRuntime).toHaveBeenCalledWith("session-1");
     expect(initialize).toHaveBeenCalledWith("active");
-    expect(injectManualTickers).not.toHaveBeenCalled();
   });
 });

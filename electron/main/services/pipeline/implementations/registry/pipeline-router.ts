@@ -5,7 +5,6 @@ import {
 import {
   registerPipelineDescriptor,
   requirePipelineDescriptor,
-  resolvePipelineIdForSource,
   requiredSignalPhasesForPipeline,
   validatePipelineDescriptor,
   validatePipelineRegistry,
@@ -15,7 +14,6 @@ import {
 export type { PipelineDescriptor };
 export {
   requirePipelineDescriptor,
-  resolvePipelineIdForSource,
   requiredSignalPhasesForPipeline,
   validatePipelineRegistry,
 };

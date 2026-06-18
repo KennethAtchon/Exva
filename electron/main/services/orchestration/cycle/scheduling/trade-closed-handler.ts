@@ -1,4 +1,4 @@
-import { countOpenTrades } from "../../../session/session-trade-state";
+import { canScheduleAutonomousSelector } from "../../../session/session-trade-state";
 import type { TradingCycleContext } from "../trading-cycle-context";
 
 export function attachTradeClosedListener(
@@ -14,34 +14,11 @@ export function attachTradeClosedListener(
     if (!ctx.runtimeIsActive()) return;
     if (ctx.cycleRestartInFlight) return;
 
-    const remainingOpenTrades = countOpenTrades(
-      ctx.deps.tradesRepo,
-      ctx.sessionId,
-    );
-    if (remainingOpenTrades > 0) {
-      ctx.deps.logger.info(
-        {
-          sessionId: ctx.sessionId,
-          remainingOpenTrades,
-          closedTradeId: trade.id,
-        },
-        "selector restart blocked after trade_closed: open trades remain",
-      );
-      return;
-    }
-
-    const session = ctx.deps.sessionRepo.requireById(ctx.sessionId);
-    if (session.selectionMode === "signal_driven") {
-      ctx.deps.logger.info(
-        {
-          sessionId: ctx.sessionId,
-          closedTradeId: trade.id,
-          selectionMode: session.selectionMode,
-        },
-        "selector restart skipped after trade_closed: signal-driven session waits for next delivery",
-      );
-      return;
-    }
+    // One guard for every autonomous kickoff: a pipeline with no selector
+    // workers (signal-driven) does not restart research after a trade closes —
+    // it waits for the next delivery. Open-trade / capacity checks are folded
+    // into the same predicate.
+    if (!canScheduleAutonomousSelector(ctx)) return;
 
     ctx.cycleRestartInFlight = true;
     ctx.emitEvent(

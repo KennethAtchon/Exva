@@ -3,7 +3,6 @@ import { registerDefaultInstrumentAnalyses } from "../registry/register-analyses
 import {
   registerPipeline,
   requiredSignalPhasesForPipeline,
-  resolvePipelineIdForSource,
   validatePipelineRegistry,
   type PipelineDescriptor,
 } from "../registry/pipeline-router";
@@ -24,28 +23,6 @@ function clonePlan(id: string): InstrumentAnalysis<InstrumentAnalysisState> {
 describe("pipeline router", () => {
   beforeAll(() => {
     registerDefaultInstrumentAnalyses();
-  });
-
-  it("routes edgar_8k to the edgar pipeline (self-describing, no discovery)", () => {
-    expect(resolvePipelineIdForSource("edgar_8k")).toBe("edgar-8k-cycle");
-  });
-
-  it("routes web_search and manual to the default pipeline", () => {
-    expect(resolvePipelineIdForSource("web_search")).toBe(
-      "default-trade-cycle",
-    );
-    expect(resolvePipelineIdForSource("manual")).toBe("default-trade-cycle");
-  });
-
-  it("routes prediction_event to the prediction pipeline", () => {
-    expect(resolvePipelineIdForSource("prediction_event")).toBe(
-      "prediction-event-cycle",
-    );
-  });
-
-  it("falls back to the default pipeline when the source is undefined", () => {
-    // Signal-less cycles (initial/trade-closed research) carry no source type.
-    expect(resolvePipelineIdForSource(undefined)).toBe("default-trade-cycle");
   });
 
   it("requires all four signal phases for both shipped pipelines", () => {

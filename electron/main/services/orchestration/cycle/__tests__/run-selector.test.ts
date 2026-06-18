@@ -1,8 +1,17 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { MarketHoursService } from "../market-hours-service";
+import { registerDefaultInstrumentAnalyses } from "../../../pipeline/implementations/registry/register-analyses";
 import * as runSelectorModule from "../selector/run-selector";
 
+// Each resolved instrument is stamped with the session's pipeline, derived from
+// its experience — so the selector needs a registered experience.
+const SESSION = { id: "session-1", experienceId: "edgar-catalyst" };
+
 describe("runSelector", () => {
+  beforeAll(() => {
+    registerDefaultInstrumentAnalyses();
+  });
+
   it("filters non-tradable instruments and keeps tradable ones", async () => {
     vi.spyOn(
       MarketHoursService.prototype,
@@ -48,7 +57,7 @@ describe("runSelector", () => {
 
     const out = await runSelectorModule.runSelector(
       ctx as never,
-      {} as never,
+      SESSION as never,
       { max_concurrent_trades: 5 } as never,
       { cycleId: "cycle-1" },
     );
@@ -89,7 +98,7 @@ describe("runSelector", () => {
     await expect(
       runSelectorModule.runSelector(
         ctx as never,
-        {} as never,
+        SESSION as never,
         { max_concurrent_trades: 5 } as never,
         { cycleId: "cycle-1" },
       ),
@@ -121,7 +130,7 @@ describe("runSelector", () => {
 
     await runSelectorModule.runSelector(
       ctx as never,
-      { id: "session-1" } as never,
+      SESSION as never,
       { max_concurrent_trades: 5 } as never,
       {
         cycleId: "cycle-1",
