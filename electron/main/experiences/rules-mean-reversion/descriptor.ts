@@ -6,10 +6,8 @@ export const RULES_MEAN_REVERSION_EXPERIENCE: ExperienceDescriptor = {
   description:
     "Deterministic mean-reversion entries on timer-polled liquid instruments. No LLM calls.",
   capabilities: {
-    instrumentClasses: ["stock"],
     signalSourceTypes: ["timer"],
     brokerRequirement: "any_supported_class",
-    defaultInstrumentClass: "stock",
   },
   pipelineId: "rules-mean-reversion-cycle",
   defaultPresets: {

@@ -61,6 +61,7 @@ const SessionControls = ({
   onArchive,
   onLifecycle,
   onFireRehearsalSignal,
+  onDebugInjectSignal,
 }: {
   session: SessionSummary;
   busy: boolean;
@@ -73,6 +74,7 @@ const SessionControls = ({
   onArchive: (id: string) => void;
   onLifecycle: (session: SessionSummary, action: LifecycleAction) => void;
   onFireRehearsalSignal?: (session: SessionSummary) => void;
+  onDebugInjectSignal?: (session: SessionSummary) => void;
 }) => {
   const locked =
     session.status === "active" ||
@@ -187,6 +189,20 @@ const SessionControls = ({
           </Button>
         </HelpTooltip>
       ) : null}
+      {(session.status === "active" ||
+        session.status === "paused" ||
+        session.status === "monitoring_only") &&
+      onDebugInjectSignal ? (
+        <Button
+          onClick={() => onDebugInjectSignal(session)}
+          variant="outline"
+          className={actionButtonClass}
+          disabled={busy}
+          title="Debug: force-inject a synthetic signal to trigger the trade pipeline immediately"
+        >
+          ⚡ Force trade
+        </Button>
+      ) : null}
       {session.status === "paused" ? (
         <HelpTooltip glossaryId="resume-session">
           <Button
@@ -274,6 +290,7 @@ const SessionCard = ({
   onViewTrace,
   onPauseAfterStep,
   onFireRehearsalSignal,
+  onDebugInjectSignal,
 }: {
   session: SessionSummary;
   busySessionId?: string | null;
@@ -302,6 +319,7 @@ const SessionCard = ({
   ) => void;
   onPauseAfterStep?: (sessionId: string) => void;
   onFireRehearsalSignal?: (session: SessionSummary) => void;
+  onDebugInjectSignal?: (session: SessionSummary) => void;
 }) => {
   const busy = busySessionId === session.id;
   const aiBlocked = session.isFocused && focusedSessionAiReady === false;
@@ -530,6 +548,7 @@ const SessionCard = ({
         onArchive={onArchive}
         onLifecycle={onLifecycle}
         onFireRehearsalSignal={onFireRehearsalSignal}
+        onDebugInjectSignal={onDebugInjectSignal}
       />
     </article>
   );
@@ -556,6 +575,7 @@ export const SessionTable = ({
   onViewTrace,
   onPauseAfterStep,
   onFireRehearsalSignal,
+  onDebugInjectSignal,
 }: {
   sessions: SessionSummary[];
   busySessionId?: string | null;
@@ -584,6 +604,7 @@ export const SessionTable = ({
   ) => void;
   onPauseAfterStep?: (sessionId: string) => void;
   onFireRehearsalSignal?: (session: SessionSummary) => void;
+  onDebugInjectSignal?: (session: SessionSummary) => void;
 }) => {
   return (
     <div className="grid gap-2.5">
@@ -606,6 +627,7 @@ export const SessionTable = ({
           onViewTrace={onViewTrace}
           onPauseAfterStep={onPauseAfterStep}
           onFireRehearsalSignal={onFireRehearsalSignal}
+          onDebugInjectSignal={onDebugInjectSignal}
         />
       ))}
     </div>

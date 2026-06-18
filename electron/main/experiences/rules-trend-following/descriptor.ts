@@ -6,10 +6,8 @@ export const RULES_TREND_FOLLOWING_EXPERIENCE: ExperienceDescriptor = {
   description:
     "Deterministic SMA-crossover trend entries on timer-polled futures instruments. No LLM calls.",
   capabilities: {
-    instrumentClasses: ["futures"],
     signalSourceTypes: ["timer"],
     brokerRequirement: "any_supported_class",
-    defaultInstrumentClass: "futures",
   },
   pipelineId: "rules-trend-following-cycle",
   defaultPresets: {

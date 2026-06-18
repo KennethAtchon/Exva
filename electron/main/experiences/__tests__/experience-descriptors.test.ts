@@ -32,7 +32,6 @@ type DescriptorContract = {
   displayName: string;
   pipelineId: string;
   signalIds: string[];
-  instrumentClasses: ExperienceDescriptor["capabilities"]["instrumentClasses"];
   signalSourceTypes: ExperienceDescriptor["capabilities"]["signalSourceTypes"];
   brokerRequirement: ExperienceDescriptor["capabilities"]["brokerRequirement"];
   defaultPresets: ExperienceDescriptor["defaultPresets"];
@@ -45,7 +44,6 @@ const SHIPPED_DESCRIPTOR_CONTRACTS: DescriptorContract[] = [
     displayName: "EDGAR Catalyst",
     pipelineId: "edgar-8k-cycle",
     signalIds: ["edgar-8k-catalyst"],
-    instrumentClasses: ["stock"],
     signalSourceTypes: ["edgar_8k"],
     brokerRequirement: "any_supported_class",
     defaultPresets: {
@@ -61,7 +59,6 @@ const SHIPPED_DESCRIPTOR_CONTRACTS: DescriptorContract[] = [
     displayName: "Rules: Mean Reversion",
     pipelineId: "rules-mean-reversion-cycle",
     signalIds: ["spy-15m-meanrev", "qqq-15m-meanrev"],
-    instrumentClasses: ["stock"],
     signalSourceTypes: ["timer"],
     brokerRequirement: "any_supported_class",
     defaultPresets: {
@@ -77,7 +74,6 @@ const SHIPPED_DESCRIPTOR_CONTRACTS: DescriptorContract[] = [
     displayName: "Rules: Trend Following",
     pipelineId: "rules-trend-following-cycle",
     signalIds: ["gc-4h-trend", "cl-4h-trend"],
-    instrumentClasses: ["futures"],
     signalSourceTypes: ["timer"],
     brokerRequirement: "any_supported_class",
     defaultPresets: {
@@ -93,7 +89,6 @@ const SHIPPED_DESCRIPTOR_CONTRACTS: DescriptorContract[] = [
     displayName: "Rules: Momentum Breakout",
     pipelineId: "rules-breakout-cycle",
     signalIds: ["btc-1h-breakout"],
-    instrumentClasses: ["crypto"],
     signalSourceTypes: ["timer"],
     brokerRequirement: "any_supported_class",
     defaultPresets: {
@@ -109,7 +104,6 @@ const SHIPPED_DESCRIPTOR_CONTRACTS: DescriptorContract[] = [
     displayName: "Prediction Event Edge",
     pipelineId: "prediction-event-cycle",
     signalIds: ["prediction-event-edge"],
-    instrumentClasses: ["prediction_market"],
     signalSourceTypes: ["prediction_event"],
     brokerRequirement: "polymarket_broker",
     defaultPresets: {
@@ -132,9 +126,6 @@ describe("experience descriptor contracts", () => {
       expect(experience.pipelineId).toBe(contract.pipelineId);
       expect(experience.signals.length).toBeGreaterThanOrEqual(1);
       expect(experience.signals.map((s) => s.id)).toEqual(contract.signalIds);
-      expect(experience.capabilities.instrumentClasses).toEqual(
-        contract.instrumentClasses,
-      );
       expect(experience.capabilities.brokerRequirement).toBe(
         contract.brokerRequirement,
       );

@@ -5,7 +5,7 @@ import { PREDICTION_EVENT_EDGE_EXPERIENCE } from "../prediction-event-edge/descr
 import { RULES_MEAN_REVERSION_EXPERIENCE } from "../rules-mean-reversion/descriptor";
 
 describe("validateExperienceSourceEmissions", () => {
-  it("accepts shipped experience cartridges", () => {
+  it("accepts shipped experience cartridges (no-op — instrument class constraint removed)", () => {
     expect(() =>
       validateExperienceSourceEmissions(EDGAR_CATALYST_EXPERIENCE),
     ).not.toThrow();
@@ -15,23 +15,5 @@ describe("validateExperienceSourceEmissions", () => {
     expect(() =>
       validateExperienceSourceEmissions(PREDICTION_EVENT_EDGE_EXPERIENCE),
     ).not.toThrow();
-  });
-
-  it("rejects experiences whose signal emits an unsupported instrument class", () => {
-    expect(() =>
-      validateExperienceSourceEmissions({
-        ...RULES_MEAN_REVERSION_EXPERIENCE,
-        capabilities: {
-          ...RULES_MEAN_REVERSION_EXPERIENCE.capabilities,
-          instrumentClasses: ["stock"],
-        },
-        signals: [
-          {
-            ...(RULES_MEAN_REVERSION_EXPERIENCE.signals[0] ?? {}),
-            instrumentClass: "crypto", // crypto not in capabilities.instrumentClasses
-          },
-        ],
-      }),
-    ).toThrow(/instrumentClass 'crypto'/i);
   });
 });

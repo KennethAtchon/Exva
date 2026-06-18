@@ -6,10 +6,8 @@ export const PREDICTION_EVENT_EDGE_EXPERIENCE: ExperienceDescriptor = {
   description:
     "AI-driven analysis of prediction-market odds/volume dislocations. Calls LLM for full cycle.",
   capabilities: {
-    instrumentClasses: ["prediction_market"],
     signalSourceTypes: ["prediction_event"],
     brokerRequirement: "polymarket_broker",
-    defaultInstrumentClass: "prediction_market",
   },
   pipelineId: "prediction-event-cycle",
   defaultPresets: {

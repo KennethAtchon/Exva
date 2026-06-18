@@ -6,10 +6,8 @@ export const RULES_BREAKOUT_EXPERIENCE: ExperienceDescriptor = {
   description:
     "Deterministic resistance-breakout entries on timer-polled crypto instruments. No LLM calls.",
   capabilities: {
-    instrumentClasses: ["crypto"],
     signalSourceTypes: ["timer"],
     brokerRequirement: "any_supported_class",
-    defaultInstrumentClass: "crypto",
   },
   pipelineId: "rules-breakout-cycle",
   defaultPresets: {

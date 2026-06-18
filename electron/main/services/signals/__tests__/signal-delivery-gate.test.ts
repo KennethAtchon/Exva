@@ -35,10 +35,8 @@ describe("evaluateSignalDeliveryGate", () => {
         id: "test-multi-class-rules",
         displayName: "Test multi-class rules",
         capabilities: {
-          instrumentClasses: ["stock", "futures"],
           signalSourceTypes: ["timer"],
           brokerRequirement: "any_supported_class",
-          defaultInstrumentClass: "stock",
         },
         signals: [
           {
@@ -110,7 +108,7 @@ describe("evaluateSignalDeliveryGate", () => {
     db.sqlite.close();
   });
 
-  it("dead-letters futures signals for stock-only rules experience", () => {
+  it("dead-letters prediction_market signals when only a stock broker is assigned", () => {
     const db = createTestDb();
     const brokerAccounts = new BrokerAccountsRepo(db);
     brokerAccounts.insert({
@@ -163,7 +161,7 @@ describe("evaluateSignalDeliveryGate", () => {
 
     expect(result).toEqual({
       ok: false,
-      reason: "unsupported_by_experience",
+      reason: "unsupported_by_assigned_broker",
       detail: expect.objectContaining({
         instrumentClass: "prediction_market",
       }),

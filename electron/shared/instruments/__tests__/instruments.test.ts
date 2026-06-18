@@ -36,7 +36,6 @@ import {
   experienceBrokerOverlap,
   isSessionLaunchable,
   resolveSessionInstrumentClasses,
-  uncoveredExperienceClasses,
 } from "../experience-launchability";
 import {
   BUILT_IN_DUCKDUCKGO_PROVIDER_ID,
@@ -250,26 +249,21 @@ describe("experience-launchability", () => {
   const stockBroker = { supportedInstrumentClasses: ["stock"] as const };
   const cryptoBroker = { supportedInstrumentClasses: ["crypto"] as const };
 
-  it("checks broker/experience overlap and launchability", () => {
-    expect(experienceBrokerOverlap(["stock", "crypto"], [stockBroker])).toEqual(
-      ["stock"],
-    );
-    expect(brokerOverlapsExperience(stockBroker, ["stock"])).toBe(true);
-    expect(isSessionLaunchable(["stock"], [stockBroker])).toBe(true);
-    expect(isSessionLaunchable(["crypto"], [stockBroker])).toBe(false);
-    expect(
-      uncoveredExperienceClasses(["stock", "crypto"], [stockBroker]),
-    ).toEqual(["crypto"]);
+  it("returns broker classes regardless of experience constraint", () => {
+    expect(experienceBrokerOverlap([stockBroker])).toEqual(["stock"]);
+    expect(experienceBrokerOverlap([stockBroker, cryptoBroker])).toEqual([
+      "stock",
+      "crypto",
+    ]);
+    expect(brokerOverlapsExperience(stockBroker)).toBe(true);
+    expect(isSessionLaunchable([stockBroker])).toBe(true);
+    expect(isSessionLaunchable([])).toBe(false);
   });
 
-  it("narrows classes for search-everything sessions", () => {
+  it("returns broker classes for session instrument classes", () => {
     expect(
       resolveSessionInstrumentClasses(
-        {
-          instrumentClasses: ["stock", "crypto"],
-          signalSourceTypes: ["edgar_8k"],
-          brokerRequirement: "any_supported_class",
-        },
+        { signalSourceTypes: ["edgar_8k"], brokerRequirement: "any_supported_class" },
         {
           instrumentScope: buildSearchEverythingScope(),
           selectorSettings: { aiPickerEnabled: true },

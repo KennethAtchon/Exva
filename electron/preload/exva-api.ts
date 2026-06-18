@@ -203,6 +203,7 @@ export interface ExvaApi {
     testLiveBrokerConnection(
       sessionId: string,
     ): Promise<{ ok: boolean; message: string }>;
+    debugInjectSignal(sessionId: string): Promise<{ ok: boolean }>;
   };
   workspace: {
     getView(): Promise<WorkspaceViewResponse>;

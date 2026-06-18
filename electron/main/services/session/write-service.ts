@@ -1,6 +1,5 @@
 import type { InstrumentClass, WorkspaceSession } from "@/lib/types";
 import {
-  brokerOverlapsExperience,
   isSessionLaunchable,
   resolveSessionInstrumentClasses,
 } from "@electron/shared/instruments/experience-launchability";
@@ -246,38 +245,11 @@ export class SessionWriteService {
       );
     }
 
-    for (const broker of selectedBrokers) {
-      if (
-        !brokerOverlapsExperience(
-          broker,
-          experience.capabilities.instrumentClasses,
-        )
-      ) {
-        throw new AppError(
-          `Broker "${broker.name}" does not support any instrument class required by ${experience.displayName}.`,
-          "VALIDATION_FAILED",
-          {
-            brokerAccountId: broker.id,
-            supports: broker.supportedInstrumentClasses,
-            experienceClasses: experience.capabilities.instrumentClasses,
-          },
-        );
-      }
-    }
-
-    if (
-      !isSessionLaunchable(
-        experience.capabilities.instrumentClasses,
-        selectedBrokers,
-      )
-    ) {
+    if (!isSessionLaunchable(selectedBrokers)) {
       throw new AppError(
-        `Selected brokers do not cover any instrument class supported by ${experience.displayName}.`,
+        `${experience.displayName} requires at least one broker account assigned.`,
         "VALIDATION_FAILED",
-        {
-          field: "brokerAssignments",
-          experienceClasses: experience.capabilities.instrumentClasses,
-        },
+        { field: "brokerAssignments" },
       );
     }
 

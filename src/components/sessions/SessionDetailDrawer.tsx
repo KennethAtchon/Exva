@@ -242,10 +242,12 @@ export const SessionDetailDrawer = ({
   session,
   onClose,
   onFireRehearsalSignal,
+  onDebugInjectSignal,
 }: {
   session: SessionSummary | null;
   onClose: () => void;
   onFireRehearsalSignal?: (session: SessionSummary) => void;
+  onDebugInjectSignal?: (session: SessionSummary) => void;
 }) => {
   type State = {
     payload: SessionTemplatePayload | null;
@@ -612,6 +614,19 @@ export const SessionDetailDrawer = ({
                       Fire rehearsal signal
                     </Button>
                   </HelpTooltip>
+                ) : null}
+                {(session.status === "active" ||
+                  session.status === "paused" ||
+                  session.status === "monitoring_only") &&
+                onDebugInjectSignal ? (
+                  <Button
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => onDebugInjectSignal(session)}
+                    title="Debug: force-inject a synthetic signal to trigger the trade pipeline"
+                  >
+                    ⚡ Force trade
+                  </Button>
                 ) : null}
               </div>
             ) : null}

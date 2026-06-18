@@ -298,4 +298,10 @@ export function registerSessionHandlers(services: AppServices): void {
       }
     },
   );
+
+  handle(ipcMain, channels.session.debugInjectSignal, async (payload) => {
+    const { sessionId } = sessionIdParamSchema.parse(payload);
+    services.signals.debugInjectSignal(sessionId);
+    return { ok: true };
+  });
 }

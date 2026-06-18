@@ -24,7 +24,6 @@ describe("experiences IPC", () => {
       id: string;
       pipelineId: string;
       capabilities: {
-        instrumentClasses: string[];
         signalSourceTypes: string[];
       };
     }>;
@@ -43,9 +42,6 @@ describe("experiences IPC", () => {
     for (const experience of experiences) {
       expect(experience.id).toEqual(expect.any(String));
       expect(experience.pipelineId).toEqual(expect.any(String));
-      expect(experience.capabilities.instrumentClasses.length).toBeGreaterThan(
-        0,
-      );
       expect(experience.capabilities.signalSourceTypes.length).toBeGreaterThan(
         0,
       );

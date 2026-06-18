@@ -5,84 +5,38 @@ import {
   resolveBrokerInstrumentClasses,
 } from "./session-instrument-classes";
 
-const INSTRUMENT_CLASS_ORDER: InstrumentClass[] = [
-  "stock",
-  "crypto",
-  "futures",
-  "prediction_market",
-];
-
-function normalizeInstrumentClasses(
-  classes: readonly InstrumentClass[],
-): InstrumentClass[] {
-  const enabled = new Set(classes);
-  return INSTRUMENT_CLASS_ORDER.filter((instrumentClass) =>
-    enabled.has(instrumentClass),
-  );
-}
+type BrokerLike = { supportedInstrumentClasses: readonly InstrumentClass[] };
 
 export function experienceBrokerOverlap(
-  experienceClasses: readonly InstrumentClass[],
-  brokers: Array<{ supportedInstrumentClasses: readonly InstrumentClass[] }>,
+  brokers: BrokerLike[],
 ): InstrumentClass[] {
-  const brokerClasses = new Set(
-    brokers.flatMap((broker) => broker.supportedInstrumentClasses),
-  );
-  return normalizeInstrumentClasses(
-    experienceClasses.filter((instrumentClass) =>
-      brokerClasses.has(instrumentClass),
-    ),
-  );
+  return resolveBrokerInstrumentClasses(brokers);
 }
 
-export function brokerOverlapsExperience(
-  broker: { supportedInstrumentClasses: readonly InstrumentClass[] },
-  experienceClasses: readonly InstrumentClass[],
-): boolean {
-  return broker.supportedInstrumentClasses.some((instrumentClass) =>
-    experienceClasses.includes(instrumentClass),
-  );
+export function brokerOverlapsExperience(broker: BrokerLike): boolean {
+  return broker.supportedInstrumentClasses.length > 0;
 }
 
-export function isSessionLaunchable(
-  experienceClasses: readonly InstrumentClass[],
-  selectedBrokers: Array<{
-    supportedInstrumentClasses: readonly InstrumentClass[];
-  }>,
-): boolean {
-  return experienceBrokerOverlap(experienceClasses, selectedBrokers).length > 0;
+export function isSessionLaunchable(selectedBrokers: BrokerLike[]): boolean {
+  return selectedBrokers.length > 0;
 }
 
 export function resolveSessionInstrumentClasses(
-  capabilities: ExperienceCapabilities,
+  _capabilities: ExperienceCapabilities,
   input: {
     instrumentScope: string;
     selectorSettings: { aiPickerEnabled: boolean };
   },
-  brokers: Array<{ supportedInstrumentClasses: readonly InstrumentClass[] }>,
+  brokers: BrokerLike[],
 ): InstrumentClass[] {
-  const experienceClasses = normalizeInstrumentClasses(
-    capabilities.instrumentClasses,
-  );
   if (isSearchEverythingEnabled(input)) {
-    const brokerClasses = resolveBrokerInstrumentClasses(brokers);
-    return normalizeInstrumentClasses(
-      brokerClasses.filter((instrumentClass) =>
-        experienceClasses.includes(instrumentClass),
-      ),
-    );
+    return resolveBrokerInstrumentClasses(brokers);
   }
-  return experienceClasses;
+  return resolveBrokerInstrumentClasses(brokers);
 }
 
 export function uncoveredExperienceClasses(
-  experienceClasses: readonly InstrumentClass[],
-  brokers: Array<{ supportedInstrumentClasses: readonly InstrumentClass[] }>,
+  _brokers?: BrokerLike[],
 ): InstrumentClass[] {
-  const overlap = new Set(experienceBrokerOverlap(experienceClasses, brokers));
-  return normalizeInstrumentClasses(
-    experienceClasses.filter(
-      (instrumentClass) => !overlap.has(instrumentClass),
-    ),
-  );
+  return [];
 }

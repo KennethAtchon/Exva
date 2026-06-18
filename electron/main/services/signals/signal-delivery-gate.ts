@@ -57,17 +57,6 @@ export function evaluateSignalDeliveryGate(input: {
     };
   }
 
-  if (!capabilities.instrumentClasses.includes(instrumentClass)) {
-    return {
-      ok: false,
-      reason: "unsupported_by_experience",
-      detail: {
-        instrumentClass,
-        allowedInstrumentClasses: capabilities.instrumentClasses,
-      },
-    };
-  }
-
   if (
     !signalSourceEmitsClass(
       input.signal.sourceType,

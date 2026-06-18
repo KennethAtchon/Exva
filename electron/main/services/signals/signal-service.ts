@@ -354,6 +354,56 @@ export class SignalService {
     }
   }
 
+  debugInjectSignal(sessionId: string): void {
+    const subscribedSourceIds =
+      this.sourcesRepo.subscribedSourceIdsForSession(sessionId);
+    const source = subscribedSourceIds
+      .map((id) => this.sourcesRepo.get(id))
+      .find(
+        (s): s is NonNullable<typeof s> =>
+          s != null && s.type !== "mock" && s.type !== "manual",
+      );
+
+    let ticker = "SPY";
+    let instrumentClass = "stock";
+    let sourceId = MANUAL_SOURCE_ID;
+    let sourceType: import("@electron/shared/domain").SignalSourceType =
+      "manual";
+
+    if (source) {
+      sourceId = source.id;
+      sourceType = source.type;
+      if (source.instrumentClass) instrumentClass = source.instrumentClass;
+      try {
+        const cfg = JSON.parse(source.configJson) as Record<string, unknown>;
+        if (typeof cfg.symbol === "string" && cfg.symbol.length > 0) {
+          ticker = cfg.symbol;
+        }
+        if (typeof cfg.instrumentClass === "string") {
+          instrumentClass = cfg.instrumentClass;
+        }
+      } catch {
+        // unparseable configJson — keep defaults
+      }
+    }
+
+    this.signalBus.injectManual(
+      {
+        id: crypto.randomUUID(),
+        sourceId,
+        sourceType,
+        ticker,
+        companyName: null,
+        documentUrl: null,
+        accessionNumber: null,
+        payloadJson: { instrumentClass },
+        filedAt: new Date().toISOString(),
+        detectedAt: new Date().toISOString(),
+      },
+      sessionId,
+    );
+  }
+
   onSessionResumed(sessionId: string): void {
     const rows = this.deliveriesRepo.listBySessionAndStatus(
       sessionId,

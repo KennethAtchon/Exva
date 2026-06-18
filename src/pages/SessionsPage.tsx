@@ -1002,6 +1002,18 @@ const renderSessionsPageView = ({
               dispatchData({ actionSessionId: null });
             }
           }}
+          onDebugInjectSignal={async (session) => {
+            dispatchData({ actionSessionId: session.id, error: null });
+            try {
+              await api.debugInjectSignal(session.id);
+            } catch (err) {
+              dispatchData({
+                error: err instanceof Error ? err.message : "Failed to inject signal.",
+              });
+            } finally {
+              dispatchData({ actionSessionId: null });
+            }
+          }}
         />
       ) : null}
     </Card>
@@ -1073,6 +1085,18 @@ const renderSessionsPageView = ({
               fireError instanceof Error
                 ? fireError.message
                 : "Failed to fire rehearsal signal.",
+          });
+        } finally {
+          dispatchData({ actionSessionId: null });
+        }
+      }}
+      onDebugInjectSignal={async (session) => {
+        dispatchData({ actionSessionId: session.id, error: null });
+        try {
+          await api.debugInjectSignal(session.id);
+        } catch (err) {
+          dispatchData({
+            error: err instanceof Error ? err.message : "Failed to inject signal.",
           });
         } finally {
           dispatchData({ actionSessionId: null });

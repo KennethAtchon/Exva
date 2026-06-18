@@ -7,10 +7,8 @@ export const EDGAR_CATALYST_EXPERIENCE: ExperienceDescriptor = {
   description:
     "AI-driven analysis of 8-K filings for catalyst-based drift plays. Calls LLM for fundamental + review + decision phases.",
   capabilities: {
-    instrumentClasses: ["stock"],
     signalSourceTypes: ["edgar_8k"],
     brokerRequirement: "any_supported_class",
-    defaultInstrumentClass: "stock",
     mockRehearsalEligible: true,
   },
   pipelineId: "edgar-8k-cycle",

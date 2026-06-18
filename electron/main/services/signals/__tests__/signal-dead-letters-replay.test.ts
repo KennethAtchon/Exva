@@ -27,10 +27,8 @@ describe("SignalService replayDeadLetter", () => {
         id: "test-multi-class-rules",
         displayName: "Test multi-class rules",
         capabilities: {
-          instrumentClasses: ["stock", "futures"],
           signalSourceTypes: ["timer"],
           brokerRequirement: "any_supported_class",
-          defaultInstrumentClass: "stock",
         },
         signals: [
           {

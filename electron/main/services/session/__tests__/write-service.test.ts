@@ -127,7 +127,7 @@ describe("SessionWriteService", () => {
     expect(aiPhases.every((p) => p.modelId === "")).toBe(true);
   });
 
-  it("rejects brokers that do not overlap the selected experience", () => {
+  it("allows any broker with edgar-catalyst (no experience instrument class constraint)", () => {
     const { signalSourcesRepo, sourceId } = insertExperienceSignal(
       db,
       "edgar-catalyst",
@@ -141,21 +141,21 @@ describe("SessionWriteService", () => {
       mode: "paper",
     });
 
-    expect(() =>
-      service.create({
-        name: "EDGAR Session",
-        objective: "Trade filings",
-        selectionMode: "signal_driven",
-        instrumentScope: "",
-        selectorSettings: { aiPickerEnabled: false },
-        executionMode: "paper_only",
-        experienceId: "edgar-catalyst",
-        subscribedSourceIds: [sourceId],
-        brokerAssignments: [
-          { brokerAccountId: "broker-pm", allocatedUsd: 2500 },
-        ],
-      }),
-    ).toThrowError(/does not support any instrument class required by/i);
+    // No instrument class constraint on experiences — any broker is accepted
+    const result = service.create({
+      name: "EDGAR Session",
+      objective: "Trade filings",
+      selectionMode: "signal_driven",
+      instrumentScope: "",
+      selectorSettings: { aiPickerEnabled: false },
+      executionMode: "paper_only",
+      experienceId: "edgar-catalyst",
+      subscribedSourceIds: [sourceId],
+      brokerAssignments: [
+        { brokerAccountId: "broker-pm", allocatedUsd: 2500 },
+      ],
+    });
+    expect(result.status).toBe("draft");
   });
 
   it("creates edgar-catalyst with an Alpaca stock broker", () => {
@@ -250,10 +250,10 @@ describe("SessionWriteService", () => {
           { brokerAccountId: "broker-stock", allocatedUsd: 2500 },
         ],
       }),
-    ).toThrowError(/does not support any instrument class required by/i);
+    ).toThrowError(/requires at least one Polymarket broker/i);
   });
 
-  it("derives instrument classes from experience and broker overlap in full-universe mode", () => {
+  it("derives instrument classes from broker in full-universe mode", () => {
     const service = createService(db);
     insertBroker(db, {
       id: "broker-stock",
@@ -287,7 +287,7 @@ describe("SessionWriteService", () => {
     expect(session.instrumentClasses).toEqual(["stock"]);
   });
 
-  it("rejects crypto-only brokers for stock-only experiences", () => {
+  it("allows crypto-only broker for edgar-catalyst (no experience instrument class constraint)", () => {
     const { signalSourcesRepo, sourceId } = insertExperienceSignal(
       db,
       "edgar-catalyst",
@@ -301,21 +301,21 @@ describe("SessionWriteService", () => {
       mode: "paper",
     });
 
-    expect(() =>
-      service.create({
-        name: "EDGAR Crypto Broker Session",
-        objective: "Should fail",
-        selectionMode: "signal_driven",
-        instrumentScope: "",
-        selectorSettings: { aiPickerEnabled: false },
-        executionMode: "paper_only",
-        experienceId: "edgar-catalyst",
-        subscribedSourceIds: [sourceId],
-        brokerAssignments: [
-          { brokerAccountId: "broker-crypto", allocatedUsd: 2500 },
-        ],
-      }),
-    ).toThrowError(/does not support any instrument class required by/i);
+    // Experience no longer restricts instrument classes — any broker is accepted
+    const result = service.create({
+      name: "EDGAR Crypto Broker Session",
+      objective: "Crypto broker, EDGAR experience",
+      selectionMode: "signal_driven",
+      instrumentScope: "",
+      selectorSettings: { aiPickerEnabled: false },
+      executionMode: "paper_only",
+      experienceId: "edgar-catalyst",
+      subscribedSourceIds: [sourceId],
+      brokerAssignments: [
+        { brokerAccountId: "broker-crypto", allocatedUsd: 2500 },
+      ],
+    });
+    expect(result.status).toBe("draft");
   });
 
   it("allows empty instrument scope for listener-only signal subscriptions", () => {

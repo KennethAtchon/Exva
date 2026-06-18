@@ -156,6 +156,11 @@ const exva: ExvaApi = {
         channels.session.testLiveBrokerConnection,
         sessionIdParamSchema.parse({ sessionId }),
       ),
+    debugInjectSignal: (sessionId) =>
+      invoke(
+        channels.session.debugInjectSignal,
+        sessionIdParamSchema.parse({ sessionId }),
+      ),
   },
   strategy: {
     get: (sessionId) => invoke(channels.strategy.get, { sessionId }),

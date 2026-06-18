@@ -65,12 +65,6 @@ export function validateExperienceRegistry(): void {
       }
     }
 
-    if (!experience.capabilities.instrumentClasses.length) {
-      throw new Error(
-        `Experience '${experience.id}' must declare at least one instrument class.`,
-      );
-    }
-
     if (!experience.capabilities.signalSourceTypes.length) {
       throw new Error(
         `Experience '${experience.id}' must declare at least one signal source type.`,
@@ -94,17 +88,6 @@ export function validateExperienceRegistry(): void {
         throw new Error(
           `Experience '${experience.id}' signal sourceType '${t}' ` +
             `is missing from capabilities.signalSourceTypes.`,
-        );
-      }
-    }
-
-    // I3: capabilities.instrumentClasses ⊇ union of signals[].instrumentClass
-    const allowed = new Set(experience.capabilities.instrumentClasses);
-    for (const signal of experience.signals) {
-      if (!allowed.has(signal.instrumentClass)) {
-        throw new Error(
-          `Experience '${experience.id}' signal '${signal.id}' instrumentClass '${signal.instrumentClass}' ` +
-            `is not in capabilities.instrumentClasses [${experience.capabilities.instrumentClasses.join(", ")}].`,
         );
       }
     }

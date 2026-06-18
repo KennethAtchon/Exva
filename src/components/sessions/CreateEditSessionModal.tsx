@@ -27,10 +27,8 @@ import {
   resolveBrokerInstrumentClasses,
 } from "@electron/shared/instruments/session-instrument-classes";
 import {
-  experienceBrokerOverlap,
   isSessionLaunchable,
   resolveSessionInstrumentClasses,
-  uncoveredExperienceClasses,
 } from "@electron/shared/instruments/experience-launchability";
 import {
   deriveSessionInputModel,
@@ -325,35 +323,20 @@ export const CreateEditSessionModal = ({
       ) ?? null,
     [experiences, form.experienceId],
   );
-  const experienceClasses = useMemo(
-    (): InstrumentClass[] =>
-      (selectedExperience?.capabilities.instrumentClasses ?? [
-        "stock",
-      ]) as InstrumentClass[],
-    [selectedExperience],
-  );
   const effectiveInstrumentClasses = useMemo(
     () =>
-      selectedExperience
-        ? resolveSessionInstrumentClasses(
-            selectedExperience.capabilities,
-            form,
-            assignedActiveModeBrokers,
-          )
-        : experienceClasses,
-    [assignedActiveModeBrokers, experienceClasses, form, selectedExperience],
-  );
-  const overlappingClasses = useMemo(
-    () => experienceBrokerOverlap(experienceClasses, assignedActiveModeBrokers),
-    [assignedActiveModeBrokers, experienceClasses],
-  );
-  const uncoveredExperienceInstrumentClasses = useMemo(
-    () =>
-      uncoveredExperienceClasses(experienceClasses, assignedActiveModeBrokers),
-    [assignedActiveModeBrokers, experienceClasses],
+      resolveSessionInstrumentClasses(
+        selectedExperience?.capabilities ?? {
+          signalSourceTypes: [],
+          brokerRequirement: "any_supported_class" as const,
+        },
+        form,
+        assignedActiveModeBrokers,
+      ),
+    [assignedActiveModeBrokers, form, selectedExperience],
   );
   const isLaunchable =
-    isSessionLaunchable(experienceClasses, assignedActiveModeBrokers) &&
+    isSessionLaunchable(assignedActiveModeBrokers) &&
     form.brokerAssignments.length > 0;
   const requiresSearchProviderSetup = false;
   const workspaceDefaultSearchProviderName =
@@ -485,7 +468,7 @@ export const CreateEditSessionModal = ({
     if (!searchEverything) return;
     if (
       sameInstrumentClasses(
-        form.instrumentClasses ?? experienceClasses,
+        form.instrumentClasses ?? brokerDrivenInstrumentClasses,
         brokerDrivenInstrumentClasses,
       )
     )
@@ -495,7 +478,6 @@ export const CreateEditSessionModal = ({
     });
   }, [
     brokerDrivenInstrumentClasses,
-    experienceClasses,
     form,
     form.instrumentClasses,
     searchEverything,
@@ -664,8 +646,7 @@ export const CreateEditSessionModal = ({
                           return {
                             ...prev,
                             experienceId,
-                            instrumentClasses: experience?.capabilities
-                              .instrumentClasses ?? ["stock"],
+                            instrumentClasses: brokerDrivenInstrumentClasses,
                             selectionMode: resolveSelectionModeForInput({
                               subscribedSources: nextSubscribedSources,
                               instrumentScope: prev.instrumentScope,
@@ -693,11 +674,7 @@ export const CreateEditSessionModal = ({
                     />
                     {selectedExperience ? (
                       <div className={inlineHintClass}>
-                        Supports{" "}
-                        {selectedExperience.capabilities.instrumentClasses
-                          .map(formatInstrumentClass)
-                          .join(", ")}{" "}
-                        via{" "}
+                        Signal sources:{" "}
                         {selectedExperience.capabilities.signalSourceTypes.join(
                           ", ",
                         )}
@@ -1149,31 +1126,17 @@ export const CreateEditSessionModal = ({
                       })}
                     </div>
                   ) : null}
-                  {uncoveredExperienceInstrumentClasses.length > 0 ? (
-                    <div className={inlineHintClass}>
-                      Uncovered experience classes (signals may dead-letter):{" "}
-                      {uncoveredExperienceInstrumentClasses
-                        .map(formatInstrumentClass)
-                        .join(", ")}
-                      .{" "}
-                      <HelpTooltip
-                        glossaryId="dead-letter"
-                        topic="Dead letters"
-                      />
-                    </div>
-                  ) : null}
                   {!isLaunchable ? (
                     <div className={warningTextClass}>
-                      Selected brokers must cover at least one class supported
-                      by this experience (
-                      {experienceClasses.map(formatInstrumentClass).join(", ")}
-                      ). <HelpTooltip glossaryId="launchability" />
+                      At least one broker account must be assigned.{" "}
+                      <HelpTooltip glossaryId="launchability" />
                     </div>
                   ) : (
                     <div className={successTextClass}>
-                      Launchable with broker coverage for{" "}
-                      {overlappingClasses.map(formatInstrumentClass).join(", ")}
-                      . <HelpTooltip glossaryId="launchability" />
+                      Launchable with{" "}
+                      {effectiveInstrumentClasses.map(formatInstrumentClass).join(", ")}{" "}
+                      from assigned brokers.{" "}
+                      <HelpTooltip glossaryId="launchability" />
                     </div>
                   )}
                 </div>
@@ -1313,7 +1276,7 @@ function defaultInput(): SessionCreateInput {
     objective: "",
     experienceId: "edgar-catalyst",
     selectionMode: "signal_driven",
-    instrumentClasses: ["stock"],
+    instrumentClasses: [],
     instrumentScope: "",
     defaultSearchProviderId: null,
     selectorSettings: { aiPickerEnabled: false },

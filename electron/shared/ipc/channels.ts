@@ -63,6 +63,7 @@ export const channels = {
     instrumentCacheClear: "session:instrument-cache:clear",
     buildCycleFixture: "session:buildCycleFixture",
     saveCycleFixture: "session:saveCycleFixture",
+    debugInjectSignal: "session:debug-inject-signal",
     getPaperScorecard: "session:getPaperScorecard",
     getLiveReadiness: "session:getLiveReadiness",
     acknowledgeLiveReadiness: "session:acknowledgeLiveReadiness",
