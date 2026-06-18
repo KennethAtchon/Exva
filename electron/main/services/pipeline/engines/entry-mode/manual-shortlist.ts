@@ -1,6 +1,7 @@
 import type { InstrumentClass, WorkspaceSession } from "@/lib/types";
 import type { InstrumentSelection } from "@/lib/schemas";
 import { AppError } from "@electron/shared/infra/errors";
+import { classifyInstrumentBySymbol } from "@electron/shared/instruments/instrument-classification";
 import type { AIPhaseContext } from "../../phases/types";
 import { registerEngine, type EntryModeEngine } from "../registry";
 
@@ -15,7 +16,7 @@ function buildManualShortlistSelection(
 
   const instruments: InstrumentSelection["instruments"] = [];
   for (const line of symbols) {
-    const parsed = parseManualInstrumentLine(line, session.instrumentClasses);
+    const parsed = parseManualInstrumentLine(line);
     if (!session.instrumentClasses.includes(parsed.instrumentClass)) continue;
     instruments.push({
       symbol: parsed.symbol,
@@ -75,28 +76,7 @@ const manualShortlistEntryEngine: EntryModeEngine = {
 
 registerEngine(manualShortlistEntryEngine);
 
-function inferInstrumentClass(
-  symbol: string,
-  classes: InstrumentClass[],
-): InstrumentClass {
-  if (classes.length === 1) return classes[0] ?? "stock";
-  const upper = symbol.toUpperCase();
-  if (classes.includes("crypto") && upper.includes("-")) return "crypto";
-  if (
-    classes.includes("futures") &&
-    /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d{1,2}$/i.test(upper)
-  )
-    return "futures";
-  if (classes.includes("prediction_market") && symbol.startsWith("pm:"))
-    return "prediction_market";
-  if (classes.includes("stock")) return "stock";
-  return classes[0] ?? "stock";
-}
-
-function parseManualInstrumentLine(
-  line: string,
-  classes: InstrumentClass[],
-): {
+function parseManualInstrumentLine(line: string): {
   symbol: string;
   instrumentClass: InstrumentClass;
   instrumentDisplayName?: string;
@@ -126,6 +106,6 @@ function parseManualInstrumentLine(
   const symbol = line.startsWith("pm:") ? line : line.toUpperCase();
   return {
     symbol,
-    instrumentClass: inferInstrumentClass(symbol, classes),
+    instrumentClass: classifyInstrumentBySymbol(symbol),
   };
 }

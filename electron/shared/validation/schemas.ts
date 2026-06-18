@@ -130,7 +130,6 @@ export const sessionCreateInputSchema = z.object({
   name: z.string().min(1).max(80),
   objective: z.string().min(1).max(500),
   selectionMode: selectionModeSchema,
-  instrumentClasses: z.array(instrumentClassSchema).min(1).optional(),
   instrumentScope: z.string(),
   defaultSearchProviderId: z.string().nullish(),
   selectorSettings: z.object({ aiPickerEnabled: z.boolean() }),

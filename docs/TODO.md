@@ -1,3 +1,0 @@
-What I want:
-
-For a given session, I don't want instrument constraint on them. I only want it such that, with the signals for the given experience, we get to use whatever broker is available that supports the instrument. This means we get to trade 2 different instruments in the same session. Can you check if my project is setup to achieve this goal? If not list where are the breaking parts? Also for the edge case where we have a signal but no broker connected, first of all: What will the signals use to even *get* the data to signal on if they dont have a broker attached? We use the broker to fetch and execute orders so the way to handle that is just, if a given signal doesnt have a broker in the session, just make sure it doesnt work and let the user know. 

@@ -21,7 +21,6 @@ export interface SessionWriteInput {
   name: string;
   objective: string;
   selectionMode: WorkspaceSession["selectionMode"];
-  instrumentClasses?: InstrumentClass[];
   instrumentScope: string;
   defaultSearchProviderId?: string | null;
   selectorSettings: { aiPickerEnabled: boolean };

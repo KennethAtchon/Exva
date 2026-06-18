@@ -44,7 +44,6 @@ export async function seedPaperTradingSession(
       name,
       objective: "E2E paper trading on NVDA",
       selectionMode: "manual_shortlist",
-      instrumentClasses: ["stock"],
       instrumentScope: "NVDA",
       selectorSettings: { aiPickerEnabled: false },
       executionMode: "paper_only",

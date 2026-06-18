@@ -4,6 +4,7 @@ import {
   isSearchStyleSignalSourceType,
   type SignalSourceType,
 } from "@electron/shared/domain";
+import { isInstrumentClass } from "@electron/shared/instruments/instrument-classification";
 import { registerEngine, type EntryModeEngine } from "../registry";
 
 type SignalTrigger = {
@@ -42,28 +43,22 @@ function readSignalTrigger(
 
 function inferInstrumentClass(
   signalTrigger: SignalTrigger,
-  sessionClasses: InstrumentClass[],
+  fallbackClasses: InstrumentClass[],
 ): InstrumentClass {
+  // Trust the signal's own class: by the time a signal reaches this engine the
+  // delivery gate has already confirmed an assigned broker supports that class.
+  // Re-deriving it against session config is what let, e.g., a crypto signal
+  // get mis-routed as stock.
   const payloadClass = signalTrigger.payloadJson?.instrumentClass;
-  if (
-    typeof payloadClass === "string" &&
-    sessionClasses.includes(payloadClass as InstrumentClass)
-  ) {
-    return payloadClass as InstrumentClass;
+  if (isInstrumentClass(payloadClass)) {
+    return payloadClass;
   }
-  if (
-    signalTrigger.sourceType === "edgar_8k" &&
-    sessionClasses.includes("stock")
-  ) {
+  // No class on the payload — fall back to source convention, then whatever the
+  // session can trade.
+  if (signalTrigger.sourceType === "edgar_8k") {
     return "stock";
   }
-  if (sessionClasses.length === 1) {
-    return sessionClasses[0] ?? "stock";
-  }
-  if (sessionClasses.includes("stock")) {
-    return "stock";
-  }
-  return sessionClasses[0] ?? "stock";
+  return fallbackClasses[0] ?? "stock";
 }
 
 const signalSeededEntryEngine: EntryModeEngine = {

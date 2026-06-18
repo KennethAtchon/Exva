@@ -405,7 +405,6 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
       name: "IPC Test Session",
       objective: "Trade NVDA in paper mode",
       selectionMode: "manual_shortlist",
-      instrumentClasses: ["stock"],
       instrumentScope: "NVDA",
       selectorSettings: { aiPickerEnabled: false },
       executionMode: "paper_only",

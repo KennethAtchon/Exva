@@ -24,7 +24,6 @@ import {
   buildSearchEverythingScope,
   isSearchEverythingEnabled,
   parseSearchEverythingFocusInstrumentClass,
-  resolveBrokerInstrumentClasses,
 } from "@electron/shared/instruments/session-instrument-classes";
 import {
   isSessionLaunchable,
@@ -312,10 +311,6 @@ export const CreateEditSessionModal = ({
     () => visibleBrokers.filter((broker) => assignedBrokerIdSet.has(broker.id)),
     [visibleBrokers, assignedBrokerIdSet],
   );
-  const brokerDrivenInstrumentClasses = useMemo(
-    () => resolveBrokerInstrumentClasses(assignedActiveModeBrokers),
-    [assignedActiveModeBrokers],
-  );
   const selectedExperience = useMemo(
     () =>
       experiences.find(
@@ -463,25 +458,6 @@ export const CreateEditSessionModal = ({
     if (nextAssignments.length === form.brokerAssignments.length) return;
     dispatchData({ form: { ...form, brokerAssignments: nextAssignments } });
   }, [brokerAccounts, form, form.brokerAssignments, visibleBrokers]);
-
-  useEffect(() => {
-    if (!searchEverything) return;
-    if (
-      sameInstrumentClasses(
-        form.instrumentClasses ?? brokerDrivenInstrumentClasses,
-        brokerDrivenInstrumentClasses,
-      )
-    )
-      return;
-    dispatchData({
-      form: { ...form, instrumentClasses: brokerDrivenInstrumentClasses },
-    });
-  }, [
-    brokerDrivenInstrumentClasses,
-    form,
-    form.instrumentClasses,
-    searchEverything,
-  ]);
 
   useEffect(() => {
     if (!searchEverythingFocusInstrumentClass) return;
@@ -646,7 +622,6 @@ export const CreateEditSessionModal = ({
                           return {
                             ...prev,
                             experienceId,
-                            instrumentClasses: brokerDrivenInstrumentClasses,
                             selectionMode: resolveSelectionModeForInput({
                               subscribedSources: nextSubscribedSources,
                               instrumentScope: prev.instrumentScope,
@@ -1276,7 +1251,6 @@ function defaultInput(): SessionCreateInput {
     objective: "",
     experienceId: "edgar-catalyst",
     selectionMode: "signal_driven",
-    instrumentClasses: [],
     instrumentScope: "",
     defaultSearchProviderId: null,
     selectorSettings: { aiPickerEnabled: false },
@@ -1295,7 +1269,6 @@ function payloadToInput(
     name,
     objective: payload.identity.objective,
     selectionMode: payload.identity.selectionMode,
-    instrumentClasses: payload.identity.instrumentClasses,
     instrumentScope: payload.identity.instrumentScope,
     defaultSearchProviderId: payload.identity.defaultSearchProviderId,
     selectorSettings: payload.selectorSettings,
@@ -1314,7 +1287,6 @@ function summaryToInput(session: SessionSummary): SessionCreateInput {
     objective: session.objective,
     experienceId: session.experienceId,
     selectionMode: session.selectionMode,
-    instrumentClasses: session.instrumentClasses,
     instrumentScope: session.instrumentScope,
     defaultSearchProviderId: session.defaultSearchProviderId,
     selectorSettings:
@@ -1397,16 +1369,6 @@ function formatInstrumentClass(value: InstrumentClass): string {
 
 function isSearchEverythingInput(input: SessionCreateInput): boolean {
   return isSearchEverythingEnabled(input);
-}
-
-function sameInstrumentClasses(
-  left: InstrumentClass[],
-  right: InstrumentClass[],
-): boolean {
-  return (
-    left.length === right.length &&
-    left.every((instrumentClass, index) => instrumentClass === right[index])
-  );
 }
 
 const panelClass =

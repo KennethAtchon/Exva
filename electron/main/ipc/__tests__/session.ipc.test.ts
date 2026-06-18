@@ -58,6 +58,18 @@ describe("session IPC handlers", () => {
     );
   });
 
+  it("session:create derives instrument classes from brokers", async () => {
+    const created = await invokeIpc<{ id: string; status: string }>(
+      channels.session.create,
+      harness.validSessionCreatePayload("broker-paper"),
+    );
+
+    expect(created.status).toBe("draft");
+    expect(
+      harness.services.repos.session.requireById(created.id).instrumentClasses,
+    ).toEqual(["stock"]);
+  });
+
   it("session:create persists multiple signal subscriptions", async () => {
     const signalSources = new SignalSourcesRepo(db);
     for (const id of ["edgar-source-1", "edgar-source-2"]) {
@@ -122,7 +134,6 @@ describe("session IPC handlers", () => {
         name: "Renamed Session",
         objective: "Updated objective for NVDA",
         selectionMode: "manual_shortlist",
-        instrumentClasses: ["stock"],
         instrumentScope: "NVDA",
         selectorSettings: { aiPickerEnabled: false },
         executionMode: "paper_only",
@@ -154,7 +165,6 @@ describe("session IPC handlers", () => {
         name: "Live Attempt",
         objective: "Should fail in paper workspace mismatch",
         selectionMode: "manual_shortlist",
-        instrumentClasses: ["stock"],
         instrumentScope: "AAPL",
         selectorSettings: { aiPickerEnabled: false },
         executionMode: "paper_only",

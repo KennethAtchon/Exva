@@ -126,7 +126,6 @@ export interface SessionCreateInput {
   objective: string;
   experienceId?: string;
   selectionMode: SelectionMode;
-  instrumentClasses?: InstrumentClass[];
   instrumentScope: string;
   defaultSearchProviderId?: string | null;
   selectorSettings: {
