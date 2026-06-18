@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb } from "../../../db/test-helpers";
 import { EventBus } from "../../infra/event-bus";
 import { SignalBus } from "../signal-bus";
+import { InstrumentNormalizer } from "../../broker/instrument-normalizer";
 import { SignalSourceRegistry } from "../signal-source-registry";
 import { SignalDeadLettersRepo } from "../repos/signal-dead-letters-repo";
 import { SignalDeliveriesRepo } from "../repos/signal-deliveries-repo";
@@ -30,6 +31,7 @@ describe("SignalSourceRegistry", () => {
       { get: () => null } as never,
       { resolveAdapter: async () => ({ adapter: {} }) } as never,
       new EventBus(),
+      new InstrumentNormalizer(),
     );
     return new SignalSourceRegistry(db, bus);
   }

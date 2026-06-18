@@ -177,6 +177,8 @@ export const api = {
     bridge().session.instrumentCacheClear(sessionId),
   debugInjectSignal: (sessionId: string): Promise<{ ok: boolean }> =>
     bridge().session.debugInjectSignal(sessionId),
+  debugForceTrade: (sessionId: string) =>
+    bridge().session.debugForceTrade(sessionId),
 
   getWorkspaceView: (): Promise<WorkspaceViewResponse> =>
     bridge().workspace.getView(),

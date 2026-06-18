@@ -412,6 +412,10 @@ export class SignalService {
     );
   }
 
+  debugForceTrade(sessionId: string) {
+    return this.signalBus.debugForceTrade(sessionId);
+  }
+
   onSessionResumed(sessionId: string): void {
     const rows = this.deliveriesRepo.listBySessionAndStatus(
       sessionId,

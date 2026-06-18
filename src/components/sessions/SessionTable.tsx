@@ -61,7 +61,7 @@ const SessionControls = ({
   onArchive,
   onLifecycle,
   onFireRehearsalSignal,
-  onDebugInjectSignal,
+  onDebugForceTrade,
 }: {
   session: SessionSummary;
   busy: boolean;
@@ -74,7 +74,7 @@ const SessionControls = ({
   onArchive: (id: string) => void;
   onLifecycle: (session: SessionSummary, action: LifecycleAction) => void;
   onFireRehearsalSignal?: (session: SessionSummary) => void;
-  onDebugInjectSignal?: (session: SessionSummary) => void;
+  onDebugForceTrade?: (session: SessionSummary) => void;
 }) => {
   const locked =
     session.status === "active" ||
@@ -192,13 +192,13 @@ const SessionControls = ({
       {(session.status === "active" ||
         session.status === "paused" ||
         session.status === "monitoring_only") &&
-      onDebugInjectSignal ? (
+      onDebugForceTrade ? (
         <Button
-          onClick={() => onDebugInjectSignal(session)}
+          onClick={() => onDebugForceTrade(session)}
           variant="outline"
           className={actionButtonClass}
           disabled={busy}
-          title="Debug: force-inject a synthetic signal to trigger the trade pipeline immediately"
+          title="Debug (paper only): submit a real test order to this session's broker, bypassing the signal pipeline, to verify orders actually reach the broker"
         >
           ⚡ Force trade
         </Button>
@@ -290,7 +290,7 @@ const SessionCard = ({
   onViewTrace,
   onPauseAfterStep,
   onFireRehearsalSignal,
-  onDebugInjectSignal,
+  onDebugForceTrade,
 }: {
   session: SessionSummary;
   busySessionId?: string | null;
@@ -319,7 +319,7 @@ const SessionCard = ({
   ) => void;
   onPauseAfterStep?: (sessionId: string) => void;
   onFireRehearsalSignal?: (session: SessionSummary) => void;
-  onDebugInjectSignal?: (session: SessionSummary) => void;
+  onDebugForceTrade?: (session: SessionSummary) => void;
 }) => {
   const busy = busySessionId === session.id;
   const aiBlocked = session.isFocused && focusedSessionAiReady === false;
@@ -548,7 +548,7 @@ const SessionCard = ({
         onArchive={onArchive}
         onLifecycle={onLifecycle}
         onFireRehearsalSignal={onFireRehearsalSignal}
-        onDebugInjectSignal={onDebugInjectSignal}
+        onDebugForceTrade={onDebugForceTrade}
       />
     </article>
   );
@@ -575,7 +575,7 @@ export const SessionTable = ({
   onViewTrace,
   onPauseAfterStep,
   onFireRehearsalSignal,
-  onDebugInjectSignal,
+  onDebugForceTrade,
 }: {
   sessions: SessionSummary[];
   busySessionId?: string | null;
@@ -604,7 +604,7 @@ export const SessionTable = ({
   ) => void;
   onPauseAfterStep?: (sessionId: string) => void;
   onFireRehearsalSignal?: (session: SessionSummary) => void;
-  onDebugInjectSignal?: (session: SessionSummary) => void;
+  onDebugForceTrade?: (session: SessionSummary) => void;
 }) => {
   return (
     <div className="grid gap-2.5">
@@ -627,7 +627,7 @@ export const SessionTable = ({
           onViewTrace={onViewTrace}
           onPauseAfterStep={onPauseAfterStep}
           onFireRehearsalSignal={onFireRehearsalSignal}
-          onDebugInjectSignal={onDebugInjectSignal}
+          onDebugForceTrade={onDebugForceTrade}
         />
       ))}
     </div>

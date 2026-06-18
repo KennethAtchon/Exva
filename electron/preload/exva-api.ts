@@ -70,6 +70,17 @@ import type {
   UpdateLessonInput,
 } from "@electron/shared/domain/autopsy";
 
+export interface DebugForceTradeResult {
+  brokerType: string;
+  brokerAccountId: string;
+  instrumentClass: InstrumentClass;
+  symbol: string;
+  side: "BUY";
+  sizeUsd: number;
+  brokerOrderId: string;
+  filledAvgPrice: number;
+}
+
 export interface ExvaApi {
   dashboard: {
     getStats(): Promise<DashboardStats>;
@@ -204,6 +215,7 @@ export interface ExvaApi {
       sessionId: string,
     ): Promise<{ ok: boolean; message: string }>;
     debugInjectSignal(sessionId: string): Promise<{ ok: boolean }>;
+    debugForceTrade(sessionId: string): Promise<DebugForceTradeResult>;
   };
   workspace: {
     getView(): Promise<WorkspaceViewResponse>;

@@ -32,4 +32,37 @@ test.describe.serial("dashboard", () => {
       await cleanupLaunchedExva(launched);
     }
   });
+
+  test("lets the dashboard page scroll on short viewports", async () => {
+    const launched = await launchExva();
+    try {
+      const { window } = launched;
+      await window.setViewportSize({ width: 900, height: 420 });
+      await waitForAppReady(window);
+
+      const hasScrollableDashboardAncestor = await window
+        .getByRole("heading", { name: "Dashboard", level: 1 })
+        .evaluate((heading) => {
+          let element = heading.parentElement;
+
+          while (element) {
+            const style = window.getComputedStyle(element);
+            const scrollable =
+              style.overflowY === "auto" || style.overflowY === "scroll";
+
+            if (scrollable && element.scrollHeight > element.clientHeight) {
+              return true;
+            }
+
+            element = element.parentElement;
+          }
+
+          return false;
+        });
+
+      expect(hasScrollableDashboardAncestor).toBe(true);
+    } finally {
+      await cleanupLaunchedExva(launched);
+    }
+  });
 });

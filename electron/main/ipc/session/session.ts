@@ -304,4 +304,10 @@ export function registerSessionHandlers(services: AppServices): void {
     services.signals.debugInjectSignal(sessionId);
     return { ok: true };
   });
+
+  handle(ipcMain, channels.session.debugForceTrade, async (payload) => {
+    const { sessionId } = sessionIdParamSchema.parse(payload);
+    assertSessionInWorkspaceEnvironment(services, sessionId);
+    return services.signals.debugForceTrade(sessionId);
+  });
 }

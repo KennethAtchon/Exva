@@ -58,6 +58,7 @@ type DataState = {
   sessions: SessionSummary[];
   loading: boolean;
   error: string | null;
+  notice: string | null;
   actionSessionId: string | null;
   progressBySessionId: Record<string, SessionProgressState>;
   researchFailuresBySessionId: Record<
@@ -402,6 +403,7 @@ export const SessionsPage = ({
     sessions: [],
     loading: false,
     error: null,
+    notice: null,
     actionSessionId: null,
     progressBySessionId: {},
     researchFailuresBySessionId: {},
@@ -428,6 +430,24 @@ export const SessionsPage = ({
 
   const aiReady = useWorkspaceStore((state) => state.focusedSessionAiReady);
   const environmentMode = useWorkspaceStore((state) => state.environmentMode);
+  const handleDebugForceTrade = useCallback(async (session: SessionSummary) => {
+    dispatchData({ actionSessionId: session.id, error: null, notice: null });
+    try {
+      const result = await api.debugForceTrade(session.id);
+      dispatchData({
+        notice:
+          `Force trade submitted: ${result.side} ${result.symbol} ` +
+          `($${result.sizeUsd}) via ${result.brokerType} @ ` +
+          `${result.filledAvgPrice}. Broker order ${result.brokerOrderId}.`,
+      });
+    } catch (err) {
+      dispatchData({
+        error: err instanceof Error ? err.message : "Force trade failed.",
+      });
+    } finally {
+      dispatchData({ actionSessionId: null });
+    }
+  }, []);
   const refreshProgress = useCallback(async (sessionId: string) => {
     try {
       const result = await api.getSessionExecutionProgress(sessionId);
@@ -651,6 +671,8 @@ export const SessionsPage = ({
     load,
     onGoToAccounts,
     ui,
+    environmentMode,
+    onDebugForceTrade: handleDebugForceTrade,
   });
 };
 
@@ -678,6 +700,8 @@ type RenderSessionsPageViewArgs = {
   load: () => Promise<void>;
   onGoToAccounts?: () => void;
   ui: UiState;
+  environmentMode: string;
+  onDebugForceTrade: (session: SessionSummary) => Promise<void>;
 };
 
 const renderSessionsPageView = ({
@@ -701,6 +725,8 @@ const renderSessionsPageView = ({
   load,
   onGoToAccounts,
   ui,
+  environmentMode,
+  onDebugForceTrade,
 }: RenderSessionsPageViewArgs) => (
   <PageShell>
     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -769,6 +795,9 @@ const renderSessionsPageView = ({
     </div>
 
     {data.error ? <div className={errorBannerClass}>{data.error}</div> : null}
+    {data.notice ? (
+      <div className={noticeBannerClass}>{data.notice}</div>
+    ) : null}
 
     <Card accent className="!p-0">
       <div className={contextHeroClass}>
@@ -1002,18 +1031,9 @@ const renderSessionsPageView = ({
               dispatchData({ actionSessionId: null });
             }
           }}
-          onDebugInjectSignal={async (session) => {
-            dispatchData({ actionSessionId: session.id, error: null });
-            try {
-              await api.debugInjectSignal(session.id);
-            } catch (err) {
-              dispatchData({
-                error: err instanceof Error ? err.message : "Failed to inject signal.",
-              });
-            } finally {
-              dispatchData({ actionSessionId: null });
-            }
-          }}
+          onDebugForceTrade={
+            environmentMode === "paper" ? onDebugForceTrade : undefined
+          }
         />
       ) : null}
     </Card>
@@ -1090,18 +1110,9 @@ const renderSessionsPageView = ({
           dispatchData({ actionSessionId: null });
         }
       }}
-      onDebugInjectSignal={async (session) => {
-        dispatchData({ actionSessionId: session.id, error: null });
-        try {
-          await api.debugInjectSignal(session.id);
-        } catch (err) {
-          dispatchData({
-            error: err instanceof Error ? err.message : "Failed to inject signal.",
-          });
-        } finally {
-          dispatchData({ actionSessionId: null });
-        }
-      }}
+      onDebugForceTrade={
+        environmentMode === "paper" ? onDebugForceTrade : undefined
+      }
     />
   </PageShell>
 );
@@ -1174,3 +1185,5 @@ const strategyNudgeButtonClass =
   "cursor-pointer whitespace-nowrap rounded-lg border border-info-border bg-info-dim px-3 py-[5px] text-[12px] font-semibold text-info";
 const errorBannerClass =
   "rounded-xl border border-error-border bg-error-dim p-3 px-3.5 text-[13px] text-error";
+const noticeBannerClass =
+  "rounded-xl border border-success-border bg-success-dim p-3 px-3.5 text-[13px] text-success";

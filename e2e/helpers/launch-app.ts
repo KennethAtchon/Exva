@@ -6,7 +6,11 @@ import {
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import os from "node:os";
-import { getNavGroupForPage, NAV_ITEMS, NAV_PRIMARY_IDS } from "../src/lib/nav";
+import {
+  getNavGroupForPage,
+  NAV_ITEMS,
+  NAV_PRIMARY_IDS,
+} from "../../src/lib/nav";
 
 export type LaunchedExva = {
   app: ElectronApplication;

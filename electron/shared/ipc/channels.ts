@@ -64,6 +64,7 @@ export const channels = {
     buildCycleFixture: "session:buildCycleFixture",
     saveCycleFixture: "session:saveCycleFixture",
     debugInjectSignal: "session:debug-inject-signal",
+    debugForceTrade: "session:debug-force-trade",
     getPaperScorecard: "session:getPaperScorecard",
     getLiveReadiness: "session:getLiveReadiness",
     acknowledgeLiveReadiness: "session:acknowledgeLiveReadiness",

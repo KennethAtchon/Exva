@@ -161,6 +161,11 @@ const exva: ExvaApi = {
         channels.session.debugInjectSignal,
         sessionIdParamSchema.parse({ sessionId }),
       ),
+    debugForceTrade: (sessionId) =>
+      invoke(
+        channels.session.debugForceTrade,
+        sessionIdParamSchema.parse({ sessionId }),
+      ),
   },
   strategy: {
     get: (sessionId) => invoke(channels.strategy.get, { sessionId }),

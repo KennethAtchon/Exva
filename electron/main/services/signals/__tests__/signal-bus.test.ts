@@ -14,6 +14,7 @@ import { BrokerRegistry } from "../../broker/broker-registry";
 import { EventBus } from "../../infra/event-bus";
 import { MockSignalSource } from "../sources/mock-signal-source";
 import { SignalBus } from "../signal-bus";
+import { InstrumentNormalizer } from "../../broker/instrument-normalizer";
 import { SignalDeadLettersRepo } from "../repos/signal-dead-letters-repo";
 import { SignalDeliveriesRepo } from "../repos/signal-deliveries-repo";
 import { SignalEventsRepo } from "../repos/signal-events-repo";
@@ -92,6 +93,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     brokerAccounts,
     routing,
     eventBus,
+    new InstrumentNormalizer(),
   );
 
   return {

@@ -15,6 +15,7 @@ import { SignalBus } from "../signal-bus";
 import { SignalService } from "../signal-service";
 import { BrokerRoutingService } from "../../broker/broker-routing-service";
 import { BrokerRegistry } from "../../broker/broker-registry";
+import { InstrumentNormalizer } from "../../broker/instrument-normalizer";
 import { EventBus } from "../../infra/event-bus";
 
 describe("SignalService replayDeadLetter", () => {
@@ -134,6 +135,7 @@ describe("SignalService replayDeadLetter", () => {
       brokerAccounts,
       routing,
       new EventBus(),
+      new InstrumentNormalizer(),
     );
     const service = new SignalService(
       new SignalSourcesRepo(db),

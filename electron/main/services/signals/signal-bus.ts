@@ -1,6 +1,9 @@
+import type { InstrumentClass } from "@/lib/types";
 import type { EventBus } from "../infra/event-bus";
 import type { SignalEvent } from "@electron/shared/domain";
 import { extractSignalInstrumentClass } from "@electron/shared/domain/signal-source-capabilities";
+import { AppError } from "@electron/shared/infra/errors";
+import type { InstrumentNormalizer } from "../broker/instrument-normalizer";
 import type { ISignalSource } from "./ISignalSource";
 import { SignalDeadLettersRepo } from "./repos/signal-dead-letters-repo";
 import { SignalDeliveriesRepo } from "./repos/signal-deliveries-repo";
@@ -11,6 +14,55 @@ import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { BrokerRoutingService } from "../broker/broker-routing-service";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
+
+export interface DebugForceTradeResult {
+  brokerType: string;
+  brokerAccountId: string;
+  instrumentClass: InstrumentClass;
+  symbol: string;
+  side: "BUY";
+  sizeUsd: number;
+  brokerOrderId: string;
+  filledAvgPrice: number;
+}
+
+/** Notional size for the debug order. Kept above typical broker minimums. */
+const DEBUG_FORCE_TRADE_SIZE_USD = 100;
+
+/**
+ * Default, liquid symbols per instrument class for the debug order. Classes
+ * whose tradeable symbol is contract- or market-specific (futures front month,
+ * a specific option, a specific prediction market) have no safe default and are
+ * intentionally omitted — the picker fails loud rather than guessing.
+ */
+const DEBUG_DEFAULT_SYMBOLS: Partial<Record<InstrumentClass, string>> = {
+  stock: "SPY",
+  crypto: "BTC-USD",
+};
+
+/**
+ * Choose an instrument class supported by one of the session's assigned brokers
+ * for which we have a safe default symbol. Throws a clear error otherwise.
+ */
+function pickDebugInstrument(
+  brokerAccountIds: string[],
+  supportedClassesFor: (id: string) => readonly InstrumentClass[],
+): { instrumentClass: InstrumentClass; symbol: string } {
+  const supported = new Set<InstrumentClass>();
+  for (const id of brokerAccountIds) {
+    for (const cls of supportedClassesFor(id)) supported.add(cls);
+  }
+  for (const [cls, symbol] of Object.entries(DEBUG_DEFAULT_SYMBOLS)) {
+    if (supported.has(cls as InstrumentClass) && symbol) {
+      return { instrumentClass: cls as InstrumentClass, symbol };
+    }
+  }
+  throw new AppError(
+    "Force trade has no safe default symbol for this session's broker(s). Supported debug classes: stock (SPY), crypto (BTC-USD).",
+    "VALIDATION_FAILED",
+    { supportedClasses: [...supported] },
+  );
+}
 
 export class SignalBus {
   private subscriptions = new Map<string, (event: SignalEvent) => void>();
@@ -25,6 +77,7 @@ export class SignalBus {
     private readonly brokerAccountsRepo: BrokerAccountsRepo,
     private readonly brokerRouting: BrokerRoutingService,
     private readonly eventBus: EventBus,
+    private readonly instrumentNormalizer: InstrumentNormalizer,
   ) {}
 
   register(source: ISignalSource): void {
@@ -142,6 +195,93 @@ export class SignalBus {
       statusBucket: delivery.statusBucket,
     });
     return { kind: "delivery", deliveryId: delivery.id };
+  }
+
+  /**
+   * Debug-only: submit a real, minimal order to the session's assigned broker,
+   * bypassing the signal pipeline and its delivery gate entirely. This is the
+   * end-to-end "does my system actually place orders?" check — it exercises
+   * broker routing + adapter + live connectivity, not a synthetic signal.
+   *
+   * Paper-only: refuses if any assigned broker account is in `live` mode. Does
+   * NOT record a Trade row, so the order will appear on the broker but not in
+   * the app's trades table.
+   */
+  async debugForceTrade(sessionId: string): Promise<DebugForceTradeResult> {
+    if (!this.sessionRepo.get(sessionId)) {
+      throw new AppError(`Session ${sessionId} was not found.`, "NOT_FOUND", {
+        sessionId,
+      });
+    }
+
+    const assignedIds =
+      this.sessionBrokerAssignmentsRepo.listBrokerAccountIds(sessionId);
+    if (assignedIds.length === 0) {
+      throw new AppError(
+        "No broker is assigned to this session, so there is nothing to send an order to.",
+        "VALIDATION_FAILED",
+        { sessionId },
+      );
+    }
+
+    // Paper-only guard: a real order to a live account is never a debug action.
+    for (const id of assignedIds) {
+      const account = this.brokerAccountsRepo.find(id);
+      if (account?.mode === "live") {
+        throw new AppError(
+          "Force trade is a paper-only debug action, but this session has a live broker assigned.",
+          "VALIDATION_FAILED",
+          { sessionId, brokerAccountId: id },
+        );
+      }
+    }
+
+    const { instrumentClass, symbol } = pickDebugInstrument(
+      assignedIds,
+      (id) => this.brokerAccountsRepo.find(id)?.supportedInstrumentClasses ?? [],
+    );
+
+    const { adapter, brokerAccountId } = await this.brokerRouting.resolveAdapter(
+      sessionId,
+      instrumentClass,
+    );
+    // Re-check after routing in case routing resolved a different account.
+    if (this.brokerAccountsRepo.find(brokerAccountId)?.mode === "live") {
+      throw new AppError(
+        "Force trade resolved to a live broker account; refusing to send a debug order.",
+        "VALIDATION_FAILED",
+        { sessionId, brokerAccountId },
+      );
+    }
+
+    const wireSymbol = this.instrumentNormalizer.toBrokerSymbol({
+      symbol,
+      instrumentClass,
+      brokerType: adapter.brokerType,
+    });
+    const clientOrderId = `debug-force-${crypto.randomUUID()}`;
+
+    const result = await adapter.placeOrder({
+      instrumentSymbol: wireSymbol,
+      instrumentDisplayName: null,
+      predictionOutcome: null,
+      instrumentMetadataJson: null,
+      instrumentType: instrumentClass,
+      side: "BUY",
+      sizeUsd: DEBUG_FORCE_TRADE_SIZE_USD,
+      clientOrderId,
+    });
+
+    return {
+      brokerType: adapter.brokerType,
+      brokerAccountId,
+      instrumentClass,
+      symbol: wireSymbol,
+      side: "BUY",
+      sizeUsd: DEBUG_FORCE_TRADE_SIZE_USD,
+      brokerOrderId: result.brokerOrderId,
+      filledAvgPrice: result.filledAvgPrice,
+    };
   }
 
   injectManual(event: SignalEvent, sessionId: string): void {

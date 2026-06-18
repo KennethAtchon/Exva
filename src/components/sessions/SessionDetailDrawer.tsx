@@ -242,12 +242,12 @@ export const SessionDetailDrawer = ({
   session,
   onClose,
   onFireRehearsalSignal,
-  onDebugInjectSignal,
+  onDebugForceTrade,
 }: {
   session: SessionSummary | null;
   onClose: () => void;
   onFireRehearsalSignal?: (session: SessionSummary) => void;
-  onDebugInjectSignal?: (session: SessionSummary) => void;
+  onDebugForceTrade?: (session: SessionSummary) => void;
 }) => {
   type State = {
     payload: SessionTemplatePayload | null;
@@ -618,12 +618,12 @@ export const SessionDetailDrawer = ({
                 {(session.status === "active" ||
                   session.status === "paused" ||
                   session.status === "monitoring_only") &&
-                onDebugInjectSignal ? (
+                onDebugForceTrade ? (
                   <Button
                     variant="outline"
                     className="h-8 text-xs"
-                    onClick={() => onDebugInjectSignal(session)}
-                    title="Debug: force-inject a synthetic signal to trigger the trade pipeline"
+                    onClick={() => onDebugForceTrade(session)}
+                    title="Debug (paper only): submit a real test order to this session's broker, bypassing the signal pipeline, to verify orders actually reach the broker"
                   >
                     ⚡ Force trade
                   </Button>

@@ -3,6 +3,7 @@ import { createTestDb } from "../../../db/test-helpers";
 import { createMinimalSession } from "../../../db/test-fixtures";
 import { EventBus } from "../../infra/event-bus";
 import { SignalBus } from "../signal-bus";
+import { InstrumentNormalizer } from "../../broker/instrument-normalizer";
 import { SignalSourceRegistry } from "../signal-source-registry";
 import { SignalService } from "../signal-service";
 import { SignalDeadLettersRepo } from "../repos/signal-dead-letters-repo";
@@ -40,6 +41,7 @@ describe("SignalService", () => {
       { get: () => null } as never,
       { resolveAdapter: async () => ({ adapter: {} }) } as never,
       eventBus,
+      new InstrumentNormalizer(),
     );
     const registry = new SignalSourceRegistry(db, bus);
     const service = new SignalService(

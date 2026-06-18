@@ -500,6 +500,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     repos.brokerAccounts,
     brokerRouting,
     eventBus,
+    instrumentNormalizer,
   );
   const signalRegistry = new SignalSourceRegistry(db, signalBus);
   const sessionListing = new SessionListingService({
