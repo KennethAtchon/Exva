@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/custom-ui";
 import { Button, HelpTooltip } from "@/components/ui";
 import type { SessionSummary } from "@/lib/exva";
@@ -20,6 +21,29 @@ type LifecycleAction = "start" | "pause" | "resume" | "stop" | "forceStop";
 
 const FORCE_STOP_CONFIRM_MESSAGE =
   "Force stop will end automated exit management for open positions. Continue?";
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "now";
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
+  return `${s}s`;
+}
+
+/** Live countdown to the session's soonest next timer-source fire. */
+const TimerFireCountdown = ({ nextFireAt }: { nextFireAt: string }) => {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const target = Date.parse(nextFireAt);
+  if (Number.isNaN(target)) return null;
+  return <>Next timer fire in {formatCountdown(target - now)}</>;
+};
 
 // ---------------------------------------------------------------------------
 // SessionControls — lifecycle action button group within each card
@@ -414,12 +438,18 @@ const SessionCard = ({
         </div>
       ) : null}
       <div className="mt-2 text-[12px] text-[var(--text3)]">
-        {runningButWaiting
-          ? "Waiting — no live inputs"
-          : session.status === "active" &&
-              session.subscribedSources.some((source) => source.enabled)
-            ? "Listening for signals"
-            : ""}
+        {runningButWaiting ? (
+          "Waiting — no live inputs"
+        ) : session.status === "active" &&
+          session.subscribedSources.some((source) => source.enabled) ? (
+          session.nextTimerFireAt ? (
+            <TimerFireCountdown nextFireAt={session.nextTimerFireAt} />
+          ) : (
+            "Listening for signals"
+          )
+        ) : (
+          ""
+        )}
       </div>
       {session.rehearsalEligible && !session.rehearsalMode ? (
         <div className={rehearsalSetupBannerClass}>

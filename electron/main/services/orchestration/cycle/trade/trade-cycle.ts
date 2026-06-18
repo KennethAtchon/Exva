@@ -208,6 +208,15 @@ export async function executeTradeCycle(
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    ctx.deps.logger.error(
+      {
+        err: error,
+        sessionId: ctx.sessionId,
+        cycleId: context.cycleId,
+        tradeId: context.trade?.id ?? null,
+      },
+      "trade cycle crashed",
+    );
     ctx.recordFailure({
       cycleId: context.cycleId,
       stage: "trade_cycle",

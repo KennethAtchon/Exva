@@ -359,6 +359,7 @@ describe("session onboarding integration", () => {
       trades: new TradesRepo(db),
       runtimeManager: harness.runtimeManager,
       signalSources: harness.signalSourcesRepo,
+      signalRegistry: { snapshot: () => null } as never,
       brokerAccounts: harness.brokers,
     });
     expect(listing.list().sessions.map((row) => row.id)).not.toContain(

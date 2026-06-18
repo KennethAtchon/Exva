@@ -61,4 +61,25 @@ describe("TimerSignalSource", () => {
     await source.stop();
     expect(source.status).toBe("paused");
   });
+
+  it("exposes nextFireAt while running and clears it on stop", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-17T00:00:00.000Z"));
+    const source = new TimerSignalSource(
+      "timer-3",
+      JSON.stringify({ symbol: "SPY", cadence: "15m", intervalMs: 60_000 }),
+    );
+
+    // nextFireAt is anchored to the last fire + intervalMs.
+    await source.start();
+    expect(source.snapshot().nextFireAt).toBe("2026-06-17T00:01:00.000Z");
+
+    // It advances on each subsequent tick.
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(source.snapshot().nextFireAt).toBe("2026-06-17T00:02:00.000Z");
+
+    // Stopping clears the schedule so the card shows no countdown.
+    await source.stop();
+    expect(source.snapshot().nextFireAt).toBeNull();
+  });
 });

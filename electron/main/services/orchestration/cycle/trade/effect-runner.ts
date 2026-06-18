@@ -143,6 +143,10 @@ export async function placeBrokerOrder(
     const snap = await adapter.getMarketSnapshot(wireSymbol);
     placementQuote = { price: snap.price, timestamp: snap.timestamp };
   } catch (err) {
+    ctx.deps.logger.error(
+      { err, sessionId: ctx.sessionId, tradeId: trade.id, wireSymbol },
+      "pre-placement market snapshot fetch failed",
+    );
     throw createOutcomeError(
       `Pre-placement quote fetch failed: ${err instanceof Error ? err.message : String(err)}`,
       "BROKER_UNREACHABLE",
@@ -195,6 +199,15 @@ export async function placeBrokerOrder(
     }) as unknown as Record<string, unknown>,
   });
   if (!policyResult.allowed) {
+    ctx.deps.logger.warn(
+      {
+        sessionId: ctx.sessionId,
+        tradeId: trade.id,
+        reason: policyResult.reason,
+        gatesFailed: policyResult.gatesFailed,
+      },
+      "order blocked by policy gate",
+    );
     throw createOrderPolicyError(
       policyResult.reason ?? "Order blocked by policy gate",
       policyResult.gatesFailed ?? [],

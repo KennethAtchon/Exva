@@ -1,6 +1,7 @@
 import type { ConnectionTestResult } from "@/lib/types";
 import type { InstrumentClass } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
+import { createLogger } from "../../infra/log";
 import type {
   BrokerAdapter,
   BrokerOrder,
@@ -10,6 +11,8 @@ import type {
   MarketSnapshot,
   OrderStatus,
 } from "./broker-adapter";
+
+const logger = createLogger("tradovate-adapter");
 
 export type TradovateCredentials = {
   username?: string;
@@ -70,19 +73,43 @@ export class TradovateAdapter implements BrokerAdapter {
   }
 
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
+    logger.info(
+      {
+        instrumentSymbol: order.instrumentSymbol,
+        side: order.side,
+        sizeUsd: order.sizeUsd,
+        instrumentType: order.instrumentType,
+        mode: this.mode,
+      },
+      "tradovate placeOrder: submitting order (simulated)",
+    );
     if (order.instrumentType !== "futures") {
-      throw new AppError(
+      const err = new AppError(
         "Tradovate adapter supports futures only",
         "UNSUPPORTED_INSTRUMENT",
       );
+      logger.error(
+        { err, instrumentType: order.instrumentType },
+        "tradovate placeOrder: unsupported instrument type",
+      );
+      throw err;
     }
-    return {
+    const result = {
       brokerOrderId: `tv_sim_${crypto.randomUUID()}`,
       filledAvgPrice: this.stubPrice(order.instrumentSymbol),
     };
+    logger.info(
+      {
+        brokerOrderId: result.brokerOrderId,
+        filledAvgPrice: result.filledAvgPrice,
+      },
+      "tradovate placeOrder: simulated fill",
+    );
+    return result;
   }
 
   async cancelOrder(brokerOrderId: string): Promise<void> {
+    logger.info({ brokerOrderId }, "tradovate cancelOrder: no-op (simulated)");
     void brokerOrderId;
   }
 
@@ -91,6 +118,7 @@ export class TradovateAdapter implements BrokerAdapter {
   }
 
   async closeOrder(orderId: string): Promise<CloseResult> {
+    logger.info({ orderId }, "tradovate closeOrder: no-op (simulated)");
     return { brokerOrderId: orderId, realizedPnlUsd: 0 };
   }
 

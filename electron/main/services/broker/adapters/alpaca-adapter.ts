@@ -2,6 +2,7 @@ import type { BrokerCredentials, ConnectionTestResult } from "@/lib/types";
 import type { InstrumentClass } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
 import { createHash } from "node:crypto";
+import { createLogger } from "../../infra/log";
 import type {
   BrokerAdapter,
   BrokerOrder,
@@ -12,6 +13,8 @@ import type {
   OhlcvBar,
   OrderStatus,
 } from "./broker-adapter";
+
+const logger = createLogger("alpaca-adapter");
 
 const ALPACA_DATA_URL = "https://data.alpaca.markets";
 const ALPACA_TIMEFRAME_MAP: Record<string, string> = {
@@ -52,6 +55,7 @@ export class AlpacaAdapter implements BrokerAdapter {
         account_balance: resolveAccountBalance(account),
       };
     } catch (error) {
+      logger.error({ err: error }, "alpaca testConnection: failed");
       return {
         ok: false,
         message:
@@ -87,14 +91,28 @@ export class AlpacaAdapter implements BrokerAdapter {
   }
 
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
+    logger.info(
+      {
+        instrumentSymbol: order.instrumentSymbol,
+        side: order.side,
+        sizeUsd: order.sizeUsd,
+        instrumentType: order.instrumentType,
+      },
+      "alpaca placeOrder: submitting order",
+    );
     if (order.instrumentType !== "stock") {
-      throw new AppError(
+      const err = new AppError(
         "Alpaca adapter supports stocks only",
         "UNSUPPORTED_INSTRUMENT",
         {
           instrumentType: order.instrumentType,
         },
       );
+      logger.error(
+        { err, instrumentType: order.instrumentType },
+        "alpaca placeOrder: unsupported instrument type",
+      );
+      throw err;
     }
     const result = await this.request<{
       id: string;
@@ -112,6 +130,14 @@ export class AlpacaAdapter implements BrokerAdapter {
       }),
     });
     const filledAvgPrice = await this.resolveFilledAvgPrice(result);
+    logger.info(
+      {
+        brokerOrderId: result.id,
+        filledAvgPrice,
+        status: result.status ?? null,
+      },
+      "alpaca placeOrder: order accepted",
+    );
     return {
       brokerOrderId: result.id,
       filledAvgPrice,
@@ -119,6 +145,7 @@ export class AlpacaAdapter implements BrokerAdapter {
   }
 
   async cancelOrder(brokerOrderId: string): Promise<void> {
+    logger.info({ brokerOrderId }, "alpaca cancelOrder: cancelling order");
     await this.request(`/v2/orders/${encodeURIComponent(brokerOrderId)}`, {
       method: "DELETE",
     });
@@ -148,6 +175,7 @@ export class AlpacaAdapter implements BrokerAdapter {
   }
 
   async closeOrder(orderId: string): Promise<CloseResult> {
+    logger.info({ orderId }, "alpaca closeOrder: closing order");
     // Real close: look up the order's symbol, then ask Alpaca to flatten that
     // symbol's position. If the order never filled, just cancel it.
     let symbol: string | null = null;
@@ -158,8 +186,11 @@ export class AlpacaAdapter implements BrokerAdapter {
       );
       symbol = order.symbol ?? null;
       status = (order.status ?? "").toLowerCase();
-    } catch {
-      // fall through to cancel-only
+    } catch (err) {
+      logger.warn(
+        { err, orderId },
+        "alpaca closeOrder: could not fetch order; falling through to cancel-only",
+      );
     }
 
     if (!symbol || status !== "filled") {
@@ -174,16 +205,22 @@ export class AlpacaAdapter implements BrokerAdapter {
         `/v2/positions/${encodeURIComponent(symbol)}`,
       );
       realizedPnlUsd = Number(pos.unrealized_pl ?? 0);
-    } catch {
-      // position may already be flat
+    } catch (err) {
+      logger.warn(
+        { err, symbol },
+        "alpaca closeOrder: could not fetch position pnl; defaulting to 0",
+      );
     }
 
     try {
       await this.request(`/v2/positions/${encodeURIComponent(symbol)}`, {
         method: "DELETE",
       });
-    } catch {
-      // position may already be flat or just-canceled
+    } catch (err) {
+      logger.warn(
+        { err, symbol },
+        "alpaca closeOrder: could not delete position; may already be flat",
+      );
     }
 
     return { brokerOrderId: orderId, realizedPnlUsd };
@@ -262,7 +299,7 @@ export class AlpacaAdapter implements BrokerAdapter {
     const refreshedPrice = parsePositiveNumber(refreshed.filled_avg_price);
     if (refreshedPrice != null) return refreshedPrice;
 
-    throw new AppError(
+    const err = new AppError(
       "Alpaca accepted the order but did not report a filled average price.",
       "BROKER_ERROR",
       {
@@ -270,6 +307,15 @@ export class AlpacaAdapter implements BrokerAdapter {
         brokerOrderIdLength: order.id.length,
       },
     );
+    logger.error(
+      {
+        err,
+        brokerOrderId: order.id,
+        status: refreshed.status ?? order.status ?? null,
+      },
+      "alpaca placeOrder: order accepted but no filled average price reported",
+    );
+    throw err;
   }
 
   private async fetchWithAuth<T>(
@@ -277,25 +323,52 @@ export class AlpacaAdapter implements BrokerAdapter {
     path: string,
     init: RequestInit = {},
   ): Promise<T> {
-    const response = await fetch(`${baseUrl}${path}`, {
-      ...init,
-      headers: {
-        "APCA-API-KEY-ID": this.credentials.api_key,
-        "APCA-API-SECRET-KEY": this.credentials.secret_key,
-        "content-type": "application/json",
-        ...init.headers,
-      },
-    });
+    const method = init.method ?? "GET";
+    logger.debug({ method, baseUrl, path }, "alpaca request: sending");
+
+    let response: Response;
+    try {
+      response = await fetch(`${baseUrl}${path}`, {
+        ...init,
+        headers: {
+          "APCA-API-KEY-ID": this.credentials.api_key,
+          "APCA-API-SECRET-KEY": this.credentials.secret_key,
+          "content-type": "application/json",
+          ...init.headers,
+        },
+      });
+    } catch (err) {
+      logger.error(
+        { err, method, baseUrl, path },
+        "alpaca request: network error",
+      );
+      throw err;
+    }
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
-      throw new AppError(
+      const err = new AppError(
         `Alpaca request failed (${response.status}): ${text.slice(0, 200)}`,
         "BROKER_ERROR",
         { status: response.status },
       );
+      logger.error(
+        {
+          err,
+          method,
+          path,
+          status: response.status,
+          body: text.slice(0, 500),
+        },
+        "alpaca request: non-ok response",
+      );
+      throw err;
     }
 
+    logger.debug(
+      { method, path, status: response.status },
+      "alpaca request: ok",
+    );
     if (response.status === 204) return undefined as T;
     return (await response.json()) as T;
   }

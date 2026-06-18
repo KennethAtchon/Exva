@@ -265,6 +265,7 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     trades: repos.trades,
     runtimeManager,
     signalSources: signalSourcesRepo,
+    signalRegistry: { snapshot: () => null } as never,
     brokerAccounts: repos.brokerAccounts,
   });
 

@@ -29,11 +29,13 @@ export class TimerSignalSource implements ISignalSource {
   lastError: string | null = null;
   private handlers = new Set<(event: SignalEvent) => void>();
   private timer: ReturnType<typeof setInterval> | null = null;
+  private intervalMs: number | null = null;
   private config: TimerSignalSourceConfig;
   private lastPollAt: string | null = null;
   private lastPollResult: PollResult | null = null;
   private lastSignalAt: string | null = null;
   private lastSignalTicker: string | null = null;
+  private nextFireAt: string | null = null;
   private recentActivity: SignalSourceActivityEntry[] = [];
 
   constructor(
@@ -53,20 +55,21 @@ export class TimerSignalSource implements ISignalSource {
     if (this.timer) return;
     this.status = "running";
     this.lastError = null;
-    await this.emitTick();
-    const intervalMs =
-      this.config.intervalMs ?? cadenceToMs(this.config.cadence);
-    this.timer = setInterval(
-      () => {
-        void this.emitTick();
-      },
-      Math.max(1000, intervalMs),
+    const intervalMs = Math.max(
+      1000,
+      this.config.intervalMs ?? cadenceToMs(this.config.cadence),
     );
+    this.intervalMs = intervalMs;
+    await this.emitTick();
+    this.timer = setInterval(() => {
+      void this.emitTick();
+    }, intervalMs);
   }
 
   async stop(): Promise<void> {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    this.nextFireAt = null;
     this.status = "paused";
   }
 
@@ -88,6 +91,7 @@ export class TimerSignalSource implements ISignalSource {
       lastSignalAt: this.lastSignalAt,
       lastSignalTicker: this.lastSignalTicker,
       recentActivity: [...this.recentActivity],
+      nextFireAt: this.nextFireAt,
     };
   }
 
@@ -127,6 +131,10 @@ export class TimerSignalSource implements ISignalSource {
     this.lastSignalTicker = event.ticker;
     this.lastPollAt = at;
     this.lastPollResult = result;
+    this.nextFireAt =
+      this.intervalMs != null
+        ? new Date(Date.now() + this.intervalMs).toISOString()
+        : null;
     this.pushActivity({
       at,
       kind: "ok",

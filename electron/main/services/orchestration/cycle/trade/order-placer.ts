@@ -29,6 +29,15 @@ export async function placeRoutedOrder(
       ctx.sessionId,
     )
   ) {
+    ctx.deps.logger.warn(
+      {
+        sessionId: ctx.sessionId,
+        tradeId: trade.id,
+        brokerAccountId,
+        instrumentSymbol: trade.instrumentSymbol,
+      },
+      "order skipped: instrument conflict detected",
+    );
     return null;
   }
 
@@ -38,16 +47,46 @@ export async function placeRoutedOrder(
     brokerType: adapter.brokerType,
   });
 
-  const result = await adapter.placeOrder({
-    instrumentSymbol: wireSymbol,
-    instrumentDisplayName: trade.instrumentDisplayName ?? null,
-    predictionOutcome: trade.predictionOutcome ?? null,
-    instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
-    instrumentType: instrumentClass,
-    side: riskOrder.side,
-    sizeUsd: riskOrder.sizeUsd,
-    clientOrderId,
-  });
+  ctx.deps.logger.info(
+    {
+      sessionId: ctx.sessionId,
+      tradeId: trade.id,
+      brokerAccountId,
+      brokerType: adapter.brokerType,
+      wireSymbol,
+      side: riskOrder.side,
+      sizeUsd: riskOrder.sizeUsd,
+      clientOrderId,
+    },
+    "placing broker order",
+  );
+
+  let result;
+  try {
+    result = await adapter.placeOrder({
+      instrumentSymbol: wireSymbol,
+      instrumentDisplayName: trade.instrumentDisplayName ?? null,
+      predictionOutcome: trade.predictionOutcome ?? null,
+      instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
+      instrumentType: instrumentClass,
+      side: riskOrder.side,
+      sizeUsd: riskOrder.sizeUsd,
+      clientOrderId,
+    });
+  } catch (err) {
+    ctx.deps.logger.error(
+      {
+        err,
+        sessionId: ctx.sessionId,
+        tradeId: trade.id,
+        brokerAccountId,
+        brokerType: adapter.brokerType,
+        wireSymbol,
+      },
+      "broker order placement threw",
+    );
+    throw err;
+  }
 
   if (trade.brokerAccountId !== brokerAccountId) {
     ctx.deps.tradesRepo.patchPendingExecution(trade.id, { brokerAccountId });

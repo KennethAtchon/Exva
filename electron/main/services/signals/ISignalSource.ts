@@ -17,6 +17,11 @@ export interface SignalSourceSnapshot {
   lastSignalAt: string | null;
   lastSignalTicker: string | null;
   recentActivity: SignalSourceActivityEntry[];
+  /**
+   * ISO timestamp of the next scheduled fire, for clock-driven sources (timer).
+   * null for sources that poll/react rather than tick on a fixed schedule.
+   */
+  nextFireAt?: string | null;
 }
 
 export interface ISignalSource {

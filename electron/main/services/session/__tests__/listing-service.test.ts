@@ -24,6 +24,7 @@ function createListing(deps: {
     sessionRepo: deps.sessions,
     assignments: deps.assignments,
     signalSources: new SignalSourcesRepo(deps.db),
+    signalRegistry: { snapshot: () => null } as never,
     brokerAccounts: new BrokerAccountsRepo(deps.db),
     trades: (deps.trades ?? { listOpenAndPending: () => [] }) as never,
     runtimeManager: (deps.runtimeManager ?? { get: () => null }) as never,

@@ -21,6 +21,11 @@ export async function runApprovalRecheck(
   const trade = ctx.deps.tradesRepo.require(approval.tradeId);
   if (trade.status !== "pending") return;
 
+  ctx.deps.logger.debug(
+    { sessionId: ctx.sessionId, tradeId: trade.id, approvalId: approval.id },
+    "approval recheck start",
+  );
+
   const config = ctx.getSessionConfig();
   const cycleId = crypto.randomUUID();
   const instrument: TradeCycleInstrument = {
@@ -45,6 +50,10 @@ export async function runApprovalRecheck(
 
   const { technical, fundamental, review, decision } = pipeline.state;
   if (!technical || !fundamental || !review || !decision) {
+    ctx.deps.logger.error(
+      { sessionId: ctx.sessionId, tradeId: trade.id, approvalId: approval.id },
+      "approval recheck: AI pipeline returned incomplete results",
+    );
     failRecheck(
       ctx,
       trade.id,
@@ -70,6 +79,15 @@ export async function runApprovalRecheck(
 
   const fresh = decision.output;
   if (fresh.action === "skip") {
+    ctx.deps.logger.warn(
+      {
+        sessionId: ctx.sessionId,
+        tradeId: trade.id,
+        approvalId: approval.id,
+        reasoning: fresh.reasoning,
+      },
+      "approval recheck: fresh AI decision is skip",
+    );
     failRecheck(
       ctx,
       trade.id,
@@ -89,6 +107,15 @@ export async function runApprovalRecheck(
       trade.id,
     );
   } catch (err) {
+    ctx.deps.logger.error(
+      {
+        err,
+        sessionId: ctx.sessionId,
+        tradeId: trade.id,
+        approvalId: approval.id,
+      },
+      "approval recheck: post-decision gate threw",
+    );
     failRecheck(
       ctx,
       trade.id,
@@ -99,6 +126,10 @@ export async function runApprovalRecheck(
   }
   const riskOrder = gateState.riskOrder;
   if (!riskOrder) {
+    ctx.deps.logger.error(
+      { sessionId: ctx.sessionId, tradeId: trade.id, approvalId: approval.id },
+      "approval recheck: risk order missing after post-decision gates",
+    );
     failRecheck(
       ctx,
       trade.id,
@@ -149,6 +180,10 @@ export async function runApprovalRecheck(
     nextTrade.brokerAccountId ??
     trade.brokerAccountId;
   if (!recheckBrokerAccountId) {
+    ctx.deps.logger.error(
+      { sessionId: ctx.sessionId, tradeId: trade.id, approvalId: approval.id },
+      "approval recheck: could not resolve broker account id",
+    );
     failRecheck(
       ctx,
       trade.id,
@@ -191,6 +226,15 @@ export async function runApprovalRecheck(
     }) as unknown as Record<string, unknown>,
   });
   if (!recheckPolicy.allowed) {
+    ctx.deps.logger.warn(
+      {
+        sessionId: ctx.sessionId,
+        tradeId: trade.id,
+        approvalId: approval.id,
+        reason: recheckPolicy.reason,
+      },
+      "approval recheck: blocked by order policy gate",
+    );
     failRecheck(
       ctx,
       trade.id,
@@ -209,6 +253,10 @@ export async function runApprovalRecheck(
     recheckClientOrderId,
   );
   if (!placed) {
+    ctx.deps.logger.warn(
+      { sessionId: ctx.sessionId, tradeId: trade.id, approvalId: approval.id },
+      "approval recheck: instrument conflict or routing blocked placement",
+    );
     failRecheck(
       ctx,
       trade.id,

@@ -46,6 +46,8 @@ export interface SessionSummary {
     enabled: boolean;
     configJson?: string;
   }>;
+  /** Soonest next scheduled timer-source fire (ISO), or null if none running. */
+  nextTimerFireAt: string | null;
   readiness:
     | "armed"
     | "manual_only"

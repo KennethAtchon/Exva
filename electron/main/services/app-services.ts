@@ -450,15 +450,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     liveReadiness,
   });
 
-  const sessionListing = new SessionListingService({
-    sessionRepo: repos.session,
-    assignments: repos.sessionBrokerAssignments,
-    trades: repos.trades,
-    runtimeManager,
-    signalSources: signalSourcesRepo,
-    brokerAccounts: repos.brokerAccounts,
-  });
-
   const sessionTemplates = new SessionTemplateService({
     templates: repos.sessionTemplates,
     sessions: repos.session,
@@ -511,6 +502,15 @@ export async function createAppServices(app: App): Promise<AppServices> {
     eventBus,
   );
   const signalRegistry = new SignalSourceRegistry(db, signalBus);
+  const sessionListing = new SessionListingService({
+    sessionRepo: repos.session,
+    assignments: repos.sessionBrokerAssignments,
+    trades: repos.trades,
+    runtimeManager,
+    signalSources: signalSourcesRepo,
+    signalRegistry,
+    brokerAccounts: repos.brokerAccounts,
+  });
   const signals = new SignalService(
     signalSourcesRepo,
     signalEventsRepo,

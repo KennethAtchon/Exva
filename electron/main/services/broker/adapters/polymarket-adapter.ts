@@ -1,5 +1,6 @@
 import type { ConnectionTestResult, InstrumentClass } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
+import { createLogger } from "../../infra/log";
 import {
   AssetType,
   ClobClient,
@@ -20,6 +21,8 @@ import type {
   OrderStatus,
   PolymarketMarketRow,
 } from "./broker-adapter";
+
+const logger = createLogger("polymarket-adapter");
 
 type PolymarketCredentials = {
   privateKey: string;
@@ -67,6 +70,7 @@ export class PolymarketAdapter
         account_balance: Number(balance.balance ?? 0),
       };
     } catch (error) {
+      logger.error({ err: error }, "polymarket testConnection: failed");
       return {
         ok: false,
         message:
@@ -78,6 +82,7 @@ export class PolymarketAdapter
   }
 
   async getAccountBalance(): Promise<number> {
+    logger.debug("polymarket getAccountBalance: fetching balance");
     const client = await this.getAuthedClient();
     const balance = await client.getBalanceAllowance({
       asset_type: AssetType.COLLATERAL,
@@ -86,6 +91,10 @@ export class PolymarketAdapter
   }
 
   async getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot> {
+    logger.debug(
+      { instrumentSymbol },
+      "polymarket getMarketSnapshot: fetching",
+    );
     const client = this.getReadOnlyClient();
     const conditionId = parseConditionId(instrumentSymbol);
     const market = await client.getMarket(conditionId);
@@ -100,11 +109,25 @@ export class PolymarketAdapter
   }
 
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
+    logger.info(
+      {
+        instrumentSymbol: order.instrumentSymbol,
+        side: order.side,
+        sizeUsd: order.sizeUsd,
+        instrumentType: order.instrumentType,
+      },
+      "polymarket placeOrder: submitting order",
+    );
     if (order.instrumentType !== "prediction_market") {
-      throw new AppError(
+      const err = new AppError(
         "Polymarket adapter supports prediction markets only",
         "UNSUPPORTED_INSTRUMENT",
       );
+      logger.error(
+        { err, instrumentType: order.instrumentType },
+        "polymarket placeOrder: unsupported instrument type",
+      );
+      throw err;
     }
     const metadata = parsePredictionMetadata(order.instrumentMetadataJson);
     const client = await this.getAuthedClient();
@@ -117,19 +140,40 @@ export class PolymarketAdapter
         ? order.sizeUsd
         : Number((order.sizeUsd / Math.max(price, 0.01)).toFixed(6));
 
-    const response = await client.createAndPostMarketOrder(
-      {
-        tokenID: metadata.outcomeTokenId,
-        side: order.side === "BUY" ? Side.BUY : Side.SELL,
-        amount,
-        price,
-        orderType: OrderType.FOK,
-      },
-      { tickSize: await this.resolveTickSize(client, metadata.outcomeTokenId) },
-      OrderType.FOK,
-    );
+    let response: unknown;
+    try {
+      response = await client.createAndPostMarketOrder(
+        {
+          tokenID: metadata.outcomeTokenId,
+          side: order.side === "BUY" ? Side.BUY : Side.SELL,
+          amount,
+          price,
+          orderType: OrderType.FOK,
+        },
+        {
+          tickSize: await this.resolveTickSize(client, metadata.outcomeTokenId),
+        },
+        OrderType.FOK,
+      );
+    } catch (err) {
+      logger.error(
+        {
+          err,
+          tokenId: metadata.outcomeTokenId,
+          side: order.side,
+          amount,
+          price,
+        },
+        "polymarket placeOrder: createAndPostMarketOrder threw",
+      );
+      throw err;
+    }
 
     const brokerOrderId = extractOrderId(response);
+    logger.info(
+      { brokerOrderId, filledAvgPrice: price },
+      "polymarket placeOrder: order accepted",
+    );
     return {
       brokerOrderId,
       filledAvgPrice: price,
@@ -137,6 +181,7 @@ export class PolymarketAdapter
   }
 
   async cancelOrder(brokerOrderId: string): Promise<void> {
+    logger.info({ brokerOrderId }, "polymarket cancelOrder: cancelling order");
     const client = await this.getAuthedClient();
     await client.cancelOrder({ orderID: brokerOrderId });
   }
@@ -146,34 +191,54 @@ export class PolymarketAdapter
   }
 
   async closeOrder(orderId: string): Promise<CloseResult> {
+    logger.info({ orderId }, "polymarket closeOrder: closing order");
     const client = await this.getAuthedClient();
     const order = await client.getOrder(orderId);
     const matchedSize = Number(order.size_matched ?? order.original_size ?? 0);
     if (!order.asset_id || matchedSize <= 0) {
+      logger.info(
+        { orderId, matchedSize },
+        "polymarket closeOrder: nothing matched; cancelling only",
+      );
       await this.cancelOrder(orderId);
       return { brokerOrderId: orderId, realizedPnlUsd: 0 };
     }
 
     const price = await this.resolveReferencePrice(client, order.asset_id);
-    const response = await client.createAndPostMarketOrder(
-      {
-        tokenID: order.asset_id,
-        side: Side.SELL,
-        amount: matchedSize,
-        price,
-        orderType: OrderType.FOK,
-      },
-      { tickSize: await this.resolveTickSize(client, order.asset_id) },
-      OrderType.FOK,
-    );
+    let response: unknown;
+    try {
+      response = await client.createAndPostMarketOrder(
+        {
+          tokenID: order.asset_id,
+          side: Side.SELL,
+          amount: matchedSize,
+          price,
+          orderType: OrderType.FOK,
+        },
+        { tickSize: await this.resolveTickSize(client, order.asset_id) },
+        OrderType.FOK,
+      );
+    } catch (err) {
+      logger.error(
+        { err, orderId, tokenId: order.asset_id, matchedSize, price },
+        "polymarket closeOrder: closing order threw",
+      );
+      throw err;
+    }
 
+    const brokerOrderId = extractOrderId(response);
+    logger.info(
+      { orderId, closeOrderId: brokerOrderId },
+      "polymarket closeOrder: close order placed",
+    );
     return {
-      brokerOrderId: extractOrderId(response),
+      brokerOrderId,
       realizedPnlUsd: 0,
     };
   }
 
   async getOrderStatus(orderId: string): Promise<OrderStatus> {
+    logger.debug({ orderId }, "polymarket getOrderStatus: fetching");
     const client = await this.getAuthedClient();
     const order = await client.getOrder(orderId);
     const status = String(order.status ?? "").toLowerCase();
@@ -229,10 +294,15 @@ export class PolymarketAdapter
     const privateKey = this.credentials.privateKey.trim();
     const funderAddress = this.credentials.funderAddress.trim();
     if (!privateKey || !funderAddress) {
-      throw new AppError(
+      const err = new AppError(
         "Polymarket credentials require private key and funder address.",
         "BROKER_ERROR",
       );
+      logger.error(
+        { err },
+        "polymarket: missing private key or funder address",
+      );
+      throw err;
     }
 
     const walletClient = createWalletClient({
@@ -279,7 +349,12 @@ export class PolymarketAdapter
     const response = await fetch(
       "https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=25",
     );
+    logger.debug("polymarket: fetching market candidates");
     if (!response.ok) {
+      logger.warn(
+        { status: response.status },
+        "polymarket: market candidates fetch failed",
+      );
       return [];
     }
     return (await response.json()) as PolymarketMarketRow[];
@@ -289,7 +364,15 @@ export class PolymarketAdapter
     client: ClobClient,
     tokenId: string,
   ): Promise<number> {
-    const raw = await client.getLastTradePrice(tokenId).catch(() => null);
+    const raw = await client
+      .getLastTradePrice(tokenId)
+      .catch((err: unknown) => {
+        logger.warn(
+          { err, tokenId },
+          "polymarket: could not fetch last trade price; defaulting to 0.5",
+        );
+        return null;
+      });
     // reason: SDK getLastTradePrice returns number | { price: string | number } depending on market state
     const price =
       typeof raw === "number"
@@ -318,17 +401,28 @@ function parsePredictionMetadata(
   raw: string | null | undefined,
 ): PredictionInstrumentMetadata {
   if (!raw) {
-    throw new AppError(
+    const err = new AppError(
       "Prediction-market orders require instrument metadata.",
       "VALIDATION_FAILED",
     );
+    logger.error({ err }, "polymarket: order missing instrument metadata");
+    throw err;
   }
   const parsed = JSON.parse(raw) as Partial<PredictionInstrumentMetadata>;
   if (!parsed.conditionId || !parsed.outcomeTokenId) {
-    throw new AppError(
+    const err = new AppError(
       "Prediction-market metadata must include conditionId and outcomeTokenId.",
       "VALIDATION_FAILED",
     );
+    logger.error(
+      {
+        err,
+        conditionId: parsed.conditionId,
+        outcomeTokenId: parsed.outcomeTokenId,
+      },
+      "polymarket: incomplete prediction metadata",
+    );
+    throw err;
   }
   return {
     conditionId: parsed.conditionId,
@@ -355,7 +449,15 @@ function extractOrderId(response: unknown): string {
     const candidate = obj.orderID ?? obj.orderId ?? obj.id;
     if (typeof candidate === "string" && candidate.trim()) return candidate;
   }
-  throw new AppError("Polymarket did not return an order id.", "BROKER_ERROR");
+  const err = new AppError(
+    "Polymarket did not return an order id.",
+    "BROKER_ERROR",
+  );
+  logger.error(
+    { err, response },
+    "polymarket: order response missing order id",
+  );
+  throw err;
 }
 
 function pickFirstToken(
