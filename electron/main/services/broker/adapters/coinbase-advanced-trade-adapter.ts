@@ -1,5 +1,5 @@
 import type { ConnectionTestResult } from "@/lib/types";
-import type { InstrumentClass } from "@/lib/types";
+import { BROKER_SUPPORTED_INSTRUMENT_CLASSES } from "@electron/shared/domain/broker-capabilities";
 import { AppError } from "@electron/shared/infra/errors";
 import ccxt from "ccxt";
 import type { Balances, Order } from "ccxt";
@@ -56,9 +56,8 @@ function quoteBalanceUsd(bal: Balances): number {
  */
 export class CoinbaseAdvancedTradeAdapter implements BrokerAdapter {
   readonly brokerType = "coinbase_advanced_trade";
-  readonly supportedInstrumentClasses = [
-    "crypto",
-  ] as const satisfies readonly InstrumentClass[];
+  readonly supportedInstrumentClasses =
+    BROKER_SUPPORTED_INSTRUMENT_CLASSES.coinbase_advanced_trade;
   /**
    * Not launch-capable: closeOrder only cancels (does not flatten), getPositions
    * returns []. Live-readiness gate must block live sessions using this adapter

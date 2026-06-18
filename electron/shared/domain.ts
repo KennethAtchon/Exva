@@ -1,3 +1,4 @@
+export * from "./domain/broker-capabilities";
 export * from "./domain/control";
 export * from "./domain/enums";
 export * from "./domain/experience";

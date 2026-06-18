@@ -1,5 +1,5 @@
 import type { BrokerCredentials, ConnectionTestResult } from "@/lib/types";
-import type { InstrumentClass } from "@/lib/types";
+import { BROKER_SUPPORTED_INSTRUMENT_CLASSES } from "@electron/shared/domain/broker-capabilities";
 import { AppError } from "@electron/shared/infra/errors";
 import { createHash } from "node:crypto";
 import { createLogger } from "../../infra/log";
@@ -25,11 +25,20 @@ const ALPACA_TIMEFRAME_MAP: Record<string, string> = {
   "1d": "1Day",
 };
 
+/**
+ * Alpaca uses a slash in crypto wire symbols (e.g. `BTC/USD`) and a bare ticker
+ * for equities (`AAPL`). The instrument normalizer emits these formats, so the
+ * presence of `/` is a reliable way to pick the equity vs crypto API surface
+ * for the symbol-only data methods.
+ */
+function isCryptoWireSymbol(instrumentSymbol: string): boolean {
+  return instrumentSymbol.includes("/");
+}
+
 export class AlpacaAdapter implements BrokerAdapter {
   readonly brokerType = "alpaca";
-  readonly supportedInstrumentClasses = [
-    "stock",
-  ] as const satisfies readonly InstrumentClass[];
+  readonly supportedInstrumentClasses =
+    BROKER_SUPPORTED_INSTRUMENT_CLASSES.alpaca;
   readonly launchCapable = true;
 
   private readonly baseUrl: string;
@@ -77,6 +86,9 @@ export class AlpacaAdapter implements BrokerAdapter {
   }
 
   async getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot> {
+    if (isCryptoWireSymbol(instrumentSymbol)) {
+      return this.getCryptoMarketSnapshot(instrumentSymbol);
+    }
     const params = new URLSearchParams({ feed: "iex" });
     const trade = await this.dataRequest<{
       trade?: { p?: number; t?: string };
@@ -90,6 +102,21 @@ export class AlpacaAdapter implements BrokerAdapter {
     };
   }
 
+  private async getCryptoMarketSnapshot(
+    instrumentSymbol: string,
+  ): Promise<MarketSnapshot> {
+    const params = new URLSearchParams({ symbols: instrumentSymbol });
+    const data = await this.dataRequest<{
+      trades?: Record<string, { p?: number; t?: string }>;
+    }>(`/v1beta3/crypto/us/latest/trades?${params}`);
+    const trade = data.trades?.[instrumentSymbol];
+    return {
+      instrumentSymbol,
+      price: Number(trade?.p ?? 0),
+      timestamp: trade?.t ?? new Date().toISOString(),
+    };
+  }
+
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
     logger.info(
       {
@@ -100,9 +127,9 @@ export class AlpacaAdapter implements BrokerAdapter {
       },
       "alpaca placeOrder: submitting order",
     );
-    if (order.instrumentType !== "stock") {
+    if (order.instrumentType !== "stock" && order.instrumentType !== "crypto") {
       const err = new AppError(
-        "Alpaca adapter supports stocks only",
+        "Alpaca adapter supports stocks and crypto only",
         "UNSUPPORTED_INSTRUMENT",
         {
           instrumentType: order.instrumentType,
@@ -114,6 +141,8 @@ export class AlpacaAdapter implements BrokerAdapter {
       );
       throw err;
     }
+    // Crypto markets trade 24/7 and reject `day`; equities use `day`.
+    const timeInForce = order.instrumentType === "crypto" ? "gtc" : "day";
     const result = await this.request<{
       id: string;
       filled_avg_price?: string;
@@ -125,7 +154,7 @@ export class AlpacaAdapter implements BrokerAdapter {
         notional: String(order.sizeUsd),
         side: order.side.toLowerCase(),
         type: "market",
-        time_in_force: "day",
+        time_in_force: timeInForce,
         client_order_id: toAlpacaClientOrderId(order.clientOrderId),
       }),
     });
@@ -164,10 +193,16 @@ export class AlpacaAdapter implements BrokerAdapter {
     >("/v2/positions");
     const rows = Array.isArray(raw) ? raw : [];
     return rows
-      .filter((row) => (row.asset_class ?? "us_equity") === "us_equity")
+      .filter((row) => {
+        const assetClass = row.asset_class ?? "us_equity";
+        return assetClass === "us_equity" || assetClass === "crypto";
+      })
       .map((row) => ({
         instrumentSymbol: row.symbol,
-        instrumentType: "stock" as const,
+        instrumentType:
+          (row.asset_class ?? "us_equity") === "crypto"
+            ? ("crypto" as const)
+            : ("stock" as const),
         side: Number(row.qty) >= 0 ? ("long" as const) : ("short" as const),
         sizeUsd: Math.abs(Number(row.market_value ?? 0)),
         unrealizedPnl: Number(row.unrealized_pl ?? 0),
@@ -232,6 +267,9 @@ export class AlpacaAdapter implements BrokerAdapter {
     barCount: number,
   ): Promise<OhlcvBar[]> {
     const alpacaTimeframe = ALPACA_TIMEFRAME_MAP[timeframe] ?? "1Day";
+    if (isCryptoWireSymbol(instrumentSymbol)) {
+      return this.getCryptoOhlcv(instrumentSymbol, alpacaTimeframe, barCount);
+    }
     const params = new URLSearchParams({
       timeframe: alpacaTimeframe,
       limit: String(barCount),
@@ -247,14 +285,33 @@ export class AlpacaAdapter implements BrokerAdapter {
         v: number;
       }>;
     }>(`/v2/stocks/${encodeURIComponent(instrumentSymbol)}/bars?${params}`);
-    return (data.bars ?? []).map((bar) => ({
-      ts: bar.t,
-      open: bar.o,
-      high: bar.h,
-      low: bar.l,
-      close: bar.c,
-      volume: bar.v,
-    }));
+    return (data.bars ?? []).map(toOhlcvBar);
+  }
+
+  private async getCryptoOhlcv(
+    instrumentSymbol: string,
+    alpacaTimeframe: string,
+    barCount: number,
+  ): Promise<OhlcvBar[]> {
+    const params = new URLSearchParams({
+      symbols: instrumentSymbol,
+      timeframe: alpacaTimeframe,
+      limit: String(barCount),
+    });
+    const data = await this.dataRequest<{
+      bars?: Record<
+        string,
+        Array<{
+          t: string;
+          o: number;
+          h: number;
+          l: number;
+          c: number;
+          v: number;
+        }>
+      >;
+    }>(`/v1beta3/crypto/us/bars?${params}`);
+    return (data.bars?.[instrumentSymbol] ?? []).map(toOhlcvBar);
   }
 
   async getOrderStatus(orderId: string): Promise<OrderStatus> {
@@ -392,6 +449,24 @@ function resolveAccountBalance(account: {
     );
 
   return parsed.find((value) => value > 0) ?? parsed[0] ?? 0;
+}
+
+function toOhlcvBar(bar: {
+  t: string;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+}): OhlcvBar {
+  return {
+    ts: bar.t,
+    open: bar.o,
+    high: bar.h,
+    low: bar.l,
+    close: bar.c,
+    volume: bar.v,
+  };
 }
 
 function parsePositiveNumber(value: string | undefined): number | null {

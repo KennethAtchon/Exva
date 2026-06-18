@@ -40,13 +40,18 @@ export class InstrumentNormalizer {
     const s = input.symbol.trim().toUpperCase();
     switch (input.brokerType) {
       case "alpaca":
-        if (input.instrumentClass !== "stock") {
-          throw new AppError(
-            "Alpaca routing received a non-stock instrument",
-            "UNSUPPORTED_INSTRUMENT",
-          );
+        if (input.instrumentClass === "stock") {
+          return s.replace(/-/g, "");
         }
-        return s.replace(/-/g, "");
+        if (input.instrumentClass === "crypto") {
+          // Alpaca crypto wire format is BASE/USD (e.g. BTC/USD).
+          const base = resolveCanonicalSymbol(s, "crypto");
+          return `${base}/USD`;
+        }
+        throw new AppError(
+          "Alpaca routing received an unsupported instrument",
+          "UNSUPPORTED_INSTRUMENT",
+        );
       case "coinbase_advanced_trade":
         if (input.instrumentClass !== "crypto") {
           throw new AppError(

@@ -7,7 +7,10 @@ import {
 
 describe("broker-account-helpers", () => {
   it("maps broker types to the instrument classes they support", () => {
-    expect(supportedInstrumentClassesFor("alpaca")).toEqual(["stock"]);
+    expect(supportedInstrumentClassesFor("alpaca")).toEqual([
+      "stock",
+      "crypto",
+    ]);
     expect(supportedInstrumentClassesFor("coinbase_advanced_trade")).toEqual([
       "crypto",
     ]);

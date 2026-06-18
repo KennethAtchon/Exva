@@ -215,17 +215,44 @@ describe("AlpacaAdapter", () => {
     expect(closed.realizedPnlUsd).toBe(25.5);
   });
 
-  it("rejects non-stock instruments", async () => {
+  it("places crypto orders with gtc time-in-force", async () => {
+    // Crypto trades 24/7 and Alpaca rejects `day` for it, so the adapter must
+    // send `gtc` — a stock-only `day` TIF would be rejected for BTC/USD.
+    const adapter = new AlpacaAdapter(credentials);
+
+    const result = await adapter.placeOrder({
+      instrumentSymbol: "BTC/USD",
+      instrumentType: "crypto",
+      side: "BUY",
+      sizeUsd: 500,
+      clientOrderId: "client-crypto",
+    });
+
+    expect(result.brokerOrderId).toBe("alpaca-order-1");
+    const orderPost = fetchMock.mock.calls.find(
+      (call: unknown[]) =>
+        typeof call[0] === "string" &&
+        call[0].includes("/v2/orders") &&
+        (call[1] as RequestInit | undefined)?.method === "POST",
+    );
+    const body = JSON.parse(
+      (orderPost?.[1] as RequestInit | undefined)?.body as string,
+    );
+    expect(body.symbol).toBe("BTC/USD");
+    expect(body.time_in_force).toBe("gtc");
+  });
+
+  it("rejects instrument classes Alpaca cannot trade", async () => {
     const adapter = new AlpacaAdapter(credentials);
 
     await expect(
       adapter.placeOrder({
-        instrumentSymbol: "BTC-USD",
-        instrumentType: "crypto",
+        instrumentSymbol: "ES",
+        instrumentType: "futures",
         side: "BUY",
         sizeUsd: 500,
-        clientOrderId: "client-2",
+        clientOrderId: "client-futures",
       }),
-    ).rejects.toThrow(/stocks only/i);
+    ).rejects.toThrow(/stocks and crypto only/i);
   });
 });

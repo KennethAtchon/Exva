@@ -1,5 +1,5 @@
 import type { ConnectionTestResult } from "@/lib/types";
-import type { InstrumentClass } from "@/lib/types";
+import { BROKER_SUPPORTED_INSTRUMENT_CLASSES } from "@electron/shared/domain/broker-capabilities";
 import type {
   BrokerAdapter,
   BrokerOrder,
@@ -118,12 +118,8 @@ function shapeCleanBreakoutBars(bars: MockOhlcvBar[]): MockOhlcvBar[] {
 
 export class MockBrokerAdapter implements BrokerAdapter {
   readonly brokerType = "mock";
-  readonly supportedInstrumentClasses: readonly InstrumentClass[] = [
-    "stock",
-    "crypto",
-    "futures",
-    "prediction_market",
-  ];
+  readonly supportedInstrumentClasses =
+    BROKER_SUPPORTED_INSTRUMENT_CLASSES.mock;
   /**
    * Not launch-capable: this adapter is a deterministic simulator used for
    * paper/dev workflows only. It never touches a real broker.

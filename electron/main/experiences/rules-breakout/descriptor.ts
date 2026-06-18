@@ -27,7 +27,7 @@ export const RULES_BREAKOUT_EXPERIENCE: ExperienceDescriptor = {
       symbol: "BTC-USD",
       pollCadence: "1h",
       defaultAnalysisTimeframe: "4h",
-      enabledByDefault: false, // disabled until breakout engine is fully tested (D1)
+      enabledByDefault: true,
       mockFixtures: {
         defaultScenario: "clean_breakout",
         scriptedWorkerOutputs: {},

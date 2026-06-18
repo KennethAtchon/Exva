@@ -1,5 +1,5 @@
 import type { ConnectionTestResult } from "@/lib/types";
-import type { InstrumentClass } from "@/lib/types";
+import { BROKER_SUPPORTED_INSTRUMENT_CLASSES } from "@electron/shared/domain/broker-capabilities";
 import { AppError } from "@electron/shared/infra/errors";
 import { createLogger } from "../../infra/log";
 import type {
@@ -28,9 +28,8 @@ export type TradovateCredentials = {
  */
 export class TradovateAdapter implements BrokerAdapter {
   readonly brokerType = "tradovate";
-  readonly supportedInstrumentClasses = [
-    "futures",
-  ] as const satisfies readonly InstrumentClass[];
+  readonly supportedInstrumentClasses =
+    BROKER_SUPPORTED_INSTRUMENT_CLASSES.tradovate;
   /**
    * Not launch-capable: placeOrder/cancelOrder/closeOrder are stubbed and
    * getPositions returns []. Live-readiness gate must block live sessions

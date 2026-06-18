@@ -39,6 +39,13 @@ describe("InstrumentNormalizer", () => {
     ).toBe("BTC-USD");
     expect(
       normalizer.toBrokerSymbol({
+        symbol: "btc-usd",
+        instrumentClass: "crypto",
+        brokerType: "alpaca",
+      }),
+    ).toBe("BTC/USD");
+    expect(
+      normalizer.toBrokerSymbol({
         symbol: "ES",
         instrumentClass: "futures",
         brokerType: "tradovate",
@@ -56,11 +63,11 @@ describe("InstrumentNormalizer", () => {
   it("rejects instrument class mismatches for specialized brokers", () => {
     expect(() =>
       normalizer.toBrokerSymbol({
-        symbol: "BTC",
-        instrumentClass: "crypto",
+        symbol: "ES",
+        instrumentClass: "futures",
         brokerType: "alpaca",
       }),
-    ).toThrow(/non-stock/i);
+    ).toThrow(/unsupported instrument/i);
     expect(() =>
       normalizer.toBrokerSymbol({
         symbol: "AAPL",

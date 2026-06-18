@@ -1,6 +1,10 @@
 import type { InstrumentClass } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
 import type { BrokerAccount } from "@/lib/types";
+import {
+  BROKER_SUPPORTED_INSTRUMENT_CLASSES,
+  type BrokerType,
+} from "@electron/shared/domain/broker-capabilities";
 import type {
   MockExecutionTier,
   MockScenarioKind,
@@ -13,23 +17,11 @@ import {
 export function supportedInstrumentClassesFor(
   brokerType: string,
 ): InstrumentClass[] {
-  switch (brokerType) {
-    case "alpaca":
-      return ["stock"];
-    case "coinbase_advanced_trade":
-      return ["crypto"];
-    case "tradovate":
-      return ["futures"];
-    case "polymarket":
-      return ["prediction_market"];
-    case "mock":
-      return ["stock", "crypto", "futures", "prediction_market"];
-    default:
-      throw new AppError(
-        `Unknown broker type: ${brokerType}`,
-        "UNKNOWN_BROKER",
-      );
+  const classes = BROKER_SUPPORTED_INSTRUMENT_CLASSES[brokerType as BrokerType];
+  if (!classes) {
+    throw new AppError(`Unknown broker type: ${brokerType}`, "UNKNOWN_BROKER");
   }
+  return [...classes];
 }
 
 export function serializeBrokerCredentials(

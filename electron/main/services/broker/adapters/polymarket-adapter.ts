@@ -1,4 +1,5 @@
-import type { ConnectionTestResult, InstrumentClass } from "@/lib/types";
+import type { ConnectionTestResult } from "@/lib/types";
+import { BROKER_SUPPORTED_INSTRUMENT_CLASSES } from "@electron/shared/domain/broker-capabilities";
 import { AppError } from "@electron/shared/infra/errors";
 import { createLogger } from "../../infra/log";
 import {
@@ -43,9 +44,8 @@ export class PolymarketAdapter
   implements BrokerAdapter, MarketDiscoveryAdapter
 {
   readonly brokerType = "polymarket";
-  readonly supportedInstrumentClasses = [
-    "prediction_market",
-  ] as const satisfies readonly InstrumentClass[];
+  readonly supportedInstrumentClasses =
+    BROKER_SUPPORTED_INSTRUMENT_CLASSES.polymarket;
   /**
    * Launch-capable: closeOrder issues a real opposite-side order via the CLOB client.
    * getPositions returns [] (Polymarket does not expose an aggregate positions endpoint)
