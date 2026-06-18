@@ -117,6 +117,7 @@ export interface SessionTemplatePayload {
   version: 1;
   identity: {
     objective: string;
+    experienceId: string;
     selectionMode: SelectionMode;
     instrumentClasses: InstrumentClass[];
     instrumentScope: string;

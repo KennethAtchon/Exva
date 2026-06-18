@@ -9,6 +9,7 @@ function minimalTemplatePayload(): SessionTemplatePayload {
     version: 1,
     identity: {
       objective: "Template objective",
+      experienceId: "rules-mean-reversion",
       selectionMode: "manual_shortlist",
       instrumentClasses: ["stock"],
       instrumentScope: "Large-cap",

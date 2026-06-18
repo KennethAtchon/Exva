@@ -262,7 +262,7 @@ describe("session onboarding integration", () => {
       brokerAssignments: templatePayload.brokerAssignments,
       brokerOverridesByInstrumentClass:
         templatePayload.brokerOverridesByInstrumentClass,
-      experienceId: "edgar-catalyst",
+      experienceId: templatePayload.identity.experienceId,
     });
 
     expect(created.status).toBe("draft");

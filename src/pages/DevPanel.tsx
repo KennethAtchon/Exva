@@ -170,7 +170,7 @@ const devClass = {
   eventTimelineOuter:
     "flex min-w-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)]",
   eventRowBtnBase:
-    "grid w-full cursor-pointer grid-cols-[50px_44px_110px_1fr] items-baseline gap-0 border-0 border-b border-b-white/[0.022] px-3.5 py-[7px] text-left transition-[background] duration-[80ms]",
+    "flex w-full cursor-pointer items-start gap-2 border-0 border-b border-b-white/[0.022] px-3.5 py-[7px] text-left transition-[background] duration-[80ms]",
   preBlockWithMax:
     "max-h-[420px] overflow-x-auto whitespace-pre-wrap rounded-[7px] border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 font-mono text-[12px] tracking-[0.08em] leading-[1.65] text-[var(--text2)]",
   preBlock:
@@ -317,7 +317,7 @@ const devClass = {
   skeletonGroup: "flex gap-1.5",
   controlsCluster: "ml-auto flex items-center gap-1.5",
   sourceFilterRow: "flex flex-wrap gap-1",
-  eventSourceRow: "flex items-center gap-1",
+  eventSourceRow: "flex shrink-0 flex-wrap items-center gap-1",
   stepHeaderRow: "flex items-center justify-between gap-2",
   workerHeaderRow: "flex items-center justify-between gap-2",
   apiCallHeaderRow: "flex flex-wrap items-center gap-2",
@@ -365,6 +365,30 @@ function summarizeEventSource(ev: ExtEventRow): string {
   if (msg.startsWith("[worker:")) return "worker";
   if (msg.startsWith("[execution]")) return "execution";
   return ev.agent_type ?? "system";
+}
+
+export function formatEventsForClipboard(events: ExtEventRow[]): string {
+  const lines = events.map((ev) => {
+    const source = ev.agent_type ?? summarizeEventSource(ev);
+    const refs = [ev.session_id, ev.cycle_id, ev.trade_id]
+      .filter(Boolean)
+      .join(" · ");
+    return [
+      `${ev.created_at} [${ev.level}] [${source}] ${ev.message}`,
+      refs ? `refs: ${refs}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  });
+
+  return [
+    `Developer Workbench Events (${events.length})`,
+    "",
+    lines.join("\n\n"),
+    "",
+    "Raw JSON",
+    JSON.stringify(events, null, 2),
+  ].join("\n");
 }
 
 function useToasts() {
@@ -980,6 +1004,10 @@ const EventTimeline = ({
   onLoadMore: () => void;
 }) => {
   const searchRef = useRef<HTMLInputElement>(null);
+  const copyAllText = useMemo(
+    () => formatEventsForClipboard(filtered),
+    [filtered],
+  );
 
   return (
     <div className={devClass.eventTimelineOuter}>
@@ -996,6 +1024,7 @@ const EventTimeline = ({
         <span className={cn(devClass.mono9, "shrink-0 text-[var(--text3)]")}>
           {filtered.length}/{events.length}
         </span>
+        <CopyBtn text={copyAllText} label="copy all events" />
       </div>
 
       {/* Event rows */}
@@ -1034,13 +1063,18 @@ const EventTimeline = ({
                 borderLeft: `2px solid ${sel ? lc : lc + "44"}`,
               }}
             >
-              <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
+              <span
+                className={cn(
+                  devClass.mono9,
+                  "w-[50px] shrink-0 text-[var(--text3)]",
+                )}
+              >
                 {fmt.time(ev.created_at)}
               </span>
               <span
                 className={cn(
                   devClass.mono9,
-                  "font-extrabold tracking-[0.05em]",
+                  "w-[44px] shrink-0 font-extrabold tracking-[0.05em]",
                 )}
                 style={{ color: lc }}
               >
@@ -1070,7 +1104,7 @@ const EventTimeline = ({
               <span
                 className={cn(
                   devClass.mono10,
-                  "truncate leading-snug",
+                  "min-w-0 flex-1 truncate leading-snug",
                   sel ? "text-[var(--text1)]" : "text-[var(--text2)]",
                 )}
               >

@@ -164,6 +164,7 @@ export class SessionTemplateService {
       version: 1,
       identity: {
         objective: session.objective,
+        experienceId: session.experienceId,
         selectionMode: session.selectionMode,
         instrumentClasses: session.instrumentClasses,
         instrumentScope: session.instrumentScope,

@@ -36,6 +36,7 @@ describe("SessionTemplateService", () => {
         version: 1,
         identity: {
           objective: "Trade growth",
+          experienceId: "rules-mean-reversion",
           selectionMode: "manual_shortlist",
           instrumentClasses: ["stock"],
           instrumentScope: "NVDA",
@@ -153,6 +154,7 @@ describe("SessionTemplateService", () => {
     const sessionId = sessions.create({
       name: "Template Source",
       objective: "Trade leaders",
+      experienceId: "rules-mean-reversion",
       selectionMode: "manual_shortlist",
       instrumentClasses: ["stock", "crypto"],
       instrumentScope: "NVDA,BTC-USD",
@@ -197,6 +199,9 @@ describe("SessionTemplateService", () => {
     const service = createTemplateService(db);
     const payload = service.buildPayloadFromSession(sessionId);
 
+    expect(payload.identity).toMatchObject({
+      experienceId: "rules-mean-reversion",
+    });
     expect(payload.identity.executionMode).toBe("live_allowed");
     expect(payload.identity.instrumentClasses).toEqual(["stock", "crypto"]);
     expect(payload.brokerAssignments).toEqual([

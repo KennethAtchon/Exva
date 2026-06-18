@@ -493,6 +493,7 @@ function payloadToInput(payload: SessionTemplatePayload): SessionCreateInput {
   return {
     name: "",
     objective: payload.identity.objective,
+    experienceId: payload.identity.experienceId,
     selectionMode: payload.identity.selectionMode,
     instrumentScope: payload.identity.instrumentScope,
     defaultSearchProviderId: payload.identity.defaultSearchProviderId,

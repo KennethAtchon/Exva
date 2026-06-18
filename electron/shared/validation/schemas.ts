@@ -300,6 +300,7 @@ export const sessionTemplatePayloadSchema = z.object({
   version: z.literal(1),
   identity: z.object({
     objective: z.string().min(1),
+    experienceId: z.string().min(1),
     selectionMode: selectionModeSchema,
     instrumentClasses: z.array(instrumentClassSchema).min(1),
     instrumentScope: z.string(),

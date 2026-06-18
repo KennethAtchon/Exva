@@ -129,6 +129,7 @@ describe("validation schemas", () => {
           version: 1,
           identity: {
             objective: "Test",
+            experienceId: "rules-mean-reversion",
             selectionMode: "manual_shortlist",
             instrumentClasses: ["stock"],
             instrumentScope: "Large cap",
