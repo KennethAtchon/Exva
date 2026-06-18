@@ -21,16 +21,19 @@ export type BrokerType =
  * drift apart.
  */
 export const BROKER_SUPPORTED_INSTRUMENT_CLASSES = {
-  // Alpaca executes US equities and crypto (BTC/USD, ETH/USD, ...).
-  alpaca: ["stock", "crypto"],
-  // Coinbase Advanced Trade is crypto spot only.
+  // Alpaca executes US equities (incl. ETFs, modeled as `stock`), crypto
+  // (BTC/USD, ETH/USD, ...), and single-leg US options via the same Orders API.
+  alpaca: ["stock", "crypto", "options"],
+  // Coinbase Advanced Trade is crypto spot only (US). Perps/futures are
+  // non-US-only and not implemented here.
   coinbase_advanced_trade: ["crypto"],
-  // Tradovate is a futures broker.
+  // Tradovate is a futures broker. (Options-on-futures exist but the adapter
+  // does not implement them, so they are not listed here.)
   tradovate: ["futures"],
   // Polymarket is prediction markets only.
   polymarket: ["prediction_market"],
   // Mock simulator can stand in for anything.
-  mock: ["stock", "crypto", "futures", "prediction_market"],
+  mock: ["stock", "crypto", "futures", "options", "prediction_market"],
 } as const satisfies Record<BrokerType, readonly InstrumentClass[]>;
 
 export function brokerSupportedInstrumentClasses(

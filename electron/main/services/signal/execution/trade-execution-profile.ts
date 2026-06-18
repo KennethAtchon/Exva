@@ -41,6 +41,7 @@ const VALID_STRATEGIES: Record<
   stock: ["trend_momentum", "breakout", "mean_reversion", "event_driven"],
   crypto: ["trend_momentum", "breakout", "mean_reversion", "arbitrage"],
   futures: ["futures_trend", "trend_momentum", "event_driven"],
+  options: ["trend_momentum", "breakout", "mean_reversion", "event_driven"],
   prediction_market: ["prediction_market"],
 };
 

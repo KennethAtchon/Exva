@@ -20,7 +20,7 @@ export const candidateSchema = z.object({
     .max(20)
     .describe("Ticker or contract symbol, evidence-backed; never invented."),
   instrumentClass: z
-    .enum(["stock", "crypto", "futures", "prediction_market"])
+    .enum(["stock", "crypto", "futures", "options", "prediction_market"])
     .describe("Asset class of the candidate."),
   instrumentDisplayName: z
     .string()

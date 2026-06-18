@@ -253,6 +253,38 @@ describe("AlpacaAdapter", () => {
         sizeUsd: 500,
         clientOrderId: "client-futures",
       }),
-    ).rejects.toThrow(/stocks and crypto only/i);
+    ).rejects.toThrow(/stocks, crypto, and options only/i);
+  });
+
+  it("sizes options orders in whole contracts via qty, not notional", async () => {
+    const optionSymbol = "AAPL250117C00150000";
+    let orderBody: Record<string, unknown> | null = null;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      // Per-contract price $5.00 → cost $500/contract.
+      if (url.includes("/v1beta1/options/trades/latest")) {
+        return jsonResponse({
+          trades: { [optionSymbol]: { p: 5, t: "2026-06-13T12:00:00Z" } },
+        });
+      }
+      if (url.includes("/v2/orders") && init?.method === "POST") {
+        orderBody = JSON.parse(String(init.body));
+        return jsonResponse({ id: "opt-order-1", filled_avg_price: "5.00" });
+      }
+      return jsonResponse({}, 404);
+    });
+
+    const adapter = new AlpacaAdapter(credentials);
+    const result = await adapter.placeOrder({
+      instrumentSymbol: optionSymbol,
+      instrumentType: "options",
+      side: "BUY",
+      sizeUsd: 1500,
+      clientOrderId: "client-opt",
+    });
+
+    expect(result.brokerOrderId).toBe("opt-order-1");
+    // $1500 budget / $500 per contract = 3 contracts; no dollar-notional.
+    expect(orderBody).toMatchObject({ symbol: optionSymbol, qty: "3" });
+    expect(orderBody).not.toHaveProperty("notional");
   });
 });

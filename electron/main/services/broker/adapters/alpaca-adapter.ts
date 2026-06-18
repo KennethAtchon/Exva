@@ -1,4 +1,8 @@
-import type { BrokerCredentials, ConnectionTestResult } from "@/lib/types";
+import type {
+  BrokerCredentials,
+  ConnectionTestResult,
+  InstrumentClass,
+} from "@/lib/types";
 import { BROKER_SUPPORTED_INSTRUMENT_CLASSES } from "@electron/shared/domain/broker-capabilities";
 import { AppError } from "@electron/shared/infra/errors";
 import { createHash } from "node:crypto";
@@ -33,6 +37,16 @@ const ALPACA_TIMEFRAME_MAP: Record<string, string> = {
  */
 function isCryptoWireSymbol(instrumentSymbol: string): boolean {
   return instrumentSymbol.includes("/");
+}
+
+/**
+ * OCC option symbols are `<root><yymmdd><C|P><strike*1000 padded to 8>`, e.g.
+ * `AAPL250117C00150000`. The trailing 15 chars are a fixed, unambiguous shape
+ * that no equity or crypto ticker shares, so it reliably picks the options API
+ * surface for the symbol-only data methods.
+ */
+function isOptionWireSymbol(instrumentSymbol: string): boolean {
+  return /\d{6}[CP]\d{8}$/.test(instrumentSymbol);
 }
 
 export class AlpacaAdapter implements BrokerAdapter {
@@ -89,6 +103,9 @@ export class AlpacaAdapter implements BrokerAdapter {
     if (isCryptoWireSymbol(instrumentSymbol)) {
       return this.getCryptoMarketSnapshot(instrumentSymbol);
     }
+    if (isOptionWireSymbol(instrumentSymbol)) {
+      return this.getOptionMarketSnapshot(instrumentSymbol);
+    }
     const params = new URLSearchParams({ feed: "iex" });
     const trade = await this.dataRequest<{
       trade?: { p?: number; t?: string };
@@ -117,6 +134,27 @@ export class AlpacaAdapter implements BrokerAdapter {
     };
   }
 
+  private async getOptionMarketSnapshot(
+    instrumentSymbol: string,
+  ): Promise<MarketSnapshot> {
+    // `feed=indicative` is available on the free options data plan; OPRA
+    // requires a paid subscription. The per-contract price is reported, not
+    // the total premium (premium = price * 100 * contracts).
+    const params = new URLSearchParams({
+      symbols: instrumentSymbol,
+      feed: "indicative",
+    });
+    const data = await this.dataRequest<{
+      trades?: Record<string, { p?: number; t?: string }>;
+    }>(`/v1beta1/options/trades/latest?${params}`);
+    const trade = data.trades?.[instrumentSymbol];
+    return {
+      instrumentSymbol,
+      price: Number(trade?.p ?? 0),
+      timestamp: trade?.t ?? new Date().toISOString(),
+    };
+  }
+
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
     logger.info(
       {
@@ -127,9 +165,13 @@ export class AlpacaAdapter implements BrokerAdapter {
       },
       "alpaca placeOrder: submitting order",
     );
-    if (order.instrumentType !== "stock" && order.instrumentType !== "crypto") {
+    if (
+      order.instrumentType !== "stock" &&
+      order.instrumentType !== "crypto" &&
+      order.instrumentType !== "options"
+    ) {
       const err = new AppError(
-        "Alpaca adapter supports stocks and crypto only",
+        "Alpaca adapter supports stocks, crypto, and options only",
         "UNSUPPORTED_INSTRUMENT",
         {
           instrumentType: order.instrumentType,
@@ -141,7 +183,15 @@ export class AlpacaAdapter implements BrokerAdapter {
       );
       throw err;
     }
-    // Crypto markets trade 24/7 and reject `day`; equities use `day`.
+
+    // Options are sized in whole contracts (each controls 100 shares) and do
+    // not accept `notional`; equities/crypto use dollar-notional orders.
+    const sizing =
+      order.instrumentType === "options"
+        ? { qty: String(await this.resolveOptionContractQty(order)) }
+        : { notional: String(order.sizeUsd) };
+
+    // Crypto markets trade 24/7 and reject `day`; equities and options use `day`.
     const timeInForce = order.instrumentType === "crypto" ? "gtc" : "day";
     const result = await this.request<{
       id: string;
@@ -151,7 +201,7 @@ export class AlpacaAdapter implements BrokerAdapter {
       method: "POST",
       body: JSON.stringify({
         symbol: order.instrumentSymbol,
-        notional: String(order.sizeUsd),
+        ...sizing,
         side: order.side.toLowerCase(),
         type: "market",
         time_in_force: timeInForce,
@@ -195,14 +245,15 @@ export class AlpacaAdapter implements BrokerAdapter {
     return rows
       .filter((row) => {
         const assetClass = row.asset_class ?? "us_equity";
-        return assetClass === "us_equity" || assetClass === "crypto";
+        return (
+          assetClass === "us_equity" ||
+          assetClass === "crypto" ||
+          assetClass === "us_option"
+        );
       })
       .map((row) => ({
         instrumentSymbol: row.symbol,
-        instrumentType:
-          (row.asset_class ?? "us_equity") === "crypto"
-            ? ("crypto" as const)
-            : ("stock" as const),
+        instrumentType: mapAlpacaAssetClass(row.asset_class),
         side: Number(row.qty) >= 0 ? ("long" as const) : ("short" as const),
         sizeUsd: Math.abs(Number(row.market_value ?? 0)),
         unrealizedPnl: Number(row.unrealized_pl ?? 0),
@@ -270,6 +321,9 @@ export class AlpacaAdapter implements BrokerAdapter {
     if (isCryptoWireSymbol(instrumentSymbol)) {
       return this.getCryptoOhlcv(instrumentSymbol, alpacaTimeframe, barCount);
     }
+    if (isOptionWireSymbol(instrumentSymbol)) {
+      return this.getOptionOhlcv(instrumentSymbol, alpacaTimeframe, barCount);
+    }
     const params = new URLSearchParams({
       timeframe: alpacaTimeframe,
       limit: String(barCount),
@@ -314,6 +368,32 @@ export class AlpacaAdapter implements BrokerAdapter {
     return (data.bars?.[instrumentSymbol] ?? []).map(toOhlcvBar);
   }
 
+  private async getOptionOhlcv(
+    instrumentSymbol: string,
+    alpacaTimeframe: string,
+    barCount: number,
+  ): Promise<OhlcvBar[]> {
+    const params = new URLSearchParams({
+      symbols: instrumentSymbol,
+      timeframe: alpacaTimeframe,
+      limit: String(barCount),
+    });
+    const data = await this.dataRequest<{
+      bars?: Record<
+        string,
+        Array<{
+          t: string;
+          o: number;
+          h: number;
+          l: number;
+          c: number;
+          v: number;
+        }>
+      >;
+    }>(`/v1beta1/options/bars?${params}`);
+    return (data.bars?.[instrumentSymbol] ?? []).map(toOhlcvBar);
+  }
+
   async getOrderStatus(orderId: string): Promise<OrderStatus> {
     const order = await this.request<{
       id: string;
@@ -339,6 +419,24 @@ export class AlpacaAdapter implements BrokerAdapter {
 
   private async dataRequest<T>(path: string): Promise<T> {
     return this.fetchWithAuth(ALPACA_DATA_URL, path);
+  }
+
+  /**
+   * Translate a dollar budget into a whole number of option contracts. Each
+   * contract costs `pricePerShare * 100`. Rounds down so we never exceed the
+   * budget, with a floor of one contract since options cannot be fractional.
+   */
+  private async resolveOptionContractQty(order: BrokerOrder): Promise<number> {
+    const snapshot = await this.getOptionMarketSnapshot(order.instrumentSymbol);
+    const perContractCost = snapshot.price * 100;
+    if (!(perContractCost > 0)) {
+      throw new AppError(
+        "Alpaca options order: no quotable contract price to size against.",
+        "BROKER_ERROR",
+        { instrumentSymbol: order.instrumentSymbol },
+      );
+    }
+    return Math.max(1, Math.floor(order.sizeUsd / perContractCost));
   }
 
   private async resolveFilledAvgPrice(order: {
@@ -449,6 +547,13 @@ function resolveAccountBalance(account: {
     );
 
   return parsed.find((value) => value > 0) ?? parsed[0] ?? 0;
+}
+
+/** Map an Alpaca `asset_class` to our instrument model (defaults to stock). */
+function mapAlpacaAssetClass(assetClass: string | undefined): InstrumentClass {
+  if (assetClass === "crypto") return "crypto";
+  if (assetClass === "us_option") return "options";
+  return "stock";
 }
 
 function toOhlcvBar(bar: {

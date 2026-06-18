@@ -2,7 +2,13 @@ import { z } from "zod";
 
 const candidateRejectionSchema = z.object({
   symbol: z.string(),
-  instrumentClass: z.enum(["stock", "crypto", "futures", "prediction_market"]),
+  instrumentClass: z.enum([
+    "stock",
+    "crypto",
+    "futures",
+    "options",
+    "prediction_market",
+  ]),
   finalScore: z.number().nullable(),
   sourceWorkers: z.array(z.string()),
   toolNamesUsed: z.array(z.string()),

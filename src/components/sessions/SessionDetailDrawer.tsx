@@ -1041,7 +1041,9 @@ function formatInstrumentClass(value: InstrumentClass): string {
       ? "Crypto"
       : value === "futures"
         ? "Futures"
-        : "Prediction Markets";
+        : value === "options"
+          ? "Options"
+          : "Prediction Markets";
 }
 
 function formatOverrides(

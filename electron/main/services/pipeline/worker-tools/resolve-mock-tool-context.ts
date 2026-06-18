@@ -84,6 +84,11 @@ const FOCUSED_PRIMARY_SYMBOLS: Record<InstrumentClass, string[]> = {
   stock: ["NVDA", "AMD", "PLTR"],
   crypto: ["BTC-USD", "ETH-USD", "SOL-USD"],
   futures: ["ES", "NQ", "CL"],
+  options: [
+    "AAPL250117C00150000",
+    "NVDA250117C00150000",
+    "SPY250117P00500000",
+  ],
   prediction_market: ["BTC100", "ETHETF", "FEDCUT"],
 };
 
@@ -163,6 +168,7 @@ async function resolveMockAdapter(input: {
     "stock",
     "crypto",
     "futures",
+    "options",
     "prediction_market",
   ] as const) {
     try {

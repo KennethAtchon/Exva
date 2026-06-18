@@ -10,6 +10,7 @@ describe("broker-account-helpers", () => {
     expect(supportedInstrumentClassesFor("alpaca")).toEqual([
       "stock",
       "crypto",
+      "options",
     ]);
     expect(supportedInstrumentClassesFor("coinbase_advanced_trade")).toEqual([
       "crypto",
@@ -22,6 +23,7 @@ describe("broker-account-helpers", () => {
       "stock",
       "crypto",
       "futures",
+      "options",
       "prediction_market",
     ]);
   });
@@ -71,6 +73,7 @@ describe("broker-account-helpers", () => {
         "stock",
         "crypto",
         "futures",
+        "options",
         "prediction_market",
       ],
     });
@@ -89,6 +92,7 @@ describe("broker-account-helpers", () => {
         "stock",
         "crypto",
         "futures",
+        "options",
         "prediction_market",
       ],
     });

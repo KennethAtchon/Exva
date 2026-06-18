@@ -48,6 +48,11 @@ export class InstrumentNormalizer {
           const base = resolveCanonicalSymbol(s, "crypto");
           return `${base}/USD`;
         }
+        if (input.instrumentClass === "options") {
+          // Alpaca options use the OCC symbol verbatim (e.g. AAPL250117C00150000):
+          // no separators, already uppercased above.
+          return s;
+        }
         throw new AppError(
           "Alpaca routing received an unsupported instrument",
           "UNSUPPORTED_INSTRUMENT",

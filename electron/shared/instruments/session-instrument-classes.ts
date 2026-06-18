@@ -8,6 +8,7 @@ const INSTRUMENT_CLASS_ORDER: InstrumentClass[] = [
   "stock",
   "crypto",
   "futures",
+  "options",
   "prediction_market",
 ];
 

@@ -51,6 +51,8 @@ const MAX_QUOTE_AGE_MS: Record<
   stock: { intraday: 30_000, swing: 300_000, position: 600_000 },
   crypto: { intraday: 15_000, swing: 120_000, position: 300_000 },
   futures: { intraday: 15_000, swing: 120_000, position: 300_000 },
+  // Options quotes decay fast (theta); keep age bounds as tight as futures.
+  options: { intraday: 15_000, swing: 120_000, position: 300_000 },
   prediction_market: { intraday: 300_000, swing: 600_000, position: 3_600_000 },
 };
 
@@ -58,6 +60,8 @@ const MIN_VOLUME: Partial<Record<InstrumentClass, number>> = {
   stock: 50_000,
   crypto: 10_000,
   futures: 500,
+  // Single contracts trade far thinner than shares; a low floor still screens dead strikes.
+  options: 100,
 };
 
 const MAX_SPREAD_PCT: Partial<Record<InstrumentClass, number>> = {

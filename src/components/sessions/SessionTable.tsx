@@ -692,7 +692,9 @@ function formatInstrumentClass(
       ? "Crypto"
       : value === "futures"
         ? "Futures"
-        : "Predict";
+        : value === "options"
+          ? "Options"
+          : "Predict";
 }
 
 function formatTimestamp(value: string): string {

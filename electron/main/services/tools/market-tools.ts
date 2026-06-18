@@ -12,6 +12,7 @@ const instrumentClassSchema = z.enum([
   "stock",
   "crypto",
   "futures",
+  "options",
   "prediction_market",
 ]);
 const instrumentNormalizer = new InstrumentNormalizer();

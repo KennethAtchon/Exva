@@ -1,6 +1,7 @@
 import React, { useReducer, type Reducer } from "react";
 import { cn } from "@/lib/utils";
 import type { InstrumentClass } from "@/lib/types";
+import { brokerSupportedInstrumentClasses } from "@electron/shared/domain/broker-capabilities";
 import {
   DEFAULT_MOCK_EXECUTION_TIER,
   DEFAULT_MOCK_SCENARIO_KIND,
@@ -330,20 +331,10 @@ export const AddBrokerModal = ({
     }
   };
 
-  const supportedHint = (): InstrumentClass[] => {
-    switch (brokerType) {
-      case "alpaca":
-        return ["stock"];
-      case "coinbase_advanced_trade":
-        return ["crypto"];
-      case "tradovate":
-        return ["futures"];
-      case "polymarket":
-        return ["prediction_market"];
-      default:
-        return ["stock", "crypto", "futures", "prediction_market"];
-    }
-  };
+  // Read from the single source of truth so this hint can never drift from what
+  // the adapters actually execute.
+  const supportedHint = (): readonly InstrumentClass[] =>
+    brokerSupportedInstrumentClasses(brokerType);
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>

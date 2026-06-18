@@ -5,6 +5,7 @@ const INSTRUMENT_CLASSES: InstrumentClass[] = [
   "stock",
   "crypto",
   "futures",
+  "options",
   "prediction_market",
 ];
 

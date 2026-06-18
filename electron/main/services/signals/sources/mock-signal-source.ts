@@ -13,7 +13,7 @@ export type MockSignalSourceConfig = {
   /** Ticker to emit on each fire (defaults to NVDA). */
   ticker?: string;
   companyName?: string;
-  instrumentClass?: "stock" | "crypto" | "futures" | "prediction_market";
+  instrumentClass?: "stock" | "crypto" | "futures" | "options" | "prediction_market";
   /** Milliseconds between automatic fires when running; 0 = manual/test only. */
   intervalMs?: number;
 };

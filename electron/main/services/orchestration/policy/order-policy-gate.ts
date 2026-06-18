@@ -43,6 +43,8 @@ const MAX_SPREAD_PCT: Partial<Record<InstrumentClass, number>> = {
   stock: 0.5,
   crypto: 1.0,
   futures: 0.3,
+  // Option chains run materially wider than the underlying.
+  options: 2.0,
 };
 
 const MAX_QUOTE_AGE_MS: Record<
@@ -52,6 +54,7 @@ const MAX_QUOTE_AGE_MS: Record<
   stock: { intraday: 30_000, swing: 300_000, position: 600_000 },
   crypto: { intraday: 15_000, swing: 120_000, position: 300_000 },
   futures: { intraday: 15_000, swing: 120_000, position: 300_000 },
+  options: { intraday: 15_000, swing: 120_000, position: 300_000 },
   prediction_market: { intraday: 300_000, swing: 600_000, position: 3_600_000 },
 };
 

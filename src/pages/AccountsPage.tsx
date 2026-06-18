@@ -35,6 +35,16 @@ import type {
   WorkspacePreferences,
 } from "@/lib/types";
 
+// Every instrument class that needs a default broker route. Single list so the
+// picker and the "all classes covered" guard below can never disagree.
+const ROUTABLE_INSTRUMENT_CLASSES: InstrumentClass[] = [
+  "stock",
+  "crypto",
+  "futures",
+  "options",
+  "prediction_market",
+];
+
 function providerTypeLabel(providerType: string): string {
   switch (providerType) {
     case "anthropic":
@@ -812,14 +822,7 @@ export const AccountsPage = () => {
               Per-class default broker (session overrides live on the Strategy /
               session editor).
             </p>
-            {(
-              [
-                "stock",
-                "crypto",
-                "futures",
-                "prediction_market",
-              ] as InstrumentClass[]
-            ).map((ic) => (
+            {ROUTABLE_INSTRUMENT_CLASSES.map((ic) => (
               <div key={ic} className={routingItemClass}>
                 <div className={routingItemLabelClass}>{ic}</div>
                 <ShadcnSelect
@@ -841,14 +844,9 @@ export const AccountsPage = () => {
             <button
               type="button"
               onClick={async () => {
-                const rows = (
-                  [
-                    "stock",
-                    "crypto",
-                    "futures",
-                    "prediction_market",
-                  ] as InstrumentClass[]
-                ).reduce<BrokerRoutingDefault[]>((acc, instrumentClass) => {
+                const rows = ROUTABLE_INSTRUMENT_CLASSES.reduce<
+                  BrokerRoutingDefault[]
+                >((acc, instrumentClass) => {
                   const defaultBrokerAccountId =
                     routingDraft[instrumentClass] ?? "";
                   if (defaultBrokerAccountId) {
@@ -856,9 +854,9 @@ export const AccountsPage = () => {
                   }
                   return acc;
                 }, []);
-                if (rows.length < 4) {
+                if (rows.length < ROUTABLE_INSTRUMENT_CLASSES.length) {
                   alert(
-                    "Pick a default broker for stock, crypto, futures, and prediction markets.",
+                    "Pick a default broker for stock, crypto, futures, options, and prediction markets.",
                   );
                   return;
                 }

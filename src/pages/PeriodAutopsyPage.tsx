@@ -27,7 +27,13 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 import { cn } from "@/lib/utils";
 
 const CONFIG_OPEN_KEY = "exva:autopsy:config-open";
-const INSTRUMENT_OPTIONS = ["stock", "crypto", "futures", "prediction_market"];
+const INSTRUMENT_OPTIONS = [
+  "stock",
+  "crypto",
+  "futures",
+  "options",
+  "prediction_market",
+];
 const PHASE_OPTIONS = [
   "selector",
   "technical",

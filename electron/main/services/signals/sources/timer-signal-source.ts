@@ -16,7 +16,7 @@ export type TimerSignalSourceConfig = {
   cadence: string;
   /** Milliseconds between ticks (default 15 minutes). */
   intervalMs?: number;
-  instrumentClass?: "stock" | "crypto" | "futures" | "prediction_market";
+  instrumentClass?: "stock" | "crypto" | "futures" | "options" | "prediction_market";
 };
 
 /**

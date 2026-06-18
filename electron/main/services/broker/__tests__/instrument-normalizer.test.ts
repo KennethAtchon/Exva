@@ -58,6 +58,14 @@ describe("InstrumentNormalizer", () => {
         brokerType: "mock",
       }),
     ).toBe("NVDA");
+    // Alpaca options use the OCC contract symbol verbatim (uppercased).
+    expect(
+      normalizer.toBrokerSymbol({
+        symbol: "aapl250117c00150000",
+        instrumentClass: "options",
+        brokerType: "alpaca",
+      }),
+    ).toBe("AAPL250117C00150000");
   });
 
   it("rejects instrument class mismatches for specialized brokers", () => {
