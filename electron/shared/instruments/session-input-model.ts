@@ -314,10 +314,3 @@ export function sourceIsCompatibleWithExperience(
 ): boolean {
   return allowedTypes.includes(sourceType);
 }
-
-export function missingExperienceSourceMessage(input: {
-  experienceDisplayName: string;
-  requiredType: SignalSourceType;
-}): string {
-  return `${input.experienceDisplayName} requires a ${formatSignalSourceTypeLabel(input.requiredType)} signal source, but none is provisioned yet.`;
-}

@@ -2,11 +2,7 @@ export type InstrumentClass =
   // "stock" covers all listed equities, including ETFs — they trade through the
   // same equities API surface (bare ticker, same orders/positions endpoints),
   // so ETFs are modeled as stocks rather than a distinct class.
-  | "stock"
-  | "crypto"
-  | "futures"
-  | "options"
-  | "prediction_market";
+  "stock" | "crypto" | "futures" | "options" | "prediction_market";
 
 export type SessionStatus =
   | "draft"
@@ -195,12 +191,6 @@ export type AgentRunFinishReason =
   | "tool_budget"
   | "timeout"
   | "error";
-
-export const PROCESSING_MODES: readonly ProcessingMode[] = [
-  "catalyst",
-  "contract",
-  "manual",
-];
 
 export const RESEARCH_EVIDENCE_MODES: readonly ResearchEvidenceMode[] = [
   "document_first",

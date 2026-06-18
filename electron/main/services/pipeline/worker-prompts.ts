@@ -68,24 +68,6 @@ Given recent news for {instrumentSymbol}, assess earnings quality and trajectory
 
 No trade decision. When finished, call the \`submit_result\` tool; its schema defines every field.`;
 
-export const FUNDAMENTAL_WORKERS_EVENT_CATALYST_PROMPT = `# Event catalyst
-
-Identify catalysts that could reprice implied probability before resolution.
-
-No trade sizing. When finished, call the \`submit_result\` tool; its schema defines every field.`;
-
-export const FUNDAMENTAL_WORKERS_EVENT_RESOLUTION_PROMPT = `# Resolution context
-
-Summarize resolution rules, timing, and disqualifying scenarios for the event contract.
-
-Use news and web evidence; map qualitative facts into \`rawSummary\`. When finished, call the \`submit_result\` tool; its schema defines every field.`;
-
-export const FUNDAMENTAL_WORKERS_EVENT_SENTIMENT_PROMPT = `# Event sentiment
-
-Gauge narrative sentiment and positioning skew for the contract.
-
-Use social and web signals. When finished, call the \`submit_result\` tool; its schema defines every field.`;
-
 export const FUNDAMENTAL_WORKERS_DOCUMENT_EXTRACTOR_PROMPT = `# Document extractor
 
 Fetch and extract key 8-K sections from the filing URL for {instrumentSymbol}.
@@ -105,15 +87,6 @@ Estimate:
 - isAlreadyMoved (true when move is already extended)
 
 No trade recommendation. When finished, call the \`submit_result\` tool; its schema defines every field.`;
-
-export const FUNDAMENTAL_WORKERS_SENTIMENT_CONTEXT_PROMPT = `# Sentiment context
-
-Given web discussion for {instrumentSymbol}, assess current retail and institutional sentiment.
-
-\`sentimentScore\` — aggregate sentiment strength (0 = bearish/negative consensus, 1 = bullish/positive consensus), or null if no meaningful signal exists.
-Distinguish organic conviction from hype. Null is preferable to a fabricated score.
-
-No trade decision. When finished, call the \`submit_result\` tool; its schema defines every field.`;
 
 export const REVIEW_WORKERS_CONFLICT_DETECTOR_PROMPT = `# Conflict detector
 
@@ -229,24 +202,6 @@ Find up to 3 concrete trade candidates that fit the session instructions.
 4. Do not submit your result until \`search_web\` has been called.
 
 Only include symbols with concrete current evidence. When finished, call the \`submit_result\` tool with your candidates; its schema defines every field.`;
-
-export const TECHNICAL_WORKERS_EVENT_IMPLIED_PROBABILITY_PROMPT = `# Implied probability
-
-Estimate whether market-implied probability looks rich or cheap vs recent price path.
-
-Focus on contract mid-price vs historical range; no trade instructions. Capture qualitative findings in \`rawSummary\`. When finished, call the \`submit_result\` tool; its schema defines every field.`;
-
-export const TECHNICAL_WORKERS_EVENT_LIQUIDITY_PROMPT = `# Event liquidity
-
-Assess spread, depth proxy, and volume quality for the contract.
-
-Flag illiquid books in \`rawSummary\`. When finished, call the \`submit_result\` tool; its schema defines every field.`;
-
-export const TECHNICAL_WORKERS_EVENT_PRICE_DRIFT_PROMPT = `# Price drift
-
-Score short-horizon drift and volatility for an event contract.
-
-Use OHLCV and quote only; no sizing or execution guidance. When finished, call the \`submit_result\` tool; its schema defines every field.`;
 
 export const TECHNICAL_WORKERS_PRICE_REACTION_CHECKER_PROMPT = `# Price reaction checker
 

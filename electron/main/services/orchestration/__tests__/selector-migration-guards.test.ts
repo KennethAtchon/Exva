@@ -8,7 +8,12 @@ import { describe, expect, it } from "vitest";
  * Each guard greps the tracked tree. `git grep -l` exits non-zero when there
  * are no matches — which is the passing case — so we translate the exit code
  * into the list of offending files.
+ *
+ * This file itself names the forbidden symbols (as grep patterns), so it is
+ * always excluded from its own results.
  */
+const SELF = "selector-migration-guards.test.ts";
+
 function filesMatching(pattern: string, pathspecs: string[]): string[] {
   try {
     const out = execFileSync(
@@ -16,7 +21,10 @@ function filesMatching(pattern: string, pathspecs: string[]): string[] {
       ["grep", "-lE", pattern, "--", ...pathspecs],
       { encoding: "utf8" },
     );
-    return out.split("\n").filter(Boolean);
+    return out
+      .split("\n")
+      .filter(Boolean)
+      .filter((file) => !file.endsWith(SELF));
   } catch (error) {
     // Exit status 1 with no stdout means "no matches" — the guard passed.
     const status = (error as { status?: number }).status;

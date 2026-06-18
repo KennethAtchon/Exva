@@ -11,28 +11,6 @@ export const PROMOTION_TIERS = [
 
 export type PromotionTier = (typeof PROMOTION_TIERS)[number];
 
-export const PROMOTION_TIER_LABELS: Record<
-  PromotionTier,
-  { label: string; description: string }
-> = {
-  scripted: {
-    label: "Scripted",
-    description: "Canned worker outputs on mock fixtures — deterministic E2E",
-  },
-  rehearsal: {
-    label: "Rehearsal",
-    description: "Real LLM on mock fixtures — prompt and judgment QA",
-  },
-  paper: {
-    label: "Paper (real quotes)",
-    description: "Real LLM and real market data — edge validation",
-  },
-  live: {
-    label: "Live",
-    description: "Production execution with live broker connectivity",
-  },
-};
-
 export function resolveSessionPromotionTier(input: {
   executionMode: ExecutionMode;
   usesMockBroker: boolean;

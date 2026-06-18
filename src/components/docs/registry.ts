@@ -593,10 +593,6 @@ export function getDocGroupTrail(slug: DocSlug): DocNavGroup[] {
   return walk(DOC_NAV_GROUPS, []);
 }
 
-export function getDocGroupForSlug(slug: DocSlug): DocNavGroup | null {
-  return getDocGroupTrail(slug).at(-1) ?? null;
-}
-
 export function searchDocPages(query: string): DocPageDefinition[] {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return listDocPages();

@@ -63,12 +63,6 @@ export interface ControlToolCall {
   finishedAt: string | null;
 }
 
-export interface ControlConversationDetail {
-  conversation: ControlConversation;
-  messages: ControlMessage[];
-  toolCalls: ControlToolCall[];
-}
-
 export interface ControlConversationSummary {
   id: string;
   title: string;

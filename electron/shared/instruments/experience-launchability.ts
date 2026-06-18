@@ -34,9 +34,3 @@ export function resolveSessionInstrumentClasses(
   }
   return resolveBrokerInstrumentClasses(brokers);
 }
-
-export function uncoveredExperienceClasses(
-  _brokers?: BrokerLike[],
-): InstrumentClass[] {
-  return [];
-}

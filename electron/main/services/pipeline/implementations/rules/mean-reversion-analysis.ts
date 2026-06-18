@@ -2,8 +2,6 @@ import type {
   InstrumentAnalysis,
   InstrumentAnalysisState,
 } from "../../analysis/types";
-import type { LLMRunResult } from "../../../llm/llm-types";
-import type { TradeSignal } from "@electron/shared/ai/trade-signals";
 import type { DeclarativeCycleStageConfig } from "../../execution/input-builder-registry";
 import { buildTradeAnalysisSteps } from "../trade/default-analysis-steps";
 
@@ -67,9 +65,3 @@ export const RULES_MEAN_REVERSION_CYCLE: InstrumentAnalysis<InstrumentAnalysisSt
     },
     stages: buildTradeAnalysisSteps(RULES_MEAN_REVERSION_STAGES),
   };
-
-export function rulesDecisionFromState(
-  state: InstrumentAnalysisState,
-): LLMRunResult<TradeSignal> | undefined {
-  return state.decision;
-}

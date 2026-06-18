@@ -23,7 +23,6 @@ describe("domain.ts barrel exports", () => {
     "SIGNAL_SOURCE_CAPABILITIES",
     "extractSignalInstrumentClass",
     "MOCK_SCENARIO_KINDS",
-    "PREDICTION_EVENT_TRIGGER_LABELS",
   ] as const;
 
   it.each(requiredSymbols)("re-exports %s from domain modules", (symbol) => {

@@ -32,22 +32,6 @@ export function ensureAllExperienceSignalSources(
   );
 }
 
-/** D5: prune signal_sources rows that were experience-owned but no longer match any descriptor signal. */
-export function reconcileExperienceSignalSources(
-  sourcesRepo: SignalSourcesRepo,
-): void {
-  const liveIds = new Set(
-    listExperiences().flatMap((e) =>
-      e.signals.map((s) => signalSourceId(e.id, s.id)),
-    ),
-  );
-  for (const src of sourcesRepo.listExperienceOwned()) {
-    if (src.id && !liveIds.has(src.id)) {
-      sourcesRepo.delete(src.id);
-    }
-  }
-}
-
 function desiredExperienceSignalSource(
   experience: ReturnType<typeof requireExperience>,
   signal: SignalDescriptor,

@@ -103,7 +103,7 @@ export function validateExperienceRegistry(): void {
       );
     }
 
-    validateExperienceSourceEmissions(experience);
+    validateExperienceSourceEmissions();
   }
 }
 

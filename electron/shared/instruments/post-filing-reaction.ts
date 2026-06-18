@@ -7,8 +7,6 @@ export type OhlcvBar = {
   volume: number;
 };
 
-export type TradeDirection = "long" | "short";
-
 export type PostFilingReaction = {
   gapPct: number | null;
   reaction30mPct: number | null;

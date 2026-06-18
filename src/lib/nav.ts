@@ -94,7 +94,3 @@ export function getNavItem(id: PageKey): NavItem {
 export function getNavGroupForPage(page: PageKey): NavGroup | undefined {
   return NAV_GROUPS.find((group) => group.itemIds.includes(page));
 }
-
-export function isNavPrimary(page: PageKey): boolean {
-  return NAV_PRIMARY_IDS.includes(page);
-}

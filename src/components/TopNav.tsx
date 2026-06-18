@@ -749,6 +749,3 @@ export const NavShell = ({
     </TooltipProvider>
   );
 };
-
-/** @deprecated Use NavShell instead */
-export const TopNav = NavShell;

@@ -76,20 +76,6 @@ export function computeTimeToLevelMs(input: {
   return new Date(input.nowMs).toISOString();
 }
 
-export function secondsBetween(isoA: string, isoB: string): number | null {
-  const a = new Date(isoA).getTime();
-  const b = new Date(isoB).getTime();
-  if (Number.isNaN(a) || Number.isNaN(b)) return null;
-  return Math.max(0, Math.round((b - a) / 1000));
-}
-
-export function computeMissedBetterExitUsd(input: {
-  mfeUsd: number;
-  finalPnlUsd: number;
-}): number {
-  return Math.max(0, input.mfeUsd - Math.max(0, input.finalPnlUsd));
-}
-
 export function computeSlippageBps(input: {
   side: TradeSide;
   referencePrice: number;

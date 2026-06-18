@@ -164,14 +164,9 @@ describe("experience descriptor validation", () => {
     expect(() => validateExperienceRegistry()).not.toThrow();
   });
 
-  it.each(SHIPPED_DESCRIPTOR_CONTRACTS.map((c) => [c.id, c]))(
-    "%s passes validateExperienceSourceEmissions",
-    (_id, contract) => {
-      expect(() =>
-        validateExperienceSourceEmissions(contract.experience),
-      ).not.toThrow();
-    },
-  );
+  it("validateExperienceSourceEmissions is a no-op and never throws", () => {
+    expect(() => validateExperienceSourceEmissions()).not.toThrow();
+  });
 
   it.each(SHIPPED_DESCRIPTOR_CONTRACTS.map((c) => [c.id, c]))(
     "%s: every signal.sourceType is in its pipeline.signalSources (I1)",
