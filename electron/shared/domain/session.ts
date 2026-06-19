@@ -66,9 +66,24 @@ export interface SessionTradeRules {
   updatedAt: string;
 }
 
+/**
+ * How a session may trade outside US regular market hours.
+ * - `disabled` — no equity/futures orders off regular hours (default).
+ * - `extended_hours` — allow pre/post-market (04:00–09:30, 16:00–20:00 ET) via
+ *   limit + extended-hours orders. Fully overnight/weekend/holiday stays closed.
+ * Crypto and prediction markets are unaffected; they trade continuously.
+ */
+export type OffHoursTrading = "disabled" | "extended_hours";
+
+export const OFF_HOURS_TRADING_VALUES: readonly OffHoursTrading[] = [
+  "disabled",
+  "extended_hours",
+];
+
 export interface SessionRiskConfig {
   sessionId: string;
   riskPresetId: RiskPresetId;
+  offHoursTrading: OffHoursTrading;
   maxPositionUsd: number;
   stopLossPct: number | null;
   takeProfitPct: number | null;
@@ -146,6 +161,7 @@ export interface StrategySnapshot {
     ruleNotes: string;
   };
   riskConfig: {
+    offHoursTrading: OffHoursTrading;
     maxPositionUsd: number;
     stopLossPct: number | null;
     takeProfitPct: number | null;
@@ -263,6 +279,7 @@ export interface SessionConfig {
   profit_target_usd: number;
   max_api_spend_usd: number;
   human_approval_required: boolean;
+  off_hours_trading: OffHoursTrading;
 }
 
 /** Injected ahead of task-specific user prompts (Phase 7 orchestration). */
@@ -412,6 +429,7 @@ export function buildStrategySnapshot(
       ruleNotes: context.rules.ruleNotes,
     },
     riskConfig: {
+      offHoursTrading: context.riskConfig.offHoursTrading,
       maxPositionUsd: context.riskConfig.maxPositionUsd,
       stopLossPct: context.riskConfig.stopLossPct,
       takeProfitPct: context.riskConfig.takeProfitPct,
@@ -526,6 +544,7 @@ export function toLegacySessionConfig(
     profit_target_usd: context.riskConfig.profitTargetUsd,
     max_api_spend_usd: context.riskConfig.maxAiSpendUsd,
     human_approval_required: context.riskConfig.humanApprovalRequired,
+    off_hours_trading: context.riskConfig.offHoursTrading,
   };
 }
 

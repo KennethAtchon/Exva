@@ -504,6 +504,8 @@ export class CycleReplayRunner {
         max_api_spend_usd: strategySnapshot.riskConfig.maxAiSpendUsd,
         human_approval_required:
           strategySnapshot.riskConfig.humanApprovalRequired,
+        // Snapshots predate off-hours policy; replays use regular-hours rules.
+        off_hours_trading: "disabled" as const,
       };
       replayPolicyGate = this.policyGate.evaluate({
         sessionId: fixture.sessionId,

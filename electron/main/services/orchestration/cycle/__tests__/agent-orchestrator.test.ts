@@ -464,6 +464,7 @@ function createDeps({
 function baseConfig(): SessionConfig {
   return {
     strategy: "passive_income",
+    off_hours_trading: "disabled",
     max_position_usd: 500,
     stop_loss_pct: 2,
     take_profit_pct: 4,

@@ -1,3 +1,2 @@
-Why is, in the developer workbench, we have the ID ontop of the little [orchestractor] indicator? The UI is broken here, can u fix it? And add a "copy all logs/events" like session stopped.
-
-
+Stale data that happens when onboarding a broker
+When I immediately go to create a session with that broker, the balance and stuff appears as null.

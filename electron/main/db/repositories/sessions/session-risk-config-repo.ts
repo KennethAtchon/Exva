@@ -40,6 +40,7 @@ export class SessionRiskConfigRepo {
       .update(sessionRiskConfig)
       .set({
         riskPresetId: next.riskPresetId,
+        offHoursTrading: next.offHoursTrading,
         maxPositionUsd: next.maxPositionUsd,
         stopLossPct: next.stopLossPct,
         takeProfitPct: next.takeProfitPct,

@@ -70,6 +70,7 @@ describe("SessionTemplateService", () => {
           riskConfig: {
             sessionId: "s1",
             riskPresetId: "custom" as const,
+            offHoursTrading: "disabled" as const,
             maxPositionUsd: 500,
             stopLossPct: 2,
             takeProfitPct: 4,

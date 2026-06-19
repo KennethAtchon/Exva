@@ -38,6 +38,7 @@ function sampleContext(sessionId = "session-1") {
       riskConfig: {
         sessionId,
         riskPresetId: "moderate",
+        offHoursTrading: "disabled",
         maxPositionUsd: 500,
         stopLossPct: 2,
         takeProfitPct: 4,

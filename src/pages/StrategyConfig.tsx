@@ -1653,6 +1653,21 @@ const RiskSection = ({
             }
             disabled={isLocked}
           />
+          <Field label="Off-hours trading">
+            <ShadcnSelect
+              value={riskConfig.offHoursTrading ?? "disabled"}
+              onValueChange={(value) =>
+                updateRiskConfig({
+                  offHoursTrading: value as typeof riskConfig.offHoursTrading,
+                })
+              }
+              disabled={isLocked}
+              options={[
+                { value: "disabled", label: "Regular hours only" },
+                { value: "extended_hours", label: "Allow extended hours" },
+              ]}
+            />
+          </Field>
         </RiskGroup>
 
         <RiskGroup

@@ -14,6 +14,14 @@ function jsonResponse(body: unknown, status = 200) {
 
 vi.stubGlobal("fetch", fetchMock);
 
+// Friday 2026-06-12, 10:00 ET — inside US regular trading hours (non-holiday),
+// so order-type behavior is deterministic regardless of when the suite runs.
+const regularHoursClock = () => new Date("2026-06-12T14:00:00Z");
+// Friday 2026-06-12, 18:00 ET — post-market extended-hours window.
+const extendedHoursClock = () => new Date("2026-06-12T22:00:00Z");
+// Friday 2026-06-12, 02:00 ET — fully closed (overnight).
+const closedClock = () => new Date("2026-06-12T06:00:00Z");
+
 describe("AlpacaAdapter", () => {
   const credentials = {
     provider: "alpaca" as const,
@@ -86,7 +94,7 @@ describe("AlpacaAdapter", () => {
   });
 
   it("connects and reads account balance from paper API", async () => {
-    const adapter = new AlpacaAdapter(credentials);
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
 
     const connection = await adapter.testConnection();
     const balance = await adapter.getAccountBalance();
@@ -117,7 +125,7 @@ describe("AlpacaAdapter", () => {
       }
       return jsonResponse({}, 404);
     });
-    const adapter = new AlpacaAdapter(credentials);
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
 
     const connection = await adapter.testConnection();
     const balance = await adapter.getAccountBalance();
@@ -130,7 +138,7 @@ describe("AlpacaAdapter", () => {
   });
 
   it("fetches quotes and places notional market orders", async () => {
-    const adapter = new AlpacaAdapter(credentials);
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
     const quote = await adapter.getMarketSnapshot("AAPL");
     const order = await adapter.placeOrder({
       instrumentSymbol: "AAPL",
@@ -178,7 +186,7 @@ describe("AlpacaAdapter", () => {
       }
       return jsonResponse({}, 404);
     });
-    const adapter = new AlpacaAdapter(credentials);
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
 
     const order = await adapter.placeOrder({
       instrumentSymbol: "AAPL",
@@ -199,7 +207,7 @@ describe("AlpacaAdapter", () => {
   });
 
   it("lists equity positions and closes filled orders", async () => {
-    const adapter = new AlpacaAdapter(credentials);
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
     const positions = await adapter.getPositions();
     const closed = await adapter.closeOrder("alpaca-order-1");
 
@@ -218,7 +226,7 @@ describe("AlpacaAdapter", () => {
   it("places crypto orders with gtc time-in-force", async () => {
     // Crypto trades 24/7 and Alpaca rejects `day` for it, so the adapter must
     // send `gtc` — a stock-only `day` TIF would be rejected for BTC/USD.
-    const adapter = new AlpacaAdapter(credentials);
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
 
     const result = await adapter.placeOrder({
       instrumentSymbol: "BTC/USD",
@@ -243,7 +251,7 @@ describe("AlpacaAdapter", () => {
   });
 
   it("rejects instrument classes Alpaca cannot trade", async () => {
-    const adapter = new AlpacaAdapter(credentials);
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
 
     await expect(
       adapter.placeOrder({
@@ -273,7 +281,7 @@ describe("AlpacaAdapter", () => {
       return jsonResponse({}, 404);
     });
 
-    const adapter = new AlpacaAdapter(credentials);
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
     const result = await adapter.placeOrder({
       instrumentSymbol: optionSymbol,
       instrumentType: "options",
@@ -286,5 +294,121 @@ describe("AlpacaAdapter", () => {
     // $1500 budget / $500 per contract = 3 contracts; no dollar-notional.
     expect(orderBody).toMatchObject({ symbol: optionSymbol, qty: "3" });
     expect(orderBody).not.toHaveProperty("notional");
+  });
+
+  it("places a regular-hours stock order as a notional market DAY order", async () => {
+    let orderBody: Record<string, unknown> | null = null;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/v2/orders") && init?.method === "POST") {
+        orderBody = JSON.parse(String(init.body));
+        return jsonResponse({ id: "rth-1", filled_avg_price: "185.25" });
+      }
+      return jsonResponse({}, 404);
+    });
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+
+    await adapter.placeOrder({
+      instrumentSymbol: "AAPL",
+      instrumentType: "stock",
+      side: "BUY",
+      sizeUsd: 500,
+      clientOrderId: "client-rth",
+    });
+
+    expect(orderBody).toMatchObject({
+      type: "market",
+      time_in_force: "day",
+      notional: "500",
+    });
+    expect(orderBody).not.toHaveProperty("extended_hours");
+  });
+
+  it("places an extended-hours stock order as a marketable limit with extended_hours", async () => {
+    let orderBody: Record<string, unknown> | null = null;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/trades/latest")) {
+        return jsonResponse({ trade: { p: 185.25, t: "2026-06-12T22:00:00Z" } });
+      }
+      if (url.includes("/v2/orders") && init?.method === "POST") {
+        orderBody = JSON.parse(String(init.body));
+        return jsonResponse({ id: "ext-1", filled_avg_price: "186.0" });
+      }
+      return jsonResponse({}, 404);
+    });
+    const adapter = new AlpacaAdapter(credentials, extendedHoursClock);
+
+    const order = await adapter.placeOrder({
+      instrumentSymbol: "AAPL",
+      instrumentType: "stock",
+      side: "BUY",
+      sizeUsd: 500,
+      clientOrderId: "client-ext",
+    });
+
+    expect(order.filledAvgPrice).toBe(186);
+    // Marketable buy limit = 185.25 * 1.005 = 186.18 (penny-rounded);
+    // qty = floor(500 / 186.18) = 2; never a market order off-hours.
+    expect(orderBody).toMatchObject({
+      type: "limit",
+      time_in_force: "day",
+      extended_hours: true,
+      limit_price: "186.18",
+      qty: "2",
+    });
+    expect(orderBody).not.toHaveProperty("notional");
+  });
+
+  it("refuses a stock order when the market is fully closed", async () => {
+    const adapter = new AlpacaAdapter(credentials, closedClock);
+
+    await expect(
+      adapter.placeOrder({
+        instrumentSymbol: "AAPL",
+        instrumentType: "stock",
+        side: "BUY",
+        sizeUsd: 500,
+        clientOrderId: "client-closed",
+      }),
+    ).rejects.toThrow(/market is closed/i);
+  });
+
+  it("refuses an options order outside regular hours (no extended-hours options)", async () => {
+    const adapter = new AlpacaAdapter(credentials, extendedHoursClock);
+
+    await expect(
+      adapter.placeOrder({
+        instrumentSymbol: "AAPL250117C00150000",
+        instrumentType: "options",
+        side: "BUY",
+        sizeUsd: 1500,
+        clientOrderId: "client-opt-ext",
+      }),
+    ).rejects.toThrow(/market is closed/i);
+  });
+
+  it("always places crypto as a market order regardless of clock", async () => {
+    let orderBody: Record<string, unknown> | null = null;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/v2/orders") && init?.method === "POST") {
+        orderBody = JSON.parse(String(init.body));
+        return jsonResponse({ id: "crypto-closed", filled_avg_price: "60000" });
+      }
+      return jsonResponse({}, 404);
+    });
+    const adapter = new AlpacaAdapter(credentials, closedClock);
+
+    await adapter.placeOrder({
+      instrumentSymbol: "BTC/USD",
+      instrumentType: "crypto",
+      side: "BUY",
+      sizeUsd: 500,
+      clientOrderId: "client-crypto-closed",
+    });
+
+    expect(orderBody).toMatchObject({
+      type: "market",
+      time_in_force: "gtc",
+      notional: "500",
+    });
   });
 });

@@ -51,6 +51,7 @@ function strategyContext(): SessionStrategyContext {
     riskConfig: {
       sessionId: "s1",
       riskPresetId: "custom",
+      offHoursTrading: "disabled",
       maxPositionUsd: 100,
       stopLossPct: 2,
       takeProfitPct: 4,

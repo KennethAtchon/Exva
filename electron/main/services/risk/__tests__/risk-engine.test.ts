@@ -6,6 +6,7 @@ describe("RiskEngine", () => {
   const engine = new RiskEngine();
   const config: SessionConfig = {
     strategy: "swing",
+    off_hours_trading: "disabled",
     max_position_usd: 500,
     stop_loss_pct: 2,
     take_profit_pct: 4,

@@ -30,21 +30,27 @@ export interface DebugForceTradeResult {
 const DEBUG_FORCE_TRADE_SIZE_USD = 100;
 
 /**
- * Default, liquid symbols per instrument class for the debug order. Classes
+ * Default, liquid symbols per instrument class for the debug order, in
+ * preference order. Crypto (BTC-USD) is first because it trades 24/7 — a debug
+ * trade fired outside US market hours must still fill, whereas a stock market
+ * order placed off-hours only queues and never reports a fill price. Classes
  * whose tradeable symbol is contract- or market-specific (futures front month,
  * a specific option, a specific prediction market) have no safe default and are
  * intentionally omitted — the picker fails loud rather than guessing.
  */
-const DEBUG_DEFAULT_SYMBOLS: Partial<Record<InstrumentClass, string>> = {
-  stock: "SPY",
-  crypto: "BTC-USD",
-};
+const DEBUG_DEFAULT_SYMBOLS: ReadonlyArray<{
+  instrumentClass: InstrumentClass;
+  symbol: string;
+}> = [
+  { instrumentClass: "crypto", symbol: "BTC-USD" },
+  { instrumentClass: "stock", symbol: "SPY" },
+];
 
 /**
  * Choose an instrument class supported by one of the session's assigned brokers
  * for which we have a safe default symbol. Throws a clear error otherwise.
  */
-function pickDebugInstrument(
+export function pickDebugInstrument(
   brokerAccountIds: string[],
   supportedClassesFor: (id: string) => readonly InstrumentClass[],
 ): { instrumentClass: InstrumentClass; symbol: string } {
@@ -52,13 +58,13 @@ function pickDebugInstrument(
   for (const id of brokerAccountIds) {
     for (const cls of supportedClassesFor(id)) supported.add(cls);
   }
-  for (const [cls, symbol] of Object.entries(DEBUG_DEFAULT_SYMBOLS)) {
-    if (supported.has(cls as InstrumentClass) && symbol) {
-      return { instrumentClass: cls as InstrumentClass, symbol };
+  for (const { instrumentClass, symbol } of DEBUG_DEFAULT_SYMBOLS) {
+    if (supported.has(instrumentClass)) {
+      return { instrumentClass, symbol };
     }
   }
   throw new AppError(
-    "Force trade has no safe default symbol for this session's broker(s). Supported debug classes: stock (SPY), crypto (BTC-USD).",
+    "Force trade has no safe default symbol for this session's broker(s). Supported debug classes: crypto (BTC-USD), stock (SPY).",
     "VALIDATION_FAILED",
     { supportedClasses: [...supported] },
   );

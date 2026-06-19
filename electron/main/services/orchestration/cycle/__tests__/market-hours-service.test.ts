@@ -56,4 +56,33 @@ describe("MarketHoursService", () => {
     const { tradable } = service.partitionByTradability([crypto], afterHoursEt);
     expect(tradable).toEqual([crypto]);
   });
+
+  // Thursday 2026-06-11 18:00 ET — inside the post-market extended window.
+  const extendedHoursEt = new Date("2026-06-11T22:00:00.000Z");
+
+  it("allows stocks in the extended window when the session opts in", () => {
+    const { tradable, excluded } = service.partitionByTradability(
+      [stock],
+      extendedHoursEt,
+      { offHoursTrading: "extended_hours" },
+    );
+    expect(tradable).toEqual([stock]);
+    expect(excluded).toHaveLength(0);
+  });
+
+  it("blocks stocks in the extended window when off-hours trading is disabled", () => {
+    const { excluded } = service.partitionByTradability(
+      [stock],
+      extendedHoursEt,
+      { offHoursTrading: "disabled" },
+    );
+    expect(excluded[0]?.reason).toBe("exchange_closed");
+  });
+
+  it("blocks stocks fully overnight even when extended hours are enabled", () => {
+    const { excluded } = service.partitionByTradability([stock], afterHoursEt, {
+      offHoursTrading: "extended_hours",
+    });
+    expect(excluded[0]?.reason).toBe("exchange_closed");
+  });
 });

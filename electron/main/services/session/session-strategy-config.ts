@@ -91,6 +91,7 @@ export function strategyConfigToContext(
       riskPresetId:
         config.presetIds?.riskPresetId ??
         ("moderate" as SessionRiskConfig["riskPresetId"]),
+      offHoursTrading: config.riskConfig.offHoursTrading ?? "disabled",
       maxPositionUsd: config.riskConfig.maxPositionUsd,
       stopLossPct: config.riskConfig.stopLossPct,
       takeProfitPct: config.riskConfig.takeProfitPct,

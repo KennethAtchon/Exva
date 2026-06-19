@@ -24,6 +24,7 @@ export function registerConfigHandlers(services: AppServices): void {
       profitTargetUsd: cfg.profit_target_usd,
       maxAiSpendUsd: cfg.max_api_spend_usd,
       humanApprovalRequired: cfg.human_approval_required,
+      offHoursTrading: cfg.off_hours_trading,
     });
   });
 }

@@ -364,6 +364,7 @@ export const sessionRiskConfig = sqliteTable("session_risk_config", {
     .primaryKey()
     .references(() => sessions.id, { onDelete: "cascade" }),
   riskPresetId: text("risk_preset_id").notNull().default("custom"),
+  offHoursTrading: text("off_hours_trading").notNull().default("disabled"),
   maxPositionUsd: real("max_position_usd").notNull().default(500),
   stopLossPct: real("stop_loss_pct"),
   takeProfitPct: real("take_profit_pct"),

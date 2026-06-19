@@ -4,6 +4,7 @@ import type {
   InstrumentClass,
 } from "@/lib/types";
 import { BROKER_SUPPORTED_INSTRUMENT_CLASSES } from "@electron/shared/domain/broker-capabilities";
+import { getUsEquitySession } from "@electron/shared/instruments/us-equity-session";
 import { AppError } from "@electron/shared/infra/errors";
 import { createHash } from "node:crypto";
 import { createLogger } from "../../infra/log";
@@ -21,6 +22,10 @@ import type {
 const logger = createLogger("alpaca-adapter");
 
 const ALPACA_DATA_URL = "https://data.alpaca.markets";
+
+/** Poll a freshly-placed order this many times before declaring no fill. */
+const FILL_POLL_ATTEMPTS = 3;
+const FILL_POLL_INTERVAL_MS = 500;
 const ALPACA_TIMEFRAME_MAP: Record<string, string> = {
   "15m": "15Min",
   "30m": "30Min",
@@ -57,7 +62,15 @@ export class AlpacaAdapter implements BrokerAdapter {
 
   private readonly baseUrl: string;
 
-  constructor(private readonly credentials: BrokerCredentials) {
+  /**
+   * @param now Clock used to classify the current US trading session when
+   * choosing order type. Injectable so order-type behavior is deterministic in
+   * tests; defaults to the real wall clock in production.
+   */
+  constructor(
+    private readonly credentials: BrokerCredentials,
+    private readonly now: () => Date = () => new Date(),
+  ) {
     this.baseUrl =
       credentials.mode === "paper"
         ? "https://paper-api.alpaca.markets"
@@ -184,29 +197,14 @@ export class AlpacaAdapter implements BrokerAdapter {
       throw err;
     }
 
-    // Options are sized in whole contracts (each controls 100 shares) and do
-    // not accept `notional`; equities/crypto use dollar-notional orders.
-    const sizing =
-      order.instrumentType === "options"
-        ? { qty: String(await this.resolveOptionContractQty(order)) }
-        : { notional: String(order.sizeUsd) };
-
-    // Crypto markets trade 24/7 and reject `day`; equities and options use `day`.
-    const timeInForce = order.instrumentType === "crypto" ? "gtc" : "day";
+    const body = await this.buildOrderBody(order);
     const result = await this.request<{
       id: string;
       filled_avg_price?: string;
       status?: string;
     }>("/v2/orders", {
       method: "POST",
-      body: JSON.stringify({
-        symbol: order.instrumentSymbol,
-        ...sizing,
-        side: order.side.toLowerCase(),
-        type: "market",
-        time_in_force: timeInForce,
-        client_order_id: toAlpacaClientOrderId(order.clientOrderId),
-      }),
+      body: JSON.stringify(body),
     });
     const filledAvgPrice = await this.resolveFilledAvgPrice(result);
     logger.info(
@@ -422,6 +420,84 @@ export class AlpacaAdapter implements BrokerAdapter {
   }
 
   /**
+   * Construct the Alpaca order payload, choosing order type by instrument and
+   * current US trading session. The rule we enforce: never place a market order
+   * outside regular hours, because off-hours market orders only queue and never
+   * report a fill price (the failure that originally surfaced this code path).
+   *
+   * - crypto → market GTC, dollar-notional (24/7 market).
+   * - equity/option in regular hours → market DAY (options sized in contracts,
+   *   equities dollar-notional).
+   * - equity in extended hours → marketable LIMIT DAY with `extended_hours`,
+   *   sized in whole shares (Alpaca rejects notional/fractional off-hours).
+   * - anything else (options off-hours, or fully closed) → fail loud.
+   *
+   * Whether an off-hours order reaches this adapter at all is gated upstream by
+   * the session's off-hours policy in the market-hours guard.
+   */
+  private async buildOrderBody(
+    order: BrokerOrder,
+  ): Promise<Record<string, unknown>> {
+    const base = {
+      symbol: order.instrumentSymbol,
+      side: order.side.toLowerCase(),
+      client_order_id: toAlpacaClientOrderId(order.clientOrderId),
+    };
+
+    if (order.instrumentType === "crypto") {
+      return {
+        ...base,
+        notional: String(order.sizeUsd),
+        type: "market",
+        time_in_force: "gtc",
+      };
+    }
+
+    const session = getUsEquitySession(this.now());
+
+    if (session === "regular") {
+      const sizing =
+        order.instrumentType === "options"
+          ? { qty: String(await this.resolveOptionContractQty(order)) }
+          : { notional: String(order.sizeUsd) };
+      return { ...base, ...sizing, type: "market", time_in_force: "day" };
+    }
+
+    if (session === "extended" && order.instrumentType === "stock") {
+      const snapshot = await this.getMarketSnapshot(order.instrumentSymbol);
+      if (!(snapshot.price > 0)) {
+        throw new AppError(
+          "Alpaca extended-hours order: no quotable price to set a limit against.",
+          "BROKER_ERROR",
+          { instrumentSymbol: order.instrumentSymbol },
+        );
+      }
+      // Cross the spread by 0.5% so the limit is marketable and fills promptly.
+      const slip = order.side === "BUY" ? 1.005 : 0.995;
+      const limitPrice = roundToPenny(snapshot.price * slip);
+      const qty = Math.max(1, Math.floor(order.sizeUsd / limitPrice));
+      return {
+        ...base,
+        qty: String(qty),
+        type: "limit",
+        limit_price: String(limitPrice),
+        time_in_force: "day",
+        extended_hours: true,
+      };
+    }
+
+    throw new AppError(
+      `Alpaca market is closed for ${order.instrumentSymbol}; ${order.instrumentType} orders cannot be placed outside trading hours.`,
+      "MARKET_CLOSED",
+      {
+        instrumentSymbol: order.instrumentSymbol,
+        instrumentType: order.instrumentType,
+        session,
+      },
+    );
+  }
+
+  /**
    * Translate a dollar budget into a whole number of option contracts. Each
    * contract costs `pricePerShare * 100`. Rounds down so we never exceed the
    * budget, with a floor of one contract since options cannot be fractional.
@@ -439,6 +515,12 @@ export class AlpacaAdapter implements BrokerAdapter {
     return Math.max(1, Math.floor(order.sizeUsd / perContractCost));
   }
 
+  /**
+   * Resolve the average fill price. A just-submitted order may report no price
+   * until the fill propagates, so we poll the order a few times before giving
+   * up. We still fail loud if it never fills — a trade with no entry price is
+   * worse than an error, since downstream PnL would be meaningless.
+   */
   private async resolveFilledAvgPrice(order: {
     id: string;
     filled_avg_price?: string;
@@ -447,18 +529,23 @@ export class AlpacaAdapter implements BrokerAdapter {
     const immediate = parsePositiveNumber(order.filled_avg_price);
     if (immediate != null) return immediate;
 
-    const refreshed = await this.request<{
-      filled_avg_price?: string;
-      status?: string;
-    }>(`/v2/orders/${encodeURIComponent(order.id)}`);
-    const refreshedPrice = parsePositiveNumber(refreshed.filled_avg_price);
-    if (refreshedPrice != null) return refreshedPrice;
+    let lastStatus = order.status ?? null;
+    for (let attempt = 0; attempt < FILL_POLL_ATTEMPTS; attempt++) {
+      await sleep(FILL_POLL_INTERVAL_MS);
+      const refreshed = await this.request<{
+        filled_avg_price?: string;
+        status?: string;
+      }>(`/v2/orders/${encodeURIComponent(order.id)}`);
+      const price = parsePositiveNumber(refreshed.filled_avg_price);
+      if (price != null) return price;
+      lastStatus = refreshed.status ?? lastStatus;
+    }
 
     const err = new AppError(
       "Alpaca accepted the order but did not report a filled average price.",
       "BROKER_ERROR",
       {
-        status: refreshed.status ?? order.status ?? null,
+        status: lastStatus,
         brokerOrderIdLength: order.id.length,
       },
     );
@@ -466,7 +553,7 @@ export class AlpacaAdapter implements BrokerAdapter {
       {
         err,
         brokerOrderId: order.id,
-        status: refreshed.status ?? order.status ?? null,
+        status: lastStatus,
       },
       "alpaca placeOrder: order accepted but no filled average price reported",
     );
@@ -578,6 +665,15 @@ function parsePositiveNumber(value: string | undefined): number | null {
   if (value == null) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+/** Round to whole cents; Alpaca rejects equity limit prices below penny ticks. */
+function roundToPenny(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function toAlpacaClientOrderId(clientOrderId: string): string {

@@ -191,6 +191,10 @@ const sessionRiskConfigPayloadSchema = z.object({
     .enum(RISK_PRESET_IDS as [RiskPresetId, ...RiskPresetId[]])
     .optional()
     .default("custom"),
+  offHoursTrading: z
+    .enum(["disabled", "extended_hours"])
+    .optional()
+    .default("disabled"),
   maxPositionUsd: z.number().nonnegative(),
   stopLossPct: z.union([z.number().nonnegative(), z.null()]),
   takeProfitPct: z.union([z.number().nonnegative(), z.null()]),

@@ -148,6 +148,9 @@ export function toSessionConfig(row: Row): SessionConfig {
     profit_target_usd: Number(row.profit_target_usd),
     max_api_spend_usd: Number(row.max_ai_spend_usd),
     human_approval_required: Boolean(row.human_approval_required),
+    off_hours_trading:
+      (row.off_hours_trading as SessionConfig["off_hours_trading"]) ??
+      "disabled",
   };
 }
 
@@ -262,6 +265,9 @@ export function toSessionRiskConfig(row: Row): SessionRiskConfig {
     sessionId: String(row.session_id),
     riskPresetId:
       (row.risk_preset_id as SessionRiskConfig["riskPresetId"]) ?? "custom",
+    offHoursTrading:
+      (row.off_hours_trading as SessionRiskConfig["offHoursTrading"]) ??
+      "disabled",
     maxPositionUsd: Number(row.max_position_usd),
     stopLossPct: nullableNumber(row.stop_loss_pct),
     takeProfitPct: nullableNumber(row.take_profit_pct),

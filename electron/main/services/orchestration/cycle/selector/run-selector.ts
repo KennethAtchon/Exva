@@ -159,6 +159,7 @@ export async function runSelector(
     {
       skipWeekendFilter: skipMockStockTimeFilters,
       skipExchangeHoursFilter: skipMockStockTimeFilters,
+      offHoursTrading: config.off_hours_trading,
     },
   );
   if (excluded.length > 0) {

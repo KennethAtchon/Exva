@@ -36,6 +36,7 @@ function makeStrategySnapshot(): StrategySnapshot {
       ruleNotes: "",
     },
     riskConfig: {
+      offHoursTrading: "disabled",
       maxPositionUsd: 1000,
       stopLossPct: 5,
       takeProfitPct: 10,

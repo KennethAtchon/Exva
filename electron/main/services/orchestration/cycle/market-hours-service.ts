@@ -1,5 +1,6 @@
-import type { InstrumentClass } from "@/lib/types";
+import type { InstrumentClass, OffHoursTrading } from "@/lib/types";
 import { isUsMarketHoliday } from "@electron/shared/instruments/us-market-holidays";
+import { getUsEquitySession } from "@electron/shared/instruments/us-equity-session";
 
 export type BurstInstrument = {
   symbol: string;
@@ -32,6 +33,13 @@ export class MarketHoursService {
       skipWeekendFilter?: boolean;
       /** Mock sessions only: allow stock/futures outside regular NYSE hours. */
       skipExchangeHoursFilter?: boolean;
+      /**
+       * Session policy for trading outside regular hours. With
+       * `extended_hours`, stock/futures are tradable during the pre/post-market
+       * window (placed as extended-hours limit orders downstream). Defaults to
+       * `disabled` — off-hours equities are excluded.
+       */
+      offHoursTrading?: OffHoursTrading;
     },
   ): TradabilityPartition {
     const tradable: BurstInstrument[] = [];
@@ -57,6 +65,7 @@ export class MarketHoursService {
     options?: {
       skipWeekendFilter?: boolean;
       skipExchangeHoursFilter?: boolean;
+      offHoursTrading?: OffHoursTrading;
     },
   ): string | null {
     if (
@@ -80,17 +89,16 @@ export class MarketHoursService {
       if (isUsMarketHoliday(now)) {
         return "market_holiday";
       }
-      const ny = new Date(
-        now.toLocaleString("en-US", { timeZone: "America/New_York" }),
-      );
-      const hour = ny.getHours();
-      const minute = ny.getMinutes();
-      const minutes = hour * 60 + minute;
-      const open = 9 * 60 + 30;
-      const close = 16 * 60;
-      if (minutes < open || minutes >= close) {
-        return "exchange_closed";
+      const session = getUsEquitySession(now);
+      if (session === "regular") {
+        return null;
       }
+      // Pre/post-market is tradable only when the session opts into extended
+      // hours; those orders are placed as extended-hours limit orders.
+      if (session === "extended" && options?.offHoursTrading === "extended_hours") {
+        return null;
+      }
+      return "exchange_closed";
     }
     return null;
   }

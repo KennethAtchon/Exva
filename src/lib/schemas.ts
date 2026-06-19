@@ -41,6 +41,10 @@ export const sessionConfigSchema = z.object({
   profit_target_usd: z.number().positive(),
   max_api_spend_usd: z.number().positive(),
   human_approval_required: z.boolean(),
+  off_hours_trading: z
+    .enum(["disabled", "extended_hours"])
+    .optional()
+    .default("disabled"),
 });
 
 export const brokerCredentialsSchema = z.object({
