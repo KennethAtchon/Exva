@@ -1,6 +1,12 @@
 import type { App } from "electron";
 import { env } from "../config/env";
 import { createDbClient } from "@main/db/client";
+import {
+  SEEDED_ALPACA_BROKER_ID,
+  SEEDED_ALPACA_SECRET_REF,
+  SEEDED_OPENROUTER_PROVIDER_ID,
+  SEEDED_OPENROUTER_SECRET_REF,
+} from "@main/db/seed";
 import { AgentRunsRepo } from "../db/repositories/agents/agent-runs-repo";
 import { AgentMessagesRepo } from "../db/repositories/agents/agent-messages-repo";
 import { ApiCallLogRepo } from "../db/repositories/system/api-call-log-repo";
@@ -218,6 +224,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const signalDeliveriesRepo = new SignalDeliveriesRepo(db);
   const signalDeadLettersRepo = new SignalDeadLettersRepo(db);
   const secrets = new SecretsService();
+  await seedEnvBackedAccountSecrets(repos, secrets);
   const brokerRegistry = new BrokerRegistry(repos.brokerAccounts, secrets);
   const instrumentNormalizer = new InstrumentNormalizer();
   const logger = createLogger("app-services");
@@ -598,4 +605,33 @@ export async function createAppServices(app: App): Promise<AppServices> {
     control,
   };
   return appServices;
+}
+
+async function seedEnvBackedAccountSecrets(
+  repos: AppServices["repos"],
+  secrets: SecretsService,
+): Promise<void> {
+  if (
+    env.openRouterKey &&
+    env.openRouterModel &&
+    repos.providerAccounts.find(SEEDED_OPENROUTER_PROVIDER_ID)
+  ) {
+    await secrets.set(SEEDED_OPENROUTER_SECRET_REF, env.openRouterKey);
+  }
+
+  if (
+    env.alpacaApiKey &&
+    env.alpacaSecretKey &&
+    repos.brokerAccounts.find(SEEDED_ALPACA_BROKER_ID)
+  ) {
+    await secrets.set(
+      SEEDED_ALPACA_SECRET_REF,
+      JSON.stringify({
+        provider: "alpaca" as const,
+        api_key: env.alpacaApiKey,
+        secret_key: env.alpacaSecretKey,
+        mode: "paper" as const,
+      }),
+    );
+  }
 }

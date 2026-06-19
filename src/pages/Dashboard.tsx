@@ -261,11 +261,16 @@ const TradesPanel = () => {
   const trades = useTradeStore((s) => s.trades);
   const selectedId = useTradeStore((s) => s.selectedId);
   const setSelected = useTradeStore((s) => s.setSelected);
+  const [hideRejected, setHideRejected] = useState(true);
+
   const sorted = trades.toSorted((a, b) => {
     const at = a.opened_at ? new Date(a.opened_at).getTime() : 0;
     const bt = b.opened_at ? new Date(b.opened_at).getTime() : 0;
     return bt - at;
   });
+  const visible = hideRejected
+    ? sorted.filter((t) => t.status !== "rejected")
+    : sorted;
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -286,7 +291,7 @@ const TradesPanel = () => {
             ))}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {sorted.map((t) => (
+            {visible.map((t) => (
               <TradeRow
                 key={t.id}
                 trade={t}
@@ -296,6 +301,24 @@ const TradesPanel = () => {
             ))}
           </div>
         </div>
+      </div>
+      <div className="flex items-center gap-2 px-6 py-2.5 border-t border-[var(--border)]">
+        <Checkbox
+          id="hide-rejected"
+          checked={hideRejected}
+          onCheckedChange={(v) => setHideRejected(!!v)}
+        />
+        <label
+          htmlFor="hide-rejected"
+          className="cursor-pointer select-none text-[12px] text-[var(--text3)]"
+        >
+          Hide rejected
+        </label>
+        {hideRejected && trades.some((t) => t.status === "rejected") && (
+          <span className="ml-1 text-[11px] text-[var(--text3)] opacity-60">
+            ({trades.filter((t) => t.status === "rejected").length} hidden)
+          </span>
+        )}
       </div>
     </div>
   );
@@ -525,7 +548,7 @@ export const Dashboard = () => {
               <span className="text-[12px] text-[var(--text3)]">live</span>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto py-1 pr-0 pb-2 pl-2">
+          <div className={agentFeedScrollClass}>
             {events.map((ev, i) => (
               <FeedRow key={ev.id} ev={ev} isLast={i === events.length - 1} />
             ))}
@@ -593,3 +616,6 @@ const tradesCardClass =
 
 const autopsySidebarClass =
   "flex min-h-0 w-[clamp(280px,32vw,340px)] max-w-full min-w-0 flex-[0_1_320px] flex-col overflow-hidden px-0 pt-5 pb-0";
+
+const agentFeedScrollClass =
+  "min-h-0 max-h-[560px] flex-1 overflow-y-auto py-1 pr-0 pb-2 pl-2";

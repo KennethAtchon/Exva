@@ -237,6 +237,29 @@ export const sessionExecutionSteps = sqliteTable(
   }),
 );
 
+export const decisionTraces = sqliteTable(
+  "decision_traces",
+  {
+    // One row per trade cycle. Keyed by cycle because a cycle rejected at
+    // candidate validation never produces a trade row; tradeId is linked later.
+    cycleId: text("cycle_id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    tradeId: text("trade_id").references(() => trades.id, {
+      onDelete: "set null",
+    }),
+    instrumentSymbol: text("instrument_symbol").notNull(),
+    traceJson: text("trace_json").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => ({
+    sessionIdx: index("idx_decision_traces_session").on(table.sessionId),
+    tradeIdx: index("idx_decision_traces_trade").on(table.tradeId),
+  }),
+);
+
 export const sessionSelectorSettings = sqliteTable(
   "session_selector_settings",
   {

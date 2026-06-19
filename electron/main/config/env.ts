@@ -22,7 +22,16 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((value) => value === "true"),
+  OPEN_ROUTER_KEY: z.string().optional(),
+  OPEN_ROUTER_MODEL: z.string().optional(),
+  ALPACA_API_KEY: z.string().optional(),
+  ALPACA_SECRET_KEY: z.string().optional(),
 });
+
+function normalizeOptionalSecret(value?: string): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
 
 function loadEnv(source: NodeJS.ProcessEnv = process.env) {
   const parsed = envSchema.safeParse(source);
@@ -43,6 +52,10 @@ function loadEnv(source: NodeJS.ProcessEnv = process.env) {
     devBypassKeychain: parsed.data.EXVA_DEV_BYPASS_KEYCHAIN ?? false,
     promptsDirOverride: parsed.data.EXVA_PROMPTS_DIR_OVERRIDE,
     utilityProcessRuntimes: parsed.data.EXVA_UTILITY_PROCESS_RUNTIMES ?? false,
+    openRouterKey: normalizeOptionalSecret(parsed.data.OPEN_ROUTER_KEY),
+    openRouterModel: normalizeOptionalSecret(parsed.data.OPEN_ROUTER_MODEL),
+    alpacaApiKey: normalizeOptionalSecret(parsed.data.ALPACA_API_KEY),
+    alpacaSecretKey: normalizeOptionalSecret(parsed.data.ALPACA_SECRET_KEY),
   });
 }
 

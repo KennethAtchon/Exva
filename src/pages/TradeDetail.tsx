@@ -5,8 +5,14 @@ import { fmt } from "@/lib/formatters";
 import type { HelpGlossaryId } from "@/lib/help-glossary";
 import { api } from "@/lib/exva";
 import { cn } from "@/lib/utils";
-import type { AgentMessage, AgentRun, EventSourceType } from "@/lib/types";
+import type { AgentMessage, AgentRun, EventSourceType, Trade } from "@/lib/types";
 import { Dialog, DialogContent, HelpTooltip } from "@/components/ui";
+import type {
+  TechnicalSignal,
+  FundamentalSignal,
+  ReviewSignal,
+  TradeSignal,
+} from "@electron/shared/ai/trade-signals";
 
 const PALETTE: Record<string, { bar: string; bg: string }> = {
   technical: { bar: "var(--color-success)", bg: "var(--color-success-dim)" },
@@ -502,6 +508,311 @@ const TradeAgentRuns = ({ runs }: { runs: AgentRun[] }) => {
 };
 
 // ---------------------------------------------------------------------------
+// TradeVerdictPanel — helpers + component
+// ---------------------------------------------------------------------------
+
+type ParsedSignals = {
+  technical: TechnicalSignal | null;
+  fundamental: FundamentalSignal | null;
+  review: ReviewSignal | null;
+  decision: TradeSignal | null;
+};
+
+function parseTradeSignals(messages: AgentMessage[]): ParsedSignals {
+  const result: ParsedSignals = {
+    technical: null,
+    fundamental: null,
+    review: null,
+    decision: null,
+  };
+  const sorted = [...messages].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+  for (const msg of sorted) {
+    if (!msg.output_json || !msg.output_schema_name) continue;
+    try {
+      const parsed: unknown = JSON.parse(msg.output_json);
+      switch (msg.output_schema_name) {
+        case "technicalSignal":
+          result.technical = parsed as TechnicalSignal;
+          break;
+        case "fundamentalSignal":
+          result.fundamental = parsed as FundamentalSignal;
+          break;
+        case "reviewSignal":
+          result.review = parsed as ReviewSignal;
+          break;
+        case "tradeSignal":
+          result.decision = parsed as TradeSignal;
+          break;
+      }
+    } catch {
+      // unparseable output_json — skip silently
+    }
+  }
+  return result;
+}
+
+type VerdictVariant = "success" | "danger" | "warn" | "default";
+
+function resolveVerdict(
+  trade: Trade,
+  decision: TradeSignal | null,
+  gateSteps: Array<{ stage: string; status: string; lastErrorCode: string | null }>,
+): { label: string; variant: VerdictVariant; summary: string } {
+  if (trade.status === "open" || trade.status === "closed") {
+    return {
+      label: trade.status === "open" ? "OPEN" : "CLOSED",
+      variant: "success",
+      summary: "Decision to trade was approved through all gates.",
+    };
+  }
+  if (trade.status === "pending") {
+    return {
+      label: "PENDING",
+      variant: "warn",
+      summary: "Awaiting pipeline completion or human approval.",
+    };
+  }
+  // rejected
+  if (decision?.action === "skip") {
+    const isThresholdReject = decision.reasoning
+      .toLowerCase()
+      .includes("wait-for-open");
+    return {
+      label: "SKIPPED",
+      variant: "default",
+      summary: isThresholdReject
+        ? "Skipped — confidence below wait-for-open threshold."
+        : "AI decided not to trade this instrument.",
+    };
+  }
+  const failedGate = gateSteps.find((s) => s.status === "failed");
+  if (failedGate) {
+    return {
+      label: "REJECTED",
+      variant: "danger",
+      summary: `Blocked by ${failedGate.stage} gate.`,
+    };
+  }
+  return { label: "REJECTED", variant: "danger", summary: "Trade was rejected." };
+}
+
+function buildRejectionChain(
+  decision: TradeSignal | null,
+  gateSteps: Array<{ stage: string; status: string; lastErrorCode: string | null }>,
+  trade: Trade,
+): string[] {
+  if (decision?.action === "skip") return [decision.reasoning];
+  const failedGate = gateSteps.find((s) => s.status === "failed");
+  if (failedGate) {
+    const msg = failedGate.lastErrorCode
+      ? `Stage: ${failedGate.stage} · ${failedGate.lastErrorCode}`
+      : `Stage: ${failedGate.stage}`;
+    return [msg];
+  }
+  if (trade.exit_reason) return [trade.exit_reason];
+  return ["Rejection reason not recorded."];
+}
+
+const ScoreBar = ({ score, color }: { score: number; color: string }) => (
+  <div className="h-[3px] w-full overflow-hidden rounded-[2px] bg-[var(--surface3)]">
+    <div
+      className="h-full rounded-[2px]"
+      style={{
+        width: `${Math.min(Math.max(score * 100, 0), 100)}%`,
+        background: color,
+      }}
+    />
+  </div>
+);
+
+const SignalCardShell = ({
+  type,
+  scoreValue,
+  metricLabel,
+  metricDisplay,
+  summary,
+}: {
+  type: string;
+  scoreValue: number;
+  metricLabel: string;
+  metricDisplay: React.ReactNode;
+  summary: string;
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const p = PALETTE[type] ?? { bar: "var(--text3)", bg: "var(--surface2)" };
+  return (
+    <div
+      className="flex flex-col gap-2.5 rounded-[10px] border border-[var(--border)] p-3"
+      style={{ borderLeftColor: p.bar, borderLeftWidth: 3, background: p.bg }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <AgentLabel type={type as EventSourceType} />
+        <ScoreBar score={scoreValue} color={p.bar} />
+      </div>
+      <div>
+        <div className={orderFieldLabelClass}>{metricLabel}</div>
+        <div className={orderFieldValueClass}>{metricDisplay}</div>
+      </div>
+      {summary.trim() && (
+        <p
+          className={cn(
+            "cursor-pointer text-[12px] italic leading-[1.5] text-[var(--text3)]",
+            !expanded && "line-clamp-2",
+          )}
+          onClick={() => setExpanded((e) => !e)}
+        >
+          {summary}
+        </p>
+      )}
+    </div>
+  );
+};
+
+const TechnicalCard = ({ signal }: { signal: TechnicalSignal }) => (
+  <SignalCardShell
+    type="technical"
+    scoreValue={signal.trendStrength}
+    metricLabel="Trend"
+    metricDisplay={
+      <span>
+        {signal.trendDirection}
+        {signal.patternName ? ` · ${signal.patternName}` : ""}
+      </span>
+    }
+    summary={signal.rawSummary}
+  />
+);
+
+const FundamentalCard = ({ signal }: { signal: FundamentalSignal }) => (
+  <SignalCardShell
+    type="fundamental"
+    scoreValue={signal.catalystScore ?? signal.catalystStrength ?? 0}
+    metricLabel="Catalyst"
+    metricDisplay={
+      <span>
+        {signal.catalystType ?? "—"}
+        {signal.catalystSummary ? ` · ${signal.catalystSummary.slice(0, 40)}` : ""}
+      </span>
+    }
+    summary={signal.rawSummary}
+  />
+);
+
+const ReviewCard = ({ signal }: { signal: ReviewSignal }) => (
+  <SignalCardShell
+    type="review"
+    scoreValue={1 - (signal.technicalFundamentalConflict ?? 0)}
+    metricLabel="Recommendation"
+    metricDisplay={
+      <span>
+        {signal.recommendation}
+        {signal.overallRisk ? ` · risk: ${signal.overallRisk}` : ""}
+      </span>
+    }
+    summary={signal.rawSummary}
+  />
+);
+
+const DecisionCard = ({ signal }: { signal: TradeSignal }) => (
+  <SignalCardShell
+    type="decision"
+    scoreValue={signal.confidence}
+    metricLabel="Action"
+    metricDisplay={
+      <span>
+        {signal.action} · {Math.round(signal.confidence * 100)}%
+        {signal.executionStrategy ? ` · ${signal.executionStrategy}` : ""}
+      </span>
+    }
+    summary={signal.reasoning}
+  />
+);
+
+const TradeVerdictPanel = ({
+  trade,
+  messages,
+  gateSteps,
+}: {
+  trade: Trade;
+  messages: AgentMessage[];
+  gateSteps: Array<{ stage: string; status: string; lastErrorCode: string | null; updatedAt: string }>;
+}) => {
+  const signals = parseTradeSignals(messages);
+  const hasAny =
+    signals.technical || signals.fundamental || signals.review || signals.decision;
+  if (!hasAny) return null;
+
+  const { label, variant, summary } = resolveVerdict(trade, signals.decision, gateSteps);
+  const rejectionReasons =
+    trade.status === "rejected"
+      ? buildRejectionChain(signals.decision, gateSteps, trade)
+      : [];
+  const showSizingRationale =
+    trade.status !== "rejected" && signals.decision?.action !== "skip";
+
+  return (
+    <div className={sectionClass}>
+      <div className="mb-3 flex items-center gap-2.5">
+        <div className={secTitleClass}>Verdict</div>
+        <Badge variant={variant} size="sm">
+          {label}
+        </Badge>
+      </div>
+      <p className="mb-4 text-[13px] leading-[1.5] text-[var(--text2)]">{summary}</p>
+
+      <div className="grid grid-cols-2 gap-3">
+        {signals.technical && <TechnicalCard signal={signals.technical} />}
+        {signals.fundamental && <FundamentalCard signal={signals.fundamental} />}
+        {signals.review && <ReviewCard signal={signals.review} />}
+        {signals.decision && <DecisionCard signal={signals.decision} />}
+      </div>
+
+      {rejectionReasons.length > 0 && (
+        <div className="mt-4">
+          <div className={cn(secTitleClass, "mb-2")}>Why it was blocked</div>
+          <div className="flex flex-col gap-2">
+            {rejectionReasons.map((reason, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 py-2"
+                style={{ borderLeftColor: "var(--color-error)", borderLeftWidth: 3 }}
+              >
+                <p
+                  className="font-mono text-[12px] text-[var(--text2)]"
+                  title={reason}
+                >
+                  {reason.length > 120 ? `${reason.slice(0, 120)}…` : reason}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showSizingRationale && (
+        <p className="mt-4 text-[12px] text-[var(--text3)]">
+          Position sized at{" "}
+          <span className="font-mono text-[var(--text2)]">
+            {fmt.usd(trade.position_size_usd)}
+          </span>
+          {" · "}
+          <span className="font-mono text-[var(--text2)]">
+            {Math.round((trade.confidence_score ?? 0) * 100)}%
+          </span>{" "}
+          confidence
+          {trade.execution_strategy ? ` · ${trade.execution_strategy}` : ""}
+          {signals.decision?.entryPrice != null
+            ? ` · limit @ ${fmt.usd(signals.decision.entryPrice)}`
+            : " · market order"}
+        </p>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // TradeDetail — main component
 // ---------------------------------------------------------------------------
 
@@ -604,6 +915,11 @@ export const TradeDetail = ({
                 />
               )}
 
+            <TradeVerdictPanel
+              trade={trade}
+              messages={messages}
+              gateSteps={gateSteps ?? []}
+            />
             <TradeOrderDetails trade={trade} />
             <TradeExitAnalytics trade={trade} />
             <TradeGateTimeline steps={gateSteps} />

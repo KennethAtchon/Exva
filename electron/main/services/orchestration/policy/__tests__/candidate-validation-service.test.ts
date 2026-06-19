@@ -183,7 +183,7 @@ describe("CandidateValidationService", () => {
       }),
     );
     expect(
-      lowVolume.reasons.some((reason) => reason.includes("Volume below")),
+      lowVolume.reasons.some((reason) => reason.includes("Volume too low")),
     ).toBe(true);
 
     const wideSpread = service.validate(
@@ -213,8 +213,10 @@ describe("CandidateValidationService", () => {
         },
       }),
     );
-    expect(result.reasons.some((reason) => reason.includes("Side bias"))).toBe(
-      true,
-    );
+    expect(
+      result.reasons.some((reason) =>
+        reason.includes("contradicts short_only bias"),
+      ),
+    ).toBe(true);
   });
 });

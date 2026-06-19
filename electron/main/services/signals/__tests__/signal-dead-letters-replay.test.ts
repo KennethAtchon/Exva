@@ -87,6 +87,18 @@ describe("SignalService replayDeadLetter", () => {
       { brokerAccountId: "broker-futures", allocatedUsd: 1000 },
     ]);
 
+    // signal_events.source_id is an FK to signal_sources, so the source must
+    // exist before the event (and its dead letter) can be inserted.
+    const sourcesRepo = new SignalSourcesRepo(db);
+    sourcesRepo.create({
+      id: "timer-source",
+      type: "timer",
+      name: "Timer Source",
+      description: null,
+      enabled: true,
+      configJson: "{}",
+    });
+
     const eventsRepo = new SignalEventsRepo(db);
     const signal = {
       id: crypto.randomUUID(),

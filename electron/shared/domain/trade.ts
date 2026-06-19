@@ -7,6 +7,7 @@ import type {
   TradeSide,
   TradeStatus,
 } from "./enums";
+import type { TradeDecisionTrace } from "./decision-trace";
 
 export interface TradeApproval {
   id: string;
@@ -159,8 +160,12 @@ export interface TradeDetail {
     stage: string;
     status: string;
     lastErrorCode: string | null;
+    /** Full human-readable failure reason (e.g. the joined gate reasons). */
+    lastErrorMessage: string | null;
     updatedAt: string;
   }>;
+  /** Deterministic gate decisions captured during the cycle, when available. */
+  decisionTrace?: TradeDecisionTrace | null;
 }
 
 export interface TradeDecisionPayload {

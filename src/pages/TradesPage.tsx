@@ -509,7 +509,7 @@ export const TradesPage = ({
             </Button>
           ))}
         </div>
-        <div className="overflow-x-auto">
+        <div className={tradeTableScrollClass}>
           <div
             className={tradeTableHeaderClass}
             style={{
@@ -536,16 +536,18 @@ export const TradesPage = ({
             <span>Time</span>
             <span />
           </div>
-          {trades.map((t) => (
-            <TradeRow
-              key={t.id}
-              trade={t}
-              isSelected={t.id === selectedId}
-              viewMode={viewMode}
-              onSelect={(id) => setSelected(id === selectedId ? null : id)}
-              onViewAutopsy={onViewAutopsy}
-            />
-          ))}
+          <div className={tradeTableBodyScrollClass}>
+            {trades.map((t) => (
+              <TradeRow
+                key={t.id}
+                trade={t}
+                isSelected={t.id === selectedId}
+                viewMode={viewMode}
+                onSelect={(id) => setSelected(id === selectedId ? null : id)}
+                onViewAutopsy={onViewAutopsy}
+              />
+            ))}
+          </div>
         </div>
       </Card>
     </PageShell>
@@ -560,6 +562,10 @@ const tradeTableHeaderClass =
 
 const tradeRowClass =
   "grid cursor-pointer items-center border-b border-[var(--border)] px-5 py-[11px] transition-[background] duration-100";
+
+const tradeTableScrollClass = "overflow-x-auto";
+
+const tradeTableBodyScrollClass = "h-[14rem] overflow-y-scroll";
 
 const autopsyButtonClass =
   "inline-flex max-w-full min-w-0 cursor-pointer items-center overflow-hidden whitespace-nowrap rounded-[5px] border border-[var(--border)] bg-transparent px-2 py-[3px] font-mono text-[12px] tracking-[0.03em] text-[var(--text3)]";
