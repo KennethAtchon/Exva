@@ -10,7 +10,7 @@ import {
   Input,
 } from "@/components/ui";
 
-export type SearchProviderType = "brave" | "tavily";
+export type SearchProviderType = "brave" | "tavily" | "exa" | "parallel";
 
 const labelClass = "mb-1.5 text-[12px] font-medium text-[var(--text2)]";
 
@@ -20,7 +20,46 @@ const hintBoxClass =
 const DEFAULT_NAMES: Record<SearchProviderType, string> = {
   brave: "Brave Search",
   tavily: "Tavily Search",
+  exa: "Exa Search (MCP)",
+  parallel: "Parallel Search (MCP)",
 };
+
+const PROVIDER_OPTIONS: Array<{ value: SearchProviderType; label: string }> = [
+  { value: "brave", label: "Brave Search" },
+  { value: "tavily", label: "Tavily" },
+  { value: "exa", label: "Exa (MCP)" },
+  { value: "parallel", label: "Parallel (MCP)" },
+];
+
+function searchProviderSaveConfig(providerType: SearchProviderType): {
+  providerType: "brave" | "tavily" | "mcp";
+  metadata?: {
+    baseUrl: string;
+    mcpAuthMode: "bearer" | "query";
+    mcpApiKeyQueryParam?: string;
+  };
+} {
+  if (providerType === "exa") {
+    return {
+      providerType: "mcp",
+      metadata: {
+        baseUrl: "https://mcp.exa.ai/mcp",
+        mcpAuthMode: "query",
+        mcpApiKeyQueryParam: "exaApiKey",
+      },
+    };
+  }
+  if (providerType === "parallel") {
+    return {
+      providerType: "mcp",
+      metadata: {
+        baseUrl: "https://search.parallel.ai/mcp",
+        mcpAuthMode: "bearer",
+      },
+    };
+  }
+  return { providerType };
+}
 
 type State = {
   providerType: SearchProviderType;
@@ -108,11 +147,13 @@ export const AddSearchProviderModal = ({
         dispatch({ type: "setMessage", message: "Enter an API key." });
         return;
       }
+      const saveConfig = searchProviderSaveConfig(providerType);
       const { id } = await api.saveProvider({
         name: name.trim() || DEFAULT_NAMES[providerType],
         category: "search",
-        providerType,
+        providerType: saveConfig.providerType,
         apiKey: trimmedKey,
+        metadata: saveConfig.metadata,
       });
       const test = await api
         .testProvider(id)
@@ -148,8 +189,8 @@ export const AddSearchProviderModal = ({
         </DialogHeader>
         <p className="mb-4 text-[12px] leading-[1.45] text-[var(--text3)]">
           Exva already includes DuckDuckGo as the built-in default search path.
-          Add Brave or Tavily here only if you want an API-backed provider
-          instead.
+          Add a paid API-backed provider here when a session needs a specific
+          backend instead.
         </p>
 
         <div className="mb-3.5">
@@ -157,10 +198,7 @@ export const AddSearchProviderModal = ({
           <ShadcnSelect
             value={providerType}
             onValueChange={(value) => onTypeChange(value as SearchProviderType)}
-            options={[
-              { value: "brave", label: "Brave Search" },
-              { value: "tavily", label: "Tavily" },
-            ]}
+            options={PROVIDER_OPTIONS}
           />
         </div>
 
@@ -185,7 +223,13 @@ export const AddSearchProviderModal = ({
             onChange={(e) =>
               dispatch({ type: "setApiKey", apiKey: e.target.value })
             }
-            placeholder={providerType === "brave" ? "BSA…" : "tvly-…"}
+            placeholder={
+              providerType === "brave"
+                ? "BSA…"
+                : providerType === "tavily"
+                  ? "tvly-…"
+                  : "API key"
+            }
             autoComplete="off"
           />
         </div>

@@ -127,6 +127,45 @@ describe("McpSearchAdapter", () => {
     expect(init?.headers).not.toHaveProperty("Authorization");
   });
 
+  it("supports MCP providers that authenticate with an API key query parameter", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          result: {
+            structuredContent: {
+              title: "Exa result",
+              snippet: "Authenticated with query params.",
+              url: "https://example.com/exa",
+            },
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    const { McpSearchAdapter } = await import("../mcp-adapter");
+    const adapter = new McpSearchAdapter(
+      buildMcpAccount({
+        metadataJson: JSON.stringify({
+          baseUrl: "https://mcp.exa.ai/mcp",
+          mcpAuthMode: "query",
+          mcpApiKeyQueryParam: "exaApiKey",
+        }),
+      }),
+      "exa-token/with space",
+    );
+
+    await adapter.search("earnings catalyst");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://mcp.exa.ai/mcp?exaApiKey=exa-token%2Fwith+space",
+      expect.objectContaining({
+        headers: expect.not.objectContaining({
+          Authorization: expect.any(String),
+        }),
+      }),
+    );
+  });
+
   it("requires metadata.baseUrl before calling MCP", async () => {
     const { McpSearchAdapter } = await import("../mcp-adapter");
     const adapter = new McpSearchAdapter(

@@ -151,6 +151,9 @@ export const providerAccountSaveSchema = z.object({
   metadata: z
     .object({
       baseUrl: z.string().url().optional(),
+      mcpToolName: z.string().min(1).optional(),
+      mcpAuthMode: z.enum(["bearer", "query"]).optional(),
+      mcpApiKeyQueryParam: z.string().min(1).optional(),
     })
     .optional(),
 });

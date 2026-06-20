@@ -59,6 +59,8 @@ function providerTypeLabel(providerType: string): string {
       return "Tavily";
     case "duckduckgo":
       return "DuckDuckGo";
+    case "mcp":
+      return "MCP Search";
     default:
       return providerType;
   }
@@ -388,7 +390,9 @@ export const AccountsPage = () => {
           ? editBaseUrl.trim().length > 0
             ? { baseUrl: editBaseUrl.trim() }
             : undefined
-          : undefined;
+          : p.providerType === "mcp"
+            ? parseProviderMetadata(p.metadataJson)
+            : undefined;
       await api.saveProvider({
         id: p.id,
         name: p.name,

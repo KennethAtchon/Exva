@@ -4,6 +4,10 @@ export interface ProviderMetadata {
   baseUrl?: string;
   /** MCP tools/call target when providerType is `mcp` (default: search). */
   mcpToolName?: string;
+  /** How the MCP endpoint expects the stored API key to be sent. */
+  mcpAuthMode?: "bearer" | "query";
+  /** Query parameter name for `mcpAuthMode: "query"`. */
+  mcpApiKeyQueryParam?: string;
 }
 
 export const BUILT_IN_DUCKDUCKGO_PROVIDER_ID = "builtin-search-duckduckgo";
@@ -42,6 +46,9 @@ export function parseProviderMetadata(json: string | null): ProviderMetadata {
     if (typeof value !== "object" || value === null) return {};
     const rawBaseUrl = (value as { baseUrl?: unknown }).baseUrl;
     const rawToolName = (value as { mcpToolName?: unknown }).mcpToolName;
+    const rawAuthMode = (value as { mcpAuthMode?: unknown }).mcpAuthMode;
+    const rawQueryParam = (value as { mcpApiKeyQueryParam?: unknown })
+      .mcpApiKeyQueryParam;
     return {
       baseUrl:
         typeof rawBaseUrl === "string" && rawBaseUrl.trim().length > 0
@@ -50,6 +57,14 @@ export function parseProviderMetadata(json: string | null): ProviderMetadata {
       mcpToolName:
         typeof rawToolName === "string" && rawToolName.trim().length > 0
           ? rawToolName.trim()
+          : undefined,
+      mcpAuthMode:
+        rawAuthMode === "query" || rawAuthMode === "bearer"
+          ? rawAuthMode
+          : undefined,
+      mcpApiKeyQueryParam:
+        typeof rawQueryParam === "string" && rawQueryParam.trim().length > 0
+          ? rawQueryParam.trim()
           : undefined,
     };
   } catch {

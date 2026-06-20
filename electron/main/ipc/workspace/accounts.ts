@@ -158,6 +158,8 @@ export function registerAccountHandlers(services: AppServices): void {
         supportedInstrumentClasses: temp.supportedInstrumentClasses,
       };
     }
+    const balance = await adapter.getAccountBalance();
+    const balanceCachedAt = new Date().toISOString();
 
     await services.secrets.set(secretRef, json);
     services.repos.brokerAccounts.insert({
@@ -176,6 +178,11 @@ export function registerAccountHandlers(services: AppServices): void {
           ? (input.mockExecutionTier ?? "scripted")
           : null,
     });
+    services.repos.brokerAccounts.updateBalanceCache(
+      id,
+      balance,
+      balanceCachedAt,
+    );
     services.brokerRegistry.invalidate(id);
     return {
       ok: true as const,

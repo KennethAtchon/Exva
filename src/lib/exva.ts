@@ -423,7 +423,12 @@ export const api = {
     category: "ai" | "search";
     providerType: ProviderAccount["providerType"];
     apiKey: string;
-    metadata?: { baseUrl?: string };
+    metadata?: {
+      baseUrl?: string;
+      mcpToolName?: string;
+      mcpAuthMode?: "bearer" | "query";
+      mcpApiKeyQueryParam?: string;
+    };
   }): Promise<{ id: string; isConfigured: boolean }> =>
     bridge().accounts.saveProvider(input),
   deleteProvider: (id: string): Promise<{ ok: true }> =>

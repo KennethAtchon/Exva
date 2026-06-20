@@ -442,7 +442,12 @@ export interface ExvaApi {
       category: "ai" | "search";
       providerType: ProviderAccount["providerType"];
       apiKey: string;
-      metadata?: { baseUrl?: string };
+      metadata?: {
+        baseUrl?: string;
+        mcpToolName?: string;
+        mcpAuthMode?: "bearer" | "query";
+        mcpApiKeyQueryParam?: string;
+      };
     }): Promise<{ id: string; isConfigured: boolean }>;
     deleteProvider(input: { id: string }): Promise<{ ok: true }>;
     testProvider(input: {

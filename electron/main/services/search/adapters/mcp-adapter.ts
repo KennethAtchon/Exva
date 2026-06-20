@@ -96,15 +96,23 @@ export class McpSearchAdapter implements SearchAdapter {
     }
 
     const toolName = metadata.mcpToolName?.trim() || "search";
+    const apiKey = this.apiKey.trim();
+    const authMode = metadata.mcpAuthMode ?? "bearer";
+    const requestUrl = new URL(serverUrl);
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       Accept: "application/json, text/event-stream",
     };
-    if (this.apiKey.trim()) {
-      headers.Authorization = `Bearer ${this.apiKey.trim()}`;
+    if (apiKey && authMode === "query") {
+      requestUrl.searchParams.set(
+        metadata.mcpApiKeyQueryParam ?? "apiKey",
+        apiKey,
+      );
+    } else if (apiKey) {
+      headers.Authorization = `Bearer ${apiKey}`;
     }
 
-    const response = await fetch(serverUrl, {
+    const response = await fetch(requestUrl.toString(), {
       method: "POST",
       headers,
       body: JSON.stringify({
