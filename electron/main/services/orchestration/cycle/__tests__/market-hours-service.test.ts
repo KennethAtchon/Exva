@@ -85,4 +85,35 @@ describe("MarketHoursService", () => {
     });
     expect(excluded[0]?.reason).toBe("exchange_closed");
   });
+
+  describe("nextTradableAt", () => {
+    it("returns the next regular open for a market-hours exclusion", () => {
+      // afterHoursEt = Thursday 2026-06-11 22:00 ET → Friday 09:30 ET open.
+      const { excluded } = service.partitionByTradability(
+        [stock],
+        afterHoursEt,
+      );
+      expect(
+        service.nextTradableAt(excluded, afterHoursEt)?.toISOString(),
+      ).toBe("2026-06-12T13:30:00.000Z");
+    });
+
+    it("honors the extended-hours policy", () => {
+      const { excluded } = service.partitionByTradability(
+        [stock],
+        afterHoursEt,
+      );
+      expect(
+        service
+          .nextTradableAt(excluded, afterHoursEt, {
+            offHoursTrading: "extended_hours",
+          })
+          ?.toISOString(),
+      ).toBe("2026-06-12T08:00:00.000Z");
+    });
+
+    it("returns null when nothing was excluded by market hours", () => {
+      expect(service.nextTradableAt([], afterHoursEt)).toBeNull();
+    });
+  });
 });

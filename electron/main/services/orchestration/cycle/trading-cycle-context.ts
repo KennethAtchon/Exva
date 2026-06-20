@@ -46,6 +46,13 @@ export class TradingCycleContext {
   pauseAfterStep = false;
   noInstrumentRetryTimer: ReturnType<typeof setTimeout> | null = null;
   scheduleSelectorCycle: ((label: string) => Promise<void>) | null = null;
+  /**
+   * Epoch ms of the next market open, set by the selector when a cycle produces
+   * zero tradable instruments solely because the market is closed. Consumed
+   * once by the no-instrument retry scheduler so the session wakes at the open
+   * instead of polling on the fixed interval. null = no pending market wait.
+   */
+  private marketClosedRetryAt: number | null = null;
   consecutiveHardFailures = 0;
 
   constructor(
@@ -251,6 +258,17 @@ export class TradingCycleContext {
       this.sessionId,
       instrumentClass,
     );
+  }
+
+  setMarketClosedRetryAt(at: number | null): void {
+    this.marketClosedRetryAt = at;
+  }
+
+  /** Reads and clears the pending market-open wake time (single-shot). */
+  consumeMarketClosedRetryAt(): number | null {
+    const at = this.marketClosedRetryAt;
+    this.marketClosedRetryAt = null;
+    return at;
   }
 
   clearNoInstrumentRetry(): void {

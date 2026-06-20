@@ -87,6 +87,53 @@ describe("instrument-queue", () => {
     expect(scheduleSelectorCycle).toHaveBeenCalled();
   });
 
+  it("defers the retry to the market open when blocked by market hours", async () => {
+    vi.useFakeTimers();
+    const ctx = createContext({ runtimeActive: true });
+    const scheduleSelectorCycle = vi.fn(async () => undefined);
+
+    // Market reopens in 2h — far past the 5-minute fixed retry interval.
+    const openInMs = 2 * 60 * 60 * 1000;
+    ctx.setMarketClosedRetryAt(Date.now() + openInMs);
+
+    handleResolvedInstruments(ctx, [], "Selector complete", {
+      scheduleSelectorCycle,
+      enqueueTradeCycle: vi.fn(async () => undefined),
+    });
+
+    // Fixed interval elapses but the open hasn't arrived: no retry yet.
+    vi.advanceTimersByTime(5 * 60 * 1000);
+    await ctx.queue.onIdle();
+    expect(scheduleSelectorCycle).not.toHaveBeenCalled();
+
+    // At the open, the selector re-runs.
+    vi.advanceTimersByTime(openInMs - 5 * 60 * 1000);
+    await ctx.queue.onIdle();
+    expect(scheduleSelectorCycle).toHaveBeenCalled();
+  });
+
+  it("never retries sooner than the fixed interval when the open is imminent", async () => {
+    vi.useFakeTimers();
+    const ctx = createContext({ runtimeActive: true });
+    const scheduleSelectorCycle = vi.fn(async () => undefined);
+
+    // Open is only 30s out — under the 5-minute floor.
+    ctx.setMarketClosedRetryAt(Date.now() + 30 * 1000);
+
+    handleResolvedInstruments(ctx, [], "Selector complete", {
+      scheduleSelectorCycle,
+      enqueueTradeCycle: vi.fn(async () => undefined),
+    });
+
+    vi.advanceTimersByTime(30 * 1000);
+    await ctx.queue.onIdle();
+    expect(scheduleSelectorCycle).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(5 * 60 * 1000);
+    await ctx.queue.onIdle();
+    expect(scheduleSelectorCycle).toHaveBeenCalled();
+  });
+
   it("skips enqueue when runtime is paused", async () => {
     const ctx = createContext({ runtimeActive: false });
     const enqueueTradeCycle = vi.fn(async () => undefined);

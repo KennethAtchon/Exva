@@ -162,6 +162,10 @@ export async function runSelector(
       offHoursTrading: config.off_hours_trading,
     },
   );
+  // Reset any prior market-open wake time; only a fresh all-filtered result
+  // below should re-arm it, so a later genuine no-trade cycle never inherits a
+  // stale deferral.
+  ctx.setMarketClosedRetryAt(null);
   if (excluded.length > 0) {
     logger.warn(
       {
@@ -201,6 +205,13 @@ export async function runSelector(
   }
 
   if (tradable.length === 0 && capped.length > 0) {
+    // All accepted instruments were filtered purely by market hours. Tell the
+    // orchestrator when the market reopens so it waits for the open instead of
+    // retrying on the fixed interval and getting blocked again.
+    const nextOpen = marketHours.nextTradableAt(excluded, new Date(), {
+      offHoursTrading: config.off_hours_trading,
+    });
+    ctx.setMarketClosedRetryAt(nextOpen ? nextOpen.getTime() : null);
     logger.warn(
       {
         sessionId: ctx.sessionId,
@@ -208,6 +219,7 @@ export async function runSelector(
         pipelineAcceptedCount: capped.length,
         blockReason: "all_instruments_filtered_by_market_hours",
         excluded,
+        nextMarketOpenAt: nextOpen ? nextOpen.toISOString() : null,
       },
       "selector returning no tradable instruments; trade cycles will not be enqueued",
     );

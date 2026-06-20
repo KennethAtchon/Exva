@@ -1,3 +1,4 @@
+import type { OffHoursTrading } from "../domain/session";
 import { isUsMarketHoliday } from "./us-market-holidays";
 
 /**
@@ -37,4 +38,49 @@ export function getUsEquitySession(now: Date = new Date()): UsEquitySession {
     return "extended";
   }
   return "closed";
+}
+
+/**
+ * Whether US equities can be traded at `now` under the given off-hours policy.
+ * Mirrors the selector's market-hours guard: regular hours are always tradable;
+ * the extended (pre/post-market) window is tradable only when the session opts
+ * into `extended_hours`.
+ */
+export function isEquityTradable(
+  now: Date,
+  offHoursTrading: OffHoursTrading = "disabled",
+): boolean {
+  const session = getUsEquitySession(now);
+  if (session === "regular") return true;
+  return session === "extended" && offHoursTrading === "extended_hours";
+}
+
+/** ~14 days covers any weekend + adjacent holiday gap with margin. */
+const NEXT_OPEN_LOOKAHEAD_MS = 14 * 24 * 60 * 60 * 1000;
+
+/**
+ * Earliest minute-aligned instant at or after `now` when US equities are
+ * tradable under `offHoursTrading`. Used to wake a market-closed session
+ * exactly at the open instead of polling on a fixed interval.
+ *
+ * Steps minute-by-minute (session boundaries — 04:00 / 09:30 ET — fall on
+ * minute boundaries, so the first tradable minute is exact) and reuses
+ * {@link isEquityTradable} so this never diverges from the live guard. Returns
+ * null only if nothing is tradable within the lookahead window (defensive; the
+ * holiday calendar guarantees an open well inside it).
+ */
+export function nextEquityMarketOpen(
+  now: Date,
+  offHoursTrading: OffHoursTrading = "disabled",
+): Date | null {
+  if (isEquityTradable(now, offHoursTrading)) return now;
+
+  const start = new Date(now);
+  start.setUTCSeconds(0, 0);
+  const deadline = now.getTime() + NEXT_OPEN_LOOKAHEAD_MS;
+  for (let t = start.getTime() + 60_000; t <= deadline; t += 60_000) {
+    const candidate = new Date(t);
+    if (isEquityTradable(candidate, offHoursTrading)) return candidate;
+  }
+  return null;
 }

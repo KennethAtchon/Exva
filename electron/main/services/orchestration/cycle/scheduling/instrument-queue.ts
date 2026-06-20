@@ -3,6 +3,43 @@ import type { ResolvedInstrument } from "../types";
 import { formatMinutesLabel } from "../utils";
 import { scheduleCycleRefillAfterDelayIfIdle } from "./cycle-refill";
 
+/** Node's setTimeout clamps delays above this; never schedule beyond it. */
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
+/**
+ * Choose the no-instrument retry delay. When the selector reported the cycle
+ * was blocked purely by market hours, defer to the next open instead of the
+ * fixed interval — but never retry *sooner* than the fixed interval, so a
+ * near-immediate open still respects the configured pacing.
+ */
+function resolveNoInstrumentRetryMs(
+  ctx: TradingCycleContext,
+  fixedRetryMs: number,
+): { retryMs: number; waitingForOpen: boolean } {
+  const marketOpenAt = ctx.consumeMarketClosedRetryAt();
+  if (marketOpenAt == null)
+    return { retryMs: fixedRetryMs, waitingForOpen: false };
+
+  const untilOpenMs = marketOpenAt - Date.now();
+  if (untilOpenMs <= fixedRetryMs) {
+    return { retryMs: fixedRetryMs, waitingForOpen: false };
+  }
+  return {
+    retryMs: Math.min(untilOpenMs, MAX_TIMEOUT_MS),
+    waitingForOpen: true,
+  };
+}
+
+/** Render an ISO instant as a short America/New_York wall-clock for operators. */
+function formatEtClock(iso: string): string {
+  return `${new Date(iso).toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  })} ET`;
+}
+
 export function handleResolvedInstruments(
   ctx: TradingCycleContext,
   instruments: ResolvedInstrument[],
@@ -37,22 +74,31 @@ export function handleResolvedInstruments(
   );
 
   if (instruments.length === 0) {
-    const retryMinutes = ctx.getFailureRetryMinutes();
-    const retryMs = retryMinutes * 60 * 1000;
+    const fixedRetryMs = ctx.getFailureRetryMinutes() * 60 * 1000;
+    const { retryMs, waitingForOpen } = resolveNoInstrumentRetryMs(
+      ctx,
+      fixedRetryMs,
+    );
+    const retryAtIso = new Date(Date.now() + retryMs).toISOString();
     logger.warn(
       {
         sessionId: ctx.sessionId,
         context,
-        retryMinutes,
-        retryAt: new Date(Date.now() + retryMs).toISOString(),
-        blockReason: "no_tradable_instruments_after_selector",
+        retryMs,
+        retryAt: retryAtIso,
+        waitingForOpen,
+        blockReason: waitingForOpen
+          ? "market_closed_until_open"
+          : "no_tradable_instruments_after_selector",
       },
       "orchestrator blocked: no tradable instruments; scheduling selector retry",
     );
     ctx.emitEvent(
       "INFO",
       null,
-      `${context}; no tradable instruments were selected. Re-evaluating in ${formatMinutesLabel(retryMinutes)}.`,
+      waitingForOpen
+        ? `${context}; market is closed. Waiting until the next open (${formatEtClock(retryAtIso)}) instead of re-polling.`
+        : `${context}; no tradable instruments were selected. Re-evaluating in ${formatMinutesLabel(ctx.getFailureRetryMinutes())}.`,
       "orchestrator",
     );
     ctx.recordFailure({

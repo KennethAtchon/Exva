@@ -1,6 +1,9 @@
 import type { InstrumentClass, OffHoursTrading } from "@/lib/types";
 import { isUsMarketHoliday } from "@electron/shared/instruments/us-market-holidays";
-import { getUsEquitySession } from "@electron/shared/instruments/us-equity-session";
+import {
+  getUsEquitySession,
+  nextEquityMarketOpen,
+} from "@electron/shared/instruments/us-equity-session";
 
 export type BurstInstrument = {
   symbol: string;
@@ -59,6 +62,32 @@ export class MarketHoursService {
     return { tradable, excluded };
   }
 
+  /** Exclusion reasons that clear simply by waiting for the market to open. */
+  private static readonly MARKET_HOURS_REASONS = new Set<string>([
+    "weekend_utc_market_closed",
+    "market_holiday",
+    "exchange_closed",
+  ]);
+
+  /**
+   * When a cycle is blocked purely because the equity market is closed, the
+   * earliest instant it reopens under `offHoursTrading`. Returns null if none
+   * of the exclusions are market-hours-based (e.g. all were crypto), so callers
+   * fall back to the normal fixed retry interval. All US equities share one
+   * schedule, so a single computation covers every excluded symbol.
+   */
+  nextTradableAt(
+    excluded: TradabilityExclusion[],
+    now: Date,
+    options?: { offHoursTrading?: OffHoursTrading },
+  ): Date | null {
+    const blockedByHours = excluded.some((row) =>
+      MarketHoursService.MARKET_HOURS_REASONS.has(row.reason),
+    );
+    if (!blockedByHours) return null;
+    return nextEquityMarketOpen(now, options?.offHoursTrading ?? "disabled");
+  }
+
   private exclusionReason(
     instrument: BurstInstrument,
     now: Date,
@@ -95,7 +124,10 @@ export class MarketHoursService {
       }
       // Pre/post-market is tradable only when the session opts into extended
       // hours; those orders are placed as extended-hours limit orders.
-      if (session === "extended" && options?.offHoursTrading === "extended_hours") {
+      if (
+        session === "extended" &&
+        options?.offHoursTrading === "extended_hours"
+      ) {
         return null;
       }
       return "exchange_closed";
