@@ -1,5 +1,5 @@
 import type { InstrumentClass } from "@/lib/types";
-import type { HoldingStyle } from "@electron/shared/domain";
+import type { DecisionCheck, HoldingStyle } from "@electron/shared/domain";
 import type { DecisionRiskInput } from "../../risk/risk-engine";
 
 type PolicyGateName =
@@ -30,6 +30,8 @@ export interface PolicyGateResult {
   allowed: boolean;
   reason?: string;
   gatesFailed: PolicyGateName[];
+  /** Per-gate pass/fail trace for observability (decision-trace panel). */
+  checks: DecisionCheck[];
 }
 
 const PRICE_COLLAR_PCT: Partial<Record<InstrumentClass, number>> = {
@@ -70,17 +72,45 @@ function maxQuoteAgeMs(
 export class OrderPolicyGate {
   evaluate(input: PolicyGateInput): PolicyGateResult {
     const gatesFailed: PolicyGateName[] = [];
+    const evaluated: PolicyGateName[] = [];
     const { decisionRiskInput: d, cycleId, tradeId, brokerAccountId } = input;
     const instrumentClass = d.order.instrumentType;
+    const clientOrderId = `${cycleId}:${tradeId}`;
+
+    const gateLabels: Record<PolicyGateName, string> = {
+      runtime: "Runtime",
+      strategy: "Strategy side bias",
+      data_freshness: "Data freshness",
+      price_collar: "Price collar",
+      spread: "Spread",
+      capital: "Capital limit",
+      broker: "Broker",
+      idempotency: "Idempotency",
+      exit_contract: "Exit contract",
+    };
 
     // runtime: session paused
+    evaluated.push("runtime");
     if (input.sessionIsPaused()) {
       gatesFailed.push("runtime");
-      return { allowed: false, reason: "Session is paused", gatesFailed };
+      return {
+        allowed: false,
+        reason: "Session is paused",
+        gatesFailed,
+        checks: [
+          {
+            id: "runtime",
+            label: gateLabels.runtime,
+            pass: false,
+            detail: "Session is paused",
+          },
+        ],
+      };
     }
 
     // strategy: side bias
     if (d.strategyRules && d.side) {
+      evaluated.push("strategy");
       const { sideBias } = d.strategyRules;
       if (sideBias === "long_only" && d.side === "SELL") {
         gatesFailed.push("strategy");
@@ -91,6 +121,7 @@ export class OrderPolicyGate {
 
     // data_freshness: quote staleness
     if (d.quoteSnapshot) {
+      evaluated.push("data_freshness");
       const maxAgeMs = maxQuoteAgeMs(instrumentClass, d.holdingStyle);
       const quoteAgeMs =
         Date.now() - new Date(d.quoteSnapshot.timestamp).getTime();
@@ -101,6 +132,7 @@ export class OrderPolicyGate {
 
     // price_collar: reject if price drifted beyond threshold between candidate snapshot and placement
     if (d.quoteSnapshot && d.placementQuoteSnapshot) {
+      evaluated.push("price_collar");
       const collar = PRICE_COLLAR_PCT[instrumentClass] ?? 0.05;
       const ref = d.quoteSnapshot.price;
       const now = d.placementQuoteSnapshot.price;
@@ -112,6 +144,7 @@ export class OrderPolicyGate {
 
     // spread: spread too wide
     if (d.quoteSnapshot?.spreadPct != null) {
+      evaluated.push("spread");
       const maxSpread = MAX_SPREAD_PCT[instrumentClass];
       if (maxSpread != null && d.quoteSnapshot.spreadPct > maxSpread) {
         gatesFailed.push("spread");
@@ -119,6 +152,7 @@ export class OrderPolicyGate {
     }
 
     // capital: three sub-checks
+    evaluated.push("capital");
     if (d.order.sizeUsd > d.config.max_position_usd) {
       gatesFailed.push("capital");
     } else if (d.totalBrokerExposureUsd != null && d.order.sizeUsd > 0) {
@@ -126,6 +160,7 @@ export class OrderPolicyGate {
     }
 
     // broker: class support + market hours
+    evaluated.push("broker");
     if (d.brokerSupportsClass === false) {
       gatesFailed.push("broker");
     } else if (d.marketIsOpen === false) {
@@ -133,13 +168,14 @@ export class OrderPolicyGate {
     }
 
     // idempotency: duplicate order guard
-    const clientOrderId = `${cycleId}:${tradeId}`;
+    evaluated.push("idempotency");
     if (input.existingOrderCheck(clientOrderId, brokerAccountId)) {
       gatesFailed.push("idempotency");
     }
 
     // exit_contract: at least one enforceable exit must be defined
     if (d.exitPolicy) {
+      evaluated.push("exit_contract");
       const { stopLossPct, atrStopMultiplier, takeProfitPct, maxHoldDays } =
         d.exitPolicy;
       if (
@@ -150,10 +186,6 @@ export class OrderPolicyGate {
       ) {
         gatesFailed.push("exit_contract");
       }
-    }
-
-    if (gatesFailed.length === 0) {
-      return { allowed: true, gatesFailed: [] };
     }
 
     const gateReasons: Record<PolicyGateName, string> = {
@@ -190,6 +222,20 @@ export class OrderPolicyGate {
         "No enforceable exit policy — configure stopLoss, takeProfit, or maxHoldDays",
     };
 
+    const checks: DecisionCheck[] = evaluated.map((name) => {
+      const failed = gatesFailed.includes(name);
+      return {
+        id: name,
+        label: gateLabels[name],
+        pass: !failed,
+        detail: failed ? gateReasons[name] : null,
+      };
+    });
+
+    if (gatesFailed.length === 0) {
+      return { allowed: true, gatesFailed: [], checks };
+    }
+
     const firstFailed = gatesFailed[0];
     return {
       allowed: false,
@@ -197,6 +243,7 @@ export class OrderPolicyGate {
         ? gateReasons[firstFailed]
         : "Order blocked by policy gate",
       gatesFailed,
+      checks,
     };
   }
 }

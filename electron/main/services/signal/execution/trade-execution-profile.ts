@@ -3,6 +3,7 @@ import type {
   TradeSignal,
 } from "@electron/shared/ai/trade-signals";
 import type { InstrumentClass } from "@/lib/types";
+import type { SizingTrace } from "@electron/shared/domain";
 
 interface ExecutionRiskConfig {
   stopLossPct: number | null;
@@ -26,6 +27,8 @@ export interface TradeExecutionProfile {
   takeProfitPct: number | null;
   orderType: "market" | "limit";
   limitPrice: number | null;
+  /** Step-by-step sizing math for observability (decision-trace panel). */
+  sizingTrace: SizingTrace;
 }
 
 type StrategyProfile = {
@@ -79,7 +82,7 @@ export function computeTradeTradeExecutionProfile(
   const kelly = Math.max(0, Math.min(1, risk.kellyFraction));
   const confidence = Math.max(0, Math.min(1, signal.confidence));
 
-  let positionSizeUsd = basePositionUsd({
+  const baseUsd = basePositionUsd({
     profile,
     instrumentClass,
     maxPositionUsd,
@@ -88,12 +91,38 @@ export function computeTradeTradeExecutionProfile(
     kelly,
   });
 
+  const afterReviewReduceUsd =
+    reviewRecommendation === "reduce_size" ? baseUsd * 0.5 : baseUsd;
+
+  const capped = capPosition(afterReviewReduceUsd, maxPositionUsd, maxExposureUsd);
+  const orderType = signal.entryPrice != null ? "limit" : "market";
+
+  const notes: string[] = [];
   if (reviewRecommendation === "reduce_size") {
-    positionSizeUsd *= 0.5;
+    notes.push("Review recommended reduce_size: halved base sizing.");
+  }
+  if (capped < afterReviewReduceUsd) {
+    const capLabel =
+      maxExposureUsd != null && capped === maxExposureUsd
+        ? `max exposure $${maxExposureUsd}`
+        : `max position $${maxPositionUsd}`;
+    notes.push(`Capped to ${capLabel}.`);
   }
 
-  const capped = capPosition(positionSizeUsd, maxPositionUsd, maxExposureUsd);
-  const orderType = signal.entryPrice != null ? "limit" : "market";
+  const sizingTrace: SizingTrace = {
+    strategy,
+    instrumentClass,
+    maxPositionUsd,
+    maxExposureUsd,
+    kellyFraction: kelly,
+    confidence,
+    strategySizeFactor: profile.sizeFactor,
+    reviewRecommendation: reviewRecommendation ?? null,
+    baseUsd,
+    afterReviewReduceUsd,
+    finalUsd: capped,
+    notes,
+  };
 
   return {
     positionSizeUsd: capped,
@@ -102,6 +131,7 @@ export function computeTradeTradeExecutionProfile(
     takeProfitPct: scaleRiskPct(risk.takeProfitPct, profile.takeProfitFactor),
     orderType,
     limitPrice: signal.entryPrice,
+    sizingTrace,
   };
 }
 

@@ -1,7 +1,7 @@
 # Trade Verdict Panel — Feature Specification
 
 > **Date:** 2026-06-18
-> **Status:** Draft
+> **Status:** Implemented 2026-06-20
 > **Feature area:** Dashboard → Trade Detail Dialog (`src/pages/TradeDetail.tsx`)
 > **Depends on:** Existing `getTradeDetail` IPC (`trades.getDetail`), `AgentMessage.output_json`, `AgentMessage.output_schema_name`, `Trade.exit_reason`
 
@@ -296,9 +296,15 @@ No change from current trade detail behavior. Access is gated by the existing `a
 
 ## 11. Open Questions
 
-| # | Question | Impact if Unresolved | Owner |
-|---|----------|---------------------|-------|
-| 1 | Should `rawSummary` be expandable (click to see full text), or just always clamped? | Affects card height and whether a toggle button is needed in each card | — |
-| 2 | For trades older than `output_schema_name` was introduced, should we show a "No verdict data — trade predates this feature" message, or silently show nothing? | Copy and fallback state in §9 | — |
-| 3 | The rejection reason from `TradeSignal.reasoning` can be 200+ chars (e.g., confidence threshold message + full AI reasoning). Should it be truncated in the pill with expand, or shown in full? | Layout — pill height varies significantly | — |
-| 4 | Is `action` on `AgentMessage.output_schema_name` exactly the string `"TradeSignal"`, `"TechnicalSignal"`, `"FundamentalSignal"`, `"ReviewSignal"`? Needs confirmation against actual DB values before assuming schema name strings. | If strings differ, parsing will silently fail for all trades | — |
+| # | Question | Resolution |
+|---|----------|-----------|
+| 1 | Should `rawSummary` be expandable? | **Resolved:** click-to-expand implemented in `SignalCardShell` — clamped to 2 lines, click toggles full text. |
+| 2 | Show "no verdict data" message or silently nothing? | **Resolved:** silently nothing — panel returns `null` when no parseable `output_json` exists. |
+| 3 | Rejection reason truncated or shown in full? | **Resolved:** truncated to 120 chars in pill with full text on `title` attribute (hover). |
+| 4 | Actual `output_schema_name` DB string values? | **Resolved:** values are camelCase — `"technicalSignal"`, `"fundamentalSignal"`, `"reviewSignal"`, `"tradeSignal"` — confirmed from phase definition files. Spec table (§6.1) was misleading with PascalCase; implementation uses correct camelCase. |
+
+### Implementation notes (2026-06-20)
+
+- All components in `src/pages/TradeDetail.tsx`: `TradeVerdictPanel`, `SignalCardShell`, `TechnicalCard`, `FundamentalCard`, `ReviewCard`, `DecisionCard`, `ScoreBar`, `parseTradeSignals`, `resolveVerdict`, `buildRejectionChain`.
+- **Deviation from §6.2**: spec listed `contradictionRisk` as score source for review card. Actual `ReviewSignal` type uses `technicalFundamentalConflict`. Implementation uses `1 - (signal.technicalFundamentalConflict ?? 0)` — same intent, correct field name.
+- No new files. No new IPC. No schema changes. Pure frontend as scoped.

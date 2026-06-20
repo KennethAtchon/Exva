@@ -543,6 +543,10 @@ function parseTradeSignals(messages: AgentMessage[]): ParsedSignals {
           result.review = parsed as ReviewSignal;
           break;
         case "tradeSignal":
+        case "rules-mean-reversion":
+        case "rules-trend-following":
+        case "rules-breakout":
+        case "catalyst-trade-decision":
           result.decision = parsed as TradeSignal;
           break;
       }
@@ -560,10 +564,17 @@ function resolveVerdict(
   decision: TradeSignal | null,
   gateSteps: Array<{ stage: string; status: string; lastErrorCode: string | null }>,
 ): { label: string; variant: VerdictVariant; summary: string } {
-  if (trade.status === "open" || trade.status === "closed") {
+  if (trade.status === "open") {
     return {
-      label: trade.status === "open" ? "OPEN" : "CLOSED",
+      label: "OPEN",
       variant: "success",
+      summary: "Decision to trade was approved through all gates.",
+    };
+  }
+  if (trade.status === "closed") {
+    return {
+      label: "CLOSED",
+      variant: "default",
       summary: "Decision to trade was approved through all gates.",
     };
   }

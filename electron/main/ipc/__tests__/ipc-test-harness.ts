@@ -41,6 +41,7 @@ import { PeriodAutopsiesRepo } from "../../db/repositories/trades/period-autopsi
 import { TradeAutopsiesRepo } from "../../db/repositories/trades/trade-autopsies-repo";
 import { AutopsyLessonsRepo } from "../../db/repositories/trades/autopsy-lessons-repo";
 import { TradesRepo } from "../../db/repositories/trades/trades-repo";
+import { DecisionTraceRepo } from "../../db/repositories/trades/decision-trace-repo";
 import { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
 import { ExperienceExperimentsRepo } from "../../db/repositories/experiences/experience-experiments-repo";
 import { MockBrokerAdapter } from "../../services/broker/adapters/mock-adapter";
@@ -128,6 +129,7 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     experienceExperiments: new ExperienceExperimentsRepo(db),
     autopsyLessons: new AutopsyLessonsRepo(db),
     trades: new TradesRepo(db),
+    decisionTraces: new DecisionTraceRepo(db),
     workspacePreferences: new WorkspacePreferencesRepo(db),
     instrumentCache: new InstrumentCacheRepo(db),
     globalPresets: new GlobalPresetsRepo(db),
@@ -214,6 +216,7 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     instrumentNormalizer: {
       toBrokerSymbol: ({ symbol }: { symbol: string }) => symbol,
     } as never,
+    decisionTracesRepo: repos.decisionTraces,
     ai: {} as never,
     riskEngine: {} as never,
     bus: eventBus,

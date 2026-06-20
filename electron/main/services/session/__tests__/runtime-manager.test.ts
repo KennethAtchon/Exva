@@ -11,6 +11,7 @@ import { SessionTradeRulesRepo } from "../../../db/repositories/sessions/session
 import { StatsRepo } from "../../../db/repositories/system/stats-repo";
 import { TradeApprovalsRepo } from "../../../db/repositories/trades/trade-approvals-repo";
 import { TradesRepo } from "../../../db/repositories/trades/trades-repo";
+import { DecisionTraceRepo } from "../../../db/repositories/trades/decision-trace-repo";
 import { BrokerAccountsRepo } from "../../../db/repositories/brokers/broker-accounts-repo";
 import { BrokerRoutingRepo } from "../../../db/repositories/brokers/broker-routing-repo";
 import { CapitalReservationsRepo } from "../../../db/repositories/trades/capital-reservations-repo";
@@ -140,6 +141,7 @@ function createManager(
     sessionStrategiesRepo: new SessionStrategiesRepo(db),
     strategyContextService,
     tradesRepo,
+    decisionTracesRepo: new DecisionTraceRepo(db),
     tradeApprovalsRepo,
     agentMessagesRepo,
     agentRunsRepo,

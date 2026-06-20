@@ -33,6 +33,7 @@ export interface EngineInputBuilder {
   applyOutput?(
     state: InstrumentAnalysisState,
     output: unknown,
+    ctx?: EngineRunCtx,
   ): InstrumentAnalysisState;
 }
 

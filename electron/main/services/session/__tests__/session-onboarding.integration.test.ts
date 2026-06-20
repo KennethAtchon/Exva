@@ -27,6 +27,7 @@ import { SessionAiSettingsRepo } from "../../../db/repositories/sessions/session
 import { StatsRepo } from "../../../db/repositories/system/stats-repo";
 import { TradeApprovalsRepo } from "../../../db/repositories/trades/trade-approvals-repo";
 import { TradesRepo } from "../../../db/repositories/trades/trades-repo";
+import { DecisionTraceRepo } from "../../../db/repositories/trades/decision-trace-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
 import { BrokerRoutingService } from "../../broker/broker-routing-service";
 import { MockBrokerAdapter } from "../../broker/adapters/mock-adapter";
@@ -429,6 +430,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     sessionStrategiesRepo: new SessionStrategiesRepo(db),
     strategyContextService,
     tradesRepo: new TradesRepo(db),
+    decisionTracesRepo: new DecisionTraceRepo(db),
     tradeApprovalsRepo: new TradeApprovalsRepo(db),
     agentRunsRepo: new AgentRunsRepo(db),
     agentMessagesRepo: new AgentMessagesRepo(db),

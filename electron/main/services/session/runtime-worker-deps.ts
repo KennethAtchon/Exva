@@ -20,6 +20,7 @@ export function createWorkerOrchestratorDeps(
     sessionStrategiesRepo: createDepProxy(rpc, "sessionStrategiesRepo"),
     strategyContextService: createDepProxy(rpc, "strategyContextService"),
     tradesRepo: createDepProxy(rpc, "tradesRepo"),
+    decisionTracesRepo: createDepProxy(rpc, "decisionTracesRepo"),
     tradeApprovalsRepo: createDepProxy(rpc, "tradeApprovalsRepo"),
     agentRunsRepo: createDepProxy(rpc, "agentRunsRepo"),
     agentMessagesRepo: createDepProxy(rpc, "agentMessagesRepo"),

@@ -10,6 +10,7 @@ import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-ac
 import type { BrokerRoutingRepo } from "../../db/repositories/brokers/broker-routing-repo";
 import type { CapitalReservationsRepo } from "../../db/repositories/trades/capital-reservations-repo";
 import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
+import type { DecisionTraceRepo } from "../../db/repositories/trades/decision-trace-repo";
 import type { EventsRepo } from "../../db/repositories/system/events-repo";
 import type { ProviderAccountsRepo } from "../../db/repositories/workspace/provider-accounts-repo";
 import type { SessionAiPhasesRepo } from "../../db/repositories/sessions/session-ai-phases-repo";
@@ -65,6 +66,7 @@ export interface OrchestratorDeps {
   sessionStrategiesRepo: SessionStrategiesRepo;
   strategyContextService: SessionStrategyContextService;
   tradesRepo: TradesRepo;
+  decisionTracesRepo: DecisionTraceRepo;
   tradeApprovalsRepo: TradeApprovalsRepo;
   agentRunsRepo: AgentRunsRepo;
   agentMessagesRepo: AgentMessagesRepo;

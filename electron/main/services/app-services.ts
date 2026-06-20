@@ -39,6 +39,7 @@ import { PeriodAutopsiesRepo } from "../db/repositories/trades/period-autopsies-
 import { TradeAutopsiesRepo } from "../db/repositories/trades/trade-autopsies-repo";
 import { AutopsyLessonsRepo } from "../db/repositories/trades/autopsy-lessons-repo";
 import { TradesRepo } from "../db/repositories/trades/trades-repo";
+import { DecisionTraceRepo } from "../db/repositories/trades/decision-trace-repo";
 import { WorkspacePreferencesRepo } from "../db/repositories/workspace/workspace-prefs-repo";
 import { LLMRuntime } from "./llm/index";
 import {
@@ -138,6 +139,7 @@ export interface AppServices {
     experienceExperiments: ExperienceExperimentsRepo;
     autopsyLessons: AutopsyLessonsRepo;
     trades: TradesRepo;
+    decisionTraces: DecisionTraceRepo;
     workspacePreferences: WorkspacePreferencesRepo;
     instrumentCache: InstrumentCacheRepo;
     globalPresets: GlobalPresetsRepo;
@@ -211,6 +213,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     experienceExperiments: new ExperienceExperimentsRepo(db),
     autopsyLessons: new AutopsyLessonsRepo(db),
     trades: new TradesRepo(db),
+    decisionTraces: new DecisionTraceRepo(db),
     workspacePreferences: new WorkspacePreferencesRepo(db),
     instrumentCache: new InstrumentCacheRepo(db),
     globalPresets: new GlobalPresetsRepo(db),
@@ -302,6 +305,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     statsRepo: repos.stats,
     sessionRepo: repos.session,
     tradesRepo: repos.trades,
+    decisionTracesRepo: repos.decisionTraces,
     instrumentNormalizer,
   };
   const ai = new LLMRuntime(
@@ -338,6 +342,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sessionStrategiesRepo: repos.sessionStrategies,
     strategyContextService: strategyContext,
     tradesRepo: repos.trades,
+    decisionTracesRepo: repos.decisionTraces,
     tradeApprovalsRepo: repos.tradeApprovals,
     agentRunsRepo: repos.agentRuns,
     agentMessagesRepo: repos.agentMessages,

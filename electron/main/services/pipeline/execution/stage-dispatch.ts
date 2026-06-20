@@ -20,7 +20,7 @@ export async function runEngineStage(
     task: built.task as Record<string, unknown>,
   });
   const patched = built.statePatch ? { ...state, ...built.statePatch } : state;
-  return builder.applyOutput?.(patched, output) ?? patched;
+  return builder.applyOutput?.(patched, output, ctx) ?? patched;
 }
 
 export async function runEngineChainStage(

@@ -1,14 +1,72 @@
 import { AppError } from "@electron/shared/infra/errors";
 import type { InstrumentClass } from "@/lib/types";
+import type {
+  AggregationTrace,
+  DecisionCheck,
+  RiskGateTrace,
+  SizingTrace,
+  TradeDecisionTrace,
+} from "@electron/shared/domain";
 import {
   isWaitForOpenRejection,
   type RiskGateType,
 } from "../../../risk/risk-engine";
 import { resolveAssetGroup } from "../../../risk/correlation-exposure-service";
 import type { InstrumentAnalysisState } from "../../analysis/types";
-import type { EngineInputBuilder } from "../../execution/input-builder-registry";
+import type {
+  EngineInputBuilder,
+  EngineRunCtx,
+} from "../../execution/input-builder-registry";
 import { createOutcomeError } from "../../../orchestration/cycle/runtime-outcome";
 import { classifyRiskGateRejection } from "../../../orchestration/policy/outcome-classifier";
+
+/**
+ * Write-through a decision-trace fragment for the current cycle. Called from
+ * each gate's applyOutput *before* any throw, so cycles rejected mid-pipeline
+ * still leave a durable trace. No-op when ctx is unavailable (legacy callers).
+ */
+function persistTraceFragment(
+  ctx: EngineRunCtx | undefined,
+  fragment: Partial<TradeDecisionTrace>,
+): void {
+  if (!ctx) return;
+  try {
+    ctx.services.decisionTracesRepo.upsertFragment(
+      {
+        cycleId: ctx.cycleId,
+        sessionId: ctx.sessionId,
+        instrumentSymbol: ctx.instrument.symbol,
+      },
+      fragment,
+    );
+  } catch {
+    // Trace persistence is observability-only; never block the trade pipeline.
+  }
+}
+
+function buildAggregationTrace(
+  state: InstrumentAnalysisState,
+  ctx: EngineRunCtx,
+): AggregationTrace {
+  const decision = state.decision?.output;
+  const threshold = ctx.strategyContext.riskConfig.waitForOpenThreshold ?? null;
+  const confidence = decision?.confidence ?? null;
+  const belowThreshold =
+    threshold != null && confidence != null && confidence < threshold;
+  const action = decision?.action ?? "skip";
+  return {
+    classifierConfidence: confidence,
+    classifierAction: action,
+    waitForOpenThreshold: threshold,
+    belowThreshold,
+    // Timer timing is embedded in the decision reasoning; not separately stored.
+    timerTiming: null,
+    timerBlocked: false,
+    reviewRecommendation: state.review?.output.recommendation ?? null,
+    finalAction: action,
+    skipReason: action === "skip" ? (decision?.reasoning ?? null) : null,
+  };
+}
 
 function applyRiskGateNoTrade(
   state: InstrumentAnalysisState,

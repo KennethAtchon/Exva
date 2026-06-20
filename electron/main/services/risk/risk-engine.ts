@@ -1,6 +1,12 @@
 import type { DashboardStats, SessionConfig } from "@/lib/types";
 import type { OrderRequest } from "../broker/adapters/broker-adapter";
-import type { HoldingStyle, StrategySideBias } from "@electron/shared/domain";
+import type {
+  DecisionCheck,
+  HoldingStyle,
+  RiskGateSizeAdjustment,
+  RiskGateTrace,
+  StrategySideBias,
+} from "@electron/shared/domain";
 import { createLogger } from "../infra/log";
 
 const logger = createLogger("risk-engine");
@@ -29,6 +35,8 @@ export interface RiskResult<T = undefined> {
   reason?: string;
   gateType?: RiskGateType;
   value?: T;
+  /** Per-check trace, populated by validateDecision for observability. */
+  trace?: RiskGateTrace;
 }
 
 export interface SessionPreflight {
@@ -118,7 +126,29 @@ export class RiskEngine {
   }
 
   validateDecision(input: DecisionRiskInput): RiskResult<OrderRequest> {
+    const checks: DecisionCheck[] = [];
+    const sizeAdjustments: RiskGateSizeAdjustment[] = [];
+    const buildTrace = (
+      allowed: boolean,
+      reason: string | null,
+      gateType: RiskGateType | null,
+      finalSizeUsd: number | null,
+    ): RiskGateTrace => ({
+      allowed,
+      reason,
+      gateType,
+      checks,
+      sizeAdjustments,
+      finalSizeUsd,
+    });
+
     const statsResult = this.checkStats(input.config, input.stats);
+    checks.push({
+      id: "session_limits",
+      label: "Session limits",
+      pass: statsResult.allowed,
+      detail: statsResult.allowed ? null : (statsResult.reason ?? null),
+    });
     if (!statsResult.allowed) {
       logger.warn(
         { reason: statsResult.reason ?? null },
@@ -128,9 +158,23 @@ export class RiskEngine {
         allowed: false,
         reason: statsResult.reason,
         gateType: statsResult.gateType,
+        trace: buildTrace(
+          false,
+          statsResult.reason ?? null,
+          statsResult.gateType ?? null,
+          null,
+        ),
       };
     }
-    if (input.order.sizeUsd <= 0) {
+    const sizePositive = input.order.sizeUsd > 0;
+    checks.push({
+      id: "position_size",
+      label: "Position size > 0",
+      pass: sizePositive,
+      detail: sizePositive ? null : "Position size must be greater than zero",
+      value: input.order.sizeUsd,
+    });
+    if (!sizePositive) {
       logger.warn(
         { sizeUsd: input.order.sizeUsd },
         "risk decision denied due to invalid size",
@@ -139,9 +183,25 @@ export class RiskEngine {
         allowed: false,
         reason: "Position size must be greater than zero",
         gateType: "position_size",
+        trace: buildTrace(
+          false,
+          "Position size must be greater than zero",
+          "position_size",
+          null,
+        ),
       };
     }
-    if (input.stats.open_trades >= input.config.max_concurrent_trades) {
+    const underConcurrentCap =
+      input.stats.open_trades < input.config.max_concurrent_trades;
+    checks.push({
+      id: "concurrent_cap",
+      label: "Concurrent cap",
+      pass: underConcurrentCap,
+      detail: underConcurrentCap ? null : "Maximum concurrent trades reached",
+      value: input.stats.open_trades,
+      threshold: input.config.max_concurrent_trades,
+    });
+    if (!underConcurrentCap) {
       logger.warn(
         {
           openTrades: input.stats.open_trades,
@@ -153,6 +213,12 @@ export class RiskEngine {
         allowed: false,
         reason: "Maximum concurrent trades reached",
         gateType: "concurrent_cap",
+        trace: buildTrace(
+          false,
+          "Maximum concurrent trades reached",
+          "concurrent_cap",
+          null,
+        ),
       };
     }
     let order = { ...input.order };
@@ -170,6 +236,11 @@ export class RiskEngine {
       const riskBudgetUsd = equityUsd * input.riskPerTradePct;
       const atrSizedUsd = riskBudgetUsd / input.atrUsd;
       if (atrSizedUsd > 0 && atrSizedUsd < order.sizeUsd) {
+        sizeAdjustments.push({
+          reason: "ATR vol-target sizing",
+          fromUsd: order.sizeUsd,
+          toUsd: atrSizedUsd,
+        });
         order = { ...order, sizeUsd: atrSizedUsd };
         logger.info(
           {
@@ -188,7 +259,19 @@ export class RiskEngine {
       input.openExposureByGroupUsd
     ) {
       const groupExposure = input.openExposureByGroupUsd[input.assetGroup] ?? 0;
-      if (groupExposure + order.sizeUsd > input.maxSameGroupExposureUsd) {
+      const withinGroupCap =
+        groupExposure + order.sizeUsd <= input.maxSameGroupExposureUsd;
+      checks.push({
+        id: "asset_group_exposure",
+        label: "Asset-group exposure",
+        pass: withinGroupCap,
+        detail: withinGroupCap
+          ? null
+          : `Asset group ${input.assetGroup} exposure cap reached`,
+        value: groupExposure + order.sizeUsd,
+        threshold: input.maxSameGroupExposureUsd,
+      });
+      if (!withinGroupCap) {
         logger.warn(
           {
             assetGroup: input.assetGroup,
@@ -201,15 +284,27 @@ export class RiskEngine {
           allowed: false,
           reason: `Asset group ${input.assetGroup} exposure cap reached`,
           gateType: "position_size",
+          trace: buildTrace(
+            false,
+            `Asset group ${input.assetGroup} exposure cap reached`,
+            "position_size",
+            null,
+          ),
         };
       }
     }
 
     if (order.sizeUsd > input.config.max_position_usd) {
+      sizeAdjustments.push({
+        reason: "Reduced to configured max position",
+        fromUsd: order.sizeUsd,
+        toUsd: input.config.max_position_usd,
+      });
       const reduced = {
         allowed: true,
         value: { ...order, sizeUsd: input.config.max_position_usd },
         reason: "Position size reduced to configured maximum",
+        trace: buildTrace(true, null, null, input.config.max_position_usd),
       };
       logger.info(
         {
@@ -226,10 +321,16 @@ export class RiskEngine {
       maxExposureUsd != null &&
       order.sizeUsd > maxExposureUsd
     ) {
+      sizeAdjustments.push({
+        reason: "Reduced to max exposure (prediction market)",
+        fromUsd: order.sizeUsd,
+        toUsd: maxExposureUsd,
+      });
       const reduced = {
         allowed: true,
         value: { ...order, sizeUsd: maxExposureUsd },
         reason: "Prediction-market position reduced to max exposure",
+        trace: buildTrace(true, null, null, maxExposureUsd),
       };
       logger.info(
         { originalSizeUsd: input.order.sizeUsd, reducedToUsd: maxExposureUsd },
@@ -240,14 +341,33 @@ export class RiskEngine {
     if (
       input.volatilityHaltMaxSpreadPct != null &&
       input.volatilityHaltMaxSpreadPct > 0 &&
-      input.quoteSnapshot?.spreadPct != null &&
-      input.quoteSnapshot.spreadPct > input.volatilityHaltMaxSpreadPct
+      input.quoteSnapshot?.spreadPct != null
     ) {
-      return {
-        allowed: false,
-        reason: `Spread ${input.quoteSnapshot.spreadPct.toFixed(2)}% exceeds volatility halt threshold`,
-        gateType: "volatility_halt",
-      };
+      const haltOk =
+        input.quoteSnapshot.spreadPct <= input.volatilityHaltMaxSpreadPct;
+      checks.push({
+        id: "volatility_halt",
+        label: "Volatility halt",
+        pass: haltOk,
+        detail: haltOk
+          ? null
+          : `Spread ${input.quoteSnapshot.spreadPct.toFixed(2)}% exceeds volatility halt threshold`,
+        value: `${input.quoteSnapshot.spreadPct.toFixed(2)}%`,
+        threshold: `${input.volatilityHaltMaxSpreadPct}%`,
+      });
+      if (!haltOk) {
+        return {
+          allowed: false,
+          reason: `Spread ${input.quoteSnapshot.spreadPct.toFixed(2)}% exceeds volatility halt threshold`,
+          gateType: "volatility_halt",
+          trace: buildTrace(
+            false,
+            `Spread ${input.quoteSnapshot.spreadPct.toFixed(2)}% exceeds volatility halt threshold`,
+            "volatility_halt",
+            null,
+          ),
+        };
+      }
     }
     // Confidence gating is owned by trade-signal-aggregator; risk engine does not re-check.
     logger.debug(
@@ -258,7 +378,11 @@ export class RiskEngine {
       },
       "risk decision allowed",
     );
-    return { allowed: true, value: order };
+    return {
+      allowed: true,
+      value: order,
+      trace: buildTrace(true, null, null, order.sizeUsd),
+    };
   }
 
   checkSessionLimits(

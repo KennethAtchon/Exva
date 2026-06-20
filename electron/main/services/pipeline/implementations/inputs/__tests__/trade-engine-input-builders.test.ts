@@ -25,6 +25,20 @@ function baseState(): InstrumentAnalysisState {
       limitPrice: null,
       stopLossPct: 2,
       takeProfitPct: 4,
+      sizingTrace: {
+        strategy: "breakout",
+        instrumentClass: "crypto",
+        maxPositionUsd: 1000,
+        maxExposureUsd: null,
+        kellyFraction: 0.25,
+        confidence: 0.65,
+        strategySizeFactor: 1,
+        reviewRecommendation: null,
+        baseUsd: 500,
+        afterReviewReduceUsd: 500,
+        finalUsd: 500,
+        notes: [],
+      },
     },
   };
 }

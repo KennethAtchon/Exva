@@ -1,5 +1,9 @@
 import type { InstrumentClass } from "@/lib/types";
-import type { HoldingStyle, StrategySideBias } from "@electron/shared/domain";
+import type {
+  DecisionCheck,
+  HoldingStyle,
+  StrategySideBias,
+} from "@electron/shared/domain";
 import type { SelectorEvidence } from "@electron/shared/ai/selector-candidate";
 import type { MarketSnapshot } from "../../broker/adapters/broker-adapter";
 
@@ -45,6 +49,8 @@ interface CandidateEvidenceEntry {
 export interface CandidateValidationResult {
   allowed: boolean;
   reasons: string[];
+  /** Per-rule pass/fail trace for observability (decision-trace panel). */
+  checks: DecisionCheck[];
   evidence: CandidateEvidenceEntry[];
   quoteSnapshot: MarketSnapshot;
 }
@@ -86,44 +92,81 @@ function maxQuoteAgeMs(
 
 export class CandidateValidationService {
   validate(input: CandidateValidationInput): CandidateValidationResult {
-    const reasons: string[] = [];
+    const checks: DecisionCheck[] = [];
     const evidence: CandidateEvidenceEntry[] = [];
     const { instrument, quoteSnapshot, selectorTrace, now } = input;
     const cls = instrument.instrumentClass;
     const nowMs = now ? new Date(now).getTime() : Date.now();
 
+    const record = (
+      id: string,
+      label: string,
+      pass: boolean,
+      detail: string | null,
+      extra?: Pick<DecisionCheck, "value" | "threshold">,
+    ): void => {
+      checks.push({ id, label, pass, detail, ...extra });
+    };
+
     // CV-1: Symbol present
-    if (!instrument.symbol?.trim()) {
-      reasons.push("Missing instrument symbol");
-    }
+    record(
+      "CV-1",
+      "Symbol present",
+      Boolean(instrument.symbol?.trim()),
+      instrument.symbol?.trim() ? null : "Missing instrument symbol",
+    );
 
     // CV-2: Class enabled
-    if (
-      input.sessionInstrumentClasses &&
-      !input.sessionInstrumentClasses.includes(cls)
-    ) {
-      reasons.push(`Instrument class '${cls}' not enabled for session`);
+    if (input.sessionInstrumentClasses) {
+      const enabled = input.sessionInstrumentClasses.includes(cls);
+      record(
+        "CV-2",
+        "Class enabled",
+        enabled,
+        enabled ? null : `Instrument class '${cls}' not enabled for session`,
+        { value: cls },
+      );
     }
 
     // CV-3: Broker route available
-    if (input.brokerRouteAvailable === false) {
-      reasons.push("No broker account supports this instrument class");
+    if (input.brokerRouteAvailable != null) {
+      record(
+        "CV-3",
+        "Broker route",
+        input.brokerRouteAvailable,
+        input.brokerRouteAvailable
+          ? null
+          : "No broker account supports this instrument class",
+      );
     }
 
     // CV-4: Quote success
-    if (!(quoteSnapshot.price > 0)) {
-      reasons.push("Quote price is zero or missing");
-    }
+    const priceOk = quoteSnapshot.price > 0;
+    record(
+      "CV-4",
+      "Quote present",
+      priceOk,
+      priceOk ? null : "Quote price is zero or missing",
+      { value: quoteSnapshot.price },
+    );
 
     // CV-5: Quote freshness
-    if (quoteSnapshot.price > 0) {
+    if (priceOk) {
       const quoteAgeMs = nowMs - new Date(quoteSnapshot.timestamp).getTime();
       const maxAgeMs = maxQuoteAgeMs(cls, input.holdingStyle);
-      if (quoteAgeMs > maxAgeMs) {
-        reasons.push(
-          `Quote is stale (age: ${Math.round(quoteAgeMs / 1000)}s, max: ${Math.round(maxAgeMs / 1000)}s)`,
-        );
-      }
+      const fresh = quoteAgeMs <= maxAgeMs;
+      record(
+        "CV-5",
+        "Quote freshness",
+        fresh,
+        fresh
+          ? null
+          : `Quote is stale (age: ${Math.round(quoteAgeMs / 1000)}s, max: ${Math.round(maxAgeMs / 1000)}s)`,
+        {
+          value: `${Math.round(quoteAgeMs / 1000)}s`,
+          threshold: `${Math.round(maxAgeMs / 1000)}s`,
+        },
+      );
     }
 
     const structuredEvidence = instrument.selectorEvidence;
@@ -146,54 +189,81 @@ export class CandidateValidationService {
         structuredEvidence?.hasQuoteEvidence ||
         structuredEvidence?.hasOhlcvEvidence ||
         structuredEvidence?.hasFetchEvidence;
-      if (!hasSearchEvidence && !hasStructuredEvidence) {
-        reasons.push(
-          `No symbol-specific evidence found for ${instrument.symbol}`,
-        );
-      }
+      const evidenceOk = Boolean(hasSearchEvidence || hasStructuredEvidence);
+      record(
+        "CV-6",
+        "Symbol evidence",
+        evidenceOk,
+        evidenceOk
+          ? null
+          : `No symbol-specific evidence found for ${instrument.symbol}`,
+      );
     }
 
     // CV-7: Rationale non-empty when structured evidence is present
-    if (structuredEvidence != null && !structuredEvidence.summary?.trim()) {
-      reasons.push("Selector rationale is empty");
+    if (structuredEvidence != null) {
+      const rationaleOk = Boolean(structuredEvidence.summary?.trim());
+      record(
+        "CV-7",
+        "Rationale present",
+        rationaleOk,
+        rationaleOk ? null : "Selector rationale is empty",
+      );
     }
 
     // CV-8: Liquidity (when volume available)
     const minVol = MIN_VOLUME[cls];
-    if (
-      quoteSnapshot.volume != null &&
-      minVol != null &&
-      quoteSnapshot.volume < minVol
-    ) {
-      reasons.push(`Volume too low (${quoteSnapshot.volume}, min: ${minVol})`);
+    if (quoteSnapshot.volume != null && minVol != null) {
+      const liquidOk = quoteSnapshot.volume >= minVol;
+      record(
+        "CV-8",
+        "Liquidity",
+        liquidOk,
+        liquidOk
+          ? null
+          : `Volume too low (${quoteSnapshot.volume}, min: ${minVol})`,
+        { value: quoteSnapshot.volume, threshold: minVol },
+      );
     }
 
     // CV-9: Spread (when bid/ask available)
     const maxSpread = MAX_SPREAD_PCT[cls];
-    if (
-      quoteSnapshot.spreadPct != null &&
-      maxSpread != null &&
-      quoteSnapshot.spreadPct > maxSpread
-    ) {
-      reasons.push(
-        `Spread too wide (${quoteSnapshot.spreadPct.toFixed(2)}%, max: ${maxSpread}%)`,
+    if (quoteSnapshot.spreadPct != null && maxSpread != null) {
+      const spreadOk = quoteSnapshot.spreadPct <= maxSpread;
+      record(
+        "CV-9",
+        "Spread",
+        spreadOk,
+        spreadOk
+          ? null
+          : `Spread too wide (${quoteSnapshot.spreadPct.toFixed(2)}%, max: ${maxSpread}%)`,
+        { value: `${quoteSnapshot.spreadPct.toFixed(2)}%`, threshold: `${maxSpread}%` },
       );
     }
 
     // CV-10: Strategy compatibility
     if (input.sideBias) {
       const thesisDirection = structuredEvidence?.thesisDirection ?? "neutral";
-      if (input.sideBias === "long_only" && thesisDirection === "short") {
-        reasons.push("Rationale contradicts long_only bias");
-      }
-      if (input.sideBias === "short_only" && thesisDirection === "long") {
-        reasons.push("Rationale contradicts short_only bias");
-      }
+      const contradicts =
+        (input.sideBias === "long_only" && thesisDirection === "short") ||
+        (input.sideBias === "short_only" && thesisDirection === "long");
+      record(
+        "CV-10",
+        "Strategy compatibility",
+        !contradicts,
+        contradicts ? `Rationale contradicts ${input.sideBias} bias` : null,
+        { value: thesisDirection, threshold: input.sideBias },
+      );
     }
+
+    const reasons = checks
+      .filter((check) => !check.pass && check.detail != null)
+      .map((check) => check.detail as string);
 
     return {
       allowed: reasons.length === 0,
       reasons,
+      checks,
       evidence,
       quoteSnapshot,
     };
