@@ -28,7 +28,7 @@ export function computeBreakoutSignal(
     return tradeSignalSchema.parse({
       symbol: input.symbol,
       action: "skip",
-      executionStrategy: "trend_momentum",
+      executionStrategy: "breakout",
       entryPrice: null,
       confidence: 0.2,
       reasoning: `Insufficient bars for breakout detection (need ${lookback + 1}, got ${bars.length}).`,
@@ -37,23 +37,28 @@ export function computeBreakoutSignal(
 
   const window = bars.slice(-lookback - 1, -1);
   const resistanceHigh = Math.max(...window.map((b) => b.high));
+  const supportLow = Math.min(...window.map((b) => b.low));
   const current = bars[bars.length - 1];
   if (!current)
     return tradeSignalSchema.parse({
-      signal: "none",
+      symbol: input.symbol,
+      action: "skip",
+      executionStrategy: "breakout",
+      entryPrice: null,
       confidence: 0,
-      reasoning: "No bars",
+      reasoning: "No current bar for breakout detection.",
     });
   const prevClose = bars[bars.length - 2]?.close ?? current.close;
 
   const breakoutAbove =
     prevClose <= resistanceHigh && current.close > resistanceHigh;
+  const breakdownBelow = prevClose >= supportLow && current.close < supportLow;
 
-  if (!breakoutAbove) {
+  if (!breakoutAbove && !breakdownBelow) {
     return tradeSignalSchema.parse({
       symbol: input.symbol,
       action: "skip",
-      executionStrategy: "trend_momentum",
+      executionStrategy: "breakout",
       entryPrice: null,
       confidence: 0.3,
       reasoning: `No breakout above ${lookback}-bar resistance ${resistanceHigh.toFixed(2)}; current close ${current.close.toFixed(2)}.`,
@@ -72,10 +77,12 @@ export function computeBreakoutSignal(
 
   return tradeSignalSchema.parse({
     symbol: input.symbol,
-    action: "buy",
-    executionStrategy: "trend_momentum",
+    action: breakoutAbove ? "buy" : "sell",
+    executionStrategy: "breakout",
     entryPrice: null,
     confidence,
-    reasoning: `Breakout above ${lookback}-bar resistance ${resistanceHigh.toFixed(2)} at ${current.close.toFixed(2)}${volumeConfirmed ? " with volume confirmation" : " (low volume)"}.`,
+    reasoning: breakoutAbove
+      ? `Breakout above ${lookback}-bar resistance ${resistanceHigh.toFixed(2)} at ${current.close.toFixed(2)}${volumeConfirmed ? " with volume confirmation" : " (low volume)"}.`
+      : `Breakdown below ${lookback}-bar support ${supportLow.toFixed(2)} at ${current.close.toFixed(2)}${volumeConfirmed ? " with volume confirmation" : " (low volume)"}.`,
   });
 }

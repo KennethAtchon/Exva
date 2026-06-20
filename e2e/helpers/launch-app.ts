@@ -26,8 +26,23 @@ function launchEnv(): NodeJS.ProcessEnv {
 
 export async function launchExva(): Promise<LaunchedExva> {
   const userDataDir = await fs.mkdtemp(path.join(os.tmpdir(), "exva-e2e-"));
+  const packagedApp = path.join(
+    process.cwd(),
+    "out",
+    "exva-darwin-arm64",
+    "exva.app",
+    "Contents",
+    "Resources",
+    "app.asar",
+  );
+  const hasPackagedApp = await fs
+    .access(packagedApp)
+    .then(() => true)
+    .catch(() => false);
   const app = await electron.launch({
-    args: [".", `--user-data-dir=${userDataDir}`],
+    args: hasPackagedApp
+      ? [packagedApp, `--user-data-dir=${userDataDir}`]
+      : [".", `--user-data-dir=${userDataDir}`],
     env: launchEnv(),
   });
   const window = await app.firstWindow({ timeout: 30_000 });

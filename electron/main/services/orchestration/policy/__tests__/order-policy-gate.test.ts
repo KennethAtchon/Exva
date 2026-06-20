@@ -77,6 +77,73 @@ describe("OrderPolicyGate - price_collar", () => {
   });
 });
 
+describe("OrderPolicyGate - strategy", () => {
+  it("rejects SELL orders for long-only strategies", () => {
+    const input = makeInput();
+    input.decisionRiskInput.side = "SELL";
+    input.decisionRiskInput.strategyRules = { sideBias: "long_only" };
+    const result = new OrderPolicyGate().evaluate(input);
+    expect(result.allowed).toBe(false);
+    expect(result.gatesFailed).toContain("strategy");
+  });
+
+  it("rejects BUY orders for short-only strategies", () => {
+    const input = makeInput();
+    input.decisionRiskInput.side = "BUY";
+    input.decisionRiskInput.strategyRules = { sideBias: "short_only" };
+    const result = new OrderPolicyGate().evaluate(input);
+    expect(result.allowed).toBe(false);
+    expect(result.gatesFailed).toContain("strategy");
+  });
+});
+
+describe("OrderPolicyGate - data_freshness", () => {
+  it("rejects stale swing stock quotes after the configured max age", () => {
+    const input = makeInput();
+    input.decisionRiskInput.holdingStyle = "multi_day_swing";
+    input.decisionRiskInput.quoteSnapshot = {
+      price: 100,
+      spreadPct: 0.2,
+      timestamp: new Date(Date.now() - 301_000).toISOString(),
+    };
+
+    const result = new OrderPolicyGate().evaluate(input);
+
+    expect(result.allowed).toBe(false);
+    expect(result.gatesFailed).toContain("data_freshness");
+    expect(result.reason).toContain("Quote is stale");
+  });
+});
+
+describe("OrderPolicyGate - spread", () => {
+  it("rejects stock quotes above the max spread", () => {
+    const input = makeInput();
+    input.decisionRiskInput.quoteSnapshot = {
+      price: 100,
+      spreadPct: 0.51,
+      timestamp: new Date().toISOString(),
+    };
+
+    const result = new OrderPolicyGate().evaluate(input);
+
+    expect(result.allowed).toBe(false);
+    expect(result.gatesFailed).toContain("spread");
+    expect(result.reason).toContain("Spread too wide");
+  });
+});
+
+describe("OrderPolicyGate - capital", () => {
+  it("rejects orders above the configured max position", () => {
+    const input = makeInput();
+    input.decisionRiskInput.order.sizeUsd = 501;
+
+    const result = new OrderPolicyGate().evaluate(input);
+
+    expect(result.allowed).toBe(false);
+    expect(result.gatesFailed).toContain("capital");
+  });
+});
+
 describe("OrderPolicyGate - idempotency", () => {
   it("passes when existingOrderCheck returns false", () => {
     const input = makeInput({ existingOrderCheck: () => false });
@@ -106,6 +173,15 @@ describe("OrderPolicyGate - broker capability", () => {
     input.decisionRiskInput.brokerSupportsClass = true;
     const result = new OrderPolicyGate().evaluate(input);
     expect(result.gatesFailed).not.toContain("broker");
+  });
+
+  it("rejects when the market is closed", () => {
+    const input = makeInput();
+    input.decisionRiskInput.marketIsOpen = false;
+    const result = new OrderPolicyGate().evaluate(input);
+    expect(result.allowed).toBe(false);
+    expect(result.gatesFailed).toContain("broker");
+    expect(result.reason).toBe("Market is closed");
   });
 });
 

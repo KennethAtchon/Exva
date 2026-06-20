@@ -82,6 +82,95 @@ describe("RiskEngine", () => {
     expect(result.reason).toMatch(/reduced to configured maximum/i);
   });
 
+  it.each([
+    {
+      name: "api budget at threshold",
+      stats: { daily_api_spend: 10 },
+      gateType: "api_budget",
+      reason: "Daily API budget reached",
+    },
+    {
+      name: "daily loss at negative absolute threshold",
+      stats: { daily_pnl_usd: -100 },
+      gateType: "daily_loss",
+      reason: "Daily loss limit reached",
+    },
+    {
+      name: "profit target at threshold",
+      stats: { daily_pnl_usd: 250 },
+      gateType: "profit_target",
+      reason: "Profit target reached",
+    },
+    {
+      name: "consecutive losers at threshold when guard is positive",
+      stats: { consecutive_losers: 5 },
+      gateType: "consecutive_losers",
+      reason: "Maximum consecutive losers reached",
+    },
+  ])("blocks session limits for $name", ({ stats: statPatch, gateType, reason }) => {
+    const result = engine.validateDecision({
+      config,
+      stats: { ...stats, ...statPatch },
+      confidence: 0.9,
+      order: {
+        instrumentSymbol: "AAPL",
+        instrumentType: "stock",
+        side: "BUY",
+        sizeUsd: 100,
+      },
+    });
+
+    expect(result).toMatchObject({
+      allowed: false,
+      gateType,
+      reason,
+    });
+    expect(result.trace?.checks[0]).toMatchObject({
+      id: "session_limits",
+      pass: false,
+    });
+  });
+
+  it("does not block consecutive losers when the configured cap is disabled at zero", () => {
+    const result = engine.validateDecision({
+      config: { ...config, max_consecutive_losers: 0 },
+      stats: { ...stats, consecutive_losers: 100 },
+      confidence: 0.9,
+      order: {
+        instrumentSymbol: "AAPL",
+        instrumentType: "stock",
+        side: "BUY",
+        sizeUsd: 100,
+      },
+    });
+
+    expect(result.allowed).toBe(true);
+  });
+
+  it("blocks non-positive order size before concurrent-cap checks", () => {
+    const result = engine.validateDecision({
+      config,
+      stats: { ...stats, open_trades: 2 },
+      confidence: 0.9,
+      order: {
+        instrumentSymbol: "AAPL",
+        instrumentType: "stock",
+        side: "BUY",
+        sizeUsd: 0,
+      },
+    });
+
+    expect(result).toMatchObject({
+      allowed: false,
+      gateType: "position_size",
+      reason: "Position size must be greater than zero",
+    });
+    expect(result.trace?.checks.map((check) => check.id)).toEqual([
+      "session_limits",
+      "position_size",
+    ]);
+  });
+
   it("caps prediction-market exposure before returning the order", () => {
     const result = engine.validateDecision({
       config,
@@ -114,7 +203,7 @@ describe("RiskEngine", () => {
           sizeUsd: 100,
         },
       }),
-    ).toEqual({
+    ).toMatchObject({
       allowed: false,
       reason: "Maximum concurrent trades reached",
       gateType: "concurrent_cap",
@@ -135,11 +224,38 @@ describe("RiskEngine", () => {
           sizeUsd: 200,
         },
       }),
-    ).toEqual({
+    ).toMatchObject({
       allowed: false,
       reason: "Asset group equities_beta exposure cap reached",
       gateType: "position_size",
     });
+  });
+
+  it("allows the third concurrent trade and denies the fourth when max is three", () => {
+    const maxThreeConfig = { ...config, max_concurrent_trades: 3 };
+    const order = {
+      instrumentSymbol: "AAPL",
+      instrumentType: "stock" as const,
+      side: "BUY" as const,
+      sizeUsd: 100,
+    };
+
+    expect(
+      engine.validateDecision({
+        config: maxThreeConfig,
+        stats: { ...stats, open_trades: 2 },
+        confidence: 0.9,
+        order,
+      }).allowed,
+    ).toBe(true);
+    expect(
+      engine.validateDecision({
+        config: maxThreeConfig,
+        stats: { ...stats, open_trades: 3 },
+        confidence: 0.9,
+        order,
+      }),
+    ).toMatchObject({ allowed: false, gateType: "concurrent_cap" });
   });
 
   it("applies ATR vol-target sizing when configured", () => {
@@ -160,6 +276,46 @@ describe("RiskEngine", () => {
 
     expect(result.allowed).toBe(true);
     expect(result.value?.sizeUsd).toBe(500);
+  });
+
+  it("uses max-position fallback equity for ATR sizing when portfolio value is unavailable", () => {
+    const result = engine.validateDecision({
+      config,
+      stats: { ...stats, portfolio_value: 0 },
+      confidence: 0.9,
+      sizingMode: "atr_vol_target",
+      atrUsd: 2,
+      riskPerTradePct: 0.1,
+      order: {
+        instrumentSymbol: "AAPL",
+        instrumentType: "stock",
+        side: "BUY",
+        sizeUsd: 5000,
+      },
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(result.value?.sizeUsd).toBe(250);
+  });
+
+  it("does not increase order size for ATR vol-target sizing", () => {
+    const result = engine.validateDecision({
+      config,
+      stats: { ...stats, portfolio_value: 100_000 },
+      confidence: 0.9,
+      sizingMode: "atr_vol_target",
+      atrUsd: 1,
+      riskPerTradePct: 0.01,
+      order: {
+        instrumentSymbol: "AAPL",
+        instrumentType: "stock",
+        side: "BUY",
+        sizeUsd: 100,
+      },
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(result.value?.sizeUsd).toBe(100);
   });
 
   it("blocks decisions when spread exceeds volatility halt threshold", () => {

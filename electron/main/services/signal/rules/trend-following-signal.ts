@@ -49,6 +49,18 @@ export function computeTrendFollowingSignal(
     });
   }
 
+  if (previous >= previousSma && current < currentSma) {
+    const distance = Math.abs((current - currentSma) / currentSma);
+    return tradeSignalSchema.parse({
+      symbol: input.symbol,
+      action: "sell",
+      executionStrategy: "trend_momentum",
+      entryPrice: null,
+      confidence: Math.min(0.9, 0.55 + distance * 4),
+      reasoning: `Price crossed below ${lookback}-bar SMA; 4h trend-following short.`,
+    });
+  }
+
   return tradeSignalSchema.parse({
     symbol: input.symbol,
     action: "skip",

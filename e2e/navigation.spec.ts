@@ -9,6 +9,7 @@ import {
 
 const PAGE_MARKERS: Record<(typeof NAV_ITEMS)[number]["id"], RegExp> = {
   dashboard: /Dashboard/,
+  assistant: /Assistant/,
   sessions: /Sessions/,
   brokers: /Brokers/,
   trades: /Trades/,
@@ -19,6 +20,7 @@ const PAGE_MARKERS: Record<(typeof NAV_ITEMS)[number]["id"], RegExp> = {
   costs: /API Usage/,
   devpanel: /Developer Workbench/,
   accounts: /Accounts/,
+  docs: /Docs|Documentation/,
 };
 
 test.describe.serial("navigation", () => {

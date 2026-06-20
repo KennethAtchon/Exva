@@ -62,6 +62,41 @@ describe("TimerSignalSource", () => {
     expect(source.status).toBe("paused");
   });
 
+  it("removes signal handlers with offSignal", async () => {
+    const source = new TimerSignalSource(
+      "timer-off",
+      JSON.stringify({ symbol: "SPY", cadence: "15m" }),
+    );
+    const events: unknown[] = [];
+    const handler = (event: unknown) => events.push(event);
+    source.onSignal(handler);
+    source.offSignal(handler);
+
+    const result = await source.test();
+
+    expect(result).toEqual({ detected: 1, passed: 1, dropped: 0, errors: [] });
+    expect(events).toEqual([]);
+  });
+
+  it("restart applies a new symbol and cadence", async () => {
+    vi.useFakeTimers();
+    const source = new TimerSignalSource(
+      "timer-restart",
+      JSON.stringify({ symbol: "SPY", cadence: "15m", intervalMs: 1000 }),
+    );
+    const events: unknown[] = [];
+    source.onSignal((event) => events.push(event));
+
+    await source.restart({ symbol: "IWM", cadence: "1h", intervalMs: 1000 });
+
+    expect(source.status).toBe("running");
+    expect(events[0]).toMatchObject({
+      ticker: "IWM",
+      payloadJson: expect.objectContaining({ cadence: "1h" }),
+    });
+    await source.stop();
+  });
+
   it("exposes nextFireAt while running and clears it on stop", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-17T00:00:00.000Z"));

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { computeTrendFollowingSignal } from "./trend-following-signal";
+import { tradeSignalSchema } from "@electron/shared/ai/trade-signals";
+import {
+  computeTrendFollowingSignal,
+  trendFollowingInputSchema,
+} from "./trend-following-signal";
 
 describe("computeTrendFollowingSignal", () => {
   it("skips when there are insufficient bars", () => {
@@ -29,6 +33,26 @@ describe("computeTrendFollowingSignal", () => {
 
     expect(signal.action).toBe("buy");
     expect(signal.reasoning).toContain("crossed above");
+    expect(tradeSignalSchema.parse(signal)).toEqual(signal);
+  });
+
+  it("sells on a bearish SMA crossover", () => {
+    const signal = computeTrendFollowingSignal({
+      symbol: "CL",
+      ohlcv: [
+        { close: 100 },
+        { close: 100 },
+        { close: 100 },
+        { close: 100 },
+        { close: 101 },
+        { close: 98 },
+      ],
+      lookback: 3,
+    });
+
+    expect(signal.action).toBe("sell");
+    expect(signal.reasoning).toContain("crossed below");
+    expect(tradeSignalSchema.parse(signal)).toEqual(signal);
   });
 
   it("skips when no crossover is present", () => {
@@ -42,5 +66,32 @@ describe("computeTrendFollowingSignal", () => {
 
     expect(signal.action).toBe("skip");
     expect(signal.reasoning).toContain("No bullish SMA crossover");
+  });
+
+  it("clamps strong trend-following confidence at 0.9", () => {
+    const signal = computeTrendFollowingSignal({
+      symbol: "CL",
+      ohlcv: [
+        { close: 10 },
+        { close: 10 },
+        { close: 10 },
+        { close: 10 },
+        { close: 9 },
+        { close: 100 },
+      ],
+      lookback: 3,
+    });
+
+    expect(signal.action).toBe("buy");
+    expect(signal.confidence).toBe(0.9);
+  });
+
+  it("rejects malformed input through the trend-following input schema", () => {
+    expect(() =>
+      trendFollowingInputSchema.parse({
+        symbol: "CL",
+        ohlcv: [{ close: Number.NaN }],
+      }),
+    ).toThrow();
   });
 });

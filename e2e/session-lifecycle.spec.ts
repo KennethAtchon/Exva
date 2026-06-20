@@ -23,7 +23,9 @@ test.describe.serial("session lifecycle (paper)", () => {
 
       await navigateToNavItem(window, "Sessions");
       await expect(
-        window.getByRole("button", { name: new RegExp(seeded.sessionName) }),
+        window
+          .getByRole("button", { name: new RegExp(seeded.sessionName) })
+          .first(),
       ).toBeVisible({
         timeout: 15_000,
       });

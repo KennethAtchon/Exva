@@ -491,7 +491,7 @@ export const TradesPage = ({
         ))}
       </div>
 
-      <Card className="overflow-hidden !p-0">
+      <Card className="!p-0">
         <div className="flex gap-1.5 border-b border-[var(--border)] px-5 py-4">
           {(["all", "open", "closed"] as Filter[]).map((s) => (
             <Button
@@ -563,9 +563,10 @@ const tradeTableHeaderClass =
 const tradeRowClass =
   "grid cursor-pointer items-center border-b border-[var(--border)] px-5 py-[11px] transition-[background] duration-100";
 
-const tradeTableScrollClass = "overflow-x-auto";
+const tradeTableScrollClass = "overflow-x-auto pb-2";
 
-const tradeTableBodyScrollClass = "h-[14rem] overflow-y-scroll";
+const tradeTableBodyScrollClass =
+  "h-[14rem] overflow-y-auto [scrollbar-gutter:stable] pb-4";
 
 const autopsyButtonClass =
   "inline-flex max-w-full min-w-0 cursor-pointer items-center overflow-hidden whitespace-nowrap rounded-[5px] border border-[var(--border)] bg-transparent px-2 py-[3px] font-mono text-[12px] tracking-[0.03em] text-[var(--text3)]";

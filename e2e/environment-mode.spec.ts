@@ -12,9 +12,9 @@ test.describe.serial("environment mode", () => {
       const { window } = launched;
       await waitForAppReady(window);
 
-      const paperPill = window.locator(
-        '[title="Paper trading mode — no real orders"]',
-      );
+      const paperPill = window.locator("header").getByText("Paper", {
+        exact: true,
+      });
       await expect(paperPill).toBeVisible();
       await expect(paperPill).toContainText("Paper");
     } finally {
