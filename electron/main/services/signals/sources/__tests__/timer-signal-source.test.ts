@@ -18,6 +18,7 @@ describe("TimerSignalSource", () => {
       JSON.stringify({
         symbol: "SPY",
         cadence: "15m",
+        analysisTimeframe: "1h",
         instrumentClass: "stock",
       }),
     );
@@ -33,6 +34,8 @@ describe("TimerSignalSource", () => {
       ticker: "SPY",
       payloadJson: {
         cadence: "15m",
+        pollCadence: "15m",
+        analysisTimeframe: "1h",
         instrumentClass: "stock",
         barCloseAt: expect.any(String),
       },

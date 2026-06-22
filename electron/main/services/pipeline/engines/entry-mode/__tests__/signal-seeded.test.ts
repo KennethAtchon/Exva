@@ -60,6 +60,35 @@ describe("signal-seeded entry engine", () => {
     });
   });
 
+  it("passes timer metadata through to the instrument for rules pipelines", () => {
+    const ctx = buildCtx(
+      {
+        sourceType: "timer",
+        ticker: "SPY",
+        payloadJson: {
+          cadence: "15m",
+          pollCadence: "15m",
+          analysisTimeframe: "1h",
+          instrumentClass: "stock",
+        },
+      },
+      ["stock"],
+    );
+
+    expect(engine().resolve(ctx)).toEqual({
+      instruments: [
+        expect.objectContaining({
+          symbol: "SPY",
+          instrumentClass: "stock",
+          instrumentMetadataJson: JSON.stringify({
+            pollCadence: "15m",
+            analysisTimeframe: "1h",
+          }),
+        }),
+      ],
+    });
+  });
+
   it("falls back to a stock convention for edgar signals with no payload class", () => {
     const ctx = buildCtx({ sourceType: "edgar_8k", ticker: "NVDA" }, [
       "crypto",

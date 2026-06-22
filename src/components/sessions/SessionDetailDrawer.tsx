@@ -5,6 +5,7 @@ import {
   formatSignalSourceTypeLabel,
   parseTimerSourceConfig,
 } from "@electron/shared/instruments/session-input-model";
+import { formatSignalSourceTimingSubtitle } from "@electron/shared/domain/signal-timing";
 import { Badge } from "@/components/custom-ui";
 import { api, listenEvent, type SessionSummary } from "@/lib/exva";
 import type {
@@ -91,6 +92,12 @@ const SessionInfoGrid = ({
               : "None subscribed"
           }
         />
+        {subscribedSource ? (
+          <Row
+            label="Signal timing"
+            value={formatSignalSourceTimingSubtitle(subscribedSource)}
+          />
+        ) : null}
         <Row label="Instruments" value={instrumentOrigin} />
         {showManualTickers ? (
           <Row label="Manual tickers" value={session.instrumentScope || "—"} />

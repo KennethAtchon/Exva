@@ -42,6 +42,7 @@ import {
   showInstrumentScopeControls,
   sourceIsCompatibleWithExperience,
 } from "@electron/shared/instruments/session-input-model";
+import { formatSignalSourceTimingSubtitle } from "@electron/shared/domain/signal-timing";
 import {
   MOCK_REHEARSAL_SIGNAL_SOURCE_ID,
   resolvePreferredSubscribedSourceId,
@@ -777,7 +778,7 @@ export const CreateEditSessionModal = ({
                               />
                             </span>
                             <span className="mt-px block text-[12px] text-[var(--text3)]">
-                              {formatSignalSourceTypeLabel(source.type)}
+                              {formatSignalSourceTimingSubtitle(source)}
                               {!source.enabled
                                 ? " · Disabled globally — does not count as a live input"
                                 : ""}

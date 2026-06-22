@@ -14,6 +14,8 @@ export type TimerSignalSourceConfig = {
   symbol: string;
   /** Bar cadence label, e.g. 15m, 1h, 4h, 1d */
   cadence: string;
+  /** OHLCV bar size the rules engine analyzes on. */
+  analysisTimeframe?: string;
   /** Milliseconds between ticks (default 15 minutes). */
   intervalMs?: number;
   instrumentClass?: "stock" | "crypto" | "futures" | "options" | "prediction_market";
@@ -121,6 +123,8 @@ export class TimerSignalSource implements ISignalSource {
       accessionNumber: null,
       payloadJson: {
         cadence: this.config.cadence,
+        pollCadence: this.config.cadence,
+        analysisTimeframe: this.config.analysisTimeframe ?? null,
         instrumentClass: this.config.instrumentClass ?? "stock",
         barCloseAt: at,
       },

@@ -24,7 +24,9 @@ export function TimerSignalPage() {
       <DocParagraph>
         Both <DocInlineCode>symbol</DocInlineCode> and{" "}
         <DocInlineCode>cadence</DocInlineCode> are required — the source throws
-        on construction if either is missing.
+        on construction if either is missing. Experience-owned timer sources
+        also carry <DocInlineCode>analysisTimeframe</DocInlineCode> for the OHLCV
+        bar size the rules engine uses (distinct from how often the timer fires).
       </DocParagraph>
       <DocTable
         headers={["Field", "Required", "Notes"]}
@@ -37,7 +39,12 @@ export function TimerSignalPage() {
           [
             <DocInlineCode key="f">cadence</DocInlineCode>,
             "Yes",
-            "Bar label, e.g. 15m, 1h, 4h, 1d. Drives the default interval.",
+            "Poll/trade cadence label, e.g. 15m, 1h, 4h. Drives the default interval.",
+          ],
+          [
+            <DocInlineCode key="f">analysisTimeframe</DocInlineCode>,
+            "No",
+            "OHLCV bar size for rules engines, e.g. 1h or 4h. May differ from cadence.",
           ],
           [
             <DocInlineCode key="f">intervalMs</DocInlineCode>,
@@ -65,7 +72,13 @@ export function TimerSignalPage() {
       <DocList
         items={[
           <>
-            <DocStrong>cadence</DocStrong> — the configured bar label.
+            <DocStrong>cadence</DocStrong> /{" "}
+            <DocStrong>pollCadence</DocStrong> — when the timer fires a trade
+            check.
+          </>,
+          <>
+            <DocStrong>analysisTimeframe</DocStrong> — OHLCV bar size passed
+            through to rules engines (when configured).
           </>,
           <>
             <DocStrong>instrumentClass</DocStrong> — from config (default{" "}

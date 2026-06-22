@@ -2,6 +2,7 @@ import type { AgentMessage, AgentRun } from "@/lib/types";
 import type { EngineInputBuilder } from "../../execution/input-builder-registry";
 import type { LLMRunResult } from "../../../llm/llm-types";
 import type { TradeSignal } from "@electron/shared/ai/trade-signals";
+import { resolveRulesOhlcvRequest } from "./rules-ohlcv-timeframe";
 
 function syntheticDecisionRun(
   sessionId: string,
@@ -59,28 +60,9 @@ export const rulesMeanReversionInputBuilder: EngineInputBuilder = {
       brokerType: adapter.brokerType,
     });
     const getOhlcv = adapter.getOhlcv?.bind(adapter);
-    let cadence = "15m";
-    if (ctx.instrument.instrumentMetadataJson) {
-      try {
-        const meta = JSON.parse(ctx.instrument.instrumentMetadataJson) as {
-          cadence?: string;
-        };
-        if (meta.cadence) cadence = meta.cadence;
-      } catch {
-        // use default
-      }
-    }
-    const timeframe =
-      cadence === "15m"
-        ? "15m"
-        : cadence === "30m"
-          ? "30m"
-          : cadence === "4h"
-            ? "4h"
-            : cadence === "1h"
-              ? "1h"
-              : "1h";
-    const barCount = timeframe === "15m" ? 40 : 30;
+    const { timeframe, barCount } = resolveRulesOhlcvRequest(
+      ctx.instrument.instrumentMetadataJson,
+    );
     const bars = getOhlcv
       ? await getOhlcv(wireSymbol, timeframe, barCount)
       : [];

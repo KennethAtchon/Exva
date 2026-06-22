@@ -8,6 +8,7 @@ import {
   Switch,
 } from "@/components/ui";
 import { api } from "@/lib/exva";
+import { formatSignalSourceTimingSubtitle } from "@electron/shared/domain/signal-timing";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import type { HelpGlossaryId } from "@/lib/help-glossary";
 
@@ -256,6 +257,9 @@ function SourceRow({
         ) : null}
         <div className="mt-1 text-[12px] text-[var(--text3)]">
           {source.description ?? describeSourceType(source.type)}
+        </div>
+        <div className="mt-1 text-[12px] text-[var(--text3)]">
+          {formatSignalSourceTimingSubtitle(source)}
         </div>
         <div className="mt-1 text-[12px] text-[var(--text3)]">
           {source.lastSignalAt && source.lastSignalTicker

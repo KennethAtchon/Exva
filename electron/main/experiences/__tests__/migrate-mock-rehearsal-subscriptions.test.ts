@@ -127,6 +127,8 @@ describe("migrateEligibleSessionsToMockRehearsal", () => {
       signalId: signal.id,
       symbol: signal.symbol,
       cadence: signal.pollCadence,
+      pollCadence: signal.pollCadence,
+      analysisTimeframe: signal.defaultAnalysisTimeframe,
       instrumentClass: signal.instrumentClass,
     });
   });

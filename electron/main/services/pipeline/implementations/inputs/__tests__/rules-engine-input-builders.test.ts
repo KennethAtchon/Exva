@@ -12,7 +12,10 @@ describe("rulesMeanReversionInputBuilder", () => {
         instrument: {
           symbol: "ETH",
           instrumentClass: "crypto",
-          instrumentMetadataJson: JSON.stringify({ cadence: "15m" }),
+          instrumentMetadataJson: JSON.stringify({
+            pollCadence: "15m",
+            analysisTimeframe: "1h",
+          }),
         },
         services: {
           brokerRouting: {
@@ -39,7 +42,7 @@ describe("rulesMeanReversionInputBuilder", () => {
     expect(task.symbol).toBe("ETH");
     expect(task.ohlcv).toEqual([{ close: 100 }, { close: 98 }, { close: 96 }]);
     expect(task.zScoreEntry).toBe(-2);
-    expect(getOhlcv).toHaveBeenCalledWith("ETHUSD", "15m", 40);
+    expect(getOhlcv).toHaveBeenCalledWith("ETHUSD", "1h", 30);
   });
 
   it("stores deterministic decision output in state", () => {

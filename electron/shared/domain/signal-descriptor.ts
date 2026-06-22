@@ -4,6 +4,8 @@ import type { SignalSourceType } from "@electron/shared/domain/signals";
 import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
 import type { ScriptedWorkerOutputs } from "../../main/services/broker/mock/mock-scenario-worker-outputs";
 
+export { signalDisplayName } from "./signal-timing";
+
 export interface ExperiencePresetIds {
   posturePresetId: string;
   rulesPresetId: string;
@@ -27,28 +29,3 @@ export interface SignalDescriptor {
   };
 }
 
-function sourceTypeLabel(type: SignalSourceType): string {
-  switch (type) {
-    case "edgar_8k":
-      return "EDGAR 8-K";
-    case "prediction_event":
-      return "Prediction Event";
-    case "timer":
-      return "Timer";
-    case "mock":
-      return "Mock";
-    case "web_search":
-      return "Web Search";
-    case "manual":
-      return "Manual";
-    default:
-      return type;
-  }
-}
-
-/** Names are DERIVED so they cannot lie about behavior (Invariant I5). */
-export function signalDisplayName(s: SignalDescriptor): string {
-  const sym = s.symbol ?? sourceTypeLabel(s.sourceType);
-  const cadence = s.pollCadence ? ` · every ${s.pollCadence}` : "";
-  return `${sym} · ${s.defaultAnalysisTimeframe} TF${cadence}`;
-}

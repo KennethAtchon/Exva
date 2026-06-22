@@ -87,7 +87,7 @@ export function ExperiencesPage() {
           [
             "Rules: Mean Reversion",
             <>
-              <DocInlineCode>timer</DocInlineCode> — SPY · 15m, QQQ · 15m
+              <DocInlineCode>timer</DocInlineCode> — SPY · checks every 15m · OHLCV 1h, QQQ · checks every 15m · OHLCV 1h
             </>,
             "Stocks",
             "Deterministic mean reversion",
@@ -95,7 +95,7 @@ export function ExperiencesPage() {
           [
             "Rules: Trend Following",
             <>
-              <DocInlineCode>timer</DocInlineCode> — GC · 4h, CL · 4h
+              <DocInlineCode>timer</DocInlineCode> — GC · checks every 4h · OHLCV 4h, CL · checks every 4h · OHLCV 4h
             </>,
             "Futures",
             "Deterministic SMA-crossover trend",
@@ -103,7 +103,7 @@ export function ExperiencesPage() {
           [
             "Rules: Momentum Breakout",
             <>
-              <DocInlineCode>timer</DocInlineCode> — BTC-USD · 1h
+              <DocInlineCode>timer</DocInlineCode> — BTC-USD · checks every 1h · OHLCV 4h
             </>,
             "Crypto",
             "Deterministic resistance breakout",
@@ -153,24 +153,24 @@ export function ExperiencesPage() {
           [
             "Rules: Mean Reversion",
             <>
-              <DocInlineCode>SPY · 1h TF · every 15m</DocInlineCode>
+              <DocInlineCode>SPY · checks every 15m · OHLCV 1h</DocInlineCode>
               <br />
-              <DocInlineCode>QQQ · 1h TF · every 15m</DocInlineCode>
+              <DocInlineCode>QQQ · checks every 15m · OHLCV 1h</DocInlineCode>
             </>,
             "Deterministic mean reversion on liquid stocks.",
           ],
           [
             "Rules: Trend Following",
             <>
-              <DocInlineCode>GC · 4h TF · every 4h</DocInlineCode>
+              <DocInlineCode>GC · checks every 4h · OHLCV 4h</DocInlineCode>
               <br />
-              <DocInlineCode>CL · 4h TF · every 4h</DocInlineCode>
+              <DocInlineCode>CL · checks every 4h · OHLCV 4h</DocInlineCode>
             </>,
             "Deterministic SMA-crossover trend on commodity futures.",
           ],
           [
             "Rules: Momentum Breakout",
-            <DocInlineCode>BTC-USD · 4h TF · every 1h</DocInlineCode>,
+            <DocInlineCode>BTC-USD · checks every 1h · OHLCV 4h</DocInlineCode>,
             "Deterministic resistance-breakout on crypto. Disabled by default until the breakout engine is fully tested.",
           ],
         ]}

@@ -2,6 +2,7 @@ import type { AgentMessage, AgentRun } from "@/lib/types";
 import type { EngineInputBuilder } from "../../execution/input-builder-registry";
 import type { LLMRunResult } from "../../../llm/llm-types";
 import type { TradeSignal } from "@electron/shared/ai/trade-signals";
+import { resolveRulesOhlcvRequest } from "./rules-ohlcv-timeframe";
 
 function syntheticDecisionRun(signal: TradeSignal): LLMRunResult<TradeSignal> {
   const runId = crypto.randomUUID();
@@ -43,26 +44,6 @@ function syntheticDecisionRun(signal: TradeSignal): LLMRunResult<TradeSignal> {
   return { run, message, output: signal };
 }
 
-function resolveCadence(metadataJson: string | null | undefined): string {
-  if (!metadataJson) return "1h";
-  try {
-    const meta = JSON.parse(metadataJson) as { cadence?: string };
-    return meta.cadence ?? "1h";
-  } catch {
-    return "1h";
-  }
-}
-
-function timeframeForCadence(
-  cadence: string,
-): "15m" | "30m" | "1h" | "4h" | "1d" {
-  if (cadence === "15m") return "15m";
-  if (cadence === "30m") return "30m";
-  if (cadence === "1h") return "1h";
-  if (cadence === "4h") return "4h";
-  return "1h";
-}
-
 export const rulesBreakoutInputBuilder: EngineInputBuilder = {
   id: "rules-breakout-input",
   async build({ planCtx: ctx }) {
@@ -75,9 +56,9 @@ export const rulesBreakoutInputBuilder: EngineInputBuilder = {
       instrumentClass: ctx.instrument.instrumentClass,
       brokerType: adapter.brokerType,
     });
-    const cadence = resolveCadence(ctx.instrument.instrumentMetadataJson);
-    const timeframe = timeframeForCadence(cadence);
-    const barCount = 40;
+    const { timeframe, barCount } = resolveRulesOhlcvRequest(
+      ctx.instrument.instrumentMetadataJson,
+    );
     const bars = adapter.getOhlcv
       ? await adapter.getOhlcv(wireSymbol, timeframe, barCount)
       : [];

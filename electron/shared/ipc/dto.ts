@@ -44,6 +44,8 @@ export interface SessionSummary {
     name: string;
     type: import("@electron/shared/domain").SignalSourceType;
     enabled: boolean;
+    pollCadence?: string | null;
+    analysisTimeframe?: string | null;
     configJson?: string;
   }>;
   /** Soonest next scheduled timer-source fire (ISO), or null if none running. */

@@ -23,7 +23,7 @@ export const PREDICTION_EVENT_EDGE_EXPERIENCE: ExperienceDescriptor = {
       sourceType: "prediction_event",
       instrumentClass: "prediction_market",
       symbol: null,
-      pollCadence: null,
+      pollCadence: "15m",
       defaultAnalysisTimeframe: "1h",
       enabledByDefault: true,
       mockFixtures: {

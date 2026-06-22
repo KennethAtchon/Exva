@@ -26,6 +26,8 @@ export type SubscribedSourceSnapshot = {
   name: string;
   type: SignalSourceType;
   enabled: boolean;
+  pollCadence?: string | null;
+  analysisTimeframe?: string | null;
 };
 
 export function experienceSignalSourceId(experienceId: string): string {

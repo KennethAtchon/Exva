@@ -54,6 +54,8 @@ export interface SessionSummaryView {
     name: string;
     type: import("@electron/shared/domain").SignalSourceType;
     enabled: boolean;
+    pollCadence?: string | null;
+    analysisTimeframe?: string | null;
     configJson?: string;
   }>;
   /**
@@ -129,6 +131,8 @@ export class SessionListingService {
                     name: source.name,
                     type: source.type,
                     enabled,
+                    pollCadence: source.pollCadence ?? null,
+                    analysisTimeframe: source.analysisTimeframe ?? null,
                     configJson: source.configJson,
                   },
                 ]

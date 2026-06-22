@@ -10,7 +10,10 @@ describe("rulesTrendFollowingInputBuilder", () => {
         instrument: {
           symbol: "BTC",
           instrumentClass: "crypto",
-          instrumentMetadataJson: JSON.stringify({ cadence: "4h" }),
+          instrumentMetadataJson: JSON.stringify({
+            pollCadence: "4h",
+            analysisTimeframe: "4h",
+          }),
         },
         services: {
           brokerRouting: {
@@ -37,7 +40,7 @@ describe("rulesTrendFollowingInputBuilder", () => {
     expect(task.symbol).toBe("BTC");
     expect(task.lookback).toBe(20);
     expect(task.ohlcv).toEqual([{ close: 50 }, { close: 52 }]);
-    expect(getOhlcv).toHaveBeenCalledWith("BTCUSD", "4h", 40);
+    expect(getOhlcv).toHaveBeenCalledWith("BTCUSD", "4h", 30);
   });
 
   it("stores deterministic decision output in state", () => {

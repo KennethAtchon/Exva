@@ -4,6 +4,7 @@ import {
   isSearchStyleSignalSourceType,
   type SignalSourceType,
 } from "@electron/shared/domain";
+import { buildSignalInstrumentMetadataJson } from "@electron/shared/domain/signal-timing";
 import { isInstrumentClass } from "@electron/shared/instruments/instrument-classification";
 import { registerEngine, type EntryModeEngine } from "../registry";
 
@@ -39,6 +40,25 @@ function readSignalTrigger(
       : undefined;
   if (!sourceType || !ticker) return null;
   return { sourceType, ticker, companyName, payloadJson };
+}
+
+function readSignalInstrumentMetadata(
+  signalTrigger: SignalTrigger,
+): string | null {
+  const payload = signalTrigger.payloadJson;
+  if (!payload) return null;
+  const pollCadence =
+    typeof payload.pollCadence === "string"
+      ? payload.pollCadence
+      : typeof payload.cadence === "string"
+        ? payload.cadence
+        : null;
+  const analysisTimeframe =
+    typeof payload.analysisTimeframe === "string"
+      ? payload.analysisTimeframe
+      : null;
+  if (!pollCadence && !analysisTimeframe) return null;
+  return buildSignalInstrumentMetadataJson({ pollCadence, analysisTimeframe });
 }
 
 function inferInstrumentClass(
@@ -84,6 +104,7 @@ const signalSeededEntryEngine: EntryModeEngine = {
             ctx.instrumentClasses,
           ),
           instrumentDisplayName: signalTrigger.companyName ?? undefined,
+          instrumentMetadataJson: readSignalInstrumentMetadata(signalTrigger),
           rationale: `${signalTrigger.sourceType} signal supplied the instrument directly.`,
         },
       ],

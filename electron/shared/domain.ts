@@ -8,6 +8,7 @@ export * from "./domain/prediction-event-triggers";
 export * from "./domain/session";
 export * from "./domain/signal-dead-letters";
 export * from "./domain/signal-source-capabilities";
+export * from "./domain/signal-timing";
 export * from "./domain/signals";
 export * from "./domain/trade";
 export * from "./domain/workspace";
