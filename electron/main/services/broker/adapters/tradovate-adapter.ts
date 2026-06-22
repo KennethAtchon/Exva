@@ -1,6 +1,7 @@
 import type { ConnectionTestResult } from "@/lib/types";
 import { BROKER_SUPPORTED_INSTRUMENT_CLASSES } from "@electron/shared/domain/broker-capabilities";
 import { AppError } from "@electron/shared/infra/errors";
+import type { BrokerInteractionLogger } from "../broker-interaction-logger";
 import { createLogger } from "../../infra/log";
 import type {
   BrokerAdapter,
@@ -40,6 +41,7 @@ export class TradovateAdapter implements BrokerAdapter {
   constructor(
     private readonly credentials: TradovateCredentials,
     readonly mode: "paper" | "live",
+    readonly _interactionLogger?: BrokerInteractionLogger,
   ) {}
 
   async testConnection(): Promise<ConnectionTestResult> {

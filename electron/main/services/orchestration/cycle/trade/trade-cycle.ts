@@ -16,6 +16,7 @@ import {
   runTradePipeline,
 } from "./run-trade-pipeline";
 import { completeSignalDeliveryFromContext } from "../../../signals/complete-signal-delivery";
+import { runWithProviderCallScopeAsync } from "../../../infra/provider-call-log";
 
 function tradeCycleRetry(
   ctx: TradingCycleContext,
@@ -63,148 +64,159 @@ export async function executeTradeCycle(
   );
 
   try {
-    const config = ctx.getSessionConfig();
-    const retry = tradeCycleRetry(ctx, context);
-
-    const pipeline = await runTradePipeline(ctx, context, retry);
-    if (pipeline.status === "paused") return;
-    if (pipeline.status === "failed") {
-      const dropReason =
-        pipeline.stage === "risk_gate"
-          ? "risk_gate_rejected"
-          : pipeline.stage === "broker_order"
-            ? "order_policy_rejected"
-            : `${pipeline.stage}_failed`;
-      completeSignalDeliveryFromContext(ctx, context, "rejected", {
-        dropReason,
-      });
-      finishWithoutOpenPosition(
-        ctx,
-        `${pipeline.stage} failed; scheduling selector retry.`,
-        pipeline.result.outcome,
-      );
-      return;
-    }
-
-    applyTradePipelineToContext(context, pipeline.result);
-    const latestQuote = pipeline.result.state.quoteSnapshot;
-    const { decision } = requirePipelineAiResults(
-      pipeline.result,
-      context.pipelineId,
-    );
-    const trade = persistPendingTradeFromPipeline(
-      ctx,
-      context,
-      pipeline.result,
-    );
-
-    if (decision.output.action === "skip") {
-      ctx.clearAttentionRequired();
-      ctx.resetHardFailureStreak();
-      const isConfidenceNoTrade = decision.output.reasoning.includes(
-        "wait-for-open threshold",
-      );
-      ctx.recordFailure({
+    await runWithProviderCallScopeAsync(
+      {
+        sessionId: ctx.sessionId,
         cycleId: context.cycleId,
-        stage: "trade_cycle",
-        outcome: "no_trade",
-        level: "WARN",
-        code: null,
-        message: `No trade for ${trade.instrumentSymbol}: ${decision.output.reasoning}`,
-        reasonCategory: isConfidenceNoTrade ? "risk_gate" : "model_no_trade",
-      });
-      ctx.emitEvent(
-        isConfidenceNoTrade ? "WARN" : "INFO",
-        trade.id,
-        isConfidenceNoTrade
-          ? `No trade for ${trade.instrumentSymbol}: ${decision.output.reasoning}`
-          : `No trade decision for ${trade.instrumentSymbol}; cycle complete.`,
-        "orchestrator",
-        context.cycleId,
-      );
-      completeSignalDeliveryFromContext(ctx, context, "rejected", {
-        dropReason: isConfidenceNoTrade
-          ? "confidence_below_threshold"
-          : decision.output.reasoning.includes("stale")
-            ? "stale"
-            : "decision_skip",
-      });
-      finishWithoutOpenPosition(ctx, "No-trade cycle complete", "no_trade");
-      return;
-    }
+        tradeId: context.trade?.id ?? null,
+      },
+      async () => {
+        const config = ctx.getSessionConfig();
+        const retry = tradeCycleRetry(ctx, context);
 
-    const riskOrder = context.riskOrder ?? pipeline.result.state.riskOrder;
-    if (!riskOrder) {
-      throw new AppError(
-        "Internal error: riskOrder missing after trade pipeline",
-        "VALIDATION_FAILED",
-      );
-    }
-    context.riskOrder = riskOrder;
+        const pipeline = await runTradePipeline(ctx, context, retry);
+        if (pipeline.status === "paused") return;
+        if (pipeline.status === "failed") {
+          const dropReason =
+            pipeline.stage === "risk_gate"
+              ? "risk_gate_rejected"
+              : pipeline.stage === "broker_order"
+                ? "order_policy_rejected"
+                : `${pipeline.stage}_failed`;
+          completeSignalDeliveryFromContext(ctx, context, "rejected", {
+            dropReason,
+          });
+          finishWithoutOpenPosition(
+            ctx,
+            `${pipeline.stage} failed; scheduling selector retry.`,
+            pipeline.result.outcome,
+          );
+          return;
+        }
 
-    const brokerAccountId =
-      pipeline.result.state.brokerAccountId ??
-      ctx.resolveBrokerAccountId(context.instrument.instrumentClass);
-    if (trade.brokerAccountId !== brokerAccountId) {
-      ctx.deps.tradesRepo.patchPendingExecution(trade.id, { brokerAccountId });
-    }
+        applyTradePipelineToContext(context, pipeline.result);
+        const latestQuote = pipeline.result.state.quoteSnapshot;
+        const { decision } = requirePipelineAiResults(
+          pipeline.result,
+          context.pipelineId,
+        );
+        const trade = persistPendingTradeFromPipeline(
+          ctx,
+          context,
+          pipeline.result,
+        );
 
-    const allocation = pipeline.result.state.brokerAllocation?.allocation;
-    if (allocation?.warning === "over_allocated") {
-      ctx.emitEvent(
-        "WARN",
-        trade.id,
-        "Order exceeds allocation (warn-only mode); proceeding.",
-        "orchestrator",
-        context.cycleId,
-      );
-    }
+        if (decision.output.action === "skip") {
+          ctx.clearAttentionRequired();
+          ctx.resetHardFailureStreak();
+          const isConfidenceNoTrade = decision.output.reasoning.includes(
+            "wait-for-open threshold",
+          );
+          ctx.recordFailure({
+            cycleId: context.cycleId,
+            stage: "trade_cycle",
+            outcome: "no_trade",
+            level: "WARN",
+            code: null,
+            message: `No trade for ${trade.instrumentSymbol}: ${decision.output.reasoning}`,
+            reasonCategory: isConfidenceNoTrade ? "risk_gate" : "model_no_trade",
+          });
+          ctx.emitEvent(
+            isConfidenceNoTrade ? "WARN" : "INFO",
+            trade.id,
+            isConfidenceNoTrade
+              ? `No trade for ${trade.instrumentSymbol}: ${decision.output.reasoning}`
+              : `No trade decision for ${trade.instrumentSymbol}; cycle complete.`,
+            "orchestrator",
+            context.cycleId,
+          );
+          completeSignalDeliveryFromContext(ctx, context, "rejected", {
+            dropReason: isConfidenceNoTrade
+              ? "confidence_below_threshold"
+              : decision.output.reasoning.includes("stale")
+                ? "stale"
+                : "decision_skip",
+          });
+          finishWithoutOpenPosition(ctx, "No-trade cycle complete", "no_trade");
+          return;
+        }
 
-    const { approved, approvalId: approvalIdForCapital } =
-      await runApprovalAndCapital(ctx, context, trade, decision.output);
-    if (!approved) {
-      completeSignalDeliveryFromContext(ctx, context, "rejected", {
-        dropReason: "approval_rejected",
-      });
-      finishWithoutOpenPosition(ctx, "Trade not approved", "no_trade");
-      return;
-    }
+        const riskOrder = context.riskOrder ?? pipeline.result.state.riskOrder;
+        if (!riskOrder) {
+          throw new AppError(
+            "Internal error: riskOrder missing after trade pipeline",
+            "VALIDATION_FAILED",
+          );
+        }
+        context.riskOrder = riskOrder;
 
-    const brokerStep = await runOrchestratorStep(ctx, {
-      cycleId: context.cycleId,
-      stage: "broker_order",
-      onRetry: retry,
-      tradeId: trade.id,
-      run: () => placeBrokerOrder(ctx, context, trade, riskOrder, latestQuote),
-    });
-    if (brokerStep.status === "paused") return;
-    if (brokerStep.status === "failed") {
-      if (!config.human_approval_required) {
-        ctx.deps.capitalReservation.releaseOnFailure(trade.id);
-      } else if (approvalIdForCapital) {
-        ctx.deps.capitalReservation.releaseByApproval(approvalIdForCapital);
-      }
-      ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
-      ctx.deps.bus.emit("trade_closed", ctx.deps.tradesRepo.require(trade.id));
-      completeSignalDeliveryFromContext(ctx, context, "rejected", {
-        dropReason: "broker_order_failed",
-      });
-      finishWithoutOpenPosition(
-        ctx,
-        "Broker order failed",
-        brokerStep.result.outcome,
-      );
-      return;
-    }
+        const brokerAccountId =
+          pipeline.result.state.brokerAccountId ??
+          ctx.resolveBrokerAccountId(context.instrument.instrumentClass);
+        if (trade.brokerAccountId !== brokerAccountId) {
+          ctx.deps.tradesRepo.patchPendingExecution(trade.id, {
+            brokerAccountId,
+          });
+        }
 
-    finalizeOpenedTrade(
-      ctx,
-      context,
-      trade,
-      brokerStep.value.brokerOrderId,
-      brokerStep.value.filledAvgPrice,
-      approvalIdForCapital,
-      latestQuote,
+        const allocation = pipeline.result.state.brokerAllocation?.allocation;
+        if (allocation?.warning === "over_allocated") {
+          ctx.emitEvent(
+            "WARN",
+            trade.id,
+            "Order exceeds allocation (warn-only mode); proceeding.",
+            "orchestrator",
+            context.cycleId,
+          );
+        }
+
+        const { approved, approvalId: approvalIdForCapital } =
+          await runApprovalAndCapital(ctx, context, trade, decision.output);
+        if (!approved) {
+          completeSignalDeliveryFromContext(ctx, context, "rejected", {
+            dropReason: "approval_rejected",
+          });
+          finishWithoutOpenPosition(ctx, "Trade not approved", "no_trade");
+          return;
+        }
+
+        const brokerStep = await runOrchestratorStep(ctx, {
+          cycleId: context.cycleId,
+          stage: "broker_order",
+          onRetry: retry,
+          tradeId: trade.id,
+          run: () => placeBrokerOrder(ctx, context, trade, riskOrder, latestQuote),
+        });
+        if (brokerStep.status === "paused") return;
+        if (brokerStep.status === "failed") {
+          if (!config.human_approval_required) {
+            ctx.deps.capitalReservation.releaseOnFailure(trade.id);
+          } else if (approvalIdForCapital) {
+            ctx.deps.capitalReservation.releaseByApproval(approvalIdForCapital);
+          }
+          ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
+          ctx.deps.bus.emit("trade_closed", ctx.deps.tradesRepo.require(trade.id));
+          completeSignalDeliveryFromContext(ctx, context, "rejected", {
+            dropReason: "broker_order_failed",
+          });
+          finishWithoutOpenPosition(
+            ctx,
+            "Broker order failed",
+            brokerStep.result.outcome,
+          );
+          return;
+        }
+
+        finalizeOpenedTrade(
+          ctx,
+          context,
+          trade,
+          brokerStep.value.brokerOrderId,
+          brokerStep.value.filledAvgPrice,
+          approvalIdForCapital,
+          latestQuote,
+        );
+      },
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

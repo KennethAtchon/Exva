@@ -15,6 +15,9 @@ import {
   estimateBorrowUsd,
   estimateCommissionUsd,
 } from "@electron/shared/instruments/trade-exit-analytics";
+import {
+  runWithProviderCallScopeAsync,
+} from "../../infra/provider-call-log";
 
 const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
   multi_day_swing: 60_000,
@@ -84,98 +87,106 @@ export class TradeMonitor {
     for (const trade of remainingOpenTrades) {
       if (!trade.broker_order_id || !trade.brokerAccountId) continue;
 
-      const adapter = await this.brokerRegistry.get(trade.brokerAccountId);
-      const wireSymbol = this.instrumentNormalizer
-        ? this.instrumentNormalizer.toBrokerSymbol({
-            symbol: trade.instrumentSymbol,
-            instrumentClass: trade.instrumentType as InstrumentClass,
-            brokerType: adapter.brokerType,
-          })
-        : trade.instrumentSymbol;
-      const snapshot = await adapter.getMarketSnapshot(wireSymbol);
-      const currentPrice = snapshot.price;
-
-      // Update price extremes before evaluating exits.
-      this.tradesRepo.updatePriceExtremes(trade.id, currentPrice);
-
-      const side = trade.side as "BUY" | "SELL";
-      const openedAt = trade.opened_at ?? trade.created_at;
-      const tpTouch =
-        trade.take_profit_price != null
-          ? computeTimeToLevelMs({
-              openedAt,
-              nowMs: Date.now(),
-              currentPrice,
-              targetPrice: trade.take_profit_price,
-              side,
-              previouslyTouchedAt: trade.take_profit_touched_at ?? null,
-            })
-          : (trade.take_profit_touched_at ?? null);
-      const stopTouch =
-        trade.stop_loss_price != null
-          ? computeTimeToLevelMs({
-              openedAt,
-              nowMs: Date.now(),
-              currentPrice,
-              targetPrice: trade.stop_loss_price,
-              side,
-              previouslyTouchedAt: trade.stop_touched_at ?? null,
-            })
-          : (trade.stop_touched_at ?? null);
-      if (
-        tpTouch !== (trade.take_profit_touched_at ?? null) ||
-        stopTouch !== (trade.stop_touched_at ?? null)
-      ) {
-        this.tradesRepo.updateLevelTouchTimes(trade.id, {
-          takeProfitTouchedAt: tpTouch,
-          stopTouchedAt: stopTouch,
-        });
-      }
-
-      // Get OHLCV for ATR — uses getOhlcv if available; falls back to empty for adapters that don't implement it
-      const ohlcvTimeframe = this.resolveOhlcvTimeframe(
-        strategyContext.timeframe,
-      );
-      let bars: { high: number; low: number; close: number }[] = [];
-      if (adapter.getOhlcv) {
-        try {
-          bars = await adapter.getOhlcv(wireSymbol, ohlcvTimeframe, 20);
-        } catch {
-          // ATR exits skipped this tick; fixed stops/TP/max-hold still run
-        }
-      }
-
-      const exitDecision = this.exitEvaluator.evaluate({
-        trade: {
-          id: trade.id,
-          entryPrice: trade.entry_price ?? trade.position_size_usd,
-          side: trade.side as "BUY" | "SELL",
-          instrumentType: trade.instrumentType,
-          highWaterMarkPrice: trade.high_water_mark_price,
+      await runWithProviderCallScopeAsync(
+        {
+          sessionId: this.sessionId,
+          tradeId: trade.id,
         },
-        currentPrice,
-        ohlcvBars: bars,
-        riskConfig: strategyContext.riskConfig,
-      });
+        async () => {
+          const adapter = await this.brokerRegistry.get(trade.brokerAccountId!);
+          const wireSymbol = this.instrumentNormalizer
+            ? this.instrumentNormalizer.toBrokerSymbol({
+                symbol: trade.instrumentSymbol,
+                instrumentClass: trade.instrumentType as InstrumentClass,
+                brokerType: adapter.brokerType,
+              })
+            : trade.instrumentSymbol;
+          const snapshot = await adapter.getMarketSnapshot(wireSymbol);
+          const currentPrice = snapshot.price;
 
-      if (exitDecision.shouldExit) {
-        await this.closeTradeAtBroker(trade, exitDecision.reason, {
-          price: currentPrice,
-          timestamp: snapshot.timestamp,
-        });
-        continue;
-      }
+          // Update price extremes before evaluating exits.
+          this.tradesRepo.updatePriceExtremes(trade.id, currentPrice);
 
-      // Fallback: check if broker already closed the order externally
-      const status = await adapter.getOrderStatus(trade.broker_order_id);
-      if (status.status === "closed") {
-        this.closeTrade(
-          trade.id,
-          status.realizedPnlUsd ?? 0,
-          "broker_closed",
-          currentPrice,
-        );
-      }
+          const side = trade.side as "BUY" | "SELL";
+          const openedAt = trade.opened_at ?? trade.created_at;
+          const tpTouch =
+            trade.take_profit_price != null
+              ? computeTimeToLevelMs({
+                  openedAt,
+                  nowMs: Date.now(),
+                  currentPrice,
+                  targetPrice: trade.take_profit_price,
+                  side,
+                  previouslyTouchedAt: trade.take_profit_touched_at ?? null,
+                })
+              : (trade.take_profit_touched_at ?? null);
+          const stopTouch =
+            trade.stop_loss_price != null
+              ? computeTimeToLevelMs({
+                  openedAt,
+                  nowMs: Date.now(),
+                  currentPrice,
+                  targetPrice: trade.stop_loss_price,
+                  side,
+                  previouslyTouchedAt: trade.stop_touched_at ?? null,
+                })
+              : (trade.stop_touched_at ?? null);
+          if (
+            tpTouch !== (trade.take_profit_touched_at ?? null) ||
+            stopTouch !== (trade.stop_touched_at ?? null)
+          ) {
+            this.tradesRepo.updateLevelTouchTimes(trade.id, {
+              takeProfitTouchedAt: tpTouch,
+              stopTouchedAt: stopTouch,
+            });
+          }
+
+          // Get OHLCV for ATR — uses getOhlcv if available; falls back to empty for adapters that don't implement it
+          const ohlcvTimeframe = this.resolveOhlcvTimeframe(
+            strategyContext.timeframe,
+          );
+          let bars: { high: number; low: number; close: number }[] = [];
+          if (adapter.getOhlcv) {
+            try {
+              bars = await adapter.getOhlcv(wireSymbol, ohlcvTimeframe, 20);
+            } catch {
+              // ATR exits skipped this tick; fixed stops/TP/max-hold still run
+            }
+          }
+
+          const exitDecision = this.exitEvaluator.evaluate({
+            trade: {
+              id: trade.id,
+              entryPrice: trade.entry_price ?? trade.position_size_usd,
+              side: trade.side as "BUY" | "SELL",
+              instrumentType: trade.instrumentType,
+              highWaterMarkPrice: trade.high_water_mark_price,
+            },
+            currentPrice,
+            ohlcvBars: bars,
+            riskConfig: strategyContext.riskConfig,
+          });
+
+          if (exitDecision.shouldExit) {
+            await this.closeTradeAtBroker(trade, exitDecision.reason, {
+              price: currentPrice,
+              timestamp: snapshot.timestamp,
+            });
+            return;
+          }
+
+          // Fallback: check if broker already closed the order externally
+          const status = await adapter.getOrderStatus(trade.broker_order_id!);
+          if (status.status === "closed") {
+            this.closeTrade(
+              trade.id,
+              status.realizedPnlUsd ?? 0,
+              "broker_closed",
+              currentPrice,
+            );
+          }
+        },
+      );
     }
 
     this.eventBus.emit(

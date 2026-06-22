@@ -1,7 +1,10 @@
 import type { BrokerAccount } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
+import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { SecretsService } from "../infra/secrets-service";
+import { createInstrumentedBrokerAdapter } from "./instrumented-broker-adapter";
+import { createBrokerInteractionLogger } from "./broker-interaction-logger";
 import { AlpacaAdapter } from "./adapters/alpaca-adapter";
 import type { BrokerAdapter } from "./adapters/broker-adapter";
 import {
@@ -28,6 +31,7 @@ export class BrokerRegistry {
   constructor(
     private readonly brokerAccountsRepo: BrokerAccountsRepo,
     private readonly secrets: SecretsService,
+    private readonly apiCallLogRepo?: ApiCallLogRepo,
   ) {}
 
   async get(brokerAccountId: string): Promise<BrokerAdapter> {
@@ -44,7 +48,16 @@ export class BrokerRegistry {
       );
     }
 
-    const adapter = this.buildAdapter(account, secret ?? "{}");
+    const interactionLogger = this.createInteractionLogger(
+      brokerAccountId,
+      account.brokerType,
+    );
+    const adapter = this.wrapAdapter(
+      this.buildAdapter(account, secret ?? "{}", interactionLogger),
+      brokerAccountId,
+      account.brokerType,
+      interactionLogger,
+    );
     this.adapters.set(brokerAccountId, adapter);
     return adapter;
   }
@@ -54,7 +67,16 @@ export class BrokerRegistry {
     account: BrokerAccount,
     credentialsJson: string,
   ): Promise<BrokerAdapter> {
-    return this.buildAdapter(account, credentialsJson);
+    const interactionLogger = this.createInteractionLogger(
+      account.id,
+      account.brokerType,
+    );
+    return this.wrapAdapter(
+      this.buildAdapter(account, credentialsJson, interactionLogger),
+      account.id,
+      account.brokerType,
+      interactionLogger,
+    );
   }
 
   invalidate(brokerAccountId: string): void {
@@ -70,9 +92,37 @@ export class BrokerRegistry {
     }
   }
 
+  private createInteractionLogger(
+    brokerAccountId: string,
+    brokerType: BrokerAccount["brokerType"],
+  ) {
+    if (!this.apiCallLogRepo) return undefined;
+    return createBrokerInteractionLogger({
+      apiCallLogRepo: this.apiCallLogRepo,
+      brokerAccountId,
+      provider: brokerType,
+    });
+  }
+
+  private wrapAdapter(
+    adapter: BrokerAdapter,
+    brokerAccountId: string,
+    brokerType: BrokerAccount["brokerType"],
+    interactionLogger?: ReturnType<typeof createBrokerInteractionLogger>,
+  ): BrokerAdapter {
+    if (!this.apiCallLogRepo) return adapter;
+    return createInstrumentedBrokerAdapter(adapter, {
+      apiCallLogRepo: this.apiCallLogRepo,
+      brokerAccountId,
+      provider: brokerType,
+      interactionLogger,
+    });
+  }
+
   private buildAdapter(
     account: BrokerAccount,
     credsJson: string,
+    interactionLogger?: ReturnType<typeof createBrokerInteractionLogger>,
   ): BrokerAdapter {
     switch (account.brokerType) {
       case "alpaca": {
@@ -83,15 +133,19 @@ export class BrokerRegistry {
             "VALIDATION_FAILED",
           );
         }
-        return new AlpacaAdapter(parsed);
+        return new AlpacaAdapter(parsed, () => new Date(), interactionLogger);
       }
       case "coinbase_advanced_trade": {
         const parsed = JSON.parse(credsJson) as CoinbaseAdvancedCredentials;
-        return new CoinbaseAdvancedTradeAdapter(parsed, account.mode);
+        return new CoinbaseAdvancedTradeAdapter(
+          parsed,
+          account.mode,
+          interactionLogger,
+        );
       }
       case "tradovate": {
         const parsed = JSON.parse(credsJson) as TradovateCredentials;
-        return new TradovateAdapter(parsed, account.mode);
+        return new TradovateAdapter(parsed, account.mode, interactionLogger);
       }
       case "polymarket": {
         const parsed = JSON.parse(credsJson) as {
@@ -100,7 +154,7 @@ export class BrokerRegistry {
           host?: string;
           chainId?: number;
         };
-        return new PolymarketAdapter(parsed);
+        return new PolymarketAdapter(parsed, interactionLogger);
       }
       case "mock": {
         const kind = resolveMockScenarioKind(account);

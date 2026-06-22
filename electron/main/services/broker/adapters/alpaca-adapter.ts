@@ -8,6 +8,8 @@ import { getUsEquitySession } from "@electron/shared/instruments/us-equity-sessi
 import { AppError } from "@electron/shared/infra/errors";
 import { createHash } from "node:crypto";
 import { createLogger } from "../../infra/log";
+import type { BrokerInteractionLogger } from "../broker-interaction-logger";
+import { inferAlpacaHttpCallType } from "../broker-interaction-logger";
 import type {
   BrokerAdapter,
   BrokerOrder,
@@ -70,6 +72,7 @@ export class AlpacaAdapter implements BrokerAdapter {
   constructor(
     private readonly credentials: BrokerCredentials,
     private readonly now: () => Date = () => new Date(),
+    private readonly interactionLogger?: BrokerInteractionLogger,
   ) {
     this.baseUrl =
       credentials.mode === "paper"
@@ -566,6 +569,9 @@ export class AlpacaAdapter implements BrokerAdapter {
     init: RequestInit = {},
   ): Promise<T> {
     const method = init.method ?? "GET";
+    const httpEndpoint = `${method.toUpperCase()} ${path}`;
+    const callType = inferAlpacaHttpCallType(method, path.split("?")[0] ?? path);
+    const startedAt = Date.now();
     logger.debug({ method, baseUrl, path }, "alpaca request: sending");
 
     let response: Response;
@@ -580,6 +586,12 @@ export class AlpacaAdapter implements BrokerAdapter {
         },
       });
     } catch (err) {
+      this.interactionLogger?.log({
+        callType,
+        endpoint: httpEndpoint,
+        latencyMs: Date.now() - startedAt,
+        status: "error",
+      });
       logger.error(
         { err, method, baseUrl, path },
         "alpaca request: network error",
@@ -589,6 +601,12 @@ export class AlpacaAdapter implements BrokerAdapter {
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
+      this.interactionLogger?.log({
+        callType,
+        endpoint: httpEndpoint,
+        latencyMs: Date.now() - startedAt,
+        status: "error",
+      });
       const err = new AppError(
         `Alpaca request failed (${response.status}): ${text.slice(0, 200)}`,
         "BROKER_ERROR",
@@ -606,6 +624,13 @@ export class AlpacaAdapter implements BrokerAdapter {
       );
       throw err;
     }
+
+    this.interactionLogger?.log({
+      callType,
+      endpoint: httpEndpoint,
+      latencyMs: Date.now() - startedAt,
+      status: "ok",
+    });
 
     logger.debug(
       { method, path, status: response.status },

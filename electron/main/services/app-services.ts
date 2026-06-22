@@ -228,7 +228,11 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const signalDeadLettersRepo = new SignalDeadLettersRepo(db);
   const secrets = new SecretsService();
   await seedEnvBackedAccountSecrets(repos, secrets);
-  const brokerRegistry = new BrokerRegistry(repos.brokerAccounts, secrets);
+  const brokerRegistry = new BrokerRegistry(
+    repos.brokerAccounts,
+    secrets,
+    repos.apiCallLog,
+  );
   const instrumentNormalizer = new InstrumentNormalizer();
   const logger = createLogger("app-services");
   const brokerRouting = new BrokerRoutingService(

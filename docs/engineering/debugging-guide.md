@@ -121,6 +121,7 @@ EXVA_LOG_LEVEL=trace bun run dev
 2. Verify schema assumptions and mapper transformations (`snake_case` ↔ `camelCase`).
 3. Confirm transaction boundaries for multi-write flows.
 4. Validate persistence outcome by re-reading canonical row(s).
+5. If logs are inconclusive, query the runtime SQLite DB directly — see [Querying the SQLite Database](#querying-the-sqlite-database).
 
 ### 5) External Provider Layer (AI/Search/Broker)
 
@@ -128,6 +129,221 @@ EXVA_LOG_LEVEL=trace bun run dev
 2. Confirm adapter selected and request shape.
 3. Check latency, finish reason, and retry behavior.
 4. Distinguish provider failure vs local validation failure.
+
+## Querying the SQLite Database
+
+Use direct SQL when you need ground truth about persisted state — especially when logs and UI disagree, or when a cycle failed before surfacing a user-visible error.
+
+Schema source of truth: `electron/main/db/schema.ts`. Table and column names in SQLite are `snake_case`.
+
+### DB location
+
+The DB file is `exva.db`, created on boot by `electron/main/db/client.ts`:
+
+- Default path: `{userData}/exva.db` where `userData` is Electron `app.getPath("userData")`.
+- Override: set `EXVA_DB_PATH` before starting the app.
+
+On macOS during local dev, the file is usually under `~/Library/Application Support/exva/exva.db`. Packaged builds may use a different parent folder name; do not hardcode one path across machines.
+
+Find the active file:
+
+```bash
+find "$HOME/Library/Application Support" -name 'exva.db' 2>/dev/null
+```
+
+Set a shell variable for the recipes below:
+
+```bash
+export EXVA_DB="$HOME/Library/Application Support/exva/exva.db"
+# or: export EXVA_DB="/path/from/find/or/EXVA_DB_PATH"
+```
+
+### Safety rules
+
+- **Read-only by default.** Use `SELECT` queries. Do not `UPDATE`, `DELETE`, or `INSERT` against a live dev DB unless you are deliberately repairing state.
+- **WAL mode.** While the app is running, SQLite uses WAL (`exva.db-wal`, `exva.db-shm`). Reads still work; avoid copying or deleting the DB mid-session.
+- **No secrets in output.** `broker_accounts` and `provider_accounts` store `secret_ref` pointers to the OS keychain — not the secret values. Still avoid dumping `metadata_json`, `messages_json`, or other large payloads into chat logs unless you need them and they are safe to share.
+- **Prefer IDs from logs first.** Collect `sessionId`, `tradeId`, `cycleId`, or `approvalId` from pino/IPC logs, then query by those keys.
+
+### Debug workflow
+
+Follow this chain after you have at least one entity ID from logs or the UI:
+
+1. **Confirm the entity exists** — session/trade/approval row and its `status`.
+2. **Walk the cycle** — `session_execution_steps` and `decision_traces` for the same `cycle_id`.
+3. **Check side effects** — trades, `trade_approvals`, `capital_reservations`, signal delivery rows.
+4. **Correlate telemetry** — `events`, `agent_runs`, `api_call_log` for the same IDs and time window.
+5. **Compare to code path** — map the row state to the service/repository you traced in step 4 of the root-cause workflow.
+
+### Table map by symptom
+
+| Symptom | Start here | Then check |
+| --- | --- | --- |
+| Session won't start / stuck status | `sessions` | `session_execution_steps`, `session_broker_assignments`, `session_risk_config` |
+| Signal not reaching session | `signal_events` | `session_signal_deliveries`, `session_signal_sources` |
+| Trade not opened / rejected early | `decision_traces` | `session_execution_steps`, `trades`, `trade_approvals` |
+| Open trade wrong or missing exit | `trades` | `capital_reservations`, `events` |
+| AI cost / latency / wrong output | `agent_runs` | `agent_messages`, `api_call_log` |
+| Provider or broker call failed | `api_call_log` | `broker_accounts` (metadata only), `events` |
+| UI event log mismatch | `events` | matching `agent_runs` / `trades` for same `session_id` |
+
+### Query recipes
+
+List tables:
+
+```bash
+sqlite3 "$EXVA_DB" ".tables"
+```
+
+Schema for one table:
+
+```bash
+sqlite3 "$EXVA_DB" ".schema trades"
+```
+
+Row counts (quick health check):
+
+```bash
+sqlite3 -header -column "$EXVA_DB" "
+SELECT 'sessions' AS tbl, COUNT(*) AS n FROM sessions
+UNION ALL SELECT 'trades', COUNT(*) FROM trades
+UNION ALL SELECT 'agent_runs', COUNT(*) FROM agent_runs
+UNION ALL SELECT 'events', COUNT(*) FROM events;
+"
+```
+
+Sessions (find ID by name or list recent):
+
+```bash
+sqlite3 -header -column "$EXVA_DB" "
+SELECT id, name, status, execution_mode, experience_id, updated_at
+FROM sessions
+ORDER BY updated_at DESC
+LIMIT 20;
+"
+```
+
+Replace `<session-id>` in the queries below.
+
+Trades for a session:
+
+```bash
+sqlite3 -header -column "$EXVA_DB" "
+SELECT id, instrument_symbol, side, status, position_size_usd,
+       entry_price, exit_reason, opened_at, closed_at, created_at
+FROM trades
+WHERE session_id = '<session-id>'
+ORDER BY created_at DESC
+LIMIT 30;
+"
+```
+
+Execution steps for the latest cycle (or filter by `cycle_id` from logs):
+
+```bash
+sqlite3 -header -column "$EXVA_DB" "
+SELECT cycle_id, stage, status, outcome, last_error_code,
+       last_error_message, started_at, completed_at
+FROM session_execution_steps
+WHERE session_id = '<session-id>'
+ORDER BY created_at DESC
+LIMIT 40;
+"
+```
+
+Decision trace for a cycle (includes full JSON in `trace_json`):
+
+```bash
+sqlite3 -header -column "$EXVA_DB" "
+SELECT cycle_id, trade_id, instrument_symbol, created_at, length(trace_json) AS trace_bytes
+FROM decision_traces
+WHERE session_id = '<session-id>'
+ORDER BY created_at DESC
+LIMIT 10;
+"
+```
+
+Recent events for a session (mirrors much of what the Dev Panel shows):
+
+```bash
+sqlite3 -header -column "$EXVA_DB" "
+SELECT created_at, level, agent_type, message, trade_id, cycle_id
+FROM events
+WHERE session_id = '<session-id>'
+ORDER BY created_at DESC
+LIMIT 50;
+"
+```
+
+Agent runs for a trade or session:
+
+```bash
+sqlite3 -header -column "$EXVA_DB" "
+SELECT id, agent_type, model, finish_reason,
+       input_tokens, output_tokens, cost_usd, duration_ms, created_at
+FROM agent_runs
+WHERE session_id = '<session-id>'
+ORDER BY created_at DESC
+LIMIT 20;
+"
+```
+
+Signal pipeline (event → session delivery):
+
+```bash
+sqlite3 -header -column "$EXVA_DB" "
+SELECT se.id, se.ticker, se.dispatch_status, se.detected_at,
+       ssd.session_id, ssd.status, ssd.drop_reason, ssd.trade_id
+FROM signal_events se
+LEFT JOIN session_signal_deliveries ssd ON ssd.signal_event_id = se.id
+ORDER BY se.detected_at DESC
+LIMIT 20;
+"
+```
+
+Pending trade approvals:
+
+```bash
+sqlite3 -header -column "$EXVA_DB" "
+SELECT id, session_id, trade_id, instrument_symbol, proposed_side,
+       proposed_size_usd, status, requested_at
+FROM trade_approvals
+WHERE status = 'pending'
+ORDER BY requested_at DESC;
+"
+```
+
+Broker/provider accounts (metadata only — no keychain values):
+
+```bash
+sqlite3 -header -column "$EXVA_DB" "
+SELECT id, name, broker_type, mode, balance_cache_usd, balance_cached_at
+FROM broker_accounts;
+"
+
+sqlite3 -header -column "$EXVA_DB" "
+SELECT id, name, category, provider_type, is_configured, last_test_status
+FROM provider_accounts;
+"
+```
+
+Export one row as JSON (useful for nested `*_json` columns):
+
+```bash
+sqlite3 -json "$EXVA_DB" "
+SELECT * FROM trades WHERE id = '<trade-id>';
+"
+```
+
+### Wiping the DB during dev
+
+Only when you intentionally want a clean slate — stop the app first:
+
+```bash
+rm "$EXVA_DB" "${EXVA_DB}-wal" "${EXVA_DB}-shm" 2>/dev/null
+```
+
+Migrations and seed data run on next boot. See also `scripts/db-reset.ts`.
 
 ## High-Value Commands
 
@@ -206,6 +422,7 @@ Use this checklist verbatim for debugging tasks:
 
 ## References
 
+- SQLite schema and table definitions: `electron/main/db/schema.ts`
 - Electron process model and boundaries: https://www.electronjs.org/docs/latest/tutorial/process-model
 - Node inspector/debugger flags (`--inspect`, `--inspect-wait`, `--inspect-brk`): https://nodejs.org/api/debugger.html
 - Vitest debugging flags and single-file debugging: https://vitest.dev/guide/debugging

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { sessionCreateInputSchema } from "@electron/shared/validation/schemas";
 import type { AppServices } from "../app-services";
+import { runWithProviderCallScopeAsync } from "../infra/provider-call-log";
 import { defineCapability, type Capability } from "./capability";
 
 const CONFIRM_CLASS = {
@@ -363,9 +364,16 @@ const forceCloseTrade = defineCapability<{ tradeId: string }>({
     const trade = services.repos.trades.require(input.tradeId);
     let pnl = 0;
     if (trade.broker_order_id && trade.brokerAccountId) {
-      const result = await services.broker.closeOrder(
-        trade.brokerAccountId,
-        trade.broker_order_id,
+      const result = await runWithProviderCallScopeAsync(
+        {
+          sessionId: trade.sessionId ?? null,
+          tradeId: trade.id,
+        },
+        () =>
+          services.broker.closeOrder(
+            trade.brokerAccountId!,
+            trade.broker_order_id!,
+          ),
       );
       pnl = result.realizedPnlUsd;
     }

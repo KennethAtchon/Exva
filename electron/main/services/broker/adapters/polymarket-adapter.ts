@@ -1,6 +1,8 @@
 import type { ConnectionTestResult } from "@/lib/types";
 import { BROKER_SUPPORTED_INSTRUMENT_CLASSES } from "@electron/shared/domain/broker-capabilities";
 import { AppError } from "@electron/shared/infra/errors";
+import type { BrokerInteractionLogger } from "../broker-interaction-logger";
+import { traceBrokerInteraction } from "../broker-interaction-logger";
 import { createLogger } from "../../infra/log";
 import {
   AssetType,
@@ -55,7 +57,10 @@ export class PolymarketAdapter
 
   private authClientPromise: Promise<ClobClient> | null = null;
 
-  constructor(private readonly credentials: PolymarketCredentials) {}
+  constructor(
+    private readonly credentials: PolymarketCredentials,
+    private readonly interactionLogger?: BrokerInteractionLogger,
+  ) {}
 
   async testConnection(): Promise<ConnectionTestResult> {
     try {
@@ -140,20 +145,26 @@ export class PolymarketAdapter
         ? order.sizeUsd
         : Number((order.sizeUsd / Math.max(price, 0.01)).toFixed(6));
 
+    const tickSize = await this.resolveTickSize(client, metadata.outcomeTokenId);
+
     let response: unknown;
     try {
-      response = await client.createAndPostMarketOrder(
-        {
-          tokenID: metadata.outcomeTokenId,
-          side: order.side === "BUY" ? Side.BUY : Side.SELL,
-          amount,
-          price,
-          orderType: OrderType.FOK,
-        },
-        {
-          tickSize: await this.resolveTickSize(client, metadata.outcomeTokenId),
-        },
-        OrderType.FOK,
+      response = await traceBrokerInteraction(
+        this.interactionLogger,
+        "placeOrder_submit",
+        `${order.side}/${metadata.outcomeTokenId}/FOK/$${order.sizeUsd.toFixed(2)}`,
+        () =>
+          client.createAndPostMarketOrder(
+            {
+              tokenID: metadata.outcomeTokenId,
+              side: order.side === "BUY" ? Side.BUY : Side.SELL,
+              amount,
+              price,
+              orderType: OrderType.FOK,
+            },
+            { tickSize },
+            OrderType.FOK,
+          ),
       );
     } catch (err) {
       logger.error(
@@ -183,7 +194,12 @@ export class PolymarketAdapter
   async cancelOrder(brokerOrderId: string): Promise<void> {
     logger.info({ brokerOrderId }, "polymarket cancelOrder: cancelling order");
     const client = await this.getAuthedClient();
-    await client.cancelOrder({ orderID: brokerOrderId });
+    await traceBrokerInteraction(
+      this.interactionLogger,
+      "cancelOrder_submit",
+      brokerOrderId,
+      () => client.cancelOrder({ orderID: brokerOrderId }),
+    );
   }
 
   async getPositions(): Promise<BrokerPosition[]> {
@@ -205,18 +221,25 @@ export class PolymarketAdapter
     }
 
     const price = await this.resolveReferencePrice(client, order.asset_id);
+    const tickSize = await this.resolveTickSize(client, order.asset_id);
     let response: unknown;
     try {
-      response = await client.createAndPostMarketOrder(
-        {
-          tokenID: order.asset_id,
-          side: Side.SELL,
-          amount: matchedSize,
-          price,
-          orderType: OrderType.FOK,
-        },
-        { tickSize: await this.resolveTickSize(client, order.asset_id) },
-        OrderType.FOK,
+      response = await traceBrokerInteraction(
+        this.interactionLogger,
+        "closeOrder_submit",
+        `SELL/${order.asset_id}/${matchedSize}`,
+        () =>
+          client.createAndPostMarketOrder(
+            {
+              tokenID: order.asset_id,
+              side: Side.SELL,
+              amount: matchedSize,
+              price,
+              orderType: OrderType.FOK,
+            },
+            { tickSize },
+            OrderType.FOK,
+          ),
       );
     } catch (err) {
       logger.error(

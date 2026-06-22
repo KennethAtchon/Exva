@@ -4,6 +4,7 @@ import { AppError } from "@electron/shared/infra/errors";
 import ccxt from "ccxt";
 import type { Balances, Order } from "ccxt";
 import { createLogger } from "../../infra/log";
+import type { BrokerInteractionLogger } from "../broker-interaction-logger";
 import type {
   BrokerAdapter,
   BrokerOrder,
@@ -70,6 +71,7 @@ export class CoinbaseAdvancedTradeAdapter implements BrokerAdapter {
   constructor(
     private readonly credentials: CoinbaseAdvancedCredentials,
     readonly mode: "paper" | "live",
+    readonly _interactionLogger?: BrokerInteractionLogger,
   ) {}
 
   private getExchange(): InstanceType<typeof ccxt.coinbaseadvanced> {

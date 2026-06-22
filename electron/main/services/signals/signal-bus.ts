@@ -14,6 +14,7 @@ import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { BrokerRoutingService } from "../broker/broker-routing-service";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
+import { runWithProviderCallScopeAsync } from "../infra/provider-call-log";
 
 export interface DebugForceTradeResult {
   brokerType: string;
@@ -267,16 +268,18 @@ export class SignalBus {
     });
     const clientOrderId = `debug-force-${crypto.randomUUID()}`;
 
-    const result = await adapter.placeOrder({
-      instrumentSymbol: wireSymbol,
-      instrumentDisplayName: null,
-      predictionOutcome: null,
-      instrumentMetadataJson: null,
-      instrumentType: instrumentClass,
-      side: "BUY",
-      sizeUsd: DEBUG_FORCE_TRADE_SIZE_USD,
-      clientOrderId,
-    });
+    const result = await runWithProviderCallScopeAsync({ sessionId }, async () =>
+      adapter.placeOrder({
+        instrumentSymbol: wireSymbol,
+        instrumentDisplayName: null,
+        predictionOutcome: null,
+        instrumentMetadataJson: null,
+        instrumentType: instrumentClass,
+        side: "BUY",
+        sizeUsd: DEBUG_FORCE_TRADE_SIZE_USD,
+        clientOrderId,
+      }),
+    );
 
     return {
       brokerType: adapter.brokerType,

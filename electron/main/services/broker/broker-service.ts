@@ -1,6 +1,7 @@
 import type { BrokerCredentials, ConnectionTestResult } from "@/lib/types";
 import type { BrokerRegistry } from "./broker-registry";
 import type { CloseResult } from "./adapters/broker-adapter";
+import { runWithProviderCallScopeAsync } from "../infra/provider-call-log";
 
 /** Thin helper for IPC paths that close by broker account + order id. */
 export class BrokerService {
@@ -9,9 +10,16 @@ export class BrokerService {
   async closeOrder(
     brokerAccountId: string,
     brokerOrderId: string,
+    scope?: {
+      sessionId?: string | null;
+      tradeId?: string | null;
+      cycleId?: string | null;
+    },
   ): Promise<CloseResult> {
-    const adapter = await this.registry.get(brokerAccountId);
-    return adapter.closeOrder(brokerOrderId);
+    return runWithProviderCallScopeAsync(scope ?? {}, async () => {
+      const adapter = await this.registry.get(brokerAccountId);
+      return adapter.closeOrder(brokerOrderId);
+    });
   }
 
   /** @deprecated Legacy Alpaca-only flow — prefer broker registry IPC. */

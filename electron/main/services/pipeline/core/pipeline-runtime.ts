@@ -23,6 +23,7 @@ import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 import type { BrokerRegistry } from "../../broker/broker-registry";
 import { resolveSessionInstrumentClasses } from "../../session/effective-instrument-classes";
 import { resolveWorkerToolContext } from "../worker-tools/worker-tool-resolver";
+import { runWithProviderCallScopeAsync } from "../../infra/provider-call-log";
 import {
   isSandboxBudgetProfile,
   PAPER_MOCK_BUDGETS,
@@ -153,32 +154,40 @@ export class PipelineRuntime {
     });
     const session = this.deps.sessionRepo.requireById(opts.sessionId);
 
-    return this.cycleAnalysisDispatcher.run({
-      plan: plan as import("../analysis/types").InstrumentAnalysis<InstrumentAnalysisState>,
-      sessionId: opts.sessionId,
-      cycleId: opts.cycleId,
-      tradeId: opts.tradeId ?? null,
-      instrument: opts.instrument,
-      sessionConfig: opts.sessionConfig,
-      instrumentClasses: opts.instrumentClasses,
-      session,
-      strategyContext,
-      toolContext,
-      services: this.deps.cyclePlanServices,
-      seedState: opts.seedState,
-      runStep: opts.runStep,
-      lastStageId: opts.lastStageId,
-      runAIPhase: (phase, input) =>
-        this.runAIPhase({
-          phase,
-          pipelineId: cyclePlanId,
+    return runWithProviderCallScopeAsync(
+      {
+        sessionId: opts.sessionId,
+        cycleId: opts.cycleId,
+        tradeId: opts.tradeId ?? null,
+      },
+      () =>
+        this.cycleAnalysisDispatcher.run({
+          plan: plan as import("../analysis/types").InstrumentAnalysis<InstrumentAnalysisState>,
           sessionId: opts.sessionId,
-          input,
           cycleId: opts.cycleId,
           tradeId: opts.tradeId ?? null,
+          instrument: opts.instrument,
+          sessionConfig: opts.sessionConfig,
+          instrumentClasses: opts.instrumentClasses,
+          session,
+          strategyContext,
           toolContext,
+          services: this.deps.cyclePlanServices,
+          seedState: opts.seedState,
+          runStep: opts.runStep,
+          lastStageId: opts.lastStageId,
+          runAIPhase: (phase, input) =>
+            this.runAIPhase({
+              phase,
+              pipelineId: cyclePlanId,
+              sessionId: opts.sessionId,
+              input,
+              cycleId: opts.cycleId,
+              tradeId: opts.tradeId ?? null,
+              toolContext,
+            }),
         }),
-    });
+    );
   }
 
   async runPlan(
@@ -380,19 +389,27 @@ export class PipelineRuntime {
       canContinueWorkers: () => spendTracker.canContinue(),
     };
 
-    const result = await this.planInterpreter.run<TOutput>({
-      plan,
-      pipelineId: opts.pipelineId ?? DEFAULT_PIPELINE_ID,
-      sessionId: opts.sessionId,
-      cycleId: opts.cycleId ?? null,
-      tradeId: opts.tradeId ?? null,
-      input: opts.input ?? {},
-      session,
-      strategyContext,
-      toolContext,
-      services: this.deps.planServices,
-      runner,
-    });
+    const result = await runWithProviderCallScopeAsync(
+      {
+        sessionId: opts.sessionId,
+        cycleId: opts.cycleId ?? null,
+        tradeId: opts.tradeId ?? null,
+      },
+      () =>
+        this.planInterpreter.run<TOutput>({
+          plan,
+          pipelineId: opts.pipelineId ?? DEFAULT_PIPELINE_ID,
+          sessionId: opts.sessionId,
+          cycleId: opts.cycleId ?? null,
+          tradeId: opts.tradeId ?? null,
+          input: opts.input ?? {},
+          session,
+          strategyContext,
+          toolContext,
+          services: this.deps.planServices,
+          runner,
+        }),
+    );
     this.recordCycleSpend(cycleKey, spendTracker.phaseSpent);
     logger.info(
       {

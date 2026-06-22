@@ -10,6 +10,7 @@ import { resolveExecutionModeFilter } from "../../services/session/environment-s
 import { assertSessionInWorkspaceEnvironment } from "../environment-guards";
 import { decideApproval } from "./approvals";
 import { handle } from "../handle";
+import { runWithProviderCallScopeAsync } from "../../services/infra/provider-call-log";
 
 export function registerTradeHandlers(services: AppServices): void {
   handle(ipcMain, channels.trades.listActive, async (payload) => {
@@ -78,9 +79,16 @@ export function registerTradeHandlers(services: AppServices): void {
     }
     let pnl = 0;
     if (trade.broker_order_id && trade.brokerAccountId) {
-      const result = await services.broker.closeOrder(
-        trade.brokerAccountId,
-        trade.broker_order_id,
+      const result = await runWithProviderCallScopeAsync(
+        {
+          sessionId: trade.sessionId ?? null,
+          tradeId: trade.id,
+        },
+        () =>
+          services.broker.closeOrder(
+            trade.brokerAccountId!,
+            trade.broker_order_id!,
+          ),
       );
       pnl = result.realizedPnlUsd;
     }
