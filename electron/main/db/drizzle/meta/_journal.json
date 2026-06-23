@@ -22,6 +22,13 @@
       "when": 1781845663914,
       "tag": "0002_tired_mulholland_black",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1782201684920,
+      "tag": "0003_melted_master_mold",
+      "breakpoints": true
     }
   ]
 }

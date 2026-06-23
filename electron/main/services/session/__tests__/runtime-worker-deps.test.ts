@@ -31,6 +31,7 @@ const ORCHESTRATOR_DEP_KEYS: Array<keyof OrchestratorDeps> = [
   "instrumentNormalizer",
   "instrumentCacheRepo",
   "signalSourcesRepo",
+  "signalObservationsRepo",
   "ai",
   "riskEngine",
   "bus",

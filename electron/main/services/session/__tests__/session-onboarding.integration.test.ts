@@ -41,6 +41,7 @@ import { SessionWriteService } from "../write-service";
 import { SessionListingService } from "../listing-service";
 import { SessionTemplateService } from "../template-service";
 import { SignalSourcesRepo } from "../../signals/repos/signal-sources-repo";
+import { SignalObservationsRepo } from "../../../db/repositories/research/signal-observations-repo";
 
 describe("session onboarding integration", () => {
   let db: DbClient;
@@ -378,6 +379,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
   const startedSessions: string[] = [];
   const eventBus = new EventBus();
   const signalSourcesRepo = new SignalSourcesRepo(db);
+  const signalObservationsRepo = new SignalObservationsRepo(db);
   const strategyContextService = new SessionStrategyContextService({
     sessionRepo: sessions,
     researchPostureRepo: new SessionResearchPostureRepo(db),
@@ -468,6 +470,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     logger: createLogger("session-onboarding-test"),
     instrumentCacheRepo: new InstrumentCacheRepo(db),
     signalSourcesRepo: new SignalSourcesRepo(db),
+    signalObservationsRepo: new SignalObservationsRepo(db),
   };
 
   const runtimeManager = new SessionRuntimeManager({
@@ -514,6 +517,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     }),
     sessions,
     signalSourcesRepo,
+    signalObservationsRepo,
     sessionWrites: new SessionWriteService({
       sessions,
       events,

@@ -4,6 +4,8 @@ import type { BrokerRegistry } from "../broker/broker-registry";
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
 import type { PaperScorecardService } from "../analytics/paper-scorecard-service";
 import type { ExperienceScorecardService } from "../analytics/experience-scorecard-service";
+import type { ResearchExperimentService } from "../research/research-experiment-service";
+import { requireExperience } from "../../experiences/index";
 import { eq } from "drizzle-orm";
 import type { DbClient } from "../../db/client";
 import { sessions } from "../../db/schema";
@@ -23,6 +25,14 @@ export interface LiveReadinessReport {
   readyToStart: boolean;
 }
 
+function safeContract(experienceId: string) {
+  try {
+    return requireExperience(experienceId).researchContract;
+  } catch {
+    return null;
+  }
+}
+
 export class LiveReadinessService {
   constructor(
     private readonly client: DbClient,
@@ -32,6 +42,7 @@ export class LiveReadinessService {
     private readonly brokerRegistry: BrokerRegistry,
     private readonly paperScorecard?: PaperScorecardService,
     private readonly experienceScorecard?: ExperienceScorecardService,
+    private readonly researchExperiment?: ResearchExperimentService,
   ) {}
 
   async check(sessionId: string): Promise<LiveReadinessReport> {
@@ -159,6 +170,27 @@ export class LiveReadinessService {
       requiresAck: false,
       message: paperScorecardMessage,
     });
+
+    // Check 5b: statistical promotion (P7 / remediation #8). The experience
+    // must have cleared the statistical promotion gate to the "live" tier —
+    // not just the descriptive paper scorecard. Skipped when the research
+    // experiment loop is not wired (back-compat).
+    if (this.researchExperiment) {
+      const tier = this.researchExperiment.currentTier(session.experienceId);
+      const passed = tier === "live";
+      const contract = safeContract(session.experienceId);
+      checks.push({
+        name: "statistical_promotion",
+        passed,
+        requiresAck: false,
+        message: passed
+          ? undefined
+          : `Experience has not been statistically promoted to live (current tier: ${tier}).` +
+            (contract
+              ? ` Requires >= ${contract.validation.minOutOfSampleTrades} out-of-sample labeled opportunities with positive lower-bound expectancy.`
+              : ""),
+      });
+    }
 
     // Check 6: explicit user acknowledgement (requires all others to pass)
     const acknowledgedAt = this.getAcknowledgedAt(sessionId);

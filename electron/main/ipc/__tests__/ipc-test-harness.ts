@@ -42,6 +42,14 @@ import { TradeAutopsiesRepo } from "../../db/repositories/trades/trade-autopsies
 import { AutopsyLessonsRepo } from "../../db/repositories/trades/autopsy-lessons-repo";
 import { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import { DecisionTraceRepo } from "../../db/repositories/trades/decision-trace-repo";
+import { SignalObservationsRepo } from "../../db/repositories/research/signal-observations-repo";
+import { SignalLabelsRepo } from "../../db/repositories/research/signal-labels-repo";
+import {
+  BacktestRunsRepo,
+  ModelVersionsRepo,
+  PromotionDecisionsRepo,
+} from "../../db/repositories/research/experiment-repos";
+import { SignalObservationService } from "../../services/research/signal-observation-service";
 import { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
 import { ExperienceExperimentsRepo } from "../../db/repositories/experiences/experience-experiments-repo";
 import { MockBrokerAdapter } from "../../services/broker/adapters/mock-adapter";
@@ -100,6 +108,7 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
   const eventBus = new EventBus();
   const startedSessions: string[] = [];
   const signalSourcesRepo = new SignalSourcesRepo(db);
+  const signalObservationsRepo = new SignalObservationsRepo(db);
 
   const repos = {
     agentRuns: new AgentRunsRepo(db),
@@ -130,6 +139,11 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     autopsyLessons: new AutopsyLessonsRepo(db),
     trades: new TradesRepo(db),
     decisionTraces: new DecisionTraceRepo(db),
+    signalObservations: signalObservationsRepo,
+    signalLabels: new SignalLabelsRepo(db),
+    modelVersions: new ModelVersionsRepo(db),
+    backtestRuns: new BacktestRunsRepo(db),
+    promotionDecisions: new PromotionDecisionsRepo(db),
     workspacePreferences: new WorkspacePreferencesRepo(db),
     instrumentCache: new InstrumentCacheRepo(db),
     globalPresets: new GlobalPresetsRepo(db),
@@ -217,6 +231,7 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
       toBrokerSymbol: ({ symbol }: { symbol: string }) => symbol,
     } as never,
     decisionTracesRepo: repos.decisionTraces,
+    signalObservationsRepo,
     ai: {} as never,
     riskEngine: {} as never,
     bus: eventBus,
@@ -358,6 +373,9 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     experienceScorecard,
     experienceCapitalAllocator: {} as AppServices["experienceCapitalAllocator"],
     researchSummary,
+    signalObservation: new SignalObservationService(signalObservationsRepo),
+    labelBuilder: {} as AppServices["labelBuilder"],
+    researchExperiment: {} as AppServices["researchExperiment"],
     periodAutopsy: {} as AppServices["periodAutopsy"],
     liveReadiness: {
       check: async () => ({ readyToStart: true, checks: [] }),

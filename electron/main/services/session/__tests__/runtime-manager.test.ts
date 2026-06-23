@@ -31,6 +31,7 @@ import { createLogger } from "../../infra/log";
 import { SessionStrategyContextService } from "../session-strategy-context-service";
 import { SessionRuntimeManager } from "../session-runtime-manager";
 import { SignalSourcesRepo } from "../../signals/repos/signal-sources-repo";
+import { SignalObservationsRepo } from "../../../db/repositories/research/signal-observations-repo";
 import type { CapitalReservationService } from "../../risk/capital-reservation-service";
 
 describe("SessionRuntimeManager", () => {
@@ -188,6 +189,7 @@ function createManager(
     } as never,
     instrumentCacheRepo: new InstrumentCacheRepo(db),
     signalSourcesRepo: new SignalSourcesRepo(db),
+    signalObservationsRepo: new SignalObservationsRepo(db),
     ai: {} as never,
     riskEngine: {} as never,
     bus: eventBus,

@@ -94,6 +94,15 @@ export interface TradeDecisionTrace {
   riskGate?: RiskGateTrace;
   orderPolicy?: OrderPolicyTrace;
   brokerAllocation?: BrokerAllocationTrace;
+  /** Pre-trade edge estimate + execution-cost hurdle (P2/P4/P5). */
+  edgeEstimate?: import("./edge-estimate").EdgeEstimate;
+  executionCost?: import("./edge-estimate").ExecutionCostEstimate;
+  /** Capital-allocator recommendation for the order (P6). */
+  capitalAllocation?: {
+    recommendedSizeUsd: number;
+    fractionalKelly: number;
+    cappedBy: string;
+  };
 }
 
 /** Row shape persisted in the `decision_traces` table. */

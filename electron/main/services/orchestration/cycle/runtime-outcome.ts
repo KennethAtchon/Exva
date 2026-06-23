@@ -15,6 +15,7 @@ export type FailureHistoryReasonCategory =
   | "risk_gate"
   | "broker_allocation"
   | "broker_capability"
+  | "cost_gate"
   | "broker_reject"
   | "session_capacity"
   | "session_spend_limit"
@@ -57,6 +58,7 @@ const REASON_CATEGORIES: FailureHistoryReasonCategory[] = [
   "risk_gate",
   "broker_allocation",
   "broker_capability",
+  "cost_gate",
   "broker_reject",
   "session_capacity",
   "session_spend_limit",

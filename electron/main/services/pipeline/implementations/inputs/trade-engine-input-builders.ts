@@ -25,8 +25,113 @@ import {
   type BrokerType,
 } from "@electron/shared/domain/broker-capabilities";
 import type { TradeSide } from "@electron/shared/domain/enums";
+import type {
+  EdgeEstimate,
+  ExecutionCostEstimate,
+} from "@electron/shared/domain/edge-estimate";
+import { estimateExecutionCost } from "@electron/shared/quant/execution-cost-model";
+import { allocateCapital, kellyFractionBinary } from "@electron/shared/quant/kelly";
+import { requireExperience } from "../../../../experiences/index";
 
 const logger = createLogger("trade-engine-input-builders");
+
+/**
+ * Pre-trade edge + execution-cost + capital-allocation analytics (P4/P5/P6).
+ * Derives a proxy edge from the decision's confidence and take-profit/stop
+ * (reward:risk), charges the experience's contract costs, and sizes via
+ * fractional Kelly with caps. Returned for persistence and gating.
+ */
+function computePreTradeEconomics(input: {
+  experienceId: string;
+  instrumentClass: InstrumentClass;
+  side: TradeSide;
+  confidence: number;
+  takeProfitPct: number | null;
+  stopLossPct: number | null;
+  sizeUsd: number;
+  maxPositionUsd: number;
+  maxExposureUsd: number | null;
+  currentExposureUsd: number;
+  kellyFraction: number;
+}): {
+  edge: EdgeEstimate;
+  cost: ExecutionCostEstimate;
+  allocation: ReturnType<typeof allocateCapital>;
+  expectedNetReturnBps: number;
+} {
+  const contract = (() => {
+    try {
+      return requireExperience(input.experienceId).researchContract;
+    } catch {
+      return null;
+    }
+  })();
+  const costs = contract?.costs ?? {
+    spreadBps: 0,
+    slippageBps: 0,
+    commissionBps: 0,
+  };
+
+  const tpBps = (input.takeProfitPct ?? 0) * 100;
+  const slBps = (input.stopLossPct ?? 0) * 100;
+  const confidence = Math.max(0, Math.min(1, input.confidence));
+  const expectedGrossReturnBps = confidence * tpBps - (1 - confidence) * slBps;
+
+  const cost = estimateExecutionCost({
+    instrumentClass: input.instrumentClass,
+    side: input.side,
+    orderSizeUsd: input.sizeUsd,
+    contractSpreadBps: costs.spreadBps,
+    contractSlippageBps: costs.slippageBps,
+    contractCommissionBps: costs.commissionBps,
+    contractBorrowBps: costs.borrowBps,
+  });
+  const expectedCostBps =
+    cost.expectedSpreadBps +
+    cost.expectedSlippageBps +
+    cost.expectedFeeBps +
+    cost.expectedBorrowBps;
+  const expectedNetReturnBps = expectedGrossReturnBps - expectedCostBps;
+
+  const netOdds = slBps > 0 ? tpBps / slBps : 0;
+  const rawKelly = kellyFractionBinary(confidence, netOdds);
+  const bankroll =
+    input.maxExposureUsd ?? Math.max(input.maxPositionUsd * 20, input.sizeUsd);
+  const correlatedExposurePct =
+    input.maxExposureUsd && input.maxExposureUsd > 0
+      ? Math.min(1, input.currentExposureUsd / input.maxExposureUsd)
+      : 0;
+  const allocation = allocateCapital({
+    bankrollUsd: bankroll,
+    riskBudgetPct: 1,
+    rawKellyFraction: rawKelly,
+    // riskConfig.kellyFraction is already fractional (<1); never full Kelly.
+    kellyMultiplier: Math.min(input.kellyFraction, 0.5),
+    sampleSize: 1,
+    requiredSampleSize: 1,
+    correlatedExposurePct,
+    maxPositionUsd: input.maxPositionUsd,
+    maxExposureRemainingUsd: input.maxExposureUsd
+      ? Math.max(0, input.maxExposureUsd - input.currentExposureUsd)
+      : input.maxPositionUsd,
+  });
+
+  const edge: EdgeEstimate = {
+    modelId: `rules:${input.experienceId}`,
+    modelVersion: "proxy-1",
+    asOf: new Date().toISOString(),
+    targetHorizon: contract?.label.horizon ?? "1d",
+    predictedProbability: confidence,
+    expectedGrossReturnBps,
+    expectedCostBps,
+    expectedNetReturnBps,
+    uncertaintyBps: slBps,
+    calibrationBucket: null,
+    sampleSize: 1,
+  };
+
+  return { edge, cost, allocation, expectedNetReturnBps };
+}
 
 /**
  * Write-through a decision-trace fragment for the current cycle. Called from
@@ -228,8 +333,10 @@ export const riskGateInputBuilder: EngineInputBuilder = {
     const openExposureByGroupUsd: Partial<
       Record<ReturnType<typeof resolveAssetGroup>, number>
     > = {};
+    let currentExposureUsd = 0;
     for (const t of openTrades) {
       if (t.status !== "open") continue;
+      currentExposureUsd += t.position_size_usd;
       const group = resolveAssetGroup(
         t.instrumentType as InstrumentClass,
         t.instrumentSymbol,
@@ -244,6 +351,44 @@ export const riskGateInputBuilder: EngineInputBuilder = {
     const maxSameGroupExposureUsd =
       ctx.strategyContext.riskConfig.maxPositionUsd * 3;
 
+    // P4/P5/P6: compute pre-trade edge, cost hurdle, and capital-allocator
+    // size. Persist to the decision trace (observability), cap the order to the
+    // allocator recommendation, and skip negative-expectancy trades.
+    const economics = computePreTradeEconomics({
+      experienceId: sessionRow.experienceId,
+      instrumentClass: ctx.instrument.instrumentClass,
+      side,
+      confidence: decision.output.confidence,
+      takeProfitPct: executionProfile.takeProfitPct,
+      stopLossPct: executionProfile.stopLossPct,
+      sizeUsd: scaledSizeUsd,
+      maxPositionUsd: ctx.strategyContext.riskConfig.maxPositionUsd,
+      maxExposureUsd: ctx.strategyContext.riskConfig.maxExposureUsd ?? null,
+      currentExposureUsd,
+      kellyFraction: ctx.strategyContext.riskConfig.kellyFraction,
+    });
+    persistTraceFragment(ctx, {
+      edgeEstimate: economics.edge,
+      executionCost: economics.cost,
+      capitalAllocation: {
+        recommendedSizeUsd: economics.allocation.sizeUsd,
+        fractionalKelly: economics.allocation.fractionalKelly,
+        cappedBy: economics.allocation.cappedBy,
+      },
+    });
+    if (economics.expectedNetReturnBps < 0) {
+      throw createOutcomeError(
+        `Edge does not survive execution cost: expected net ${economics.expectedNetReturnBps.toFixed(1)}bps for ${ctx.instrument.symbol}`,
+        "VALIDATION_FAILED",
+        { outcome: "no_trade", reasonCategory: "cost_gate" },
+      );
+    }
+    // Cap to the allocator recommendation when it is positive and smaller.
+    const allocatorSizeUsd =
+      economics.allocation.sizeUsd > 0
+        ? Math.min(scaledSizeUsd, economics.allocation.sizeUsd)
+        : scaledSizeUsd;
+
     return {
       task: {
         config: ctx.sessionConfig,
@@ -256,7 +401,7 @@ export const riskGateInputBuilder: EngineInputBuilder = {
           instrumentMetadataJson: ctx.instrument.instrumentMetadataJson ?? null,
           instrumentType: ctx.instrument.instrumentClass,
           side: executionProfile.side,
-          sizeUsd: scaledSizeUsd,
+          sizeUsd: allocatorSizeUsd,
         },
         confidence: decision.output.confidence,
         quoteSnapshot: state.quoteSnapshot,

@@ -55,6 +55,19 @@ export function validateExperienceRegistry(): void {
       );
     }
 
+    // P0: every experience must declare a falsifiable research contract.
+    const contract = experience.researchContract;
+    if (!contract || !contract.hypothesis.trim()) {
+      throw new Error(
+        `Experience '${experience.id}' must declare a researchContract with a hypothesis.`,
+      );
+    }
+    if (contract.validation.requiredFolds < 1) {
+      throw new Error(
+        `Experience '${experience.id}' researchContract.validation.requiredFolds must be >= 1.`,
+      );
+    }
+
     // I1: every signal.sourceType ∈ pipeline.signalSources
     for (const signal of experience.signals) {
       if (!pipeline.signalSources.includes(signal.sourceType)) {

@@ -38,6 +38,7 @@ import type { RiskEngine } from "../risk/risk-engine";
 import type { SessionStrategyContextService } from "./session-strategy-context-service";
 import type { SignalDeliveriesRepo } from "../signals/repos/signal-deliveries-repo";
 import type { SignalSourcesRepo } from "../signals/repos/signal-sources-repo";
+import type { SignalObservationsRepo } from "../../db/repositories/research/signal-observations-repo";
 
 export interface SessionOrchestrator {
   start(): Promise<void>;
@@ -97,6 +98,7 @@ export interface OrchestratorDeps {
   signalDeliveriesRepo?: SignalDeliveriesRepo;
   signalDeliveryLifecycle?: import("../signals/signal-delivery-lifecycle").SignalDeliveryLifecycle;
   signalSourcesRepo: SignalSourcesRepo;
+  signalObservationsRepo: SignalObservationsRepo;
 }
 
 /** Per-check failure (preflight runner adds `check` name). */

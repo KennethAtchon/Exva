@@ -16,6 +16,7 @@ import {
   runTradePipeline,
 } from "./run-trade-pipeline";
 import { completeSignalDeliveryFromContext } from "../../../signals/complete-signal-delivery";
+import { captureSignalObservation } from "./observation-capture";
 import { runWithProviderCallScopeAsync } from "../../../infra/provider-call-log";
 
 function tradeCycleRetry(
@@ -104,6 +105,16 @@ export async function executeTradeCycle(
           ctx,
           context,
           pipeline.result,
+        );
+
+        // P1/P3: capture every evaluation as a point-in-time observation,
+        // including skips — the dataset spine for label-driven research.
+        captureSignalObservation(
+          ctx,
+          context,
+          decision,
+          latestQuote?.price ?? null,
+          latestQuote?.timestamp ?? new Date().toISOString(),
         );
 
         if (decision.output.action === "skip") {

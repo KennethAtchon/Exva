@@ -40,6 +40,19 @@ import { TradeAutopsiesRepo } from "../db/repositories/trades/trade-autopsies-re
 import { AutopsyLessonsRepo } from "../db/repositories/trades/autopsy-lessons-repo";
 import { TradesRepo } from "../db/repositories/trades/trades-repo";
 import { DecisionTraceRepo } from "../db/repositories/trades/decision-trace-repo";
+import { SignalObservationsRepo } from "../db/repositories/research/signal-observations-repo";
+import { SignalLabelsRepo } from "../db/repositories/research/signal-labels-repo";
+import {
+  BacktestRunsRepo,
+  ModelVersionsRepo,
+  PromotionDecisionsRepo,
+} from "../db/repositories/research/experiment-repos";
+import { SignalObservationService } from "./research/signal-observation-service";
+import { LabelBuilderService } from "./research/label-builder-service";
+import { LabelBuilderTicker } from "./research/label-builder-ticker";
+import { createBrokerForwardReturnResolver } from "./research/forward-return-resolver";
+import { DriftMonitorTicker } from "./research/drift-monitor-ticker";
+import { ResearchExperimentService } from "./research/research-experiment-service";
 import { WorkspacePreferencesRepo } from "../db/repositories/workspace/workspace-prefs-repo";
 import { LLMRuntime } from "./llm/index";
 import {
@@ -140,6 +153,11 @@ export interface AppServices {
     autopsyLessons: AutopsyLessonsRepo;
     trades: TradesRepo;
     decisionTraces: DecisionTraceRepo;
+    signalObservations: SignalObservationsRepo;
+    signalLabels: SignalLabelsRepo;
+    modelVersions: ModelVersionsRepo;
+    backtestRuns: BacktestRunsRepo;
+    promotionDecisions: PromotionDecisionsRepo;
     workspacePreferences: WorkspacePreferencesRepo;
     instrumentCache: InstrumentCacheRepo;
     globalPresets: GlobalPresetsRepo;
@@ -173,6 +191,9 @@ export interface AppServices {
   experienceScorecard: ExperienceScorecardService;
   experienceCapitalAllocator: ExperienceCapitalAllocator;
   researchSummary: ResearchSummaryService;
+  signalObservation: SignalObservationService;
+  labelBuilder: LabelBuilderService;
+  researchExperiment: ResearchExperimentService;
   periodAutopsy: PeriodAutopsyService;
   liveReadiness: LiveReadinessService;
   tradeAutopsy: TradeAutopsyService;
@@ -214,6 +235,11 @@ export async function createAppServices(app: App): Promise<AppServices> {
     autopsyLessons: new AutopsyLessonsRepo(db),
     trades: new TradesRepo(db),
     decisionTraces: new DecisionTraceRepo(db),
+    signalObservations: new SignalObservationsRepo(db),
+    signalLabels: new SignalLabelsRepo(db),
+    modelVersions: new ModelVersionsRepo(db),
+    backtestRuns: new BacktestRunsRepo(db),
+    promotionDecisions: new PromotionDecisionsRepo(db),
     workspacePreferences: new WorkspacePreferencesRepo(db),
     instrumentCache: new InstrumentCacheRepo(db),
     globalPresets: new GlobalPresetsRepo(db),
@@ -373,6 +399,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     bus: eventBus,
     logger,
     instrumentCacheRepo: repos.instrumentCache,
+    signalObservationsRepo: repos.signalObservations,
     signalDeliveriesRepo,
     signalDeliveryLifecycle,
     signalSourcesRepo,
@@ -441,6 +468,39 @@ export async function createAppServices(app: App): Promise<AppServices> {
   );
   const researchSummary = new ResearchSummaryService(experienceScorecard);
 
+  const signalObservation = new SignalObservationService(
+    repos.signalObservations,
+  );
+  const labelBuilder = new LabelBuilderService({
+    observations: repos.signalObservations,
+    labels: repos.signalLabels,
+    logger,
+  });
+  const labelBuilderTicker = new LabelBuilderTicker(
+    labelBuilder,
+    createBrokerForwardReturnResolver({
+      brokerRouting,
+      instrumentNormalizer,
+      logger,
+    }),
+    logger,
+  );
+  labelBuilderTicker.start();
+  const researchExperiment = new ResearchExperimentService({
+    observations: repos.signalObservations,
+    labels: repos.signalLabels,
+    modelVersions: repos.modelVersions,
+    backtestRuns: repos.backtestRuns,
+    promotionDecisions: repos.promotionDecisions,
+  });
+  const driftMonitorTicker = new DriftMonitorTicker(
+    researchExperiment,
+    repos.session,
+    repos.events,
+    logger,
+  );
+  driftMonitorTicker.start();
+
   ai.setExperienceCapitalAllocator(experienceCapitalAllocator);
 
   const liveReadiness = new LiveReadinessService(
@@ -451,6 +511,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerRegistry,
     paperScorecard,
     experienceScorecard,
+    researchExperiment,
   );
 
   const session = new SessionService({
@@ -605,6 +666,9 @@ export async function createAppServices(app: App): Promise<AppServices> {
     experienceScorecard,
     experienceCapitalAllocator,
     researchSummary,
+    signalObservation,
+    labelBuilder,
+    researchExperiment,
     periodAutopsy,
     liveReadiness,
     tradeAutopsy,

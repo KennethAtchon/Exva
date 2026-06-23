@@ -50,6 +50,7 @@ export function createWorkerOrchestratorDeps(
     instrumentNormalizer: createDepProxy(rpc, "instrumentNormalizer"),
     instrumentCacheRepo: createDepProxy(rpc, "instrumentCacheRepo"),
     signalSourcesRepo: createDepProxy(rpc, "signalSourcesRepo"),
+    signalObservationsRepo: createDepProxy(rpc, "signalObservationsRepo"),
     ai: createDepProxy(rpc, "ai"),
     riskEngine: createDepProxy(rpc, "riskEngine"),
     bus: bus as unknown as OrchestratorDeps["bus"],

@@ -940,6 +940,148 @@ export const researchSummaries = sqliteTable(
   }),
 );
 
+/**
+ * Point-in-time record of every signal evaluation — traded AND skipped (P1/P3).
+ * Skipped opportunities MUST be recorded: the model is only proven selective by
+ * comparing traded setups against skipped ones.
+ */
+export const signalObservations = sqliteTable(
+  "signal_observations",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id").references(() => sessions.id, {
+      onDelete: "set null",
+    }),
+    experienceId: text("experience_id").notNull(),
+    signalId: text("signal_id").notNull(),
+    cycleId: text("cycle_id"),
+    instrumentSymbol: text("instrument_symbol").notNull(),
+    instrumentClass: text("instrument_class").notNull(),
+    /** buy | sell | skip — the action the engine actually took. */
+    action: text("action").notNull(),
+    eventTime: text("event_time").notNull(),
+    observedAt: text("observed_at").notNull(),
+    sourceUri: text("source_uri"),
+    featureJson: text("feature_json").notNull().default("{}"),
+    /** Decision + EdgeEstimate snapshot at observation time. */
+    decisionJson: text("decision_json"),
+    modelVersion: text("model_version"),
+    /** Denormalized from the research contract for the label builder. */
+    labelHorizon: text("label_horizon").notNull(),
+    labelBenchmark: text("label_benchmark").notNull(),
+    /** Reference entry price for forward-return labeling. */
+    referencePrice: real("reference_price"),
+    /** When the label can be computed; null for resolution-horizon events. */
+    labelReadyAt: text("label_ready_at"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => ({
+    experienceIdx: index("idx_signal_observations_experience").on(
+      table.experienceId,
+      table.eventTime,
+    ),
+    sessionIdx: index("idx_signal_observations_session").on(table.sessionId),
+    labelReadyIdx: index("idx_signal_observations_label_ready").on(
+      table.labelReadyAt,
+    ),
+  }),
+);
+
+/** Forward-return labels for observations, computed after the horizon passes. */
+export const signalLabels = sqliteTable(
+  "signal_labels",
+  {
+    observationId: text("observation_id")
+      .notNull()
+      .references(() => signalObservations.id, { onDelete: "cascade" }),
+    horizon: text("horizon").notNull(),
+    benchmark: text("benchmark").notNull(),
+    grossReturnBps: real("gross_return_bps"),
+    costBps: real("cost_bps"),
+    netReturnBps: real("net_return_bps"),
+    benchmarkReturnBps: real("benchmark_return_bps"),
+    maxFavorableBps: real("max_favorable_bps"),
+    maxAdverseBps: real("max_adverse_bps"),
+    /** Binary win label for probability-forecast experiences (0/1), nullable. */
+    outcomeWin: integer("outcome_win"),
+    labelReadyAt: text("label_ready_at").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({
+      columns: [table.observationId, table.horizon, table.benchmark],
+    }),
+  }),
+);
+
+/** Versioned model artifacts for an experience (P7). */
+export const modelVersions = sqliteTable(
+  "model_versions",
+  {
+    id: text("id").primaryKey(),
+    experienceId: text("experience_id").notNull(),
+    modelKind: text("model_kind").notNull(),
+    featureSchemaJson: text("feature_schema_json").notNull(),
+    trainingWindowStart: text("training_window_start").notNull(),
+    trainingWindowEnd: text("training_window_end").notNull(),
+    calibrationJson: text("calibration_json").notNull().default("{}"),
+    artifactUri: text("artifact_uri"),
+    checksum: text("checksum"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => ({
+    experienceIdx: index("idx_model_versions_experience").on(
+      table.experienceId,
+      table.createdAt,
+    ),
+  }),
+);
+
+/** Locked backtest runs over a contract + model version (P7). */
+export const backtestRuns = sqliteTable(
+  "backtest_runs",
+  {
+    id: text("id").primaryKey(),
+    experienceId: text("experience_id").notNull(),
+    modelVersionId: text("model_version_id"),
+    contractHash: text("contract_hash").notNull(),
+    windowStart: text("window_start").notNull(),
+    windowEnd: text("window_end").notNull(),
+    foldConfigJson: text("fold_config_json").notNull(),
+    costModelJson: text("cost_model_json").notNull(),
+    metricsJson: text("metrics_json").notNull(),
+    verdict: text("verdict").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => ({
+    experienceIdx: index("idx_backtest_runs_experience").on(
+      table.experienceId,
+      table.createdAt,
+    ),
+  }),
+);
+
+/** Promotion decisions between tiers, with the evidence behind them (P7). */
+export const promotionDecisions = sqliteTable(
+  "promotion_decisions",
+  {
+    id: text("id").primaryKey(),
+    experienceId: text("experience_id").notNull(),
+    modelVersionId: text("model_version_id"),
+    fromTier: text("from_tier").notNull(),
+    toTier: text("to_tier").notNull(),
+    decision: text("decision").notNull(),
+    evidenceJson: text("evidence_json").notNull(),
+    decidedAt: text("decided_at").notNull(),
+  },
+  (table) => ({
+    experienceIdx: index("idx_promotion_decisions_experience").on(
+      table.experienceId,
+      table.decidedAt,
+    ),
+  }),
+);
+
 export const controlConversations = sqliteTable(
   "control_conversations",
   {
