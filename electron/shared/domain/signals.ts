@@ -68,9 +68,9 @@ export interface SignalSourceRecord {
   experienceId?: string | null;
   /** Instrument class this source produces; null for self-describing sources. */
   instrumentClass?: string | null;
-  /** Timer poll gap (e.g. "15m"); null for event-driven sources. */
+  /** Timer poll gap (e.g. "15m"); how often the source re-evaluates — not the bar timeframe traded on. */
   pollCadence?: string | null;
-  /** Strategy horizon that seeds session_timeframe_config; null for non-timer sources. */
+  /** Bar timeframe the strategy trades on; drives OHLCV fetches for rules engines. */
   analysisTimeframe?: string | null;
   /** Denormalized from the owning experience's pipelineId. */
   pipelineId?: string | null;

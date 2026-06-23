@@ -25,8 +25,9 @@ export function TimerSignalPage() {
         Both <DocInlineCode>symbol</DocInlineCode> and{" "}
         <DocInlineCode>cadence</DocInlineCode> are required — the source throws
         on construction if either is missing. Experience-owned timer sources
-        also carry <DocInlineCode>analysisTimeframe</DocInlineCode> for the OHLCV
-        bar size the rules engine uses (distinct from how often the timer fires).
+        also carry <DocInlineCode>analysisTimeframe</DocInlineCode> for the bar
+        size the strategy trades on — independent of how often the timer
+        polls.
       </DocParagraph>
       <DocTable
         headers={["Field", "Required", "Notes"]}
@@ -39,12 +40,12 @@ export function TimerSignalPage() {
           [
             <DocInlineCode key="f">cadence</DocInlineCode>,
             "Yes",
-            "Poll/trade cadence label, e.g. 15m, 1h, 4h. Drives the default interval.",
+            "Poll cadence label, e.g. 15m, 30m, 1h. How often the source re-evaluates — not necessarily the bar timeframe traded on.",
           ],
           [
             <DocInlineCode key="f">analysisTimeframe</DocInlineCode>,
             "No",
-            "OHLCV bar size for rules engines, e.g. 1h or 4h. May differ from cadence.",
+            "Bar timeframe the strategy trades on, e.g. 15m or 1h. Can differ from cadence.",
           ],
           [
             <DocInlineCode key="f">intervalMs</DocInlineCode>,
@@ -72,13 +73,12 @@ export function TimerSignalPage() {
       <DocList
         items={[
           <>
-            <DocStrong>cadence</DocStrong> /{" "}
-            <DocStrong>pollCadence</DocStrong> — when the timer fires a trade
-            check.
+            <DocStrong>pollCadence</DocStrong> — how often the timer re-evaluates
+            for a setup.
           </>,
           <>
-            <DocStrong>analysisTimeframe</DocStrong> — OHLCV bar size passed
-            through to rules engines (when configured).
+            <DocStrong>analysisTimeframe</DocStrong> — bar timeframe the strategy
+            trades on (passed to rules engines for OHLCV).
           </>,
           <>
             <DocStrong>instrumentClass</DocStrong> — from config (default{" "}

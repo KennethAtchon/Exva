@@ -105,7 +105,7 @@ describe("mock trade rehearsal integration", () => {
 
     const trades = harness.listTrades();
     expect(trades).toHaveLength(1);
-    expect(trades[0]?.status).toBe("rejected");
+    expect(trades[0]?.status).toBe("no_trade");
     expect(trades[0]?.opened_at).toBeNull();
 
     const failures = ctx.getFailureHistory();

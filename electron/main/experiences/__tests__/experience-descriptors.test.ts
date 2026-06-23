@@ -234,12 +234,12 @@ describe("pipeline automation invariant (I2)", () => {
 });
 
 describe("signalDisplayName format", () => {
-  it("includes trade cadence and OHLCV timeframe distinctly", () => {
+  it("includes poll cadence and trading timeframe distinctly", () => {
     const spy = RULES_MEAN_REVERSION_EXPERIENCE.signals[0];
     if (!spy) throw new Error("Expected at least one signal");
     const name = signalDisplayName(spy);
-    expect(name).toContain("checks every 15m");
-    expect(name).toContain("OHLCV 1h");
+    expect(name).toContain("polls every 15m");
+    expect(name).toContain("trades on 1h bars");
     expect(spy.pollCadence).not.toBe(spy.defaultAnalysisTimeframe);
   });
 });

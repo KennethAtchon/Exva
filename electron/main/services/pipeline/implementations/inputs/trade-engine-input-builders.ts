@@ -19,6 +19,14 @@ import type {
 } from "../../execution/input-builder-registry";
 import { createOutcomeError } from "../../../orchestration/cycle/runtime-outcome";
 import { classifyRiskGateRejection } from "../../../orchestration/policy/outcome-classifier";
+import { createLogger } from "../../../infra/log";
+import {
+  brokerSupportsOrder,
+  type BrokerType,
+} from "@electron/shared/domain/broker-capabilities";
+import type { TradeSide } from "@electron/shared/domain/enums";
+
+const logger = createLogger("trade-engine-input-builders");
 
 /**
  * Write-through a decision-trace fragment for the current cycle. Called from
@@ -39,8 +47,8 @@ function persistTraceFragment(
       },
       fragment,
     );
-  } catch {
-    // Trace persistence is observability-only; never block the trade pipeline.
+  } catch (err) {
+    logger.warn({ err, cycleId: ctx.cycleId }, "decision trace persist failed (non-blocking)");
   }
 }
 
@@ -169,12 +177,31 @@ const executionProfileInputBuilder: EngineInputBuilder = {
 
 export const riskGateInputBuilder: EngineInputBuilder = {
   id: "risk-gate",
-  build({ planCtx: ctx, state }) {
+  async build({ planCtx: ctx, state }) {
     const decision = state.decision;
     const executionProfile = state.executionProfile;
     if (!decision || !executionProfile) {
       throw new Error(
         "risk-gate input builder requires decision and executionProfile in state",
+      );
+    }
+
+    const { adapter } = await ctx.services.brokerRouting.resolveAdapter(
+      ctx.sessionId,
+      ctx.instrument.instrumentClass,
+    );
+    const side = executionProfile.side as TradeSide;
+    if (
+      !brokerSupportsOrder(
+        adapter.brokerType as BrokerType,
+        ctx.instrument.instrumentClass,
+        side,
+      )
+    ) {
+      throw createOutcomeError(
+        `Broker ${adapter.brokerType} does not support ${side} orders for ${ctx.instrument.instrumentClass} (${ctx.instrument.symbol})`,
+        "VALIDATION_FAILED",
+        { outcome: "no_trade", reasonCategory: "broker_capability" },
       );
     }
 

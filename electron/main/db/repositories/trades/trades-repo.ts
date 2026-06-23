@@ -230,7 +230,7 @@ export class TradesRepo {
       .set({
         status,
         closedAt:
-          status === "closed" || status === "rejected"
+          status === "closed" || status === "rejected" || status === "no_trade"
             ? now
             : current.closed_at,
         finalPnlUsd: finalPnlUsd ?? current.final_pnl_usd,

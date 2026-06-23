@@ -180,7 +180,8 @@ export type TradeStatus =
   | "closed"
   | "cancelled"
   | "failed"
-  | "rejected";
+  | "rejected"
+  | "no_trade";
 export type TradeSide = "BUY" | "SELL";
 export type PredictionOutcome = "YES" | "NO";
 

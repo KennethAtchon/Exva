@@ -12,8 +12,10 @@ export interface SignalInstrumentMetadata {
 }
 
 export interface SignalTimingSummary {
-  tradeCadence: string;
-  ohlcvTimeframe: string;
+  /** How often the source polls or re-evaluates for a setup. */
+  pollLabel: string;
+  /** Bar timeframe the strategy trades on (OHLCV bar size). */
+  tradingTimeframeLabel: string;
 }
 
 export function parseSignalInstrumentMetadata(
@@ -72,6 +74,20 @@ function sourceTypeSymbol(
   }
 }
 
+function formatTradingTimeframeLabel(
+  sourceType: SignalSourceType,
+  analysisTimeframe: TradingTimeframe | string | null,
+): string {
+  if (sourceType === "prediction_event") {
+    return analysisTimeframe
+      ? `${analysisTimeframe} context (odds, not OHLCV)`
+      : "event odds (no OHLCV bars)";
+  }
+  return analysisTimeframe
+    ? `trades on ${analysisTimeframe} bars`
+    : "trades on session default bars";
+}
+
 export function summarizeSignalTiming(input: {
   sourceType: SignalSourceType;
   pollCadence?: string | null;
@@ -81,63 +97,48 @@ export function summarizeSignalTiming(input: {
   const pollCadence = input.pollCadence ?? null;
   const analysisTimeframe =
     input.analysisTimeframe ?? input.defaultAnalysisTimeframe ?? null;
+  const tradingTimeframeLabel = formatTradingTimeframeLabel(
+    input.sourceType,
+    analysisTimeframe,
+  );
 
   switch (input.sourceType) {
     case "timer":
       return {
-        tradeCadence: pollCadence
-          ? `checks every ${pollCadence}`
-          : "timer-driven",
-        ohlcvTimeframe: analysisTimeframe
-          ? `OHLCV ${analysisTimeframe}`
-          : "OHLCV session default",
+        pollLabel: pollCadence ? `polls every ${pollCadence}` : "timer-driven",
+        tradingTimeframeLabel,
       };
     case "edgar_8k":
       return {
-        tradeCadence:
-          "on 8-K filing (polls ~5m market / ~30m off-hours)",
-        ohlcvTimeframe: analysisTimeframe
-          ? `OHLCV ${analysisTimeframe}`
-          : "OHLCV 1d",
+        pollLabel: "on 8-K filing (~5m market / ~30m off-hours poll)",
+        tradingTimeframeLabel,
       };
     case "prediction_event":
       return {
-        tradeCadence: pollCadence
-          ? `on dislocation (checks every ${pollCadence})`
-          : "on dislocation (checks every 15m)",
-        ohlcvTimeframe: analysisTimeframe
-          ? `context ${analysisTimeframe} (odds, not OHLCV)`
-          : "market odds (no OHLCV)",
+        pollLabel: pollCadence
+          ? `on dislocation, polls every ${pollCadence}`
+          : "on dislocation, polls every 15m",
+        tradingTimeframeLabel,
       };
     case "web_search":
       return {
-        tradeCadence: "on search refresh",
-        ohlcvTimeframe: analysisTimeframe
-          ? `OHLCV ${analysisTimeframe}`
-          : "OHLCV session default",
+        pollLabel: "on search refresh",
+        tradingTimeframeLabel,
       };
     case "mock":
       return {
-        tradeCadence: "on mock tick",
-        ohlcvTimeframe: analysisTimeframe
-          ? `OHLCV ${analysisTimeframe}`
-          : "OHLCV session default",
+        pollLabel: "on mock tick",
+        tradingTimeframeLabel,
       };
     case "manual":
       return {
-        tradeCadence: "manual trigger",
-        ohlcvTimeframe: analysisTimeframe
-          ? `OHLCV ${analysisTimeframe}`
-          : "OHLCV session default",
+        pollLabel: "manual trigger",
+        tradingTimeframeLabel,
       };
     default:
       return {
-        tradeCadence: pollCadence
-          ? `checks every ${pollCadence}`
-          : "event-driven",
-        ohlcvTimeframe: analysisTimeframe
-          ? `OHLCV ${analysisTimeframe}`
-          : "OHLCV session default",
+        pollLabel: pollCadence ? `polls every ${pollCadence}` : "event-driven",
+        tradingTimeframeLabel,
       };
   }
 }
@@ -150,7 +151,7 @@ export function formatSignalTimingLabel(input: {
 }): string {
   const symbol = sourceTypeSymbol(input.sourceType, input.symbol);
   const timing = summarizeSignalTiming(input);
-  return `${symbol} · ${timing.tradeCadence} · ${timing.ohlcvTimeframe}`;
+  return `${symbol} · ${timing.pollLabel} · ${timing.tradingTimeframeLabel}`;
 }
 
 export function signalDisplayName(signal: SignalDescriptor): string {
@@ -173,5 +174,5 @@ export function formatSignalSourceTimingSubtitle(
     pollCadence: source.pollCadence,
     analysisTimeframe: source.analysisTimeframe,
   });
-  return `Trade: ${timing.tradeCadence} · Analyze: ${timing.ohlcvTimeframe}`;
+  return `Poll: ${timing.pollLabel} · ${timing.tradingTimeframeLabel}`;
 }

@@ -19,7 +19,7 @@ export interface SignalDescriptor {
   instrumentClass: InstrumentClass;
   symbol: string | null;
   pollCadence: string | null;
-  /** Seeds session_timeframe_config on session creation; session config governs at runtime. */
+  /** Bar timeframe the strategy trades on; seeds session config and drives OHLCV fetches. */
   defaultAnalysisTimeframe: TradingTimeframe;
   enabledByDefault: boolean;
   presetOverrides?: Partial<ExperiencePresetIds>;

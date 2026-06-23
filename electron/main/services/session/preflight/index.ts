@@ -4,6 +4,7 @@ import { brokerReachabilityCheck } from "./broker-reachability-check";
 import { instrumentConflictCheck } from "./instrument-conflict-check";
 import { providerCredentialsCheck } from "./provider-credentials-check";
 import { selectorConfigCheck } from "./selector-config-check";
+import { signalSourceCapabilityCheck } from "./signal-source-capability-check";
 import type {
   OrchestratorDeps,
   PreflightResult,
@@ -35,6 +36,10 @@ export async function runPreflight(
     {
       check: "instrument-conflict",
       run: () => instrumentConflictCheck(session, deps),
+    },
+    {
+      check: "signal-source-capability",
+      run: () => signalSourceCapabilityCheck(session, deps),
     },
   ];
 

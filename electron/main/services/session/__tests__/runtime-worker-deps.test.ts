@@ -7,6 +7,7 @@ const ORCHESTRATOR_DEP_KEYS: Array<keyof OrchestratorDeps> = [
   "sessionStrategiesRepo",
   "strategyContextService",
   "tradesRepo",
+  "decisionTracesRepo",
   "tradeApprovalsRepo",
   "agentRunsRepo",
   "agentMessagesRepo",

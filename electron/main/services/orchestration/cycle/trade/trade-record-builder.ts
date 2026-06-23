@@ -173,7 +173,7 @@ export function createTradeFromDecision(
     take_profit_price: execution.take_profit_price,
     strategy: config.strategy,
     execution_strategy: execution.execution_strategy,
-    status: isTrade ? "pending" : "rejected",
+    status: isTrade ? "pending" : "no_trade",
     opened_at: null,
     closed_at: isTrade ? null : new Date().toISOString(),
     final_pnl_usd: isTrade ? null : 0,

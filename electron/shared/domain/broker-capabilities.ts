@@ -1,4 +1,4 @@
-import type { InstrumentClass } from "./enums";
+import type { InstrumentClass, TradeSide } from "./enums";
 
 /** Every broker implementation the registry can build. */
 export type BrokerType =
@@ -40,4 +40,37 @@ export function brokerSupportedInstrumentClasses(
   brokerType: BrokerType,
 ): readonly InstrumentClass[] {
   return BROKER_SUPPORTED_INSTRUMENT_CLASSES[brokerType];
+}
+
+/**
+ * Per-class side restrictions for brokers that cannot execute both BUY and SELL
+ * on a given instrument class. Omitting an entry means both sides are supported.
+ */
+export const BROKER_SIDE_RESTRICTIONS: Partial<
+  Record<BrokerType, Partial<Record<InstrumentClass, readonly TradeSide[]>>>
+> = {
+  // Alpaca does not support short-selling crypto (spot long-only).
+  alpaca: {
+    crypto: ["BUY"],
+  },
+};
+
+/**
+ * Returns true if the broker supports placing an order for the given
+ * instrument class and side. Checks both class support and side restrictions.
+ */
+export function brokerSupportsOrder(
+  brokerType: BrokerType,
+  instrumentClass: InstrumentClass,
+  side: TradeSide,
+): boolean {
+  const supportedClasses =
+    BROKER_SUPPORTED_INSTRUMENT_CLASSES[brokerType] as readonly string[];
+  if (!supportedClasses.includes(instrumentClass)) return false;
+  const allowedSides =
+    BROKER_SIDE_RESTRICTIONS[brokerType]?.[instrumentClass] as
+      | readonly string[]
+      | undefined;
+  if (!allowedSides) return true;
+  return allowedSides.includes(side);
 }

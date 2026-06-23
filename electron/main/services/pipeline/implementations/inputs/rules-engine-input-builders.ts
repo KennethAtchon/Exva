@@ -1,5 +1,8 @@
 import type { AgentMessage, AgentRun } from "@/lib/types";
-import type { EngineInputBuilder } from "../../execution/input-builder-registry";
+import type {
+  EngineInputBuilder,
+  EngineRunCtx,
+} from "../../execution/input-builder-registry";
 import type { LLMRunResult } from "../../../llm/llm-types";
 import type { TradeSignal } from "@electron/shared/ai/trade-signals";
 import { resolveRulesOhlcvRequest } from "./rules-ohlcv-timeframe";
@@ -74,8 +77,34 @@ export const rulesMeanReversionInputBuilder: EngineInputBuilder = {
       },
     };
   },
-  applyOutput(state, output) {
+  applyOutput(state, output, ctx?: EngineRunCtx) {
     const signal = output as TradeSignal;
+    if (ctx) {
+      try {
+        ctx.services.decisionTracesRepo.upsertFragment(
+          {
+            cycleId: ctx.cycleId,
+            sessionId: ctx.sessionId,
+            instrumentSymbol: ctx.instrument.symbol,
+          },
+          {
+            aggregation: {
+              classifierConfidence: signal.confidence,
+              classifierAction: signal.action,
+              waitForOpenThreshold: null,
+              belowThreshold: false,
+              timerTiming: null,
+              timerBlocked: false,
+              reviewRecommendation: null,
+              finalAction: signal.action,
+              skipReason: signal.action === "skip" ? signal.reasoning : null,
+            },
+          },
+        );
+      } catch {
+        // observability-only, non-blocking
+      }
+    }
     return {
       ...state,
       decision: syntheticDecisionRun("", signal),

@@ -37,17 +37,28 @@ const breakoutBtc: SignalDescriptor = {
 };
 
 describe("signal timing labels", () => {
-  it("shows distinct trade cadence and OHLCV timeframe for mean reversion", () => {
+  it("shows poll cadence separately from the bar timeframe traded on", () => {
     expect(signalDisplayName(meanReversionSpy)).toBe(
-      "SPY · checks every 15m · OHLCV 1h",
+      "SPY · polls every 15m · trades on 1h bars",
     );
     expect(summarizeSignalTiming(meanReversionSpy)).toEqual({
-      tradeCadence: "checks every 15m",
-      ohlcvTimeframe: "OHLCV 1h",
+      pollLabel: "polls every 15m",
+      tradingTimeframeLabel: "trades on 1h bars",
     });
   });
 
-  it("shows matching trade and OHLCV labels when cadences align", () => {
+  it("allows poll cadence and trading timeframe to differ", () => {
+    expect(
+      formatSignalTimingLabel({
+        sourceType: "timer",
+        symbol: "SPY",
+        pollCadence: "30m",
+        analysisTimeframe: "15m",
+      }),
+    ).toBe("SPY · polls every 30m · trades on 15m bars");
+  });
+
+  it("shows matching poll and trading labels when both are 4h", () => {
     expect(
       formatSignalTimingLabel({
         sourceType: "timer",
@@ -55,16 +66,16 @@ describe("signal timing labels", () => {
         pollCadence: "4h",
         analysisTimeframe: "4h",
       }),
-    ).toBe("GC · checks every 4h · OHLCV 4h");
+    ).toBe("GC · polls every 4h · trades on 4h bars");
   });
 
-  it("describes breakout trade cadence separately from OHLCV bars", () => {
+  it("describes breakout poll cadence separately from trading timeframe", () => {
     expect(signalDisplayName(breakoutBtc)).toBe(
-      "BTC-USD · checks every 1h · OHLCV 4h",
+      "BTC-USD · polls every 1h · trades on 4h bars",
     );
   });
 
-  it("formats event-driven sources with accurate trade and analysis labels", () => {
+  it("formats event-driven sources with accurate poll and trading labels", () => {
     expect(
       formatSignalTimingLabel({
         sourceType: "edgar_8k",
@@ -73,7 +84,7 @@ describe("signal timing labels", () => {
         analysisTimeframe: "1d",
       }),
     ).toBe(
-      "EDGAR 8-K · on 8-K filing (polls ~5m market / ~30m off-hours) · OHLCV 1d",
+      "EDGAR 8-K · on 8-K filing (~5m market / ~30m off-hours poll) · trades on 1d bars",
     );
 
     expect(
@@ -83,22 +94,22 @@ describe("signal timing labels", () => {
         analysisTimeframe: "1h",
       }),
     ).toBe(
-      "Trade: on dislocation (checks every 15m) · Analyze: context 1h (odds, not OHLCV)",
+      "Poll: on dislocation, polls every 15m · 1h context (odds, not OHLCV)",
     );
   });
 
   it("resolves OHLCV timeframe from analysisTimeframe metadata, not poll cadence", () => {
     expect(
       resolveOhlcvTimeframe({
+        pollCadence: "30m",
+        analysisTimeframe: "15m",
+      }),
+    ).toBe("15m");
+    expect(
+      resolveOhlcvTimeframe({
         pollCadence: "15m",
         analysisTimeframe: "1h",
       }),
     ).toBe("1h");
-    expect(
-      resolveOhlcvTimeframe({
-        cadence: "15m",
-        analysisTimeframe: "4h",
-      }),
-    ).toBe("4h");
   });
 });

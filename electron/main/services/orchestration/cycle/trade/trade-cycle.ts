@@ -126,7 +126,7 @@ export async function executeTradeCycle(
             trade.id,
             isConfidenceNoTrade
               ? `No trade for ${trade.instrumentSymbol}: ${decision.output.reasoning}`
-              : `No trade decision for ${trade.instrumentSymbol}; cycle complete.`,
+              : `No trade decision for ${trade.instrumentSymbol}: ${decision.output.reasoning}`,
             "orchestrator",
             context.cycleId,
           );

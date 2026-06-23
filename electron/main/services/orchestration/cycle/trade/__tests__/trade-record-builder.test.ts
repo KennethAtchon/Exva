@@ -25,7 +25,7 @@ describe("trade-record-builder", () => {
     expect(trade.position_size_usd).toBeGreaterThan(0);
   });
 
-  it("createTradeFromDecision marks skip decisions as rejected", () => {
+  it("createTradeFromDecision marks skip decisions as no_trade", () => {
     const ctx = createContext();
     const signal = makeBuySignal("NVDA", 185, { action: "skip" });
 
@@ -37,7 +37,7 @@ describe("trade-record-builder", () => {
       0.1,
     );
 
-    expect(trade.status).toBe("rejected");
+    expect(trade.status).toBe("no_trade");
     expect(trade.position_size_usd).toBe(0);
     expect(trade.closed_at).not.toBeNull();
   });
