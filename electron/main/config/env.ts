@@ -1,4 +1,39 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
 import { z } from "zod";
+
+function resolveDotEnvCandidates(): string[] {
+  const moduleDir =
+    typeof __dirname !== "undefined"
+      ? __dirname
+      : path.dirname(fileURLToPath(import.meta.url));
+
+  const roots = new Set<string>([process.cwd(), path.resolve(moduleDir, "../../..")]);
+  let dir = moduleDir;
+  for (let depth = 0; depth < 6; depth += 1) {
+    roots.add(dir);
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+
+  return [...roots].map((root) => path.join(root, ".env"));
+}
+
+/** Load repo `.env` in dev; skip in tests and when vars are already exported. */
+function bootstrapDotEnv(): void {
+  if (process.env.NODE_ENV === "test") return;
+
+  for (const envPath of resolveDotEnvCandidates()) {
+    if (!fs.existsSync(envPath)) continue;
+    dotenv.config({ path: envPath, quiet: true });
+    return;
+  }
+}
+
+bootstrapDotEnv();
 
 const envSchema = z.object({
   NODE_ENV: z

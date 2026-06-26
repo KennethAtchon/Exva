@@ -23,7 +23,7 @@ export default defineConfig({
       fileName: () => "session-runtime-worker.cjs",
     },
     rollupOptions: {
-      external: ["better-sqlite3", "keytar", "electron"],
+      external: ["better-sqlite3", "dotenv", "keytar", "electron"],
     },
   },
 });

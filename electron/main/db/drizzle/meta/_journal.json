@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1781813422840,
+      "when": 1782287222740,
       "tag": "0000_initial",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1781840246680,
-      "tag": "0001_off_hours_trading",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1781845663914,
-      "tag": "0002_tired_mulholland_black",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1782201684920,
-      "tag": "0003_melted_master_mold",
       "breakpoints": true
     }
   ]

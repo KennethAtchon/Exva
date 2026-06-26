@@ -261,15 +261,15 @@ const TradesPanel = () => {
   const trades = useTradeStore((s) => s.trades);
   const selectedId = useTradeStore((s) => s.selectedId);
   const setSelected = useTradeStore((s) => s.setSelected);
-  const [hideRejected, setHideRejected] = useState(true);
+  const [hideNoTrade, setHideNoTrade] = useState(true);
 
   const sorted = trades.toSorted((a, b) => {
     const at = a.opened_at ? new Date(a.opened_at).getTime() : 0;
     const bt = b.opened_at ? new Date(b.opened_at).getTime() : 0;
     return bt - at;
   });
-  const visible = hideRejected
-    ? sorted.filter((t) => t.status !== "rejected")
+  const visible = hideNoTrade
+    ? sorted.filter((t) => t.status !== "no_trade")
     : sorted;
 
   return (
@@ -304,19 +304,19 @@ const TradesPanel = () => {
       </div>
       <div className="flex items-center gap-2 px-6 py-2.5 border-t border-[var(--border)]">
         <Checkbox
-          id="hide-rejected"
-          checked={hideRejected}
-          onCheckedChange={(v) => setHideRejected(!!v)}
+          id="hide-no-trade"
+          checked={hideNoTrade}
+          onCheckedChange={(v) => setHideNoTrade(!!v)}
         />
         <label
-          htmlFor="hide-rejected"
+          htmlFor="hide-no-trade"
           className="cursor-pointer select-none text-[12px] text-[var(--text3)]"
         >
-          Hide rejected
+          Hide no trade
         </label>
-        {hideRejected && trades.some((t) => t.status === "rejected") && (
+        {hideNoTrade && trades.some((t) => t.status === "no_trade") && (
           <span className="ml-1 text-[11px] text-[var(--text3)] opacity-60">
-            ({trades.filter((t) => t.status === "rejected").length} hidden)
+            ({trades.filter((t) => t.status === "no_trade").length} hidden)
           </span>
         )}
       </div>

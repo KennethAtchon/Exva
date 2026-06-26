@@ -18,7 +18,7 @@ export default defineConfig({
       fileName: () => "main.cjs",
     },
     rollupOptions: {
-      external: ["better-sqlite3", "keytar"],
+      external: ["better-sqlite3", "dotenv", "keytar"],
     },
   },
 });

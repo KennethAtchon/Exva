@@ -1,1 +1,0 @@
-ALTER TABLE `session_risk_config` ADD `off_hours_trading` text DEFAULT 'disabled' NOT NULL;
