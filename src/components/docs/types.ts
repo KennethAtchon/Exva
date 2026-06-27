@@ -16,6 +16,7 @@ export type DocSlug =
   | "web-search"
   | "timer-signals"
   | "mock-manual-sources"
+  | "options-flow-edge"
   | "experiences"
   | "pipeline"
   | "sessions"

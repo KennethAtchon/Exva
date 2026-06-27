@@ -34,7 +34,7 @@ export const HELP_GLOSSARY = {
   },
   "instrument-class": {
     title: "Instrument class",
-    body: "Asset type: stock, crypto, futures, or prediction market.",
+    body: "Asset type: stock, crypto, futures, options, or prediction market.",
   },
   "signal-type-edgar-8k": {
     title: "EDGAR 8-K",
@@ -86,7 +86,39 @@ export const HELP_GLOSSARY = {
   },
   "experience-prediction-event-edge": {
     title: "Prediction event edge",
-    body: "An event-driven strategy for prediction markets.",
+    body: "An event-driven strategy for prediction markets. An LLM forecaster researches each market (web search + primary sources), estimates a probability, a red-team pass challenges it, and a deterministic edge gate sizes the trade.",
+  },
+  "experience-options-flow-edge": {
+    title: "Options Flow Edge",
+    body: "Detects unusual options activity (option volume well above open interest with a directional call/put skew) on liquid underlyings and trades the resulting directional read. Deterministic; disabled and paper-only until validated.",
+  },
+  "unusual-options-activity": {
+    title: "Unusual options activity (UOA)",
+    body: "A session where option volume runs far above standing open interest. Lopsided toward calls it reads bullish, toward puts bearish. Used as an information signal, not a guarantee — most UOA is hedging or noise.",
+  },
+  "defined-risk-structure": {
+    title: "Defined-risk structure",
+    body: "An options position whose maximum loss is capped at the debit paid (e.g. a long call/put or a vertical spread). No naked short legs.",
+  },
+  forecaster: {
+    title: "Forecaster",
+    body: "The LLM step that researches a prediction market and produces a calibrated probability of the outcome from the evidence it gathered.",
+  },
+  "red-team": {
+    title: "Red team / adversarial review",
+    body: "A separate pass that tries to prove the forecaster wrong — searching for disconfirming evidence and already-priced-in information. Disagreement widens the uncertainty band, which shrinks position size.",
+  },
+  "implied-probability-edge": {
+    title: "Implied probability / edge",
+    body: "A prediction-market price is the market's implied probability. Edge is the gap between the forecaster's probability and that price, after spread and fees.",
+  },
+  "information-freshness": {
+    title: "Information freshness",
+    body: "Whether the news driving a market is already priced in. Stale catalysts are skipped — the move already happened.",
+  },
+  "insufficient-bars": {
+    title: "Insufficient bars / data-starved",
+    body: "A deterministic engine could not fetch enough price history to compute its signal, so it skips. Surfaced as a session-health warning, not a normal no-trade, because it usually means a data-feed or credential problem.",
   },
   "session-status-draft": {
     title: "Draft",

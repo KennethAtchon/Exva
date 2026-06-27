@@ -4,7 +4,14 @@ import {
 } from "../../broker/adapters/broker-adapter";
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 
-type PredictionToken = { outcome?: unknown; token_id?: unknown };
+type PredictionToken = { outcome?: unknown; token_id?: unknown; price?: unknown };
+
+/** Parse a token's mid price into a probability in (0,1), or null if unusable. */
+function tokenPrice(token: unknown): number | null {
+  const raw = (token as PredictionToken | undefined)?.price;
+  const price = typeof raw === "string" ? Number(raw) : raw;
+  return typeof price === "number" && price > 0 && price < 1 ? price : null;
+}
 
 export type PredictionMarketCandidateRow = {
   symbol: string;
@@ -67,15 +74,20 @@ export async function fetchPredictionMarketCandidates(
         : null;
     if (!yesTokenId || !noTokenId) continue;
 
+    // Market-implied probability (mid) per outcome — the price the forecaster's
+    // p_hat is compared against in the deterministic edge gate.
+    const yesMid = tokenPrice(yes);
+    const noMid = tokenPrice(no) ?? (yesMid != null ? 1 - yesMid : null);
+
     const timeScore = resolutionTime
       ? predictionResolutionScore(resolutionTime)
       : 0;
     const categoryScore = category ? 10 : 0;
     const score = Math.min(liquidity / 1000, 100) + timeScore + categoryScore;
 
-    for (const [predictionOutcome, outcomeTokenId] of [
-      ["YES", yesTokenId],
-      ["NO", noTokenId],
+    for (const [predictionOutcome, outcomeTokenId, marketMid] of [
+      ["YES", yesTokenId, yesMid],
+      ["NO", noTokenId, noMid],
     ] as const) {
       out.push({
         symbol: `pm:${conditionId}`,
@@ -91,6 +103,9 @@ export async function fetchPredictionMarketCandidates(
           category,
           liquidity,
           resolutionTime,
+          // Market-implied probability of this outcome; the edge gate compares
+          // the forecaster's p_hat against it.
+          marketMid,
         }),
         score,
       });

@@ -14,6 +14,7 @@ import {
   STANDARD_SELECTOR_DISCOVERY,
 } from "./definitions/selector.phase";
 import { CATALYST_TECHNICAL_WORKERS } from "./definitions/technical.phase";
+import { PREDICTION_WORKERS } from "./definitions/prediction.phase";
 import { registerWorkers } from "./worker-registry";
 
 let registered = false;
@@ -30,4 +31,5 @@ export function registerAllPipelineWorkers(): void {
   registerWorkers(REVIEW_WORKERS);
   registerWorkers(DECISION_WORKERS);
   registerWorkers([CATALYST_ANALYST_WORKER, ADVERSARIAL_REVIEWER_WORKER]);
+  registerWorkers(PREDICTION_WORKERS);
 }

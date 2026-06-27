@@ -3,6 +3,7 @@ import type {
   InstrumentClass,
   PredictionOutcome,
 } from "@/lib/types";
+import type { TradingTimeframe } from "@electron/shared/domain/enums";
 
 export interface MarketSnapshot {
   instrumentSymbol: string;
@@ -67,6 +68,25 @@ export interface OhlcvBar {
   volume: number | null;
 }
 
+/**
+ * One option contract from a chain snapshot. Used by the options-flow
+ * experience to screen for unusual activity and select a defined-risk contract.
+ */
+export interface OptionChainContract {
+  /** OCC symbol, e.g. AAPL250117C00150000. */
+  symbol: string;
+  type: "call" | "put";
+  strike: number;
+  expiry: string;
+  /** Absolute delta, [0,1]; null when greeks are unavailable on the feed. */
+  delta: number | null;
+  impliedVolatility: number | null;
+  openInterest: number;
+  dayVolume: number;
+  bid: number | null;
+  ask: number | null;
+}
+
 /** Used by risk engine / orchestrator before routing normalizes symbols. */
 export interface OrderRequest {
   instrumentSymbol: string;
@@ -102,9 +122,16 @@ export interface BrokerAdapter {
   /** Optional: return OHLCV bars. Used by get_ohlcv tool and ATR computation. */
   getOhlcv?(
     instrumentSymbol: string,
-    timeframe: "15m" | "30m" | "1h" | "4h" | "1d",
+    timeframe: TradingTimeframe,
     barCount: number,
   ): Promise<OhlcvBar[]>;
+
+  /**
+   * Optional: return the option chain (volume/OI/greeks per contract) for an
+   * underlying. Used by the options-flow experience for UOA detection and
+   * defined-risk contract selection.
+   */
+  getOptionChain?(underlyingSymbol: string): Promise<OptionChainContract[]>;
 }
 
 /** Raw row shape returned by Polymarket Gamma REST API. */

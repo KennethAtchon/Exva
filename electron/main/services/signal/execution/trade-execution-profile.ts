@@ -41,10 +41,22 @@ const VALID_STRATEGIES: Record<
   InstrumentClass,
   readonly ExecutionStrategyType[]
 > = {
-  stock: ["trend_momentum", "breakout", "mean_reversion", "event_driven"],
+  stock: [
+    "trend_momentum",
+    "breakout",
+    "mean_reversion",
+    "event_driven",
+    "options_flow",
+  ],
   crypto: ["trend_momentum", "breakout", "mean_reversion", "arbitrage"],
   futures: ["futures_trend", "trend_momentum", "event_driven"],
-  options: ["trend_momentum", "breakout", "mean_reversion", "event_driven"],
+  options: [
+    "trend_momentum",
+    "breakout",
+    "mean_reversion",
+    "event_driven",
+    "options_flow",
+  ],
   prediction_market: ["prediction_market"],
 };
 
@@ -56,6 +68,9 @@ const STRATEGY_PROFILES: Record<ExecutionStrategyType, StrategyProfile> = {
   arbitrage: { sizeFactor: 0.5, stopLossFactor: 1, takeProfitFactor: 1 },
   prediction_market: { sizeFactor: 1, stopLossFactor: 1, takeProfitFactor: 1 },
   futures_trend: { sizeFactor: 1, stopLossFactor: 1, takeProfitFactor: 1 },
+  // Options flow is a softer, information-style signal — size it down like
+  // other event-driven entries.
+  options_flow: { sizeFactor: 0.5, stopLossFactor: 1, takeProfitFactor: 1 },
 };
 
 export function computeTradeTradeExecutionProfile(

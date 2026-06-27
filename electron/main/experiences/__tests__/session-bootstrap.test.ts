@@ -62,7 +62,7 @@ describe("loadExperiencePresetBundle", () => {
 describe("experience registry", () => {
   it("validates all shipped experiences", () => {
     expect(() => validateExperienceRegistry()).not.toThrow();
-    expect(listExperiences()).toHaveLength(5);
+    expect(listExperiences()).toHaveLength(6);
   });
 
   it("rejects duplicate experience registration", () => {
@@ -79,6 +79,7 @@ describe("experience registry", () => {
     ).toEqual(
       [
         "edgar-catalyst",
+        "options-flow-edge",
         "prediction-event-edge",
         "rules-breakout",
         "rules-mean-reversion",

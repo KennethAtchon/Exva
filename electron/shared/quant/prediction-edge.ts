@@ -25,6 +25,16 @@ export interface PredictionEdgeInput {
   calibrationBucket: string | null;
   modelId: string;
   modelVersion: string;
+  /**
+   * Pre-computed uncertainty band on p_hat in bps (e.g. from the
+   * forecaster/red-team combination). When provided, it overrides the
+   * sample-size-derived band and is gated against `rule.maxUncertaintyBps`.
+   */
+  uncertaintyBps?: number;
+  /** Available order-book depth on the side we'd trade, in USD. */
+  orderBookDepthUsd?: number;
+  /** Size we intend to trade, in USD — must fit inside the available depth. */
+  requiredSizeUsd?: number;
 }
 
 export interface PredictionEdgeResult {
@@ -33,6 +43,8 @@ export interface PredictionEdgeResult {
   netEdge: number;
   rawKellyFraction: number;
   estimate: EdgeEstimate;
+  /** Set when the gate rejected an otherwise-directional edge. */
+  skipReason?: string;
 }
 
 export interface PredictionTradeRule {
@@ -41,6 +53,11 @@ export interface PredictionTradeRule {
   /** Inclusive window for time-to-resolution, in hours. */
   minHoursToResolution?: number;
   maxHoursToResolution?: number;
+  /**
+   * Reject when the (red-team-widened) uncertainty band exceeds this many bps.
+   * Wide forecaster/red-team disagreement means we don't really have an edge.
+   */
+  maxUncertaintyBps?: number;
 }
 
 /**
@@ -72,11 +89,20 @@ export function evaluatePredictionEdge(
   const rawKellyFraction =
     side === "skip" ? 0 : kellyFractionBinary(winProbability, netOdds);
 
-  const tradeable =
-    side !== "skip" &&
-    netEdge >= rule.minNetEdge &&
-    input.sampleSize >= rule.minCalibrationSampleSize &&
-    withinResolutionWindow(hoursToResolution, rule);
+  const uncertaintyBps =
+    input.uncertaintyBps != null && input.uncertaintyBps >= 0
+      ? input.uncertaintyBps
+      : estimateUncertaintyBps(pHat, input.sampleSize);
+
+  const skipReason = firstGateFailure(
+    side,
+    netEdge,
+    uncertaintyBps,
+    input,
+    rule,
+    hoursToResolution,
+  );
+  const tradeable = skipReason == null;
 
   const estimate: EdgeEstimate = {
     modelId: input.modelId,
@@ -87,7 +113,7 @@ export function evaluatePredictionEdge(
     expectedGrossReturnBps: Math.abs(edge) * 10_000,
     expectedCostBps: costFraction * 10_000,
     expectedNetReturnBps: netEdge * 10_000,
-    uncertaintyBps: estimateUncertaintyBps(pHat, input.sampleSize),
+    uncertaintyBps,
     calibrationBucket: input.calibrationBucket,
     sampleSize: input.sampleSize,
   };
@@ -98,7 +124,47 @@ export function evaluatePredictionEdge(
     netEdge,
     rawKellyFraction: tradeable ? rawKellyFraction : 0,
     estimate,
+    skipReason,
   };
+}
+
+/**
+ * Returns the first reason the edge is not tradeable, or undefined if it
+ * clears every gate. Order is intentional: direction first, then cost, sample,
+ * uncertainty band, order-book depth, and resolution window.
+ */
+function firstGateFailure(
+  side: PredictionEdgeResult["side"],
+  netEdge: number,
+  uncertaintyBps: number,
+  input: PredictionEdgeInput,
+  rule: PredictionTradeRule,
+  hoursToResolution: number | undefined,
+): string | undefined {
+  if (side === "skip") return "p_hat equals market mid; no directional edge.";
+  if (netEdge < rule.minNetEdge) {
+    return `Net edge ${(netEdge * 100).toFixed(2)}% below threshold; does not survive cost.`;
+  }
+  if (input.sampleSize < rule.minCalibrationSampleSize) {
+    return `Calibration sample ${input.sampleSize} below required ${rule.minCalibrationSampleSize}.`;
+  }
+  if (
+    rule.maxUncertaintyBps != null &&
+    uncertaintyBps > rule.maxUncertaintyBps
+  ) {
+    return `Uncertainty ${uncertaintyBps.toFixed(0)}bps exceeds max ${rule.maxUncertaintyBps}bps (forecaster/red-team disagree too much).`;
+  }
+  if (
+    input.orderBookDepthUsd != null &&
+    input.requiredSizeUsd != null &&
+    input.orderBookDepthUsd < input.requiredSizeUsd
+  ) {
+    return `Order-book depth $${input.orderBookDepthUsd.toFixed(0)} cannot fill $${input.requiredSizeUsd.toFixed(0)}.`;
+  }
+  if (!withinResolutionWindow(hoursToResolution, rule)) {
+    return "Time-to-resolution outside the validated trading window.";
+  }
+  return undefined;
 }
 
 function withinResolutionWindow(

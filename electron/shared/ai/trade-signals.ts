@@ -68,6 +68,7 @@ export const executionStrategySchema = z.enum([
   "arbitrage",
   "prediction_market",
   "futures_trend",
+  "options_flow",
 ]);
 export type ExecutionStrategyType = z.infer<typeof executionStrategySchema>;
 

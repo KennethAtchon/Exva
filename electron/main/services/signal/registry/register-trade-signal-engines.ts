@@ -12,6 +12,7 @@ import { computeTradeTradeExecutionProfile } from "../execution/trade-execution-
 import { computeMeanReversionSignal } from "../rules/mean-reversion-signal";
 import { computeTrendFollowingSignal } from "../rules/trend-following-signal";
 import { computeBreakoutSignal } from "../rules/breakout-signal";
+import { computeOptionsFlowSignal } from "../rules/options-flow-signal";
 
 export function registerTradeSignalEngines(): void {
   registerSignalEngine({
@@ -113,6 +114,24 @@ export function registerTradeSignalEngines(): void {
     inputSchema: z.any(),
     outputSchema: z.any(),
     run: (input) => computeBreakoutSignal(input as never),
+  });
+
+  registerSignalEngine({
+    id: "options-flow",
+    kind: "policy",
+    inputSchema: z.any(),
+    outputSchema: z.any(),
+    run: (input) => computeOptionsFlowSignal(input as never),
+  });
+
+  registerSignalEngine({
+    // The prediction-edge input builder computes the full edge-gate signal
+    // (it needs forecaster + red-team phase state), so the engine is identity.
+    id: "prediction-edge",
+    kind: "policy",
+    inputSchema: z.any(),
+    outputSchema: z.any(),
+    run: (input) => input as TradeSignal,
   });
 
   registerSignalEngine({

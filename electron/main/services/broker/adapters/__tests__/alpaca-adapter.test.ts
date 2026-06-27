@@ -386,6 +386,99 @@ describe("AlpacaAdapter", () => {
     ).rejects.toThrow(/market is closed/i);
   });
 
+  // Regression: Alpaca's bars endpoints return [] when `start` is omitted,
+  // which silently starved the deterministic signal engines (every cycle hit
+  // "insufficient bars" and skipped at confidence 0.2). Every OHLCV request
+  // must carry an explicit lookback window wide enough to backfill barCount.
+  it("requests stock bars with an explicit start window", async () => {
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+    const bars = await adapter.getOhlcv("SPY", "1h", 30);
+
+    expect(bars.length).toBe(1);
+    const barsCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).includes("/v2/stocks/SPY/bars"),
+    );
+    const url = String(barsCall?.[0]);
+    expect(url).toContain("timeframe=1Hour");
+    expect(url).toContain("limit=30");
+    // start must be present and strictly before "now" (the regular-hours clock).
+    const start = new URL(url).searchParams.get("start");
+    expect(start).toBeTruthy();
+    expect(new Date(start as string).getTime()).toBeLessThan(
+      regularHoursClock().getTime(),
+    );
+    // 30 1h bars * 3x slack = 90h back, comfortably > 1 day.
+    const ageMs = regularHoursClock().getTime() - new Date(start!).getTime();
+    expect(ageMs).toBeGreaterThan(24 * 60 * 60 * 1000);
+  });
+
+  it("requests crypto bars with an explicit start window", async () => {
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+    await adapter.getOhlcv("BTC/USD", "4h", 30);
+
+    const barsCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).includes("/v1beta3/crypto/us/bars"),
+    );
+    const start = new URL(String(barsCall?.[0])).searchParams.get("start");
+    expect(start).toBeTruthy();
+    expect(new Date(start as string).getTime()).toBeLessThan(
+      regularHoursClock().getTime(),
+    );
+  });
+
+  it("requests option bars with an explicit start window", async () => {
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+    await adapter.getOhlcv("AAPL250117C00150000", "1d", 30);
+
+    const barsCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).includes("/v1beta1/options/bars"),
+    );
+    const start = new URL(String(barsCall?.[0])).searchParams.get("start");
+    expect(start).toBeTruthy();
+  });
+
+  it("parses the option chain snapshot into typed contracts", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("/v1beta1/options/snapshots/AAPL")) {
+        return jsonResponse({
+          snapshots: {
+            AAPL250117C00150000: {
+              latestQuote: { bp: 5.0, ap: 5.2 },
+              greeks: { delta: 0.55 },
+              impliedVolatility: 0.32,
+              dailyBar: { v: 4200 },
+              openInterest: 3100,
+            },
+            AAPL250117P00150000: {
+              latestQuote: { bp: 3.0, ap: 3.2 },
+              greeks: { delta: -0.45 },
+              dailyBar: { v: 900 },
+            },
+            NOT_AN_OCC_SYMBOL: { dailyBar: { v: 1 } },
+          },
+        });
+      }
+      return jsonResponse({}, 404);
+    });
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+
+    const chain = await adapter.getOptionChain("AAPL");
+
+    expect(chain).toHaveLength(2); // the non-OCC key is dropped
+    const call = chain.find((c) => c.type === "call");
+    expect(call).toMatchObject({
+      symbol: "AAPL250117C00150000",
+      strike: 150,
+      expiry: "2025-01-17",
+      delta: 0.55, // absolute value
+      openInterest: 3100,
+      dayVolume: 4200,
+    });
+    const put = chain.find((c) => c.type === "put");
+    // delta absolute, missing OI defaults to 0
+    expect(put).toMatchObject({ delta: 0.45, openInterest: 0, dayVolume: 900 });
+  });
+
   it("always places crypto as a market order regardless of clock", async () => {
     let orderBody: Record<string, unknown> | null = null;
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {

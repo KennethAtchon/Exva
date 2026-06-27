@@ -14,6 +14,7 @@ import { PredictionEventsPage } from "./pages/PredictionEventsPage";
 import { WebSearchSignalPage } from "./pages/WebSearchSignalPage";
 import { TimerSignalPage } from "./pages/TimerSignalPage";
 import { MockManualSourcesPage } from "./pages/MockManualSourcesPage";
+import { OptionsFlowEdgePage } from "./pages/OptionsFlowEdgePage";
 import { ExperiencesPage } from "./pages/ExperiencesPage";
 import { PipelinePage } from "./pages/PipelinePage";
 import { SessionsDocPage } from "./pages/SessionsDocPage";
@@ -242,6 +243,22 @@ const DOC_PAGES: DocPageDefinition[] = [
       { id: "manual", title: "Manual", level: 2 },
     ],
     component: MockManualSourcesPage,
+  },
+  {
+    slug: "options-flow-edge",
+    title: "Options Flow Edge",
+    description:
+      "Unusual options activity (UOA) detection and directional trading on liquid underlyings.",
+    category: "Signals",
+    order: 128,
+    related: ["signal-source-types", "experiences", "timer-signals"],
+    headings: [
+      { id: "how-it-works", title: "How it works", level: 2 },
+      { id: "why-search", title: "Why most flow is ignored", level: 2 },
+      { id: "configuration", title: "Configuration", level: 2 },
+      { id: "roadmap", title: "Contract-level execution (next phase)", level: 2 },
+    ],
+    component: OptionsFlowEdgePage,
   },
   {
     slug: "experiences",
@@ -504,6 +521,7 @@ export const DOC_NAV_GROUPS: DocNavGroup[] = [
       "web-search",
       "timer-signals",
       "mock-manual-sources",
+      "options-flow-edge",
     ],
     subgroups: [
       {

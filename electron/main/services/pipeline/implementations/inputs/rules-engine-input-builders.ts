@@ -6,6 +6,9 @@ import type {
 import type { LLMRunResult } from "../../../llm/llm-types";
 import type { TradeSignal } from "@electron/shared/ai/trade-signals";
 import { resolveRulesOhlcvRequest } from "./rules-ohlcv-timeframe";
+import { createLogger } from "../../../infra/log";
+
+const logger = createLogger("rules-engine-input");
 
 function syntheticDecisionRun(
   sessionId: string,
@@ -69,6 +72,23 @@ export const rulesMeanReversionInputBuilder: EngineInputBuilder = {
     const bars = getOhlcv
       ? await getOhlcv(wireSymbol, timeframe, barCount)
       : [];
+    if (bars.length === 0) {
+      // An empty bar set is a data outage, not a healthy "no setup" — the
+      // engine will skip at confidence 0.2 ("insufficient bars"), which is
+      // indistinguishable from a real no-trade unless we say so loudly here.
+      logger.warn(
+        {
+          sessionId: ctx.sessionId,
+          cycleId: ctx.cycleId,
+          symbol: ctx.instrument.symbol,
+          wireSymbol,
+          timeframe,
+          barCount,
+          brokerType: adapter.brokerType,
+        },
+        "rules engine received 0 OHLCV bars; cycle will skip as 'insufficient bars'. Check the data feed/credentials.",
+      );
+    }
     return {
       task: {
         symbol: ctx.instrument.symbol,

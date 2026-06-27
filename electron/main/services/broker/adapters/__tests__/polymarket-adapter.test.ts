@@ -157,4 +157,61 @@ describe("PolymarketAdapter", () => {
       }),
     ).rejects.toThrow(/metadata/i);
   });
+
+  describe("ghost (paper) mode", () => {
+    const buy = {
+      instrumentSymbol: "pm:cond-1",
+      instrumentType: "prediction_market" as const,
+      side: "BUY" as const,
+      sizeUsd: 100,
+      clientOrderId: "ghost-1",
+      instrumentMetadataJson: metadata,
+    };
+
+    it("fills locally against the real price without posting to the CLOB", async () => {
+      const adapter = new PolymarketAdapter(credentials, "paper");
+      const order = await adapter.placeOrder(buy);
+
+      expect(order.brokerOrderId).toMatch(/^ghost-/);
+      expect(order.filledAvgPrice).toBe(0.62);
+      // never posts an order on-chain
+      expect(clobClientMethods.createAndPostMarketOrder).not.toHaveBeenCalled();
+    });
+
+    it("deducts the cost from the paper balance and credits proceeds on close", async () => {
+      const adapter = new PolymarketAdapter(credentials, "paper");
+      const order = await adapter.placeOrder(buy);
+
+      // 10_000 starting - 100 spent
+      expect(await adapter.getAccountBalance()).toBe(9900);
+
+      // price moves up -> profitable close. shares = 100/0.62, proceeds = shares*0.8
+      clobClientMethods.getLastTradePrice.mockResolvedValue(0.8);
+      const closed = await adapter.closeOrder(order.brokerOrderId);
+      expect(closed.realizedPnlUsd).toBeGreaterThan(0);
+      expect(await adapter.getAccountBalance()).toBeGreaterThan(10_000);
+    });
+
+    it("reports a ghost order open until the real market resolves", async () => {
+      const adapter = new PolymarketAdapter(credentials, "paper");
+      const order = await adapter.placeOrder(buy);
+
+      const status = await adapter.getOrderStatus(order.brokerOrderId);
+      expect(status.status).toBe("open"); // endDate is 2026-12-31, unresolved
+    });
+
+    it("rejects a ghost buy that exceeds the paper balance", async () => {
+      const adapter = new PolymarketAdapter(credentials, "paper");
+      await expect(
+        adapter.placeOrder({ ...buy, sizeUsd: 999_999 }),
+      ).rejects.toThrow(/insufficient paper balance/i);
+    });
+
+    it("testConnection reports ghost mode with the paper balance", async () => {
+      const adapter = new PolymarketAdapter(credentials, "paper");
+      const conn = await adapter.testConnection();
+      expect(conn).toMatchObject({ ok: true, account_balance: 10_000 });
+      expect(conn.message).toMatch(/ghost|paper/i);
+    });
+  });
 });

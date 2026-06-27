@@ -8,6 +8,11 @@ import {
   adversarialReviewerOutputSchema,
   aggregateAdversarialReview,
 } from "../../../signal/aggregators/catalyst-two-call-aggregator";
+import {
+  encodeRedTeamSummary,
+  predictionRedTeamSchema,
+} from "@electron/shared/ai/prediction-research";
+import { reviewSignalSchema } from "@electron/shared/ai/trade-signals";
 import { runEngineForWorker } from "../../execution/engine-prompt-injector";
 import type { AggregatorPlanState } from "../../definitions/aggregator.types";
 import { registerEngine, type FinalizerEngine } from "../registry";
@@ -20,6 +25,20 @@ const reviewAggregatorEngine: FinalizerEngine<
   id: "review-aggregator",
   kind: "finalizer",
   async run(ctx, _state, workerResults) {
+    // Prediction-market red team: carry the adjusted probability through
+    // rawSummary so the deterministic edge gate can recover it at decision.
+    const redTeam = pickWorkerOutput<
+      import("@electron/shared/ai/prediction-research").PredictionRedTeam
+    >(workerResults, predictionRedTeamSchema);
+    if (redTeam) {
+      return reviewSignalSchema.parse({
+        symbol: ctx.input.instrumentSymbol as string,
+        recommendation: redTeam.alreadyPricedIn ? "skip" : "proceed",
+        conflictExplanation: redTeam.reasoning,
+        rawSummary: encodeRedTeamSummary(redTeam),
+      });
+    }
+
     const adversarial = pickWorkerOutput(
       workerResults,
       adversarialReviewerOutputSchema,

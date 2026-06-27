@@ -10,6 +10,10 @@ import {
   type CatalystAnalystOutput,
 } from "../../../signal/aggregators/catalyst-two-call-aggregator";
 import { fundamentalSignalSchema } from "@electron/shared/ai/trade-signals";
+import {
+  encodeForecastSummary,
+  predictionForecastSchema,
+} from "@electron/shared/ai/prediction-research";
 import { runEngineForWorker } from "../../execution/engine-prompt-injector";
 import type { AggregatorPlanState } from "../../definitions/aggregator.types";
 import { registerEngine, type FinalizerEngine } from "../registry";
@@ -22,6 +26,19 @@ const fundamentalAggregatorEngine: FinalizerEngine<
   id: "fundamental-aggregator",
   kind: "finalizer",
   async run(ctx, _state, workerResults) {
+    // Prediction-market forecaster: stash the researched probability in
+    // rawSummary so the deterministic edge gate can recover it at decision.
+    const forecast = pickWorkerOutput<
+      import("@electron/shared/ai/prediction-research").PredictionForecast
+    >(workerResults, predictionForecastSchema);
+    if (forecast) {
+      return fundamentalSignalSchema.parse({
+        symbol: ctx.input.instrumentSymbol as string,
+        catalystSummary: forecast.reasoning,
+        rawSummary: encodeForecastSummary(forecast),
+      });
+    }
+
     const analyst = pickWorkerOutput(
       workerResults,
       catalystAnalystOutputSchema,

@@ -185,7 +185,7 @@ describe("ExperienceScorecardService.generateAll", () => {
     seedPaperExperienceTrades(db, "edgar-catalyst");
     const scorecards = makeScorecardService(db).generateAll();
 
-    expect(scorecards.length).toBe(5);
+    expect(scorecards.length).toBe(6);
     expect(scorecards.map((scorecard) => scorecard.experienceId)).toContain(
       "edgar-catalyst",
     );

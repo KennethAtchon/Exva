@@ -5,6 +5,8 @@ import { EDGAR_8K_TRADE_CYCLE } from "../filing/edgar-8k-analysis";
 import { RULES_MEAN_REVERSION_CYCLE } from "../rules/mean-reversion-analysis";
 import { RULES_TREND_FOLLOWING_CYCLE } from "../rules/trend-following-analysis";
 import { RULES_BREAKOUT_CYCLE } from "../rules/breakout-analysis";
+import { OPTIONS_FLOW_CYCLE } from "../rules/options-flow-analysis";
+import { PREDICTION_EDGE_CYCLE } from "../prediction/prediction-edge-analysis";
 
 export const DEFAULT_PIPELINE: PipelineDescriptor = {
   id: "default-trade-cycle",
@@ -60,15 +62,29 @@ export const RULES_BREAKOUT_PIPELINE: PipelineDescriptor = {
   phaseWorkers: { decision: [] },
 };
 
+export const OPTIONS_FLOW_PIPELINE: PipelineDescriptor = {
+  id: "options-flow-cycle",
+  displayName: "Options flow edge",
+  automation: "deterministic",
+  phases: ["decision"],
+  signalSources: ["timer"],
+  plan: OPTIONS_FLOW_CYCLE,
+  phaseWorkers: { decision: [] },
+};
+
 export const PREDICTION_EVENT_PIPELINE: PipelineDescriptor = {
   id: "prediction-event-cycle",
   displayName: "Prediction event edge",
   automation: "ai",
-  phases: ["technical", "fundamental", "review", "decision"],
+  phases: ["fundamental", "review", "decision"],
   signalSources: ["prediction_event"],
-  plan: DEFAULT_TRADE_CYCLE,
+  plan: PREDICTION_EDGE_CYCLE,
   phaseWorkers: {
-    ...PIPELINE_WORKER_SETS.defaultTrade,
+    // Forecaster researches and estimates p_hat; red team challenges it; the
+    // decision phase is a deterministic edge gate (no workers).
+    fundamental: ["pm-forecaster"],
+    review: ["pm-red-team"],
+    decision: [],
     selector: PIPELINE_WORKER_SETS.selector.event,
   },
 };
@@ -79,5 +95,6 @@ export const ALL_PIPELINES: readonly PipelineDescriptor[] = [
   RULES_MEAN_REVERSION_PIPELINE,
   RULES_TREND_FOLLOWING_PIPELINE,
   RULES_BREAKOUT_PIPELINE,
+  OPTIONS_FLOW_PIPELINE,
   PREDICTION_EVENT_PIPELINE,
 ];

@@ -3,6 +3,7 @@ import { PREDICTION_EVENT_EDGE_EXPERIENCE } from "./prediction-event-edge/descri
 import { RULES_MEAN_REVERSION_EXPERIENCE } from "./rules-mean-reversion/descriptor";
 import { RULES_TREND_FOLLOWING_EXPERIENCE } from "./rules-trend-following/descriptor";
 import { RULES_BREAKOUT_EXPERIENCE } from "./rules-breakout/descriptor";
+import { OPTIONS_FLOW_EDGE_EXPERIENCE } from "./options-flow-edge/descriptor";
 import type { ExperienceDescriptor } from "./types";
 import { validateExperienceSourceEmissions } from "./validate-source-capabilities";
 import {
@@ -124,4 +125,5 @@ registerExperience(EDGAR_CATALYST_EXPERIENCE);
 registerExperience(RULES_MEAN_REVERSION_EXPERIENCE);
 registerExperience(RULES_TREND_FOLLOWING_EXPERIENCE);
 registerExperience(RULES_BREAKOUT_EXPERIENCE);
+registerExperience(OPTIONS_FLOW_EDGE_EXPERIENCE);
 registerExperience(PREDICTION_EVENT_EDGE_EXPERIENCE);

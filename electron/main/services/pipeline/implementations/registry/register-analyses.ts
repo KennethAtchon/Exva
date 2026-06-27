@@ -4,6 +4,8 @@ import { CATALYST_DECISION_INPUT_BUILDERS } from "../inputs/catalyst-decision-in
 import { RULES_ENGINE_INPUT_BUILDERS } from "../inputs/rules-engine-input-builders";
 import { RULES_TREND_FOLLOWING_INPUT_BUILDERS } from "../inputs/rules-trend-following-input-builders";
 import { RULES_BREAKOUT_INPUT_BUILDERS } from "../inputs/rules-breakout-input-builders";
+import { OPTIONS_FLOW_INPUT_BUILDERS } from "../inputs/options-flow-input-builders";
+import { PREDICTION_EDGE_INPUT_BUILDERS } from "../inputs/prediction-edge-input-builders";
 import { TRADE_ENGINE_INPUT_BUILDERS } from "../inputs/trade-engine-input-builders";
 import { registerPipeline, validatePipelineRegistry } from "./pipeline-router";
 import { ALL_PIPELINES } from "./pipelines";
@@ -16,6 +18,8 @@ export function registerDefaultInstrumentAnalyses(): void {
     ...RULES_ENGINE_INPUT_BUILDERS,
     ...RULES_TREND_FOLLOWING_INPUT_BUILDERS,
     ...RULES_BREAKOUT_INPUT_BUILDERS,
+    ...OPTIONS_FLOW_INPUT_BUILDERS,
+    ...PREDICTION_EDGE_INPUT_BUILDERS,
     ...CATALYST_DECISION_INPUT_BUILDERS,
   ]) {
     registerSignalEngineInputBuilder(builder);

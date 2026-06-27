@@ -1,4 +1,4 @@
-import type { ConnectionTestResult } from "@/lib/types";
+import type { BrokerMode, ConnectionTestResult } from "@/lib/types";
 import { BROKER_SUPPORTED_INSTRUMENT_CLASSES } from "@electron/shared/domain/broker-capabilities";
 import { AppError } from "@electron/shared/infra/errors";
 import type { BrokerInteractionLogger } from "../broker-interaction-logger";
@@ -26,6 +26,26 @@ import type {
 } from "./broker-adapter";
 
 const logger = createLogger("polymarket-adapter");
+
+/**
+ * Starting paper (ghost) balance in USDC. Polymarket has no native paper mode,
+ * so ghost orders fill locally against real market prices and settle against a
+ * separate in-memory balance. Per-account, reset when the adapter is rebuilt.
+ */
+const DEFAULT_PAPER_BALANCE_USD = 10_000;
+
+/** A locally-filled ghost order, tracked so status/close can settle against it. */
+type GhostOrder = {
+  tokenId: string;
+  conditionId: string;
+  market: string | null;
+  side: "BUY" | "SELL";
+  sizeUsd: number;
+  /** Shares acquired = sizeUsd / entryPrice (BUY). */
+  shares: number;
+  entryPrice: number;
+  open: boolean;
+};
 
 type PolymarketCredentials = {
   privateKey: string;
@@ -56,13 +76,39 @@ export class PolymarketAdapter
   readonly launchCapable = true;
 
   private authClientPromise: Promise<ClobClient> | null = null;
+  private paperBalanceUsd = DEFAULT_PAPER_BALANCE_USD;
+  private readonly ghostOrders = new Map<string, GhostOrder>();
 
   constructor(
     private readonly credentials: PolymarketCredentials,
+    private readonly mode: BrokerMode = "live",
     private readonly interactionLogger?: BrokerInteractionLogger,
   ) {}
 
+  /** Ghost (paper) mode: fill locally against real prices, never post to the CLOB. */
+  private get isPaper(): boolean {
+    return this.mode === "paper";
+  }
+
   async testConnection(): Promise<ConnectionTestResult> {
+    if (this.isPaper) {
+      try {
+        await this.getReadOnlyClient().getOk();
+        return {
+          ok: true,
+          message: "Polymarket ghost (paper) mode — market data live, orders local",
+          account_balance: this.paperBalanceUsd,
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : "Unable to reach Polymarket market data",
+        };
+      }
+    }
     try {
       const client = await this.getAuthedClient();
       await client.getOk();
@@ -87,6 +133,7 @@ export class PolymarketAdapter
   }
 
   async getAccountBalance(): Promise<number> {
+    if (this.isPaper) return this.paperBalanceUsd;
     logger.debug("polymarket getAccountBalance: fetching balance");
     const client = await this.getAuthedClient();
     const balance = await client.getBalanceAllowance({
@@ -135,6 +182,11 @@ export class PolymarketAdapter
       throw err;
     }
     const metadata = parsePredictionMetadata(order.instrumentMetadataJson);
+
+    if (this.isPaper) {
+      return this.placeGhostOrder(order, metadata);
+    }
+
     const client = await this.getAuthedClient();
     const price = await this.resolveReferencePrice(
       client,
@@ -191,7 +243,65 @@ export class PolymarketAdapter
     };
   }
 
+  /**
+   * Ghost fill: resolve the real market price, fill immediately and locally,
+   * deduct the cost from the paper balance, and verify the market actually
+   * exists (parity check). Never posts to the CLOB.
+   */
+  private async placeGhostOrder(
+    order: BrokerOrder,
+    metadata: PredictionInstrumentMetadata,
+  ): Promise<BrokerOrderResult> {
+    const readClient = this.getReadOnlyClient();
+    const price = await this.resolveReferencePrice(
+      readClient,
+      metadata.outcomeTokenId,
+    );
+
+    if (order.side === "BUY" && order.sizeUsd > this.paperBalanceUsd) {
+      throw new AppError(
+        `Insufficient paper balance: need $${order.sizeUsd.toFixed(2)}, have $${this.paperBalanceUsd.toFixed(2)}.`,
+        "BROKER_ERROR",
+      );
+    }
+
+    // Parity check: confirm the market exists and isn't already resolved away.
+    const marketOk = await readClient
+      .getMarket(metadata.conditionId)
+      .then((m) => m != null)
+      .catch(() => false);
+    if (!marketOk) {
+      logger.warn(
+        { conditionId: metadata.conditionId },
+        "polymarket ghost: market not found on gamma-api; ghost trade may drift from reality",
+      );
+    }
+
+    const brokerOrderId = `ghost-${crypto.randomUUID()}`;
+    const shares = order.sizeUsd / Math.max(price, 0.01);
+    if (order.side === "BUY") this.paperBalanceUsd -= order.sizeUsd;
+    this.ghostOrders.set(brokerOrderId, {
+      tokenId: metadata.outcomeTokenId,
+      conditionId: metadata.conditionId,
+      market: metadata.conditionId,
+      side: order.side,
+      sizeUsd: order.sizeUsd,
+      shares,
+      entryPrice: price,
+      open: true,
+    });
+    logger.info(
+      { brokerOrderId, filledAvgPrice: price, paperBalanceUsd: this.paperBalanceUsd },
+      "polymarket ghost: order filled locally",
+    );
+    return { brokerOrderId, filledAvgPrice: price };
+  }
+
   async cancelOrder(brokerOrderId: string): Promise<void> {
+    if (this.isPaper) {
+      this.ghostOrders.delete(brokerOrderId);
+      return;
+    }
     logger.info({ brokerOrderId }, "polymarket cancelOrder: cancelling order");
     const client = await this.getAuthedClient();
     await traceBrokerInteraction(
@@ -207,6 +317,7 @@ export class PolymarketAdapter
   }
 
   async closeOrder(orderId: string): Promise<CloseResult> {
+    if (this.isPaper) return this.closeGhostOrder(orderId);
     logger.info({ orderId }, "polymarket closeOrder: closing order");
     const client = await this.getAuthedClient();
     const order = await client.getOrder(orderId);
@@ -260,7 +371,29 @@ export class PolymarketAdapter
     };
   }
 
+  /** Settle a ghost position at the current real market price; credit proceeds. */
+  private async closeGhostOrder(orderId: string): Promise<CloseResult> {
+    const ghost = this.ghostOrders.get(orderId);
+    if (!ghost || !ghost.open) {
+      return { brokerOrderId: orderId, realizedPnlUsd: 0 };
+    }
+    const exitPrice = await this.resolveReferencePrice(
+      this.getReadOnlyClient(),
+      ghost.tokenId,
+    );
+    const proceeds = ghost.shares * exitPrice;
+    const realizedPnlUsd = proceeds - ghost.sizeUsd;
+    this.paperBalanceUsd += proceeds;
+    ghost.open = false;
+    logger.info(
+      { orderId, exitPrice, realizedPnlUsd, paperBalanceUsd: this.paperBalanceUsd },
+      "polymarket ghost: position closed locally",
+    );
+    return { brokerOrderId: orderId, realizedPnlUsd };
+  }
+
   async getOrderStatus(orderId: string): Promise<OrderStatus> {
+    if (this.isPaper) return this.getGhostOrderStatus(orderId);
     logger.debug({ orderId }, "polymarket getOrderStatus: fetching");
     const client = await this.getAuthedClient();
     const order = await client.getOrder(orderId);
@@ -283,6 +416,40 @@ export class PolymarketAdapter
         status === "live" || status === "delayed" || !resolvedByTime
           ? "open"
           : "closed",
+      latestPrice,
+      realizedPnlUsd: null,
+    };
+  }
+
+  /**
+   * Ghost status: a ghost fill is "open" until the real market resolves, using
+   * the real resolution time and price. This is how a paper position rides to
+   * settlement against reality without ever touching the CLOB.
+   */
+  private async getGhostOrderStatus(orderId: string): Promise<OrderStatus> {
+    const ghost = this.ghostOrders.get(orderId);
+    if (!ghost) {
+      return {
+        brokerOrderId: orderId,
+        status: "closed",
+        latestPrice: null,
+        realizedPnlUsd: null,
+      };
+    }
+    const readClient = this.getReadOnlyClient();
+    const latestPrice = await this.resolveOptionalPrice(
+      readClient,
+      ghost.tokenId,
+    );
+    const market = ghost.market
+      ? await readClient.getMarket(ghost.market).catch(() => null)
+      : null;
+    const resolutionTime = readMarketResolutionTime(market);
+    const resolvedByTime =
+      resolutionTime != null && resolutionTime.getTime() <= Date.now();
+    return {
+      brokerOrderId: orderId,
+      status: ghost.open && !resolvedByTime ? "open" : "closed",
       latestPrice,
       realizedPnlUsd: null,
     };

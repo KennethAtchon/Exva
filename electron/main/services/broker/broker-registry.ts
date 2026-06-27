@@ -154,7 +154,7 @@ export class BrokerRegistry {
           host?: string;
           chainId?: number;
         };
-        return new PolymarketAdapter(parsed, interactionLogger);
+        return new PolymarketAdapter(parsed, account.mode, interactionLogger);
       }
       case "mock": {
         const kind = resolveMockScenarioKind(account);

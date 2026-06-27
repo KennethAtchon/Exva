@@ -18,6 +18,7 @@ import type {
   CloseResult,
   MarketSnapshot,
   OhlcvBar,
+  OptionChainContract,
   OrderStatus,
 } from "./broker-adapter";
 
@@ -35,6 +36,33 @@ const ALPACA_TIMEFRAME_MAP: Record<string, string> = {
   "4h": "4Hour",
   "1d": "1Day",
 };
+
+/** Minutes spanned by one bar of each Alpaca timeframe. */
+const ALPACA_TIMEFRAME_MINUTES: Record<string, number> = {
+  "15Min": 15,
+  "30Min": 30,
+  "1Hour": 60,
+  "4Hour": 240,
+  "1Day": 1440,
+};
+
+/**
+ * Alpaca's bars endpoints return an EMPTY array when `start` is omitted — the
+ * default window resolves to nothing usable on the free IEX/indicative feeds.
+ * Without `start`, every OHLCV fetch silently returns `[]`, which starves the
+ * deterministic signal engines and pins them at their "insufficient bars" skip.
+ * So we always pass an explicit lookback window wide enough to yield `barCount`
+ * bars, with ~3x slack so weekends/closed sessions still backfill enough bars.
+ */
+function barLookbackStartIso(
+  alpacaTimeframe: string,
+  barCount: number,
+  now: Date,
+): string {
+  const minutesPerBar = ALPACA_TIMEFRAME_MINUTES[alpacaTimeframe] ?? 1440;
+  const spanMs = minutesPerBar * 60_000 * Math.max(barCount, 1) * 3;
+  return new Date(now.getTime() - spanMs).toISOString();
+}
 
 /**
  * Alpaca uses a slash in crypto wire symbols (e.g. `BTC/USD`) and a bare ticker
@@ -329,6 +357,7 @@ export class AlpacaAdapter implements BrokerAdapter {
       timeframe: alpacaTimeframe,
       limit: String(barCount),
       feed: "iex",
+      start: barLookbackStartIso(alpacaTimeframe, barCount, this.now()),
     });
     const data = await this.dataRequest<{
       bars?: Array<{
@@ -352,6 +381,7 @@ export class AlpacaAdapter implements BrokerAdapter {
       symbols: instrumentSymbol,
       timeframe: alpacaTimeframe,
       limit: String(barCount),
+      start: barLookbackStartIso(alpacaTimeframe, barCount, this.now()),
     });
     const data = await this.dataRequest<{
       bars?: Record<
@@ -378,6 +408,7 @@ export class AlpacaAdapter implements BrokerAdapter {
       symbols: instrumentSymbol,
       timeframe: alpacaTimeframe,
       limit: String(barCount),
+      start: barLookbackStartIso(alpacaTimeframe, barCount, this.now()),
     });
     const data = await this.dataRequest<{
       bars?: Record<
@@ -393,6 +424,57 @@ export class AlpacaAdapter implements BrokerAdapter {
       >;
     }>(`/v1beta1/options/bars?${params}`);
     return (data.bars?.[instrumentSymbol] ?? []).map(toOhlcvBar);
+  }
+
+  /**
+   * Option chain via the snapshots endpoint (free `indicative` feed). Greeks,
+   * IV, day volume, and quotes are best-effort — fields the feed omits come
+   * back null/0 rather than throwing, so the UOA detector degrades to a skip
+   * instead of crashing the cycle.
+   */
+  async getOptionChain(
+    underlyingSymbol: string,
+  ): Promise<OptionChainContract[]> {
+    const params = new URLSearchParams({ feed: "indicative", limit: "1000" });
+    const data = await this.dataRequest<{
+      snapshots?: Record<
+        string,
+        {
+          latestQuote?: { bp?: number; ap?: number };
+          greeks?: { delta?: number };
+          impliedVolatility?: number;
+          dailyBar?: { v?: number };
+          openInterest?: number;
+        }
+      >;
+    }>(
+      `/v1beta1/options/snapshots/${encodeURIComponent(underlyingSymbol)}?${params}`,
+    );
+
+    const snapshots = data.snapshots ?? {};
+    const chain: OptionChainContract[] = [];
+    for (const [occSymbol, snap] of Object.entries(snapshots)) {
+      const parsed = parseOccSymbol(occSymbol);
+      if (!parsed) continue;
+      const delta = snap.greeks?.delta;
+      chain.push({
+        symbol: occSymbol,
+        type: parsed.type,
+        strike: parsed.strike,
+        expiry: parsed.expiry,
+        delta: typeof delta === "number" ? Math.abs(delta) : null,
+        impliedVolatility:
+          typeof snap.impliedVolatility === "number"
+            ? snap.impliedVolatility
+            : null,
+        openInterest:
+          typeof snap.openInterest === "number" ? snap.openInterest : 0,
+        dayVolume: typeof snap.dailyBar?.v === "number" ? snap.dailyBar.v : 0,
+        bid: typeof snap.latestQuote?.bp === "number" ? snap.latestQuote.bp : null,
+        ask: typeof snap.latestQuote?.ap === "number" ? snap.latestQuote.ap : null,
+      });
+    }
+    return chain;
   }
 
   async getOrderStatus(orderId: string): Promise<OrderStatus> {
@@ -690,6 +772,23 @@ function parsePositiveNumber(value: string | undefined): number | null {
   if (value == null) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+/**
+ * Parse an OCC symbol (`<root><yymmdd><C|P><strike*1000 padded 8>`) into its
+ * type, expiry, and strike. Returns null for anything that isn't an OCC symbol.
+ */
+function parseOccSymbol(
+  symbol: string,
+): { type: "call" | "put"; expiry: string; strike: number } | null {
+  const match = /^[A-Z]+(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/.exec(symbol);
+  if (!match) return null;
+  const [, yy, mm, dd, cp, strikeRaw] = match;
+  return {
+    type: cp === "C" ? "call" : "put",
+    expiry: `20${yy}-${mm}-${dd}`,
+    strike: Number(strikeRaw) / 1000,
+  };
 }
 
 /** Round to whole cents; Alpaca rejects equity limit prices below penny ticks. */

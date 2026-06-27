@@ -124,6 +124,7 @@ export function expectedTradeExecutionProfile(args: {
     arbitrage: 0.5,
     prediction_market: 1,
     futures_trend: 1,
+    options_flow: 0.5,
   };
 
   const kelly = Math.max(0, Math.min(1, kellyFraction));

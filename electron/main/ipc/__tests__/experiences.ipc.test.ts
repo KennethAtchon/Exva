@@ -28,10 +28,11 @@ describe("experiences IPC", () => {
       };
     }>;
 
-    expect(experiences).toHaveLength(5);
+    expect(experiences).toHaveLength(6);
     expect(experiences.map((item) => item.id).sort()).toEqual(
       [
         "edgar-catalyst",
+        "options-flow-edge",
         "prediction-event-edge",
         "rules-breakout",
         "rules-mean-reversion",

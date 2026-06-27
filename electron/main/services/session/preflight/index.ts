@@ -2,6 +2,7 @@ import type { WorkspaceSession } from "@/lib/types";
 import { brokerAllocationCheck } from "./broker-allocation-check";
 import { brokerReachabilityCheck } from "./broker-reachability-check";
 import { instrumentConflictCheck } from "./instrument-conflict-check";
+import { ohlcvDataProbeCheck } from "./ohlcv-data-probe-check";
 import { providerCredentialsCheck } from "./provider-credentials-check";
 import { selectorConfigCheck } from "./selector-config-check";
 import { signalSourceCapabilityCheck } from "./signal-source-capability-check";
@@ -40,6 +41,10 @@ export async function runPreflight(
     {
       check: "signal-source-capability",
       run: () => signalSourceCapabilityCheck(session, deps),
+    },
+    {
+      check: "ohlcv-data-probe",
+      run: () => ohlcvDataProbeCheck(session, deps),
     },
   ];
 
