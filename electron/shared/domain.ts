@@ -4,6 +4,8 @@ export * from "./domain/decision-trace";
 export * from "./domain/edge-estimate";
 export * from "./domain/enums";
 export * from "./domain/experience";
+export * from "./domain/market-signal";
+export * from "./domain/signal-bridge";
 export * from "./domain/mock-scenario";
 export * from "./domain/prediction-event-triggers";
 export * from "./domain/research-contract";

@@ -6,6 +6,9 @@ export type BrokerType =
   | "coinbase_advanced_trade"
   | "tradovate"
   | "polymarket"
+  | "kalshi"
+  | "tradier"
+  | "kraken"
   | "mock";
 
 /**
@@ -32,6 +35,12 @@ export const BROKER_SUPPORTED_INSTRUMENT_CLASSES = {
   tradovate: ["futures"],
   // Polymarket is prediction markets only.
   polymarket: ["prediction_market"],
+  // Kalshi: regulated US event contracts.
+  kalshi: ["prediction_market"],
+  // Tradier: equities + options execution.
+  tradier: ["stock", "options"],
+  // Kraken: crypto spot (+ public OHLC for the data store).
+  kraken: ["crypto"],
   // Mock simulator can stand in for anything.
   mock: ["stock", "crypto", "futures", "options", "prediction_market"],
 } as const satisfies Record<BrokerType, readonly InstrumentClass[]>;

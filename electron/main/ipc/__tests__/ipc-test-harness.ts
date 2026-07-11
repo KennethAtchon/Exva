@@ -360,6 +360,11 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     capitalReservation: capitalReservation as never,
     eventBus,
     notifications: {} as AppServices["notifications"],
+    marketData: {} as AppServices["marketData"],
+    supervisor: {
+      start: vi.fn(),
+      stop: vi.fn(),
+    } as unknown as AppServices["supervisor"],
     runtimeManager,
     risk: {} as AppServices["risk"],
     secrets: {} as AppServices["secrets"],

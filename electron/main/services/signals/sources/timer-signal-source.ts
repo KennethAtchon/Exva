@@ -130,6 +130,10 @@ export class TimerSignalSource implements ISignalSource {
       },
       filedAt: at,
       detectedAt: at,
+      kind: "scan_hit",
+      ttl: cadenceToIsoDuration(this.config.cadence),
+      dedupeKey: `scan_hit:strategyId=timer|symbol=${this.config.symbol}|barCloseAt=${at}`,
+      occurredAt: at,
     };
     this.lastSignalAt = at;
     this.lastSignalTicker = event.ticker;
@@ -169,4 +173,14 @@ function cadenceToMs(cadence: string): number {
   if (unit === "m") return value * 60 * 1000;
   if (unit === "h") return value * 60 * 60 * 1000;
   return value * 24 * 60 * 60 * 1000;
+}
+
+function cadenceToIsoDuration(cadence: string): string {
+  const match = cadence.match(/^(\d+)(m|h|d)$/i);
+  if (!match) return "PT1H";
+  const n = match[1]!;
+  const unit = match[2]!.toLowerCase();
+  if (unit === "m") return `PT${n}M`;
+  if (unit === "h") return `PT${n}H`;
+  return `P${n}D`;
 }

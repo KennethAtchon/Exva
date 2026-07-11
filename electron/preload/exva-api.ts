@@ -461,6 +461,9 @@ export interface ExvaApi {
         | "coinbase_advanced_trade"
         | "tradovate"
         | "polymarket"
+        | "kalshi"
+        | "tradier"
+        | "kraken"
         | "mock";
       name: string;
       mode: "paper" | "live";
@@ -482,6 +485,9 @@ export interface ExvaApi {
         | "coinbase_advanced_trade"
         | "tradovate"
         | "polymarket"
+        | "kalshi"
+        | "tradier"
+        | "kraken"
         | "mock";
       mode: "paper" | "live";
       credentials: Record<string, string>;

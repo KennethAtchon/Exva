@@ -18,7 +18,10 @@ import {
   isMockScenarioKind,
   type MockScenarioKind,
 } from "@electron/shared/domain/mock-scenario";
+import { KalshiAdapter } from "./adapters/kalshi-adapter";
+import { KrakenAdapter } from "./adapters/kraken-adapter";
 import { PolymarketAdapter } from "./adapters/polymarket-adapter";
+import { TradierAdapter } from "./adapters/tradier-adapter";
 import {
   TradovateAdapter,
   type TradovateCredentials,
@@ -156,6 +159,12 @@ export class BrokerRegistry {
         };
         return new PolymarketAdapter(parsed, account.mode, interactionLogger);
       }
+      case "kalshi":
+        return new KalshiAdapter(credsJson, account.mode);
+      case "tradier":
+        return new TradierAdapter(credsJson, account.mode);
+      case "kraken":
+        return new KrakenAdapter(credsJson, account.mode);
       case "mock": {
         const kind = resolveMockScenarioKind(account);
         const tier = account.mockExecutionTier ?? DEFAULT_MOCK_EXECUTION_TIER;

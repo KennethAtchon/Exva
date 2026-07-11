@@ -28,6 +28,9 @@ type BrokerType =
   | "coinbase_advanced_trade"
   | "tradovate"
   | "polymarket"
+  | "kalshi"
+  | "tradier"
+  | "kraken"
   | "mock";
 
 interface FormState {
@@ -356,7 +359,7 @@ export const AddBrokerModal = ({
             }}
             options={[
               { value: "mock", label: "Mock (dev — all instrument classes)" },
-              { value: "alpaca", label: "Alpaca (stocks)" },
+              { value: "alpaca", label: "Alpaca (stocks/crypto/options)" },
               {
                 value: "coinbase_advanced_trade",
                 label: "Coinbase Advanced Trade (crypto — CCXT)",
@@ -366,6 +369,9 @@ export const AddBrokerModal = ({
                 label: "Tradovate (futures — simulated v1)",
               },
               { value: "polymarket", label: "Polymarket (prediction markets)" },
+              { value: "kalshi", label: "Kalshi (US event contracts — skeleton)" },
+              { value: "tradier", label: "Tradier (stocks/options — skeleton)" },
+              { value: "kraken", label: "Kraken (crypto — skeleton)" },
             ]}
           />
           <div className="mt-1.5 text-[12px] text-[var(--text3)]">

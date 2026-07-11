@@ -1,4 +1,6 @@
 import {
+  enrichSignalEvent,
+  isSignalExpired,
   sessionRequiresInstrumentScope,
   type SignalSourceRecord,
 } from "@electron/shared/domain";
@@ -460,14 +462,35 @@ export class SignalService {
       });
     }
 
-    // Conservative replay: mark orphaned new events as dropped when app restarts
-    // without enough context to safely refan-out deterministic targets.
-    for (const event of this.eventsRepo.listByDispatchStatus("new")) {
-      this.eventsRepo.markDispatchStatus(
-        event.id,
-        "dropped_pre_fanout",
-        "startup_replay_not_implemented",
+    // TTL-aware re-fan-out: re-deliver unexpired undispatched events; drop expired.
+    for (const row of this.eventsRepo.listByDispatchStatus("new")) {
+      const event = this.eventsRepo.getById(row.id);
+      if (!event) continue;
+      const enriched = enrichSignalEvent(event);
+      const ttl = enriched.ttl ?? "PT4H";
+      if (isSignalExpired(enriched.detectedAt, ttl)) {
+        this.eventsRepo.markDispatchStatus(
+          event.id,
+          "dropped_pre_fanout",
+          "ttl_expired_at_startup",
+        );
+        continue;
+      }
+      const sessionIds = this.sourcesRepo.subscribedSessionsForSource(
+        event.sourceId,
       );
+      if (sessionIds.length === 0) {
+        this.eventsRepo.markDispatchStatus(
+          event.id,
+          "dropped_pre_fanout",
+          "no_subscribers",
+        );
+        continue;
+      }
+      for (const sessionId of sessionIds) {
+        void this.signalBus.deliverOrDeadLetter(sessionId, enriched);
+      }
+      this.eventsRepo.markDispatchStatus(event.id, "fanned_out");
     }
   }
 

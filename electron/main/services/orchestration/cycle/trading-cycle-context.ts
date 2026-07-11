@@ -28,6 +28,8 @@ import {
 
 const FAILURE_HISTORY_WINDOW_MS = 60 * 60 * 1000;
 const MAX_CONSECUTIVE_HARD_FAILURES = 3;
+/** Same skip reason N times in a row → attention_required (Phase 0 guardrail). */
+const MAX_CONSECUTIVE_SAME_SKIP = 10;
 
 export class TradingCycleContext {
   readonly queue = new PQueue({ concurrency: 1 });
@@ -54,6 +56,9 @@ export class TradingCycleContext {
    */
   private marketClosedRetryAt: number | null = null;
   consecutiveHardFailures = 0;
+  /** Streak of identical reasonCategory on no_trade/transient skips. */
+  consecutiveSameSkipReason: FailureHistoryReasonCategory | null = null;
+  consecutiveSameSkipCount = 0;
 
   constructor(
     readonly sessionId: string,
@@ -279,6 +284,8 @@ export class TradingCycleContext {
 
   resetHardFailureStreak(): void {
     this.consecutiveHardFailures = 0;
+    this.consecutiveSameSkipReason = null;
+    this.consecutiveSameSkipCount = 0;
   }
 
   getFailureHistory(): FailureHistoryEntry[] {
@@ -339,6 +346,51 @@ export class TradingCycleContext {
       reasonCategory: input.reasonCategory,
     });
     this.pruneFailureHistory();
+    this.maybeRaiseConsecutiveSkipAlarm(input);
+  }
+
+  private maybeRaiseConsecutiveSkipAlarm(input: {
+    cycleId: string;
+    outcome: OrchestrationOutcome;
+    reasonCategory: FailureHistoryReasonCategory;
+  }): void {
+    const isSkipOutcome =
+      input.outcome === "no_trade" || input.outcome === "transient";
+    if (!isSkipOutcome) {
+      this.consecutiveSameSkipReason = null;
+      this.consecutiveSameSkipCount = 0;
+      return;
+    }
+
+    if (this.consecutiveSameSkipReason === input.reasonCategory) {
+      this.consecutiveSameSkipCount += 1;
+    } else {
+      this.consecutiveSameSkipReason = input.reasonCategory;
+      this.consecutiveSameSkipCount = 1;
+    }
+
+    if (this.consecutiveSameSkipCount < MAX_CONSECUTIVE_SAME_SKIP) return;
+    if (
+      this.deps.sessionRepo.getStatus(this.sessionId) === "attention_required"
+    ) {
+      return;
+    }
+
+    const reason = input.reasonCategory;
+    const count = this.consecutiveSameSkipCount;
+    this.emitEvent(
+      "ERROR",
+      null,
+      `Session needs attention: ${count} consecutive skips with reason "${reason}". Data starvation and healthy no-setup look the same until this fires.`,
+      "orchestrator",
+      input.cycleId,
+    );
+    this.deps.bus.emit("notification", {
+      title: "Exva: consecutive skips",
+      body: `Session ${this.sessionId.slice(0, 8)}… skipped ${count} times (${reason}).`,
+      level: "ERROR",
+    });
+    this.setSessionStatus("attention_required");
   }
 
   private pruneFailureHistory(): void {

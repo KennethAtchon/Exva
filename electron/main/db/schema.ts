@@ -111,12 +111,25 @@ export const signalEvents = sqliteTable(
     dispatchStatus: text("dispatch_status").notNull(),
     dispatchCompletedAt: text("dispatch_completed_at"),
     sourceDroppedReason: text("source_dropped_reason"),
+    /** MarketSignal kind; null on legacy rows until backfill. */
+    kind: text("kind"),
+    /** Typed payload JSON (v2); dual-read with payloadJson during migration. */
+    payloadV2: text("payload_v2"),
+    /** Mandatory dedupe key once sources cut over. */
+    dedupeKey: text("dedupe_key"),
+    /** ISO-8601 duration TTL for delivery expiry. */
+    ttl: text("ttl"),
+    /** When the information came into being (may differ from detectedAt). */
+    occurredAt: text("occurred_at"),
   },
   (table) => ({
     sourceIdx: index("idx_signal_events_source").on(table.sourceId),
     sourceAccessionUnique: uniqueIndex("idx_signal_events_accession")
       .on(table.sourceId, table.accessionNumber)
       .where(sql`${table.accessionNumber} is not null`),
+    sourceDedupeUnique: uniqueIndex("idx_signal_events_dedupe")
+      .on(table.sourceId, table.dedupeKey)
+      .where(sql`${table.dedupeKey} is not null`),
   }),
 );
 
@@ -1180,6 +1193,55 @@ export const capitalReservations = sqliteTable(
     ),
     approvalIdIdx: index("idx_capital_reservations_approval").on(
       table.approvalId,
+    ),
+  }),
+);
+
+/** Point-in-time OHLCV store shared by live cycles and backtests. */
+export const ohlcvBars = sqliteTable(
+  "ohlcv_bars",
+  {
+    id: text("id").primaryKey(),
+    symbol: text("symbol").notNull(),
+    instrumentClass: text("instrument_class").notNull(),
+    timeframe: text("timeframe").notNull(),
+    ts: text("ts").notNull(),
+    open: real("open").notNull(),
+    high: real("high").notNull(),
+    low: real("low").notNull(),
+    close: real("close").notNull(),
+    volume: real("volume"),
+    provider: text("provider").notNull(),
+    ingestedAt: text("ingested_at").notNull(),
+  },
+  (table) => ({
+    symbolTfTsUnique: uniqueIndex("idx_ohlcv_bars_symbol_tf_ts").on(
+      table.symbol,
+      table.timeframe,
+      table.ts,
+    ),
+    symbolTfIdx: index("idx_ohlcv_bars_symbol_tf").on(
+      table.symbol,
+      table.timeframe,
+    ),
+  }),
+);
+
+export const dataCoverage = sqliteTable(
+  "data_coverage",
+  {
+    id: text("id").primaryKey(),
+    symbol: text("symbol").notNull(),
+    timeframe: text("timeframe").notNull(),
+    firstTs: text("first_ts").notNull(),
+    lastTs: text("last_ts").notNull(),
+    provider: text("provider").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => ({
+    symbolTfUnique: uniqueIndex("idx_data_coverage_symbol_tf").on(
+      table.symbol,
+      table.timeframe,
     ),
   }),
 );

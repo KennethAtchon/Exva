@@ -4,6 +4,12 @@ import type {
   PredictionOutcome,
 } from "@/lib/types";
 import type { TradingTimeframe } from "@electron/shared/domain/enums";
+import type {
+  AdapterCapabilities,
+  BrokerOrderV2,
+  OrderEventFeed,
+} from "../order-contract-v2";
+import { DEFAULT_MARKET_ONLY_CAPABILITIES } from "../order-contract-v2";
 
 export interface MarketSnapshot {
   instrumentSymbol: string;
@@ -109,8 +115,16 @@ export interface BrokerAdapter {
    */
   readonly launchCapable: boolean;
 
+  /** Order-contract v2 capabilities. Defaults to market+notional only. */
+  readonly capabilities?: AdapterCapabilities;
+
   testConnection(): Promise<ConnectionTestResult>;
   placeOrder(order: BrokerOrder): Promise<BrokerOrderResult>;
+  /**
+   * Optional v2 placement. Adapters that implement this are preferred by
+   * order-placer when the incoming order is BrokerOrderV2-shaped.
+   */
+  placeOrderV2?(order: BrokerOrderV2): Promise<BrokerOrderResult>;
   cancelOrder(brokerOrderId: string): Promise<void>;
   getPositions(): Promise<BrokerPosition[]>;
 
@@ -132,6 +146,15 @@ export interface BrokerAdapter {
    * defined-risk contract selection.
    */
   getOptionChain?(underlyingSymbol: string): Promise<OptionChainContract[]>;
+
+  /** Optional order-event feed (websocket or poll). TradeMonitor prefers this. */
+  createOrderEventFeed?(): OrderEventFeed;
+}
+
+export function adapterCapabilitiesOf(
+  adapter: BrokerAdapter,
+): AdapterCapabilities {
+  return adapter.capabilities ?? DEFAULT_MARKET_ONLY_CAPABILITIES;
 }
 
 /** Raw row shape returned by Polymarket Gamma REST API. */

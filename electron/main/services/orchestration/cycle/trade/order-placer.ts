@@ -1,5 +1,6 @@
 import type { InstrumentClass, Trade } from "@/lib/types";
 import type { OrderRequest } from "../../../broker/adapters/broker-adapter";
+import { liftBrokerOrderV1ToV2 } from "../../../broker/order-contract-v2";
 import type { TradingCycleContext } from "../trading-cycle-context";
 
 export async function placeRoutedOrder(
@@ -61,18 +62,25 @@ export async function placeRoutedOrder(
     "placing broker order",
   );
 
+  const v1Order = {
+    instrumentSymbol: wireSymbol,
+    instrumentDisplayName: trade.instrumentDisplayName ?? null,
+    predictionOutcome: trade.predictionOutcome ?? null,
+    instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
+    instrumentType: instrumentClass,
+    side: riskOrder.side,
+    sizeUsd: riskOrder.sizeUsd,
+    clientOrderId,
+  };
+
   let result;
   try {
-    result = await adapter.placeOrder({
-      instrumentSymbol: wireSymbol,
-      instrumentDisplayName: trade.instrumentDisplayName ?? null,
-      predictionOutcome: trade.predictionOutcome ?? null,
-      instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
-      instrumentType: instrumentClass,
-      side: riskOrder.side,
-      sizeUsd: riskOrder.sizeUsd,
-      clientOrderId,
-    });
+    // Prefer v2 when the adapter implements it; lift keeps market+notional
+    // shape so existing adapters/tests stay compatible.
+    result =
+      typeof adapter.placeOrderV2 === "function"
+        ? await adapter.placeOrderV2(liftBrokerOrderV1ToV2(v1Order))
+        : await adapter.placeOrder(v1Order);
   } catch (err) {
     ctx.deps.logger.error(
       {

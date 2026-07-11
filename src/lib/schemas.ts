@@ -171,6 +171,9 @@ const brokerTypeSchema = z.enum([
   "coinbase_advanced_trade",
   "tradovate",
   "polymarket",
+  "kalshi",
+  "tradier",
+  "kraken",
   "mock",
 ]);
 

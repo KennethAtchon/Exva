@@ -11,6 +11,16 @@ export const PROMOTION_TIERS = [
 
 export type PromotionTier = (typeof PROMOTION_TIERS)[number];
 
+/** Research evidence rungs: backtest → paper → live_small → live_scaled. */
+export const EVIDENCE_RUNGS = [
+  "backtest",
+  "paper",
+  "live_small",
+  "live_scaled",
+] as const;
+
+export type EvidenceRung = (typeof EVIDENCE_RUNGS)[number];
+
 export function resolveSessionPromotionTier(input: {
   executionMode: ExecutionMode;
   usesMockBroker: boolean;

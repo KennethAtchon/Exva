@@ -1,3 +1,10 @@
+# Deprecated path
+
+`trade-execution-profile` moved to `electron/main/services/orchestration/trade-execution-profile.ts`.
+A shim re-export remains at `./trade-execution-profile.ts` for import compatibility.
+
+---
+
 # signal/execution
 
 This folder turns a non-skip trade decision into the order-shape details needed before policy gates and broker placement. It does not place orders; it calculates the deterministic execution profile from the signal, instrument class, exposure caps, confidence, and risk settings.

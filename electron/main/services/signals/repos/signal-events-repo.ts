@@ -21,6 +21,13 @@ export class SignalEventsRepo {
         filedAt: event.filedAt,
         detectedAt: event.detectedAt,
         dispatchStatus: "new",
+        kind: event.kind ?? null,
+        payloadV2: event.payloadV2
+          ? JSON.stringify(event.payloadV2)
+          : null,
+        dedupeKey: event.dedupeKey ?? null,
+        ttl: event.ttl ?? null,
+        occurredAt: event.occurredAt ?? null,
       })
       .run();
   }
@@ -36,6 +43,20 @@ export class SignalEventsRepo {
         and(
           eq(signalEvents.sourceId, sourceId),
           eq(signalEvents.accessionNumber, accessionNumber),
+        ),
+      )
+      .get();
+    return Boolean(row);
+  }
+
+  existsBySourceAndDedupeKey(sourceId: string, dedupeKey: string): boolean {
+    const row = this.db.db
+      .select({ id: signalEvents.id })
+      .from(signalEvents)
+      .where(
+        and(
+          eq(signalEvents.sourceId, sourceId),
+          eq(signalEvents.dedupeKey, dedupeKey),
         ),
       )
       .get();
@@ -97,6 +118,13 @@ export class SignalEventsRepo {
       payloadJson: JSON.parse(row.payloadJson) as Record<string, unknown>,
       filedAt: row.filedAt,
       detectedAt: row.detectedAt,
+      kind: row.kind,
+      payloadV2: row.payloadV2
+        ? (JSON.parse(row.payloadV2) as Record<string, unknown>)
+        : null,
+      dedupeKey: row.dedupeKey,
+      ttl: row.ttl,
+      occurredAt: row.occurredAt,
     };
   }
 }

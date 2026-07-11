@@ -21,6 +21,12 @@ import type {
   OptionChainContract,
   OrderStatus,
 } from "./broker-adapter";
+import {
+  ALPACA_CAPABILITIES,
+  adapterSupportsOrder,
+  lowerBrokerOrderV2ToV1,
+  type BrokerOrderV2,
+} from "../order-contract-v2";
 
 const logger = createLogger("alpaca-adapter");
 
@@ -89,6 +95,7 @@ export class AlpacaAdapter implements BrokerAdapter {
   readonly supportedInstrumentClasses =
     BROKER_SUPPORTED_INSTRUMENT_CLASSES.alpaca;
   readonly launchCapable = true;
+  readonly capabilities = ALPACA_CAPABILITIES;
 
   private readonly baseUrl: string;
 
@@ -197,6 +204,25 @@ export class AlpacaAdapter implements BrokerAdapter {
       price: Number(trade?.p ?? 0),
       timestamp: trade?.t ?? new Date().toISOString(),
     };
+  }
+
+  async placeOrderV2(order: BrokerOrderV2): Promise<BrokerOrderResult> {
+    const check = adapterSupportsOrder(this.capabilities, order);
+    if (!check.ok) {
+      throw new Error(`Alpaca rejects order: ${check.reason}`);
+    }
+    if (order.orderType === "market" && order.quantity.kind === "notional_usd") {
+      return this.placeOrder(lowerBrokerOrderV2ToV1(order));
+    }
+    if (order.orderType === "limit" && order.quantity.kind === "units") {
+      // placeOrder/buildOrderBody only accept v1 notional market (plus an
+      // internal extended-hours marketable-limit path). Explicit limit+units
+      // needs a dedicated Alpaca qty/limit_price body — not wired yet.
+      throw new Error("Alpaca placeOrderV2: limit units path not yet wired");
+    }
+    throw new Error(
+      `Alpaca placeOrderV2: ${order.orderType}/${order.quantity.kind} not yet wired`,
+    );
   }
 
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {

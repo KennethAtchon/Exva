@@ -68,6 +68,8 @@ import { EventBus } from "./infra/event-bus";
 import { attachEventBusObserver } from "./infra/event-bus-observer";
 import { createLogger } from "./infra/log";
 import { NotificationService } from "./infra/notification-service";
+import { MarketDataService } from "./marketdata/market-data-service";
+import { SupervisorService } from "./supervisor/supervisor-service";
 import { AgentOrchestrator } from "./orchestration/cycle/agent-orchestrator";
 import { registerDefaultEngines } from "./signal/registry/register-default-engines";
 import { assertValidPipelineDefinitionCatalog } from "./pipeline/effective-ai-phase-config";
@@ -178,6 +180,8 @@ export interface AppServices {
   capitalReservation: CapitalReservationService;
   eventBus: EventBus;
   notifications: NotificationService;
+  marketData: MarketDataService;
+  supervisor: SupervisorService;
   runtimeManager: SessionRuntimeManager;
   risk: RiskEngine;
   secrets: SecretsService;
@@ -306,6 +310,38 @@ export async function createAppServices(app: App): Promise<AppServices> {
   );
   const searchRegistry = new SearchRegistry(repos.providerAccounts, secrets);
   const notifications = new NotificationService(eventBus);
+  const marketData = new MarketDataService(db);
+  // Resolve OHLCV through the first Alpaca account when one exists; otherwise
+  // the fetcher returns [] so MarketDataService can still serve DB-cached bars.
+  marketData.registerFetcher("alpaca", async (input) => {
+    const alpacaAccount = repos.brokerAccounts
+      .list()
+      .find((account) => account.brokerType === "alpaca");
+    if (!alpacaAccount) return [];
+    try {
+      const adapter = await brokerRegistry.get(alpacaAccount.id);
+      if (!adapter.getOhlcv) return [];
+      const timeframe =
+        input.timeframe === "1w"
+          ? "1d"
+          : input.timeframe === "15m" ||
+              input.timeframe === "30m" ||
+              input.timeframe === "1h" ||
+              input.timeframe === "4h" ||
+              input.timeframe === "1d"
+            ? input.timeframe
+            : "1d";
+      return adapter.getOhlcv(input.symbol, timeframe, input.barCount);
+    } catch {
+      return [];
+    }
+  });
+  const supervisor = new SupervisorService({
+    eventBus,
+    notifications,
+    marketData,
+  });
+  supervisor.start();
   const candidateValidation = new CandidateValidationService();
   const orderPolicyGate = new OrderPolicyGate();
   const exitPolicyEvaluator = new ExitPolicyEvaluator();
@@ -653,6 +689,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
     capitalReservation,
     eventBus,
     notifications,
+    marketData,
+    supervisor,
     runtimeManager,
     risk,
     secrets,

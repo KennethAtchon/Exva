@@ -49,6 +49,14 @@ export interface SignalEvent {
   payloadJson: Record<string, unknown>;
   filedAt: string;
   detectedAt: string;
+  /** MarketSignal kind (dual-write during envelope migration). */
+  kind?: string | null;
+  /** Typed payload JSON string or parsed object (dual-write). */
+  payloadV2?: Record<string, unknown> | null;
+  dedupeKey?: string | null;
+  /** ISO-8601 duration; replaces hardcoded 4h pause expiry. */
+  ttl?: string | null;
+  occurredAt?: string | null;
 }
 
 export interface PollResult {
