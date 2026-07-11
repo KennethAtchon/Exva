@@ -16,7 +16,7 @@ import type {
 } from "@electron/shared/ai/trade-signals";
 import type { LLMRunResult } from "../../llm/llm-types";
 import type { OrderRequest } from "../../broker/adapters/broker-adapter";
-import type { TradeExecutionProfile } from "../../signal/execution/trade-execution-profile";
+import type { TradeExecutionProfile } from "../../orchestration/trade-execution-profile";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { WorkerToolContext } from "../worker-tools/worker-tool-factory";
 import type { InstrumentAnalysisServices } from "./services";

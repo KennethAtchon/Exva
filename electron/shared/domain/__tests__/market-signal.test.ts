@@ -45,9 +45,9 @@ describe("isSignalExpired", () => {
 
 describe("computeDedupeKey", () => {
   it("orders parts stably by key", () => {
-    expect(
-      computeDedupeKey("filing", { accession: "a", ticker: "AAPL" }),
-    ).toBe(computeDedupeKey("filing", { ticker: "AAPL", accession: "a" }));
+    expect(computeDedupeKey("filing", { accession: "a", ticker: "AAPL" })).toBe(
+      computeDedupeKey("filing", { ticker: "AAPL", accession: "a" }),
+    );
     expect(computeDedupeKey("scan_hit", { symbol: "SPY", z: 2 })).toBe(
       "scan_hit:symbol=SPY|z=2",
     );

@@ -1,16 +1,77 @@
 import type { DbClient } from "../../db/client";
 import type {
+  PollResult,
+  SignalEvent,
   SignalSourceRecord,
   SignalSourceRuntimeStatus,
 } from "@electron/shared/domain";
+import type { InstrumentClass } from "@/lib/types";
 import type { ISignalSource, SignalSourceSnapshot } from "./ISignalSource";
 import { CikTickerCache } from "./cache/cik-ticker-cache";
 import { EdgarSignalSource } from "./sources/edgar-signal-source";
 import { MockSignalSource } from "./sources/mock-signal-source";
 import { TimerSignalSource } from "./sources/timer-signal-source";
-import { WebSearchSignalSource } from "./sources/web-search-signal-source";
 import { PredictionEventSignalSource } from "./sources/prediction-event-signal-source";
 import { SignalBus } from "./signal-bus";
+
+/**
+ * DB-compat stub for deprecated `web_search` rows. Never emits; start() marks
+ * the source as error so operators delete it. New creates are blocked in
+ * SignalService.createSource.
+ */
+class DeprecatedWebSearchStub implements ISignalSource {
+  readonly type = "web_search" as const;
+  status: SignalSourceRuntimeStatus = "idle";
+  lastError: string | null =
+    "web_search signal source is deprecated and no longer runs";
+
+  constructor(public readonly id: string) {}
+
+  async start(): Promise<void> {
+    this.status = "error";
+    this.lastError =
+      "web_search signal source is deprecated; delete this source and use edgar_8k, timer, or prediction_event";
+  }
+
+  async stop(): Promise<void> {
+    this.status = "paused";
+  }
+
+  async restart(_config: Record<string, unknown>): Promise<void> {
+    void _config;
+    await this.start();
+  }
+
+  async test(): Promise<PollResult> {
+    return {
+      detected: 0,
+      passed: 0,
+      dropped: 0,
+      errors: [this.lastError ?? "web_search deprecated"],
+    };
+  }
+
+  snapshot(): SignalSourceSnapshot {
+    return {
+      lastPollAt: null,
+      lastPollResult: null,
+      lastSignalAt: null,
+      lastSignalTicker: null,
+      recentActivity: [],
+    };
+  }
+
+  onSignal(handler: (event: SignalEvent) => void): void {
+    void handler;
+  }
+  offSignal(handler: (event: SignalEvent) => void): void {
+    void handler;
+  }
+
+  configuredInstrumentClasses(): InstrumentClass[] {
+    return ["stock"];
+  }
+}
 
 export class SignalSourceRegistry {
   private readonly sources = new Map<string, ISignalSource>();
@@ -89,7 +150,7 @@ export class SignalSourceRegistry {
       return new EdgarSignalSource(record.id, record.configJson, this.cikCache);
     }
     if (record.type === "web_search") {
-      return new WebSearchSignalSource(record.id);
+      return new DeprecatedWebSearchStub(record.id);
     }
     if (record.type === "mock") {
       return new MockSignalSource(record.id, record.configJson);
@@ -100,6 +161,13 @@ export class SignalSourceRegistry {
     if (record.type === "prediction_event") {
       return new PredictionEventSignalSource(record.id, record.configJson);
     }
-    return new WebSearchSignalSource(record.id, record.configJson);
+    if (record.type === "manual") {
+      throw new Error(
+        `Signal source type "manual" is implicit and not instantiated via the registry`,
+      );
+    }
+    throw new Error(
+      `Unknown signal source type: ${(record as { type: string }).type}`,
+    );
   }
 }

@@ -6,8 +6,14 @@ export type SignalSourceType =
   | "timer"
   | "prediction_event";
 
+/**
+ * Formerly true for `web_search`. That source type is deprecated (kept in the
+ * union for DB compat only) — always false so UI/session logic treats nothing
+ * as search-style discovery.
+ */
 export function isSearchStyleSignalSourceType(type: SignalSourceType): boolean {
-  return type === "web_search";
+  void type;
+  return false;
 }
 
 export function isSelfDescribingSignalSourceType(

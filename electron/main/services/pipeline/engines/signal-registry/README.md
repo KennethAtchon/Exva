@@ -1,4 +1,4 @@
-# signal/registry
+# pipeline/engines/signal-registry
 
 The registry lets pipeline code refer to deterministic signal work by id instead of importing concrete functions. Startup registers the built-in engines once; instrument-analysis engine steps and worker-level `ENGINE_BINDINGS` look up engines such as `candidate-validator`, `risk-gate`, or `trade-execution-profile` by name.
 

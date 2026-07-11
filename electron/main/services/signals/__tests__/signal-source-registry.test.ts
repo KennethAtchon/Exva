@@ -80,6 +80,22 @@ describe("SignalSourceRegistry", () => {
     const registry = createRegistry();
     const record = new SignalSourcesRepo(db).create({
       id: "remove-me",
+      type: "mock",
+      name: "Mock",
+      description: null,
+      enabled: true,
+      configJson: JSON.stringify({ ticker: "NVDA" }),
+    });
+
+    registry.create(record);
+    await registry.remove(record.id);
+    expect(registry.get(record.id)).toBeNull();
+  });
+
+  it("loads deprecated web_search as a non-emitting stub", async () => {
+    const registry = createRegistry();
+    const record = new SignalSourcesRepo(db).create({
+      id: "legacy-web",
       type: "web_search",
       name: "Web",
       description: null,
@@ -88,7 +104,8 @@ describe("SignalSourceRegistry", () => {
     });
 
     registry.create(record);
-    await registry.remove(record.id);
-    expect(registry.get(record.id)).toBeNull();
+    await registry.start(record.id);
+    expect(registry.status(record.id)?.status).toBe("error");
+    expect(registry.status(record.id)?.lastError).toMatch(/deprecated/i);
   });
 });

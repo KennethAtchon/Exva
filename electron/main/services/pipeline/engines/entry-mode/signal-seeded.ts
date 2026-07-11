@@ -104,7 +104,8 @@ const signalSeededEntryEngine: EntryModeEngine = {
             ctx.instrumentClasses,
           ),
           instrumentDisplayName: signalTrigger.companyName ?? undefined,
-          instrumentMetadataJson: readSignalInstrumentMetadata(signalTrigger),
+          instrumentMetadataJson:
+            readSignalInstrumentMetadata(signalTrigger) ?? undefined,
           rationale: `${signalTrigger.sourceType} signal supplied the instrument directly.`,
         },
       ],

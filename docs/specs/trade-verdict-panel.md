@@ -9,7 +9,7 @@
 
 ## 1. Summary
 
-When a user clicks a trade row on the Dashboard, a dialog opens (`TradeDetail.tsx`). Currently it shows P&L, order details, agent run traces, and gate timeline — but gives no single readable verdict explaining *why* the trade was accepted, rejected, or is pending. A user looking at four rejected BTC-USD trades with `$0` size cannot tell from the current UI what signal fired, what gate blocked it, or what the AI reasoning was.
+When a user clicks a trade row on the Dashboard, a dialog opens (`TradeDetail.tsx`). Currently it shows P&L, order details, agent run traces, and gate timeline — but gives no single readable verdict explaining _why_ the trade was accepted, rejected, or is pending. A user looking at four rejected BTC-USD trades with `$0` size cannot tell from the current UI what signal fired, what gate blocked it, or what the AI reasoning was.
 
 This feature adds a **Verdict Panel** — a prominent, human-readable section at the top of the trade detail dialog (below the hero block) that surfaces the structured outcome chain: signal-by-signal verdict, confidence with its source, the rejection or acceptance reason in plain language, and position sizing rationale. All data already exists in `AgentMessage.output_json`; this is purely a frontend parsing and display change.
 
@@ -43,7 +43,7 @@ Secondary:
 
 - Changing how the backend computes or stores signals.
 - Persisting rejection reasons to a dedicated DB column (may come later).
-- Showing signal breakdown for the *selector* phase (instrument picker runs are not tied to a trade and use a separate repo path).
+- Showing signal breakdown for the _selector_ phase (instrument picker runs are not tied to a trade and use a separate repo path).
 - Autopsy view — that is a separate page (`AutopsyPage.tsx`).
 - Any UI changes outside `TradeDetail.tsx` and its immediate sub-components.
 
@@ -96,36 +96,36 @@ TradeDetail Dialog (480px wide, 92vh)
 
 **Element inventory:**
 
-| Element | Type | Content | State | Notes |
-|---------|------|---------|-------|-------|
-| Verdict badge | `<Badge>` | "ACCEPTED" / "REJECTED" / "PENDING" / "SKIPPED" | Static | Variant: `success` (accepted/open), `danger` (rejected), `warning` (pending), `default` (skipped) |
-| Verdict summary | `<p>` | One-sentence summary (see §10) | Static | Max 1 line, truncate with ellipsis |
-| SignalCard — technical | `<div>` | Trend direction + strength bar | Shows only if `output_schema_name === "TechnicalSignal"` message exists | Left border = `var(--color-success)` |
-| SignalCard — fundamental | `<div>` | Catalyst type + catalyst score bar | Shows only if `output_schema_name === "FundamentalSignal"` message exists | Left border = `var(--color-error)` |
-| SignalCard — review | `<div>` | Recommendation chip + conflict score | Shows only if `output_schema_name === "ReviewSignal"` message exists | Left border = `var(--color-info)` |
-| SignalCard — decision | `<div>` | Action chip + confidence bar | Shows only if `output_schema_name === "TradeSignal"` message exists | Left border = `var(--color-market)` |
-| rawSummary text | `<p>` | `signal.rawSummary` | Clamped to 2 lines (`line-clamp-2`), tap to expand | Italic, `text-[var(--text3)]`, `text-[12px]` |
-| Rejection reason pill | `<div>` | Reason string | Shown only when `trade.status === "rejected"` | Red left border, monospace text |
+| Element                  | Type      | Content                                         | State                                                                     | Notes                                                                                             |
+| ------------------------ | --------- | ----------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Verdict badge            | `<Badge>` | "ACCEPTED" / "REJECTED" / "PENDING" / "SKIPPED" | Static                                                                    | Variant: `success` (accepted/open), `danger` (rejected), `warning` (pending), `default` (skipped) |
+| Verdict summary          | `<p>`     | One-sentence summary (see §10)                  | Static                                                                    | Max 1 line, truncate with ellipsis                                                                |
+| SignalCard — technical   | `<div>`   | Trend direction + strength bar                  | Shows only if `output_schema_name === "TechnicalSignal"` message exists   | Left border = `var(--color-success)`                                                              |
+| SignalCard — fundamental | `<div>`   | Catalyst type + catalyst score bar              | Shows only if `output_schema_name === "FundamentalSignal"` message exists | Left border = `var(--color-error)`                                                                |
+| SignalCard — review      | `<div>`   | Recommendation chip + conflict score            | Shows only if `output_schema_name === "ReviewSignal"` message exists      | Left border = `var(--color-info)`                                                                 |
+| SignalCard — decision    | `<div>`   | Action chip + confidence bar                    | Shows only if `output_schema_name === "TradeSignal"` message exists       | Left border = `var(--color-market)`                                                               |
+| rawSummary text          | `<p>`     | `signal.rawSummary`                             | Clamped to 2 lines (`line-clamp-2`), tap to expand                        | Italic, `text-[var(--text3)]`, `text-[12px]`                                                      |
+| Rejection reason pill    | `<div>`   | Reason string                                   | Shown only when `trade.status === "rejected"`                             | Red left border, monospace text                                                                   |
 
 **Signal card key metric per agent:**
 
-| Agent | Primary metric label | Primary metric value | Score bar source |
-|-------|---------------------|---------------------|-----------------|
-| `technical` | Trend | `trendDirection` as text (`bullish` / `bearish` / `neutral`) | `trendStrength` (0–1) |
-| `fundamental` | Catalyst | `catalystType ?? "none"` | `catalystScore` (0–1), fallback `catalystStrength` |
-| `review` | Recommendation | `recommendation` as chip | `1 - contradictionRisk` (proxy for "alignment score") |
-| `decision` | Action | `action` as chip (`buy` / `sell` / `skip`) | `confidence` (0–1) |
+| Agent         | Primary metric label | Primary metric value                                         | Score bar source                                      |
+| ------------- | -------------------- | ------------------------------------------------------------ | ----------------------------------------------------- |
+| `technical`   | Trend                | `trendDirection` as text (`bullish` / `bearish` / `neutral`) | `trendStrength` (0–1)                                 |
+| `fundamental` | Catalyst             | `catalystType ?? "none"`                                     | `catalystScore` (0–1), fallback `catalystStrength`    |
+| `review`      | Recommendation       | `recommendation` as chip                                     | `1 - contradictionRisk` (proxy for "alignment score") |
+| `decision`    | Action               | `action` as chip (`buy` / `sell` / `skip`)                   | `confidence` (0–1)                                    |
 
 **States this panel can be in:**
 
-| State | Condition | What the User Sees |
-|-------|-----------|-------------------|
-| No data | No `AgentMessage` has parseable `output_json` | Panel renders nothing (null) |
-| Partial data | Some signals present, some missing | Only cards with data render; missing agents are omitted silently |
-| Rejected — skip signal | `trade.status === "rejected"` and decision `action === "skip"` | Verdict badge = SKIPPED; rejection chain shows decision reasoning |
-| Rejected — risk gate | `trade.status === "rejected"` and `gateSteps` has a `failed` step | Verdict badge = REJECTED; rejection chain shows the failed gate stage + error code |
-| Accepted/Open | `trade.status === "open"` or `"closed"` with `action !== "skip"` | Verdict badge = ACCEPTED; sizing rationale section shown |
-| Pending | `trade.status === "pending"` | Verdict badge = PENDING; no rejection chain |
+| State                  | Condition                                                         | What the User Sees                                                                 |
+| ---------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| No data                | No `AgentMessage` has parseable `output_json`                     | Panel renders nothing (null)                                                       |
+| Partial data           | Some signals present, some missing                                | Only cards with data render; missing agents are omitted silently                   |
+| Rejected — skip signal | `trade.status === "rejected"` and decision `action === "skip"`    | Verdict badge = SKIPPED; rejection chain shows decision reasoning                  |
+| Rejected — risk gate   | `trade.status === "rejected"` and `gateSteps` has a `failed` step | Verdict badge = REJECTED; rejection chain shows the failed gate stage + error code |
+| Accepted/Open          | `trade.status === "open"` or `"closed"` with `action !== "skip"`  | Verdict badge = ACCEPTED; sizing rationale section shown                           |
+| Pending                | `trade.status === "pending"`                                      | Verdict badge = PENDING; no rejection chain                                        |
 
 ---
 
@@ -191,12 +191,12 @@ The verdict panel renders with badge ACCEPTED (open) or ACCEPTED (closed, if `ac
 
 All data comes from `AgentMessage.output_json` (already in `TradeDetail.messages`). Parse by `output_schema_name`:
 
-| `output_schema_name` value | Maps to | Key fields used |
-|---------------------------|---------|----------------|
-| `"TechnicalSignal"` | Technical card | `trendDirection`, `trendStrength`, `momentumScore`, `patternName`, `rawSummary` |
-| `"FundamentalSignal"` | Fundamental card | `catalystType`, `catalystScore`, `catalystStrength`, `catalystSummary`, `rawSummary` |
-| `"ReviewSignal"` | Review card | `recommendation`, `technicalFundamentalConflict`, `contradictionRisk`, `overallRisk`, `rawSummary` |
-| `"TradeSignal"` | Decision card + verdict | `action`, `confidence`, `reasoning`, `executionStrategy`, `entryPrice` |
+| `output_schema_name` value | Maps to                 | Key fields used                                                                                    |
+| -------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------- |
+| `"TechnicalSignal"`        | Technical card          | `trendDirection`, `trendStrength`, `momentumScore`, `patternName`, `rawSummary`                    |
+| `"FundamentalSignal"`      | Fundamental card        | `catalystType`, `catalystScore`, `catalystStrength`, `catalystSummary`, `rawSummary`               |
+| `"ReviewSignal"`           | Review card             | `recommendation`, `technicalFundamentalConflict`, `contradictionRisk`, `overallRisk`, `rawSummary` |
+| `"TradeSignal"`            | Decision card + verdict | `action`, `confidence`, `reasoning`, `executionStrategy`, `entryPrice`                             |
 
 If multiple messages share the same `output_schema_name` (e.g. retry runs), use the **last** one by `AgentMessage.created_at`.
 
@@ -209,24 +209,24 @@ If multiple messages share the same `output_schema_name` (e.g. retry runs), use 
 
 ### 6.2 Verdict badge logic
 
-| Condition | Badge label | Badge variant |
-|-----------|-------------|--------------|
-| `trade.status === "open"` | `OPEN` | `success` |
-| `trade.status === "closed"` and `trade.final_pnl_usd != null` | `CLOSED` | `default` |
-| `trade.status === "rejected"` and parsed `action === "skip"` | `SKIPPED` | `default` |
-| `trade.status === "rejected"` and parsed `action !== "skip"` (or no parsed signal) | `REJECTED` | `danger` |
-| `trade.status === "pending"` | `PENDING` | `warning` |
+| Condition                                                                          | Badge label | Badge variant |
+| ---------------------------------------------------------------------------------- | ----------- | ------------- |
+| `trade.status === "open"`                                                          | `OPEN`      | `success`     |
+| `trade.status === "closed"` and `trade.final_pnl_usd != null`                      | `CLOSED`    | `default`     |
+| `trade.status === "rejected"` and parsed `action === "skip"`                       | `SKIPPED`   | `default`     |
+| `trade.status === "rejected"` and parsed `action !== "skip"` (or no parsed signal) | `REJECTED`  | `danger`      |
+| `trade.status === "pending"`                                                       | `PENDING`   | `warning`     |
 
 ### 6.3 Sizing rationale (accepted/open trades)
 
 Displayed as a single line of text inside the verdict panel, below the signal grid. Not shown for rejected/skipped trades.
 
-| UI element | Source field | Format |
-|-----------|-------------|--------|
-| Position size | `trade.position_size_usd` | `fmt.usd(trade.position_size_usd)` |
-| Confidence | `trade.confidence_score` | `Math.round(score * 100)%` |
-| Strategy | `trade.execution_strategy` | Raw string (e.g. `trend_momentum`) |
-| Entry type | Parsed `TradeSignal.entryPrice` | `"limit @ {fmt.usd(entryPrice)}"` if non-null, else `"market order"` |
+| UI element    | Source field                    | Format                                                               |
+| ------------- | ------------------------------- | -------------------------------------------------------------------- |
+| Position size | `trade.position_size_usd`       | `fmt.usd(trade.position_size_usd)`                                   |
+| Confidence    | `trade.confidence_score`        | `Math.round(score * 100)%`                                           |
+| Strategy      | `trade.execution_strategy`      | Raw string (e.g. `trend_momentum`)                                   |
+| Entry type    | Parsed `TradeSignal.entryPrice` | `"limit @ {fmt.usd(entryPrice)}"` if non-null, else `"market order"` |
 
 **No schema changes required.** All fields already exist.
 
@@ -248,60 +248,60 @@ No change from current trade detail behavior. Access is gated by the existing `a
 
 ## 9. Error States & Edge Cases
 
-| Scenario | Trigger | What the User Sees | What the System Does |
-|----------|---------|-------------------|---------------------|
-| `output_json` is null or unparseable | Old trade, parse error, or schema mismatch | Verdict panel renders null; rest of dialog unchanged | `JSON.parse` wrapped in try/catch; failure = skip card |
-| `output_schema_name` is null | Pre-schema-name trade | No signal cards rendered; verdict section absent | Same null guard as above |
-| Multiple messages with same schema | Retry runs present | Last message by `created_at` wins | Sort descending, take first |
-| Trade has no messages at all | Trade record created before agent ran | Verdict panel renders null | `messages.length === 0` guard |
-| Rejected trade with no `exit_reason` and no failed gate step | Skip-signal path missing from messages | Shows "Rejection reason not recorded." | Fallback string (see §6.1) |
-| `trade.confidence_score` is null | Pre-confidence-score trade | Confidence bar renders at 0%, `"—"` label | `?? 0` null coalesce, same as today's TradeHero |
-| `rawSummary` is empty string | Agent returned no summary | Line is hidden (`rawSummary.trim() === ""` → don't render) | Conditional render |
+| Scenario                                                     | Trigger                                    | What the User Sees                                         | What the System Does                                   |
+| ------------------------------------------------------------ | ------------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------ |
+| `output_json` is null or unparseable                         | Old trade, parse error, or schema mismatch | Verdict panel renders null; rest of dialog unchanged       | `JSON.parse` wrapped in try/catch; failure = skip card |
+| `output_schema_name` is null                                 | Pre-schema-name trade                      | No signal cards rendered; verdict section absent           | Same null guard as above                               |
+| Multiple messages with same schema                           | Retry runs present                         | Last message by `created_at` wins                          | Sort descending, take first                            |
+| Trade has no messages at all                                 | Trade record created before agent ran      | Verdict panel renders null                                 | `messages.length === 0` guard                          |
+| Rejected trade with no `exit_reason` and no failed gate step | Skip-signal path missing from messages     | Shows "Rejection reason not recorded."                     | Fallback string (see §6.1)                             |
+| `trade.confidence_score` is null                             | Pre-confidence-score trade                 | Confidence bar renders at 0%, `"—"` label                  | `?? 0` null coalesce, same as today's TradeHero        |
+| `rawSummary` is empty string                                 | Agent returned no summary                  | Line is hidden (`rawSummary.trim() === ""` → don't render) | Conditional render                                     |
 
 ---
 
 ## 10. Copy & Labels
 
-| Location | String | Notes |
-|----------|--------|-------|
-| Verdict section title | `"Verdict"` | `secTitleClass` (uppercase tracking, same as "Order Details") |
-| Verdict badge — open | `"OPEN"` | `variant="success"` |
-| Verdict badge — closed | `"CLOSED"` | `variant="default"` |
-| Verdict badge — skipped | `"SKIPPED"` | `variant="default"` |
-| Verdict badge — rejected | `"REJECTED"` | `variant="danger"` |
-| Verdict badge — pending | `"PENDING"` | `variant="warning"` |
-| Verdict summary — skipped (confidence) | `"Skipped — confidence below wait-for-open threshold."` | Only when reasoning includes "wait-for-open" |
-| Verdict summary — skipped (generic) | `"AI decided not to trade this instrument."` | Default skip |
-| Verdict summary — rejected (gate) | `"Blocked by {stage} gate."` | `stage` from the failed `gateStep.stage` value |
-| Verdict summary — rejected (unknown) | `"Trade was rejected."` | Fallback |
-| Verdict summary — accepted | `"Decision to trade was approved through all gates."` | Open and closed trades with action buy/sell |
-| Verdict summary — pending | `"Awaiting pipeline completion or human approval."` | Pending trades |
-| Rejection reason chain header | `"Why it was blocked"` | `secTitleClass`, shown above pill list |
-| Rejection reason fallback | `"Rejection reason not recorded."` | Italic, `text-[var(--text3)]` |
-| Sizing rationale label | `"Position sized at"` | Inline sentence, no header |
-| Signal card — no data label | *(not rendered)* | Missing agents are silently omitted, no "N/A" cards |
-| Technical card agent label | `"Technical"` | Use existing `AgentLabel` component |
-| Fundamental card agent label | `"Fundamental"` | Use existing `AgentLabel` component |
-| Review card agent label | `"Review"` | Use existing `AgentLabel` component |
-| Decision card agent label | `"Decision"` | Use existing `AgentLabel` component |
-| Technical — metric label | `"Trend"` | |
-| Fundamental — metric label | `"Catalyst"` | |
-| Review — metric label | `"Review"` | |
-| Decision — metric label | `"Action"` | |
-| `trendDirection` values | `"bullish"` / `"bearish"` / `"neutral"` | Display as-is, no transformation |
-| `recommendation` values | `"proceed"` / `"reduce_size"` / `"skip"` | Display as-is |
-| `action` values | `"buy"` / `"sell"` / `"skip"` | Display as-is |
+| Location                               | String                                                  | Notes                                                         |
+| -------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------- |
+| Verdict section title                  | `"Verdict"`                                             | `secTitleClass` (uppercase tracking, same as "Order Details") |
+| Verdict badge — open                   | `"OPEN"`                                                | `variant="success"`                                           |
+| Verdict badge — closed                 | `"CLOSED"`                                              | `variant="default"`                                           |
+| Verdict badge — skipped                | `"SKIPPED"`                                             | `variant="default"`                                           |
+| Verdict badge — rejected               | `"REJECTED"`                                            | `variant="danger"`                                            |
+| Verdict badge — pending                | `"PENDING"`                                             | `variant="warning"`                                           |
+| Verdict summary — skipped (confidence) | `"Skipped — confidence below wait-for-open threshold."` | Only when reasoning includes "wait-for-open"                  |
+| Verdict summary — skipped (generic)    | `"AI decided not to trade this instrument."`            | Default skip                                                  |
+| Verdict summary — rejected (gate)      | `"Blocked by {stage} gate."`                            | `stage` from the failed `gateStep.stage` value                |
+| Verdict summary — rejected (unknown)   | `"Trade was rejected."`                                 | Fallback                                                      |
+| Verdict summary — accepted             | `"Decision to trade was approved through all gates."`   | Open and closed trades with action buy/sell                   |
+| Verdict summary — pending              | `"Awaiting pipeline completion or human approval."`     | Pending trades                                                |
+| Rejection reason chain header          | `"Why it was blocked"`                                  | `secTitleClass`, shown above pill list                        |
+| Rejection reason fallback              | `"Rejection reason not recorded."`                      | Italic, `text-[var(--text3)]`                                 |
+| Sizing rationale label                 | `"Position sized at"`                                   | Inline sentence, no header                                    |
+| Signal card — no data label            | _(not rendered)_                                        | Missing agents are silently omitted, no "N/A" cards           |
+| Technical card agent label             | `"Technical"`                                           | Use existing `AgentLabel` component                           |
+| Fundamental card agent label           | `"Fundamental"`                                         | Use existing `AgentLabel` component                           |
+| Review card agent label                | `"Review"`                                              | Use existing `AgentLabel` component                           |
+| Decision card agent label              | `"Decision"`                                            | Use existing `AgentLabel` component                           |
+| Technical — metric label               | `"Trend"`                                               |                                                               |
+| Fundamental — metric label             | `"Catalyst"`                                            |                                                               |
+| Review — metric label                  | `"Review"`                                              |                                                               |
+| Decision — metric label                | `"Action"`                                              |                                                               |
+| `trendDirection` values                | `"bullish"` / `"bearish"` / `"neutral"`                 | Display as-is, no transformation                              |
+| `recommendation` values                | `"proceed"` / `"reduce_size"` / `"skip"`                | Display as-is                                                 |
+| `action` values                        | `"buy"` / `"sell"` / `"skip"`                           | Display as-is                                                 |
 
 ---
 
 ## 11. Open Questions
 
-| # | Question | Resolution |
-|---|----------|-----------|
-| 1 | Should `rawSummary` be expandable? | **Resolved:** click-to-expand implemented in `SignalCardShell` — clamped to 2 lines, click toggles full text. |
-| 2 | Show "no verdict data" message or silently nothing? | **Resolved:** silently nothing — panel returns `null` when no parseable `output_json` exists. |
-| 3 | Rejection reason truncated or shown in full? | **Resolved:** truncated to 120 chars in pill with full text on `title` attribute (hover). |
-| 4 | Actual `output_schema_name` DB string values? | **Resolved:** values are camelCase — `"technicalSignal"`, `"fundamentalSignal"`, `"reviewSignal"`, `"tradeSignal"` — confirmed from phase definition files. Spec table (§6.1) was misleading with PascalCase; implementation uses correct camelCase. |
+| #   | Question                                            | Resolution                                                                                                                                                                                                                                           |
+| --- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Should `rawSummary` be expandable?                  | **Resolved:** click-to-expand implemented in `SignalCardShell` — clamped to 2 lines, click toggles full text.                                                                                                                                        |
+| 2   | Show "no verdict data" message or silently nothing? | **Resolved:** silently nothing — panel returns `null` when no parseable `output_json` exists.                                                                                                                                                        |
+| 3   | Rejection reason truncated or shown in full?        | **Resolved:** truncated to 120 chars in pill with full text on `title` attribute (hover).                                                                                                                                                            |
+| 4   | Actual `output_schema_name` DB string values?       | **Resolved:** values are camelCase — `"technicalSignal"`, `"fundamentalSignal"`, `"reviewSignal"`, `"tradeSignal"` — confirmed from phase definition files. Spec table (§6.1) was misleading with PascalCase; implementation uses correct camelCase. |
 
 ### Implementation notes (2026-06-20)
 

@@ -99,8 +99,12 @@ describe("ResearchExperimentService", () => {
     });
     expect(run.verdict).toBe("inconclusive"); // only 3 < 10 min
 
-    const { obsService: o2, labelsRepo: l2, service: s2, session: sess2 } =
-      setup();
+    const {
+      obsService: o2,
+      labelsRepo: l2,
+      service: s2,
+      session: sess2,
+    } = setup();
     seedLabeled(
       o2,
       l2,

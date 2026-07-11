@@ -237,7 +237,10 @@ export class CandidateValidationService {
         spreadOk
           ? null
           : `Spread too wide (${quoteSnapshot.spreadPct.toFixed(2)}%, max: ${maxSpread}%)`,
-        { value: `${quoteSnapshot.spreadPct.toFixed(2)}%`, threshold: `${maxSpread}%` },
+        {
+          value: `${quoteSnapshot.spreadPct.toFixed(2)}%`,
+          threshold: `${maxSpread}%`,
+        },
       );
     }
 

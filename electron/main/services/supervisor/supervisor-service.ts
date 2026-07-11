@@ -1,6 +1,10 @@
 import type { EventBus } from "../infra/event-bus";
 import type { NotificationService } from "../infra/notification-service";
 import type { MarketDataService } from "../marketdata/market-data-service";
+import {
+  runNightlyResearchJobs,
+  type NightlyResearchJobDeps,
+} from "../research/nightly-jobs";
 
 export type AlarmSeverity = "info" | "warn" | "error" | "kill";
 
@@ -34,7 +38,11 @@ export interface SupervisorDeps {
   ntfyTopicUrl?: string | null;
   /** Freshness lag threshold before data_freshness alarm. */
   freshnessLagMs?: number;
+  /** Optional nightly research job hooks (calibration, labels, autopsy). */
+  nightlyResearch?: NightlyResearchJobDeps;
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Small continuous supervisor: heartbeats, data freshness, spend/drawdown hooks.
@@ -47,6 +55,7 @@ export class SupervisorService {
   private aiSpendUsd = new Map<string, number>();
   private readonly freshnessLagMs: number;
   private readonly ntfyTopicUrl: string | null;
+  private lastNightlyRunMs = 0;
 
   constructor(private readonly deps: SupervisorDeps) {
     this.freshnessLagMs = deps.freshnessLagMs ?? 30 * 60 * 1000;
@@ -111,6 +120,18 @@ export class SupervisorService {
         });
       }
     }
+
+    if (
+      this.deps.nightlyResearch &&
+      (this.lastNightlyRunMs === 0 || nowMs - this.lastNightlyRunMs >= DAY_MS)
+    ) {
+      this.lastNightlyRunMs = nowMs;
+      try {
+        await runNightlyResearchJobs(this.deps.nightlyResearch);
+      } catch {
+        // Nightly research failures must not take down the supervisor loop.
+      }
+    }
   }
 
   async checkSymbolFreshness(
@@ -146,7 +167,9 @@ export class SupervisorService {
     this.deps.notifications.notify(
       `Exva: ${alarm.kind}`,
       alarm.message,
-      alarm.severity === "kill" || alarm.severity === "error" ? "ERROR" : "WARN",
+      alarm.severity === "kill" || alarm.severity === "error"
+        ? "ERROR"
+        : "WARN",
     );
 
     if (

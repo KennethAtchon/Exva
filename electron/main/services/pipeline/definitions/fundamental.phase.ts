@@ -11,7 +11,7 @@ import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/instruments/se
 import {
   catalystOutputSchema,
   earningsOutputSchema,
-} from "../../signal/aggregators/fundamental-aggregator";
+} from "../../signals/aggregators/fundamental-aggregator";
 import type { AIPhase } from "../phases/types";
 import {
   FUNDAMENTAL_WORKERS_CATALYST_CONTEXT_PROMPT,
@@ -20,7 +20,7 @@ import {
   FUNDAMENTAL_WORKERS_MARKET_REACTION_CHECKER_PROMPT,
   CATALYST_ANALYST_PROMPT,
 } from "../worker-prompts";
-import { catalystAnalystOutputSchema } from "../../signal/aggregators/catalyst-two-call-aggregator";
+import { catalystAnalystOutputSchema } from "../../signals/aggregators/catalyst-two-call-aggregator";
 import type { AggregatorPlanState } from "./aggregator.types";
 
 export type { AggregatorPlanState };

@@ -5,7 +5,12 @@ import { fmt } from "@/lib/formatters";
 import type { HelpGlossaryId } from "@/lib/help-glossary";
 import { api } from "@/lib/exva";
 import { cn } from "@/lib/utils";
-import type { AgentMessage, AgentRun, EventSourceType, Trade } from "@/lib/types";
+import type {
+  AgentMessage,
+  AgentRun,
+  EventSourceType,
+  Trade,
+} from "@/lib/types";
 import { Dialog, DialogContent, HelpTooltip } from "@/components/ui";
 import type {
   TechnicalSignal,
@@ -526,7 +531,8 @@ function parseTradeSignals(messages: AgentMessage[]): ParsedSignals {
     decision: null,
   };
   const sorted = [...messages].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    (a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
   for (const msg of sorted) {
     if (!msg.output_json || !msg.output_schema_name) continue;
@@ -562,7 +568,11 @@ type VerdictVariant = "success" | "danger" | "warn" | "default";
 function resolveVerdict(
   trade: Trade,
   decision: TradeSignal | null,
-  gateSteps: Array<{ stage: string; status: string; lastErrorCode: string | null }>,
+  gateSteps: Array<{
+    stage: string;
+    status: string;
+    lastErrorCode: string | null;
+  }>,
 ): { label: string; variant: VerdictVariant; summary: string } {
   if (trade.status === "open") {
     return {
@@ -606,12 +616,20 @@ function resolveVerdict(
       summary: `Blocked by ${failedGate.stage} gate.`,
     };
   }
-  return { label: "REJECTED", variant: "danger", summary: "Trade was rejected." };
+  return {
+    label: "REJECTED",
+    variant: "danger",
+    summary: "Trade was rejected.",
+  };
 }
 
 function buildRejectionChain(
   decision: TradeSignal | null,
-  gateSteps: Array<{ stage: string; status: string; lastErrorCode: string | null }>,
+  gateSteps: Array<{
+    stage: string;
+    status: string;
+    lastErrorCode: string | null;
+  }>,
   trade: Trade,
 ): string[] {
   if (decision?.action === "skip") return [decision.reasoning];
@@ -704,7 +722,9 @@ const FundamentalCard = ({ signal }: { signal: FundamentalSignal }) => (
     metricDisplay={
       <span>
         {signal.catalystType ?? "—"}
-        {signal.catalystSummary ? ` · ${signal.catalystSummary.slice(0, 40)}` : ""}
+        {signal.catalystSummary
+          ? ` · ${signal.catalystSummary.slice(0, 40)}`
+          : ""}
       </span>
     }
     summary={signal.rawSummary}
@@ -748,14 +768,26 @@ const TradeVerdictPanel = ({
 }: {
   trade: Trade;
   messages: AgentMessage[];
-  gateSteps: Array<{ stage: string; status: string; lastErrorCode: string | null; updatedAt: string }>;
+  gateSteps: Array<{
+    stage: string;
+    status: string;
+    lastErrorCode: string | null;
+    updatedAt: string;
+  }>;
 }) => {
   const signals = parseTradeSignals(messages);
   const hasAny =
-    signals.technical || signals.fundamental || signals.review || signals.decision;
+    signals.technical ||
+    signals.fundamental ||
+    signals.review ||
+    signals.decision;
   if (!hasAny) return null;
 
-  const { label, variant, summary } = resolveVerdict(trade, signals.decision, gateSteps);
+  const { label, variant, summary } = resolveVerdict(
+    trade,
+    signals.decision,
+    gateSteps,
+  );
   const rejectionReasons =
     trade.status === "rejected"
       ? buildRejectionChain(signals.decision, gateSteps, trade)
@@ -771,11 +803,15 @@ const TradeVerdictPanel = ({
           {label}
         </Badge>
       </div>
-      <p className="mb-4 text-[13px] leading-[1.5] text-[var(--text2)]">{summary}</p>
+      <p className="mb-4 text-[13px] leading-[1.5] text-[var(--text2)]">
+        {summary}
+      </p>
 
       <div className="grid grid-cols-2 gap-3">
         {signals.technical && <TechnicalCard signal={signals.technical} />}
-        {signals.fundamental && <FundamentalCard signal={signals.fundamental} />}
+        {signals.fundamental && (
+          <FundamentalCard signal={signals.fundamental} />
+        )}
         {signals.review && <ReviewCard signal={signals.review} />}
         {signals.decision && <DecisionCard signal={signals.decision} />}
       </div>
@@ -788,7 +824,10 @@ const TradeVerdictPanel = ({
               <div
                 key={i}
                 className="rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 py-2"
-                style={{ borderLeftColor: "var(--color-error)", borderLeftWidth: 3 }}
+                style={{
+                  borderLeftColor: "var(--color-error)",
+                  borderLeftWidth: 3,
+                }}
               >
                 <p
                   className="font-mono text-[12px] text-[var(--text2)]"

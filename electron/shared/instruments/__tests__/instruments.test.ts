@@ -263,7 +263,10 @@ describe("experience-launchability", () => {
   it("returns broker classes for session instrument classes", () => {
     expect(
       resolveSessionInstrumentClasses(
-        { signalSourceTypes: ["edgar_8k"], brokerRequirement: "any_supported_class" },
+        {
+          signalSourceTypes: ["edgar_8k"],
+          brokerRequirement: "any_supported_class",
+        },
         {
           instrumentScope: buildSearchEverythingScope(),
           selectorSettings: { aiPickerEnabled: true },

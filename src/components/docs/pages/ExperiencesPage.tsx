@@ -87,7 +87,8 @@ export function ExperiencesPage() {
           [
             "Rules: Mean Reversion",
             <>
-              <DocInlineCode>timer</DocInlineCode> — SPY · polls every 15m · trades on 1h bars, QQQ · polls every 15m · trades on 1h bars
+              <DocInlineCode>timer</DocInlineCode> — SPY · polls every 15m ·
+              trades on 1h bars, QQQ · polls every 15m · trades on 1h bars
             </>,
             "Stocks",
             "Deterministic mean reversion",
@@ -95,7 +96,8 @@ export function ExperiencesPage() {
           [
             "Rules: Trend Following",
             <>
-              <DocInlineCode>timer</DocInlineCode> — GC · polls every 4h · trades on 4h bars, CL · polls every 4h · trades on 4h bars
+              <DocInlineCode>timer</DocInlineCode> — GC · polls every 4h ·
+              trades on 4h bars, CL · polls every 4h · trades on 4h bars
             </>,
             "Futures",
             "Deterministic SMA-crossover trend",
@@ -103,7 +105,8 @@ export function ExperiencesPage() {
           [
             "Rules: Momentum Breakout",
             <>
-              <DocInlineCode>timer</DocInlineCode> — BTC-USD · polls every 1h · trades on 4h bars
+              <DocInlineCode>timer</DocInlineCode> — BTC-USD · polls every 1h ·
+              trades on 4h bars
             </>,
             "Crypto",
             "Deterministic resistance breakout",
@@ -153,24 +156,34 @@ export function ExperiencesPage() {
           [
             "Rules: Mean Reversion",
             <>
-              <DocInlineCode>SPY · polls every 15m · trades on 1h bars</DocInlineCode>
+              <DocInlineCode>
+                SPY · polls every 15m · trades on 1h bars
+              </DocInlineCode>
               <br />
-              <DocInlineCode>QQQ · polls every 15m · trades on 1h bars</DocInlineCode>
+              <DocInlineCode>
+                QQQ · polls every 15m · trades on 1h bars
+              </DocInlineCode>
             </>,
             "Deterministic mean reversion on liquid stocks.",
           ],
           [
             "Rules: Trend Following",
             <>
-              <DocInlineCode>GC · polls every 4h · trades on 4h bars</DocInlineCode>
+              <DocInlineCode>
+                GC · polls every 4h · trades on 4h bars
+              </DocInlineCode>
               <br />
-              <DocInlineCode>CL · polls every 4h · trades on 4h bars</DocInlineCode>
+              <DocInlineCode>
+                CL · polls every 4h · trades on 4h bars
+              </DocInlineCode>
             </>,
             "Deterministic SMA-crossover trend on commodity futures.",
           ],
           [
             "Rules: Momentum Breakout",
-            <DocInlineCode>BTC-USD · polls every 1h · trades on 4h bars</DocInlineCode>,
+            <DocInlineCode>
+              BTC-USD · polls every 1h · trades on 4h bars
+            </DocInlineCode>,
             "Deterministic resistance-breakout on crypto. Disabled by default until the breakout engine is fully tested.",
           ],
         ]}
@@ -182,8 +195,8 @@ export function ExperiencesPage() {
         and <DocStrong>trading timeframe</DocStrong> (the bar size the rule
         trades on) — these can differ, e.g. poll every 30m but trade on 15m
         bars. Both are shown in the signal label above. Because setup is
-        computed deterministically, rules experiences spend far less on AI
-        than catalyst or prediction flows.
+        computed deterministically, rules experiences spend far less on AI than
+        catalyst or prediction flows.
       </DocParagraph>
 
       <DocHeading id="prediction" level={2}>

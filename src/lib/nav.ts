@@ -50,16 +50,20 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "docs", label: "Docs", icon: BookOpen },
 ];
 
-/** Top-level tabs on the wide horizontal nav bar. */
+/**
+ * Top-level tabs on the wide horizontal nav bar.
+ * Conceptual hubs (plan §9.9): Dashboard, Sessions, Signals & Schedules,
+ * Research, Settings — primaries surface the first three; groups hold the rest.
+ */
 export const NAV_PRIMARY_IDS: PageKey[] = [
   "dashboard",
   "assistant",
   "sessions",
+  "signals",
   "trades",
-  "strategy",
 ];
 
-export type NavGroupId = "analysis" | "setup";
+export type NavGroupId = "research" | "settings";
 
 export type NavGroup = {
   id: NavGroupId;
@@ -67,17 +71,21 @@ export type NavGroup = {
   itemIds: PageKey[];
 };
 
-/** Secondary destinations grouped into dropdowns on the wide nav bar. */
+/**
+ * Secondary destinations grouped into dropdowns on the wide nav bar.
+ * Plan §9.9 hubs: Research (leaderboard + autopsy + costs) and Settings
+ * (accounts + brokers + strategy + docs + devpanel).
+ */
 export const NAV_GROUPS: NavGroup[] = [
   {
-    id: "analysis",
-    label: "Analysis",
+    id: "research",
+    label: "Research",
     itemIds: ["autopsy", "leaderboard", "costs"],
   },
   {
-    id: "setup",
-    label: "Setup",
-    itemIds: ["brokers", "signals", "accounts", "docs", "devpanel"],
+    id: "settings",
+    label: "Settings",
+    itemIds: ["brokers", "strategy", "accounts", "docs", "devpanel"],
   },
 ];
 

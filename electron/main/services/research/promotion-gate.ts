@@ -69,8 +69,7 @@ export function evaluatePromotion(
       probability: clampProbability(l),
       outcome: (l.outcomeWin === 1 ? 1 : 0) as 0 | 1,
     }));
-  const brier =
-    probPredictions.length > 0 ? brierScore(probPredictions) : null;
+  const brier = probPredictions.length > 0 ? brierScore(probPredictions) : null;
 
   const { foldsPassed, foldsRequired } = evaluateFolds(
     netFractions,

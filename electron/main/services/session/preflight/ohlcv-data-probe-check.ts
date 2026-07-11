@@ -94,7 +94,11 @@ export async function ohlcvDataProbeCheck(
 
   if (starved.length > 0) {
     deps.logger.warn(
-      { sessionId: session.id, starvedSources: starved, minBars: MIN_PROBE_BARS },
+      {
+        sessionId: session.id,
+        starvedSources: starved,
+        minBars: MIN_PROBE_BARS,
+      },
       `Session has ${starved.length} signal source(s) whose OHLCV feed returned ` +
         `fewer than ${MIN_PROBE_BARS} bars — the deterministic engines will skip ` +
         `every cycle ("insufficient bars"). Check the data feed/credentials: ` +

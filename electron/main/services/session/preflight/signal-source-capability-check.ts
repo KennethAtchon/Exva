@@ -27,8 +27,11 @@ export async function signalSourceCapabilityCheck(
     deps.brokerAccountsRepo.find(id),
   );
 
-  const incompatible: Array<{ sourceId: string; sourceName: string; instrumentClass: string }> =
-    [];
+  const incompatible: Array<{
+    sourceId: string;
+    sourceName: string;
+    instrumentClass: string;
+  }> = [];
 
   for (const sourceId of sourceIds) {
     const source = deps.signalSourcesRepo.get(sourceId);

@@ -177,15 +177,15 @@ Follow this chain after you have at least one entity ID from logs or the UI:
 
 ### Table map by symptom
 
-| Symptom | Start here | Then check |
-| --- | --- | --- |
-| Session won't start / stuck status | `sessions` | `session_execution_steps`, `session_broker_assignments`, `session_risk_config` |
-| Signal not reaching session | `signal_events` | `session_signal_deliveries`, `session_signal_sources` |
-| Trade not opened / rejected early | `decision_traces` | `session_execution_steps`, `trades`, `trade_approvals` |
-| Open trade wrong or missing exit | `trades` | `capital_reservations`, `events` |
-| AI cost / latency / wrong output | `agent_runs` | `agent_messages`, `api_call_log` |
-| Provider or broker call failed | `api_call_log` | `broker_accounts` (metadata only), `events` |
-| UI event log mismatch | `events` | matching `agent_runs` / `trades` for same `session_id` |
+| Symptom                            | Start here        | Then check                                                                     |
+| ---------------------------------- | ----------------- | ------------------------------------------------------------------------------ |
+| Session won't start / stuck status | `sessions`        | `session_execution_steps`, `session_broker_assignments`, `session_risk_config` |
+| Signal not reaching session        | `signal_events`   | `session_signal_deliveries`, `session_signal_sources`                          |
+| Trade not opened / rejected early  | `decision_traces` | `session_execution_steps`, `trades`, `trade_approvals`                         |
+| Open trade wrong or missing exit   | `trades`          | `capital_reservations`, `events`                                               |
+| AI cost / latency / wrong output   | `agent_runs`      | `agent_messages`, `api_call_log`                                               |
+| Provider or broker call failed     | `api_call_log`    | `broker_accounts` (metadata only), `events`                                    |
+| UI event log mismatch              | `events`          | matching `agent_runs` / `trades` for same `session_id`                         |
 
 ### Query recipes
 

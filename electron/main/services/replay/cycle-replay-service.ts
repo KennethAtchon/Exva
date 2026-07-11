@@ -32,7 +32,7 @@ import type { ExitDecision } from "../risk/exit-policy-evaluator";
 import {
   computeTradeTradeExecutionProfile,
   priceLevelsFromProfile,
-} from "../signal/execution/trade-execution-profile";
+} from "../orchestration/trade-execution-profile";
 
 export interface CycleFixture {
   version: 1;

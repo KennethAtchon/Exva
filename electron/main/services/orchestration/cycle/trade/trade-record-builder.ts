@@ -6,7 +6,7 @@ import type {
 import {
   computeTradeTradeExecutionProfile,
   priceLevelsFromProfile,
-} from "../../../signal/execution/trade-execution-profile";
+} from "../../trade-execution-profile";
 import type { InstrumentClass } from "@/lib/types";
 import type { TradingCycleContext } from "../trading-cycle-context";
 import type { ResolvedInstrument } from "../types";

@@ -29,14 +29,6 @@ export function SignalSourceTypesPage() {
             "Rules-based strategies (mean reversion, momentum, trend).",
           ],
           [
-            "web_search",
-            <>
-              Legacy web-search discovery wrapper. See{" "}
-              <DocLink to="web-search">Web search</DocLink>.
-            </>,
-            "Backward-compatible discovery; lower edge than catalyst feeds.",
-          ],
-          [
             "manual",
             <>
               No automated feed; session runs from manual tickers only. See{" "}
@@ -62,6 +54,11 @@ export function SignalSourceTypesPage() {
               <DocLink to="experiences">Prediction Event Edge</DocLink>{" "}
               experience.
             </>,
+          ],
+          [
+            "web_search",
+            "Deprecated — kept for DB compatibility only. Cannot be created or started; use edgar_8k, timer, or prediction_event instead.",
+            "Removed from the product surface.",
           ],
         ]}
       />

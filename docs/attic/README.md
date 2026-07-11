@@ -4,9 +4,9 @@ Archived plans and reviews kept for historical reference. **Excluded from agent 
 
 ## Contents
 
-| Path | Origin |
-|------|--------|
+| Path              | Origin                                                        |
+| ----------------- | ------------------------------------------------------------- |
 | `plans-archieve/` | Former `docs/plans/archieve/` (typo preserved in folder name) |
-| `archive/` | Former `docs/archive/` |
+| `archive/`        | Former `docs/archive/`                                        |
 
 Active plans live under `docs/plans/`. Architecture and specs live under `docs/architecture/` and `docs/specs/`.

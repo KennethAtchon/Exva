@@ -71,6 +71,6 @@ sequenceDiagram
 - **WorkerDefinition** - static metadata for one AI worker: prompt, tools, strategy context request, output mode, and output schema.
 - **PipelineRuntime** - composition root that injects repos, provider registries, search/broker dependencies, strategy context, spend tracking, and tool context into the runners.
 - **Phase engine** - registered phase-level hook under `pipeline/engines`: input context, entry mode, cache, or finalizer.
-- **Signal engine** - deterministic code under `services/signal/` that reads task input and returns typed results without calling an LLM. Worker-level `ENGINE_BINDINGS` remain separate from the new phase-engine registry.
+- **Signal engine** - deterministic code under `services/signals/` (aggregators, scoring, strategy) and worker-level bindings registered in `pipeline/engines/signal-registry/`. Worker-level `ENGINE_BINDINGS` remain separate from the phase-engine registry.
 - **ResearchDiscoveryMode** - session strategy field (`trend_scan` or `event_contract_scan`) that selects worker sets via each phase's `resolveWorkersForMode`.
 - **Cycle id** - current runtime identifier for one trading-loop tick. Some code still uses `cycle` naming because the trading loop owns the outer tick.

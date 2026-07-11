@@ -153,6 +153,7 @@ export class PipelineRuntime {
       strategyContext,
     });
     const session = this.deps.sessionRepo.requireById(opts.sessionId);
+    const cyclePlanServices = this.deps.cyclePlanServices;
 
     return runWithProviderCallScopeAsync(
       {
@@ -172,7 +173,7 @@ export class PipelineRuntime {
           session,
           strategyContext,
           toolContext,
-          services: this.deps.cyclePlanServices,
+          services: cyclePlanServices,
           seedState: opts.seedState,
           runStep: opts.runStep,
           lastStageId: opts.lastStageId,
@@ -389,6 +390,8 @@ export class PipelineRuntime {
       canContinueWorkers: () => spendTracker.canContinue(),
     };
 
+    const planServices = this.deps.planServices;
+
     const result = await runWithProviderCallScopeAsync(
       {
         sessionId: opts.sessionId,
@@ -406,7 +409,7 @@ export class PipelineRuntime {
           session,
           strategyContext,
           toolContext,
-          services: this.deps.planServices,
+          services: planServices,
           runner,
         }),
     );

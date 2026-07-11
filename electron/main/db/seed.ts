@@ -110,7 +110,11 @@ export function runSeed(db: BetterSQLite3Database<typeof schema>): void {
         id: SEEDED_ALPACA_BROKER_ID,
         name: "Alpaca (Seeded)",
         brokerType: "alpaca",
-        supportedInstrumentClasses: JSON.stringify(["stock", "crypto", "options"]),
+        supportedInstrumentClasses: JSON.stringify([
+          "stock",
+          "crypto",
+          "options",
+        ]),
         mode: "paper",
         maxSessions: 10,
         allocationEnforcement: "hard",

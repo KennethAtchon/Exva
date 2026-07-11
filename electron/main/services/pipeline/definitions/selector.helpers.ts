@@ -15,9 +15,9 @@ import type { LLMRunResult } from "../../llm/llm-types";
 import {
   mergeDiscoveryCandidates,
   type SelectorCandidate,
-} from "../../signal/scoring/selector-candidate-merger";
+} from "../../signals/scoring/selector-candidate-merger";
 export type { SelectorCandidate };
-import { scoreCandidate } from "../../signal/scoring/selector-scoring-engine";
+import { scoreCandidate } from "../../signals/scoring/selector-scoring-engine";
 import { verificationOutputSchema } from "./selector.schemas";
 import type { z } from "zod";
 

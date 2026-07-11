@@ -13,7 +13,7 @@ export const DEFAULT_PIPELINE: PipelineDescriptor = {
   displayName: "Default trade cycle",
   automation: "ai",
   phases: ["technical", "fundamental", "review", "decision"],
-  signalSources: ["web_search", "manual"],
+  signalSources: ["manual"],
   isDefault: true,
   plan: DEFAULT_TRADE_CYCLE,
   phaseWorkers: {

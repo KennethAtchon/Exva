@@ -107,29 +107,32 @@ describe("RiskEngine", () => {
       gateType: "consecutive_losers",
       reason: "Maximum consecutive losers reached",
     },
-  ])("blocks session limits for $name", ({ stats: statPatch, gateType, reason }) => {
-    const result = engine.validateDecision({
-      config,
-      stats: { ...stats, ...statPatch },
-      confidence: 0.9,
-      order: {
-        instrumentSymbol: "AAPL",
-        instrumentType: "stock",
-        side: "BUY",
-        sizeUsd: 100,
-      },
-    });
+  ])(
+    "blocks session limits for $name",
+    ({ stats: statPatch, gateType, reason }) => {
+      const result = engine.validateDecision({
+        config,
+        stats: { ...stats, ...statPatch },
+        confidence: 0.9,
+        order: {
+          instrumentSymbol: "AAPL",
+          instrumentType: "stock",
+          side: "BUY",
+          sizeUsd: 100,
+        },
+      });
 
-    expect(result).toMatchObject({
-      allowed: false,
-      gateType,
-      reason,
-    });
-    expect(result.trace?.checks[0]).toMatchObject({
-      id: "session_limits",
-      pass: false,
-    });
-  });
+      expect(result).toMatchObject({
+        allowed: false,
+        gateType,
+        reason,
+      });
+      expect(result.trace?.checks[0]).toMatchObject({
+        id: "session_limits",
+        pass: false,
+      });
+    },
+  );
 
   it("does not block consecutive losers when the configured cap is disabled at zero", () => {
     const result = engine.validateDecision({

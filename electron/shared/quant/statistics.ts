@@ -190,13 +190,17 @@ export function reliabilityBuckets(
     const inBucket = predictions.filter(
       (p) =>
         p.probability >= lower &&
-        (i === bucketCount - 1 ? p.probability <= upper : p.probability < upper),
+        (i === bucketCount - 1
+          ? p.probability <= upper
+          : p.probability < upper),
     );
     buckets.push({
       lower,
       upper,
       count: inBucket.length,
-      meanPredicted: inBucket.length ? mean(inBucket.map((p) => p.probability)) : 0,
+      meanPredicted: inBucket.length
+        ? mean(inBucket.map((p) => p.probability))
+        : 0,
       observedFrequency: inBucket.length
         ? mean(inBucket.map((p) => p.outcome))
         : 0,

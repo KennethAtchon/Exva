@@ -4,7 +4,9 @@ import {
   resolveOhlcvTimeframe,
 } from "@electron/shared/domain/signal-timing";
 
-export function resolveRulesOhlcvRequest(metadataJson: string | null | undefined): {
+export function resolveRulesOhlcvRequest(
+  metadataJson: string | null | undefined,
+): {
   timeframe: ReturnType<typeof resolveOhlcvTimeframe>;
   barCount: number;
 } {

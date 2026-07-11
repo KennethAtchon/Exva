@@ -63,7 +63,10 @@ export class TradierAdapter implements BrokerAdapter {
   async placeOrderV2(order: BrokerOrderV2): Promise<BrokerOrderResult> {
     const check = adapterSupportsOrder(this.capabilities, order);
     if (!check.ok) throw new Error(`Tradier rejects order: ${check.reason}`);
-    if (order.orderType === "market" && order.quantity.kind === "notional_usd") {
+    if (
+      order.orderType === "market" &&
+      order.quantity.kind === "notional_usd"
+    ) {
       return this.placeOrder(lowerBrokerOrderV2ToV1(order));
     }
     throw new Error(
@@ -71,7 +74,8 @@ export class TradierAdapter implements BrokerAdapter {
     );
   }
 
-  async cancelOrder(_brokerOrderId: string): Promise<void> {
+  async cancelOrder(brokerOrderId: string): Promise<void> {
+    void brokerOrderId;
     throw new Error("Tradier cancelOrder not implemented.");
   }
 
@@ -105,14 +109,20 @@ export class TradierAdapter implements BrokerAdapter {
   }
 
   async getOhlcv(
-    _instrumentSymbol: string,
-    _timeframe: TradingTimeframe,
-    _barCount: number,
+    instrumentSymbol: string,
+    timeframe: TradingTimeframe,
+    barCount: number,
   ): Promise<OhlcvBar[]> {
+    void instrumentSymbol;
+    void timeframe;
+    void barCount;
     return [];
   }
 
-  async getOptionChain(_underlyingSymbol: string): Promise<OptionChainContract[]> {
+  async getOptionChain(
+    underlyingSymbol: string,
+  ): Promise<OptionChainContract[]> {
+    void underlyingSymbol;
     return [];
   }
 }

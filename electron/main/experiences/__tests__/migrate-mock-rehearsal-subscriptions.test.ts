@@ -91,7 +91,7 @@ describe("migrateEligibleSessionsToMockRehearsal", () => {
     expect(first[0]?.id).toBe(expectedId);
   });
 
-  it("repairs existing timer signal source config from descriptors", () => {
+  it("skips timer signal sources — SessionScheduler owns cadence", () => {
     const repo = new SignalSourcesRepo(db);
     const signal = RULES_MEAN_REVERSION_EXPERIENCE.signals[0];
     if (!signal) throw new Error("Expected mean-reversion signal");
@@ -99,37 +99,13 @@ describe("migrateEligibleSessionsToMockRehearsal", () => {
       RULES_MEAN_REVERSION_EXPERIENCE.id,
       signal.id,
     );
-    repo.create({
-      id: sourceId,
-      type: signal.sourceType,
-      name: "Stale timer source",
-      description: null,
-      enabled: false,
-      experienceId: RULES_MEAN_REVERSION_EXPERIENCE.id,
-      instrumentClass: null,
-      pollCadence: null,
-      analysisTimeframe: null,
-      pipelineId: null,
-      configJson: JSON.stringify({
-        signalId: signal.id,
-        symbol: signal.symbol,
-      }),
-    });
 
-    const [repaired] = ensureExperienceSignalSources(
+    const ensured = ensureExperienceSignalSources(
       repo,
       RULES_MEAN_REVERSION_EXPERIENCE.id,
     );
 
-    expect(repaired?.enabled).toBe(false);
-    expect(repaired?.pollCadence).toBe(signal.pollCadence);
-    expect(JSON.parse(repaired?.configJson ?? "{}")).toMatchObject({
-      signalId: signal.id,
-      symbol: signal.symbol,
-      cadence: signal.pollCadence,
-      pollCadence: signal.pollCadence,
-      analysisTimeframe: signal.defaultAnalysisTimeframe,
-      instrumentClass: signal.instrumentClass,
-    });
+    expect(ensured).toEqual([]);
+    expect(repo.get(sourceId)).toBeNull();
   });
 });

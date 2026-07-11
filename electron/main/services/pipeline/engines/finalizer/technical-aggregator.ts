@@ -4,7 +4,7 @@ import {
   chartPatternOutputSchema,
   momentumOutputSchema,
   volumeOutputSchema,
-} from "../../../signal/aggregators/technical-aggregator";
+} from "../../../signals/aggregators/technical-aggregator";
 import { runEngineForWorker } from "../../execution/engine-prompt-injector";
 import type { AggregatorPlanState } from "../../definitions/aggregator.types";
 import { registerEngine, type FinalizerEngine } from "../registry";

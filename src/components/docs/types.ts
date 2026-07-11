@@ -13,7 +13,6 @@ export type DocSlug =
   | "edgar-pipeline"
   | "signal-source-types"
   | "prediction-events"
-  | "web-search"
   | "timer-signals"
   | "mock-manual-sources"
   | "options-flow-edge"

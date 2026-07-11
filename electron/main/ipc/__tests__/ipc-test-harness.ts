@@ -391,6 +391,15 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     signals: {
       ensureAllExperienceSignalSources: () => [],
     } as unknown as AppServices["signals"],
+    sessionScheduler: {
+      start: () => undefined,
+      stop: () => undefined,
+      register: () => undefined,
+      unregister: () => undefined,
+      snapshot: () => [],
+      getTelemetry: () => null,
+      fireNow: async () => null,
+    } as unknown as AppServices["sessionScheduler"],
     controlRepo: {} as AppServices["controlRepo"],
     control: {} as AppServices["control"],
   };

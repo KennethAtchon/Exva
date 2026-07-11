@@ -38,7 +38,11 @@ export function SignalSourcesPage() {
     setError(null);
     try {
       const next = await api.listSignalSources();
-      setSources(next.sources.filter((source) => source.type !== "manual"));
+      setSources(
+        next.sources.filter(
+          (source) => source.type !== "manual" && source.type !== "web_search",
+        ),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load sources.");
     } finally {
@@ -58,11 +62,12 @@ export function SignalSourcesPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
-            SIGNAL SOURCES
+            SOURCES &amp; SCHEDULES
           </div>
           <h1 className="m-0 mt-2.5 text-[28px]">Signal Sources</h1>
           <p className="mt-2 text-[13px] text-[var(--text3)]">
-            Connect real-time data feeds to drive the trading pipeline.
+            Connect real-time data feeds and schedules to drive the trading
+            pipeline.
           </p>
           <div className="mt-2">
             <HelpTooltip
@@ -364,7 +369,7 @@ function AddSourceDialog({
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
 }) {
-  const [type, setType] = useState<"edgar_8k" | "web_search" | "mock" | "">("");
+  const [type, setType] = useState<"edgar_8k" | "mock" | "">("");
   const [name, setName] = useState("");
   const [marketHours, setMarketHours] = useState("3");
   const [offHours, setOffHours] = useState("15");
@@ -406,24 +411,6 @@ function AddSourceDialog({
             </span>
             <span className="text-[12px] text-[var(--text3)]">
               Polls SEC EDGAR for 8-K filings in real time. Free, no API key.
-            </span>
-          </label>
-          <label className="grid gap-1 rounded-lg border border-[var(--border)] p-3">
-            <span className="flex items-center gap-2">
-              <input
-                type="radio"
-                checked={type === "web_search"}
-                onChange={() => {
-                  setType("web_search");
-                  setName("Web Search");
-                }}
-              />
-              <span>Web Search</span>
-              <HelpTooltip glossaryId="signal-type-web-search" />
-            </span>
-            <span className="text-[12px] text-[var(--text3)]">
-              Legacy: uses web search and trending symbols to find candidates.
-              Lower edge.
             </span>
           </label>
           <label className="grid gap-1 rounded-lg border border-[var(--border)] p-3">
@@ -831,7 +818,16 @@ function describeSourceType(type: Source["type"]): string {
   if (type === "mock") {
     return "Synthetic filing-style signals for rehearsal.";
   }
-  return "Legacy wrapper for web-search discovery.";
+  if (type === "timer") {
+    return "Clock-driven ticks for rules engines.";
+  }
+  if (type === "prediction_event") {
+    return "Prediction-market odds and volume dislocations.";
+  }
+  if (type === "web_search") {
+    return "Deprecated — no longer runnable.";
+  }
+  return "Signal source.";
 }
 
 function statusBadgeClass(status: Source["runtimeStatus"]): string {

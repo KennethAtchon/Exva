@@ -8,7 +8,8 @@ describe("consecutive skip alarm", () => {
 
   it("raises attention_required after 10 identical no_trade reasons", () => {
     const setStatus = vi.fn(
-      (next: "active" | "attention_required", _sessionId: string) => {
+      (next: "active" | "attention_required", sessionId: string) => {
+        void sessionId;
         status = next;
       },
     );

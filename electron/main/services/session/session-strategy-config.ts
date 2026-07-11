@@ -10,6 +10,7 @@ import type {
 import {
   buildStrategySnapshot,
   emptySessionAiSettings,
+  isOffHoursTrading,
 } from "@electron/shared/domain/session";
 
 export type SessionStrategyConfigJson = StrategySnapshot & {
@@ -91,7 +92,10 @@ export function strategyConfigToContext(
       riskPresetId:
         config.presetIds?.riskPresetId ??
         ("moderate" as SessionRiskConfig["riskPresetId"]),
-      offHoursTrading: config.riskConfig.offHoursTrading ?? "disabled",
+      offHoursTrading: (() => {
+        const raw = config.riskConfig.offHoursTrading ?? "disabled";
+        return isOffHoursTrading(raw) ? raw : "disabled";
+      })(),
       maxPositionUsd: config.riskConfig.maxPositionUsd,
       stopLossPct: config.riskConfig.stopLossPct,
       takeProfitPct: config.riskConfig.takeProfitPct,

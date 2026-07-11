@@ -2,8 +2,8 @@ import {
   selectorEvidenceSchema,
   type SelectorEvidence,
 } from "@electron/shared/ai/selector-candidate";
-import { SelectorRiskFilter } from "../../../signal/scoring/selector-risk-filter";
-import type { SelectorCandidate } from "../../../signal/scoring/selector-candidate-merger";
+import { SelectorRiskFilter } from "../../../signals/scoring/selector-risk-filter";
+import type { SelectorCandidate } from "../../../signals/scoring/selector-candidate-merger";
 import { registerEngine, type FinalizerEngine } from "../registry";
 import type { SelectorPlanState } from "../../definitions/selector.phase";
 import type { FailureHistoryEntry } from "../../../orchestration/cycle/runtime-outcome";

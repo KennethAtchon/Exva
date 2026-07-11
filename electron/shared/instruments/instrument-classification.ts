@@ -32,7 +32,8 @@ export function classifyInstrumentBySymbol(symbol: string): InstrumentClass {
   // OCC option symbols: <root><yymmdd><C|P><strike padded to 8>.
   if (/\d{6}[CP]\d{8}$/.test(upper)) return "options";
   // Crypto pairs: a slash (BTC/USD) or a fiat/stablecoin quote suffix (BTC-USD).
-  if (upper.includes("/") || /[-/](USD|USDT|USDC)$/.test(upper)) return "crypto";
+  if (upper.includes("/") || /[-/](USD|USDT|USDC)$/.test(upper))
+    return "crypto";
   // Futures: root + month code (FGHJKMNQUVXZ) + 1–2 digit year, e.g. ESH5.
   if (/^[A-Z]{2,4}[FGHJKMNQUVXZ]\d{1,2}$/.test(upper)) return "futures";
   return "stock";

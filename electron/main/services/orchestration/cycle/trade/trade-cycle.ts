@@ -130,7 +130,9 @@ export async function executeTradeCycle(
             level: "WARN",
             code: null,
             message: `No trade for ${trade.instrumentSymbol}: ${decision.output.reasoning}`,
-            reasonCategory: isConfidenceNoTrade ? "risk_gate" : "model_no_trade",
+            reasonCategory: isConfidenceNoTrade
+              ? "risk_gate"
+              : "model_no_trade",
           });
           ctx.emitEvent(
             isConfidenceNoTrade ? "WARN" : "INFO",
@@ -196,7 +198,8 @@ export async function executeTradeCycle(
           stage: "broker_order",
           onRetry: retry,
           tradeId: trade.id,
-          run: () => placeBrokerOrder(ctx, context, trade, riskOrder, latestQuote),
+          run: () =>
+            placeBrokerOrder(ctx, context, trade, riskOrder, latestQuote),
         });
         if (brokerStep.status === "paused") return;
         if (brokerStep.status === "failed") {
@@ -206,7 +209,10 @@ export async function executeTradeCycle(
             ctx.deps.capitalReservation.releaseByApproval(approvalIdForCapital);
           }
           ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
-          ctx.deps.bus.emit("trade_closed", ctx.deps.tradesRepo.require(trade.id));
+          ctx.deps.bus.emit(
+            "trade_closed",
+            ctx.deps.tradesRepo.require(trade.id),
+          );
           completeSignalDeliveryFromContext(ctx, context, "rejected", {
             dropReason: "broker_order_failed",
           });

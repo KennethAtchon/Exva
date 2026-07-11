@@ -327,7 +327,9 @@ describe("AlpacaAdapter", () => {
     let orderBody: Record<string, unknown> | null = null;
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/trades/latest")) {
-        return jsonResponse({ trade: { p: 185.25, t: "2026-06-12T22:00:00Z" } });
+        return jsonResponse({
+          trade: { p: 185.25, t: "2026-06-12T22:00:00Z" },
+        });
       }
       if (url.includes("/v2/orders") && init?.method === "POST") {
         orderBody = JSON.parse(String(init.body));
@@ -408,7 +410,8 @@ describe("AlpacaAdapter", () => {
       regularHoursClock().getTime(),
     );
     // 30 1h bars * 3x slack = 90h back, comfortably > 1 day.
-    const ageMs = regularHoursClock().getTime() - new Date(start!).getTime();
+    const ageMs =
+      regularHoursClock().getTime() - new Date(start as string).getTime();
     expect(ageMs).toBeGreaterThan(24 * 60 * 60 * 1000);
   });
 
@@ -503,5 +506,64 @@ describe("AlpacaAdapter", () => {
       time_in_force: "gtc",
       notional: "500",
     });
+  });
+
+  it("placeOrderV2 limit+units posts qty and limit_price", async () => {
+    let orderBody: Record<string, unknown> | null = null;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/v2/orders") && init?.method === "POST") {
+        orderBody = JSON.parse(String(init.body));
+        return jsonResponse({ id: "lim-1", filled_avg_price: "185.00" });
+      }
+      return jsonResponse({}, 404);
+    });
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+
+    const result = await adapter.placeOrderV2({
+      clientOrderId: "client-lim",
+      instrument: { symbol: "AAPL", instrumentClass: "stock" },
+      side: "BUY",
+      quantity: { kind: "units", value: 3 },
+      orderType: "limit",
+      limitPrice: 185.5,
+      timeInForce: "day",
+    });
+
+    expect(result.brokerOrderId).toBe("lim-1");
+    expect(result.filledAvgPrice).toBe(185);
+    expect(orderBody).toMatchObject({
+      type: "limit",
+      qty: "3",
+      limit_price: "185.5",
+      time_in_force: "day",
+    });
+  });
+
+  it("placeOrderV2 market+units posts qty market order", async () => {
+    let orderBody: Record<string, unknown> | null = null;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/v2/orders") && init?.method === "POST") {
+        orderBody = JSON.parse(String(init.body));
+        return jsonResponse({ id: "mkt-qty-1", filled_avg_price: "184.00" });
+      }
+      return jsonResponse({}, 404);
+    });
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+
+    await adapter.placeOrderV2({
+      clientOrderId: "client-mkt-qty",
+      instrument: { symbol: "AAPL", instrumentClass: "stock" },
+      side: "BUY",
+      quantity: { kind: "units", value: 5 },
+      orderType: "market",
+      timeInForce: "day",
+    });
+
+    expect(orderBody).toMatchObject({
+      type: "market",
+      qty: "5",
+      time_in_force: "day",
+    });
+    expect(orderBody).not.toHaveProperty("notional");
   });
 });

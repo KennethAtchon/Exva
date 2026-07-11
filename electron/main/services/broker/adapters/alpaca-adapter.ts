@@ -211,14 +211,17 @@ export class AlpacaAdapter implements BrokerAdapter {
     if (!check.ok) {
       throw new Error(`Alpaca rejects order: ${check.reason}`);
     }
-    if (order.orderType === "market" && order.quantity.kind === "notional_usd") {
+    if (
+      order.orderType === "market" &&
+      order.quantity.kind === "notional_usd"
+    ) {
       return this.placeOrder(lowerBrokerOrderV2ToV1(order));
     }
     if (order.orderType === "limit" && order.quantity.kind === "units") {
-      // placeOrder/buildOrderBody only accept v1 notional market (plus an
-      // internal extended-hours marketable-limit path). Explicit limit+units
-      // needs a dedicated Alpaca qty/limit_price body — not wired yet.
-      throw new Error("Alpaca placeOrderV2: limit units path not yet wired");
+      return this.submitRawOrder(await this.buildLimitUnitsBody(order));
+    }
+    if (order.orderType === "market" && order.quantity.kind === "units") {
+      return this.submitRawOrder(await this.buildMarketUnitsBody(order));
     }
     throw new Error(
       `Alpaca placeOrderV2: ${order.orderType}/${order.quantity.kind} not yet wired`,
@@ -496,8 +499,10 @@ export class AlpacaAdapter implements BrokerAdapter {
         openInterest:
           typeof snap.openInterest === "number" ? snap.openInterest : 0,
         dayVolume: typeof snap.dailyBar?.v === "number" ? snap.dailyBar.v : 0,
-        bid: typeof snap.latestQuote?.bp === "number" ? snap.latestQuote.bp : null,
-        ask: typeof snap.latestQuote?.ap === "number" ? snap.latestQuote.ap : null,
+        bid:
+          typeof snap.latestQuote?.bp === "number" ? snap.latestQuote.bp : null,
+        ask:
+          typeof snap.latestQuote?.ap === "number" ? snap.latestQuote.ap : null,
       });
     }
     return chain;
@@ -546,6 +551,117 @@ export class AlpacaAdapter implements BrokerAdapter {
    * Whether an off-hours order reaches this adapter at all is gated upstream by
    * the session's off-hours policy in the market-hours guard.
    */
+  private async submitRawOrder(
+    body: Record<string, unknown>,
+  ): Promise<BrokerOrderResult> {
+    const result = await this.request<{
+      id: string;
+      filled_avg_price?: string;
+      status?: string;
+    }>("/v2/orders", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    const filledAvgPrice = await this.resolveFilledAvgPrice(result);
+    return { brokerOrderId: result.id, filledAvgPrice };
+  }
+
+  /**
+   * Explicit v2 limit+units: qty + limit_price. Reuses the extended-hours
+   * `extended_hours: true` flag from the marketable-limit path in buildOrderBody.
+   */
+  private async buildLimitUnitsBody(
+    order: BrokerOrderV2,
+  ): Promise<Record<string, unknown>> {
+    if (order.limitPrice == null || !(order.limitPrice > 0)) {
+      throw new AppError(
+        "Alpaca limit order requires a positive limitPrice.",
+        "VALIDATION_FAILED",
+      );
+    }
+    if (order.quantity.kind !== "units" || !(order.quantity.value > 0)) {
+      throw new AppError(
+        "Alpaca limit+units requires a positive units quantity.",
+        "VALIDATION_FAILED",
+      );
+    }
+    const instrumentType = order.instrument.instrumentClass;
+    const base = {
+      symbol: order.instrument.symbol,
+      side: order.side.toLowerCase(),
+      client_order_id: toAlpacaClientOrderId(order.clientOrderId),
+      qty: String(order.quantity.value),
+      type: "limit",
+      limit_price: String(roundToPenny(order.limitPrice)),
+      time_in_force: order.timeInForce,
+    };
+
+    if (instrumentType === "crypto") {
+      return {
+        ...base,
+        time_in_force: order.timeInForce === "day" ? "gtc" : order.timeInForce,
+      };
+    }
+
+    const session = getUsEquitySession(this.now());
+    if (session === "regular") {
+      return base;
+    }
+    if (session === "extended" && instrumentType === "stock") {
+      return { ...base, time_in_force: "day", extended_hours: true };
+    }
+    throw new AppError(
+      `Alpaca market is closed for ${order.instrument.symbol}; ${instrumentType} limit orders cannot be placed outside trading hours.`,
+      "MARKET_CLOSED",
+      {
+        instrumentSymbol: order.instrument.symbol,
+        instrumentType,
+        session,
+      },
+    );
+  }
+
+  /** Explicit v2 market+units: qty market order when the session supports it. */
+  private async buildMarketUnitsBody(
+    order: BrokerOrderV2,
+  ): Promise<Record<string, unknown>> {
+    if (order.quantity.kind !== "units" || !(order.quantity.value > 0)) {
+      throw new AppError(
+        "Alpaca market+units requires a positive units quantity.",
+        "VALIDATION_FAILED",
+      );
+    }
+    const instrumentType = order.instrument.instrumentClass;
+    const base = {
+      symbol: order.instrument.symbol,
+      side: order.side.toLowerCase(),
+      client_order_id: toAlpacaClientOrderId(order.clientOrderId),
+      qty: String(order.quantity.value),
+      type: "market",
+    };
+
+    if (instrumentType === "crypto") {
+      return { ...base, time_in_force: "gtc" };
+    }
+
+    const session = getUsEquitySession(this.now());
+    if (session === "regular") {
+      return {
+        ...base,
+        time_in_force: order.timeInForce === "gtc" ? "day" : order.timeInForce,
+      };
+    }
+    throw new AppError(
+      `Alpaca market+units is only supported in regular hours for ${instrumentType}; use limit+units for extended hours.`,
+      "MARKET_CLOSED",
+      {
+        instrumentSymbol: order.instrument.symbol,
+        instrumentType,
+        session,
+      },
+    );
+  }
+
   private async buildOrderBody(
     order: BrokerOrder,
   ): Promise<Record<string, unknown>> {
@@ -678,7 +794,10 @@ export class AlpacaAdapter implements BrokerAdapter {
   ): Promise<T> {
     const method = init.method ?? "GET";
     const httpEndpoint = `${method.toUpperCase()} ${path}`;
-    const callType = inferAlpacaHttpCallType(method, path.split("?")[0] ?? path);
+    const callType = inferAlpacaHttpCallType(
+      method,
+      path.split("?")[0] ?? path,
+    );
     const startedAt = Date.now();
     logger.debug({ method, baseUrl, path }, "alpaca request: sending");
 

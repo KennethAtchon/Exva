@@ -14,7 +14,7 @@ import {
   aggregateCatalystTradeSignal,
   type AdversarialReviewerOutput,
   type CatalystAnalystOutput,
-} from "../../../signal/aggregators/catalyst-two-call-aggregator";
+} from "../../../signals/aggregators/catalyst-two-call-aggregator";
 
 function requirePhaseOutput<T>(
   result: LLMRunResult<T> | undefined,

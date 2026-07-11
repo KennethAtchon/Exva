@@ -11,7 +11,6 @@ import { EdgarTradabilityPage } from "./pages/EdgarTradabilityPage";
 import { EdgarPipelinePage } from "./pages/EdgarPipelinePage";
 import { SignalSourceTypesPage } from "./pages/SignalSourceTypesPage";
 import { PredictionEventsPage } from "./pages/PredictionEventsPage";
-import { WebSearchSignalPage } from "./pages/WebSearchSignalPage";
 import { TimerSignalPage } from "./pages/TimerSignalPage";
 import { MockManualSourcesPage } from "./pages/MockManualSourcesPage";
 import { OptionsFlowEdgePage } from "./pages/OptionsFlowEdgePage";
@@ -177,7 +176,7 @@ const DOC_PAGES: DocPageDefinition[] = [
   {
     slug: "signal-source-types",
     title: "Signal source types",
-    description: "edgar_8k, timer, mock, web_search, manual, prediction_event.",
+    description: "edgar_8k, timer, mock, manual, prediction_event.",
     category: "Signals",
     order: 65,
     related: [
@@ -207,16 +206,6 @@ const DOC_PAGES: DocPageDefinition[] = [
       { id: "configuration", title: "Configuration", level: 2 },
     ],
     component: PredictionEventsPage,
-  },
-  {
-    slug: "web-search",
-    title: "Web search",
-    description: "Legacy discovery wrapper and registry fallback source.",
-    category: "Signals",
-    order: 122,
-    related: ["signal-source-types", "edgar-overview"],
-    headings: [],
-    component: WebSearchSignalPage,
   },
   {
     slug: "timer-signals",
@@ -256,7 +245,11 @@ const DOC_PAGES: DocPageDefinition[] = [
       { id: "how-it-works", title: "How it works", level: 2 },
       { id: "why-search", title: "Why most flow is ignored", level: 2 },
       { id: "configuration", title: "Configuration", level: 2 },
-      { id: "roadmap", title: "Contract-level execution (next phase)", level: 2 },
+      {
+        id: "roadmap",
+        title: "Contract-level execution (next phase)",
+        level: 2,
+      },
     ],
     component: OptionsFlowEdgePage,
   },
@@ -518,7 +511,6 @@ export const DOC_NAV_GROUPS: DocNavGroup[] = [
     slugs: [
       "signal-source-types",
       "prediction-events",
-      "web-search",
       "timer-signals",
       "mock-manual-sources",
       "options-flow-edge",

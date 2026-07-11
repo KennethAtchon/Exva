@@ -66,13 +66,19 @@ export class KrakenAdapter implements BrokerAdapter {
   async placeOrderV2(order: BrokerOrderV2): Promise<BrokerOrderResult> {
     const check = adapterSupportsOrder(this.capabilities, order);
     if (!check.ok) throw new Error(`Kraken rejects order: ${check.reason}`);
-    if (order.orderType === "market" && order.quantity.kind === "notional_usd") {
+    if (
+      order.orderType === "market" &&
+      order.quantity.kind === "notional_usd"
+    ) {
       return this.placeOrder(lowerBrokerOrderV2ToV1(order));
     }
-    throw new Error("Kraken placeOrderV2 not implemented — complete API spike.");
+    throw new Error(
+      "Kraken placeOrderV2 not implemented — complete API spike.",
+    );
   }
 
-  async cancelOrder(_brokerOrderId: string): Promise<void> {
+  async cancelOrder(brokerOrderId: string): Promise<void> {
+    void brokerOrderId;
     throw new Error("Kraken cancelOrder not implemented.");
   }
 
@@ -110,10 +116,13 @@ export class KrakenAdapter implements BrokerAdapter {
    * credentials. Returns empty until the HTTP client is wired.
    */
   async getOhlcv(
-    _instrumentSymbol: string,
-    _timeframe: TradingTimeframe,
-    _barCount: number,
+    instrumentSymbol: string,
+    timeframe: TradingTimeframe,
+    barCount: number,
   ): Promise<OhlcvBar[]> {
+    void instrumentSymbol;
+    void timeframe;
+    void barCount;
     return [];
   }
 

@@ -26,8 +26,7 @@ export function TimerSignalPage() {
         <DocInlineCode>cadence</DocInlineCode> are required — the source throws
         on construction if either is missing. Experience-owned timer sources
         also carry <DocInlineCode>analysisTimeframe</DocInlineCode> for the bar
-        size the strategy trades on — independent of how often the timer
-        polls.
+        size the strategy trades on — independent of how often the timer polls.
       </DocParagraph>
       <DocTable
         headers={["Field", "Required", "Notes"]}
@@ -73,12 +72,12 @@ export function TimerSignalPage() {
       <DocList
         items={[
           <>
-            <DocStrong>pollCadence</DocStrong> — how often the timer re-evaluates
-            for a setup.
+            <DocStrong>pollCadence</DocStrong> — how often the timer
+            re-evaluates for a setup.
           </>,
           <>
-            <DocStrong>analysisTimeframe</DocStrong> — bar timeframe the strategy
-            trades on (passed to rules engines for OHLCV).
+            <DocStrong>analysisTimeframe</DocStrong> — bar timeframe the
+            strategy trades on (passed to rules engines for OHLCV).
           </>,
           <>
             <DocStrong>instrumentClass</DocStrong> — from config (default{" "}

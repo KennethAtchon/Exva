@@ -3,7 +3,7 @@ import type { TradeSignal } from "@electron/shared/ai/trade-signals";
 import {
   entryTimerOutputSchema,
   signalClassifierOutputSchema,
-} from "../../../signal/aggregators/trade-signal-aggregator";
+} from "../../../signals/aggregators/trade-signal-aggregator";
 import { runEngineForWorker } from "../../execution/engine-prompt-injector";
 import type { AggregatorPlanState } from "../../definitions/aggregator.types";
 import { registerEngine, type FinalizerEngine } from "../registry";

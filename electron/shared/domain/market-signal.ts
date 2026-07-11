@@ -139,10 +139,7 @@ export function parseTtlMs(ttl: string): number {
   return ((days * 24 + hours) * 60 + minutes) * 60_000 + seconds * 1000;
 }
 
-export function signalExpiresAt(
-  detectedAt: string,
-  ttl: string,
-): string {
+export function signalExpiresAt(detectedAt: string, ttl: string): string {
   return new Date(Date.parse(detectedAt) + parseTtlMs(ttl)).toISOString();
 }
 

@@ -10,7 +10,10 @@
  * probability, q = 1 - p, and b is net odds (payout per unit risked).
  * Clamped to [0, 1]; negative edge returns 0 (no bet).
  */
-export function kellyFractionBinary(winProbability: number, netOdds: number): number {
+export function kellyFractionBinary(
+  winProbability: number,
+  netOdds: number,
+): number {
   if (netOdds <= 0) return 0;
   const p = clamp01(winProbability);
   const q = 1 - p;
@@ -69,7 +72,10 @@ export function allocateCapital(
   const correlationHaircut = clamp01(1 - input.correlatedExposurePct);
 
   const kellySizeUsd =
-    input.bankrollUsd * fractionalKelly * uncertaintyHaircut * correlationHaircut;
+    input.bankrollUsd *
+    fractionalKelly *
+    uncertaintyHaircut *
+    correlationHaircut;
   const riskBudgetUsd = input.bankrollUsd * Math.max(0, input.riskBudgetPct);
 
   let sizeUsd = kellySizeUsd;

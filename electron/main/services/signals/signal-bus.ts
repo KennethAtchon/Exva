@@ -214,9 +214,7 @@ export class SignalBus {
       queuePositionAtEnqueue: this.deliveriesRepo.nextQueuePosition(sessionId),
       status: isPaused ? "waiting_for_resume" : "queued",
       statusBucket: "pending",
-      expiresAt: isPaused
-        ? signalExpiresAt(event.detectedAt, ttl)
-        : null,
+      expiresAt: isPaused ? signalExpiresAt(event.detectedAt, ttl) : null,
     });
     this.eventBus.emit("signal_delivery_updated", {
       deliveryId: delivery.id,
@@ -269,13 +267,12 @@ export class SignalBus {
 
     const { instrumentClass, symbol } = pickDebugInstrument(
       assignedIds,
-      (id) => this.brokerAccountsRepo.find(id)?.supportedInstrumentClasses ?? [],
+      (id) =>
+        this.brokerAccountsRepo.find(id)?.supportedInstrumentClasses ?? [],
     );
 
-    const { adapter, brokerAccountId } = await this.brokerRouting.resolveAdapter(
-      sessionId,
-      instrumentClass,
-    );
+    const { adapter, brokerAccountId } =
+      await this.brokerRouting.resolveAdapter(sessionId, instrumentClass);
     // Re-check after routing in case routing resolved a different account.
     if (this.brokerAccountsRepo.find(brokerAccountId)?.mode === "live") {
       throw new AppError(
@@ -292,17 +289,19 @@ export class SignalBus {
     });
     const clientOrderId = `debug-force-${crypto.randomUUID()}`;
 
-    const result = await runWithProviderCallScopeAsync({ sessionId }, async () =>
-      adapter.placeOrder({
-        instrumentSymbol: wireSymbol,
-        instrumentDisplayName: null,
-        predictionOutcome: null,
-        instrumentMetadataJson: null,
-        instrumentType: instrumentClass,
-        side: "BUY",
-        sizeUsd: DEBUG_FORCE_TRADE_SIZE_USD,
-        clientOrderId,
-      }),
+    const result = await runWithProviderCallScopeAsync(
+      { sessionId },
+      async () =>
+        adapter.placeOrder({
+          instrumentSymbol: wireSymbol,
+          instrumentDisplayName: null,
+          predictionOutcome: null,
+          instrumentMetadataJson: null,
+          instrumentType: instrumentClass,
+          side: "BUY",
+          sizeUsd: DEBUG_FORCE_TRADE_SIZE_USD,
+          clientOrderId,
+        }),
     );
 
     return {

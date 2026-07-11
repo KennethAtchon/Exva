@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { WorkspaceSession } from "@/lib/types";
 import { instrumentConflictCheck } from "./instrument-conflict-check";
 
-function makeSession(overrides: Partial<WorkspaceSession> = {}): WorkspaceSession {
+function makeSession(
+  overrides: Partial<WorkspaceSession> = {},
+): WorkspaceSession {
   return {
     id: "session-b",
     name: "Session B",

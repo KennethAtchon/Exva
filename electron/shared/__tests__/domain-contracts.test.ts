@@ -5,8 +5,11 @@ import {
   brokerModeForEnvironment,
 } from "../domain/environment-mode";
 import {
+  canTransitionEvidenceRung,
+  nextEvidenceRung,
   nextPromotionTier,
   PROMOTION_TIERS,
+  EVIDENCE_RUNGS,
   resolveSessionPromotionTier,
 } from "../domain/promotion-ladder";
 import {
@@ -79,20 +82,38 @@ describe("promotion-ladder", () => {
   it("covers all promotion tiers", () => {
     expect(PROMOTION_TIERS).toEqual(["scripted", "rehearsal", "paper", "live"]);
   });
+
+  it("advances evidence rungs without skipping", () => {
+    expect(EVIDENCE_RUNGS).toEqual([
+      "backtest",
+      "paper",
+      "live_small",
+      "live_scaled",
+    ]);
+    expect(nextEvidenceRung("backtest")).toBe("paper");
+    expect(nextEvidenceRung("paper")).toBe("live_small");
+    expect(nextEvidenceRung("live_small")).toBe("live_scaled");
+    expect(nextEvidenceRung("live_scaled")).toBeNull();
+    expect(canTransitionEvidenceRung("backtest", "paper")).toBe(true);
+    expect(canTransitionEvidenceRung("backtest", "live_small")).toBe(false);
+  });
 });
 
 describe("signals helpers", () => {
   it("classifies search-style vs self-describing sources", () => {
-    expect(isSearchStyleSignalSourceType("web_search")).toBe(true);
+    // web_search is deprecated; search-style is always false.
+    expect(isSearchStyleSignalSourceType("web_search")).toBe(false);
     expect(isSearchStyleSignalSourceType("edgar_8k")).toBe(false);
     expect(isSelfDescribingSignalSourceType("edgar_8k")).toBe(true);
     expect(isSelfDescribingSignalSourceType("web_search")).toBe(false);
     expect(isSelfDescribingSignalSourceType("manual")).toBe(false);
   });
 
-  it("requires instrument scope for search-style or empty subscriptions", () => {
+  it("requires instrument scope for empty subscriptions (not deprecated web_search)", () => {
     expect(sessionRequiresInstrumentScope([])).toBe(true);
-    expect(sessionRequiresInstrumentScope([{ type: "web_search" }])).toBe(true);
+    expect(sessionRequiresInstrumentScope([{ type: "web_search" }])).toBe(
+      false,
+    );
     expect(sessionRequiresInstrumentScope([{ type: "edgar_8k" }])).toBe(false);
   });
 });

@@ -371,14 +371,15 @@ export const CreateEditSessionModal = ({
   );
   const compatibleSignalSources = useMemo(
     () =>
-      selectedExperience
+      (selectedExperience
         ? signalSources.filter((source) =>
             sourceIsCompatibleWithExperience(
               source.type,
               selectedExperience.capabilities.signalSourceTypes,
             ),
           )
-        : signalSources,
+        : signalSources
+      ).filter((source) => source.type !== "web_search"),
     [selectedExperience, signalSources],
   );
   const subscribedSources = useMemo(
@@ -415,9 +416,7 @@ export const CreateEditSessionModal = ({
     inputModel,
     sourcesLoaded: signalSourcesLoaded,
   });
-  const showSearchProviderField =
-    showInstrumentFilter &&
-    subscribedSources.some((source) => source.type === "web_search");
+  const showSearchProviderField = false;
   const overAllocatedBrokerIds = useMemo(
     () =>
       new Set(
@@ -737,7 +736,6 @@ export const CreateEditSessionModal = ({
                   <div className="grid gap-2">
                     {compatibleSignalSources.map((source) => {
                       const checked = subscribedSourceIds.includes(source.id);
-                      const isSearchStyle = source.type === "web_search";
                       const holdEstimate = formatApproximateTradeHoldLabel({
                         id: source.id,
                         type: source.type,
@@ -761,20 +759,10 @@ export const CreateEditSessionModal = ({
                               <span className="text-[12px] font-semibold text-[var(--text1)]">
                                 {source.name}
                               </span>
-                              <span className={kindChipClass}>
-                                {isSearchStyle ? "Search" : "Listener"}
-                              </span>
+                              <span className={kindChipClass}>Listener</span>
                               <HelpTooltip
-                                topic={
-                                  isSearchStyle
-                                    ? "Search source"
-                                    : "Listener source"
-                                }
-                                body={
-                                  isSearchStyle
-                                    ? "Search sources actively look for relevant news or web results."
-                                    : "Listener sources wait for incoming events such as filings or platform events."
-                                }
+                                topic="Listener source"
+                                body="Listener sources wait for incoming events such as filings or platform events."
                               />
                             </span>
                             <span className="mt-px block text-[12px] text-[var(--text3)]">
@@ -1110,7 +1098,9 @@ export const CreateEditSessionModal = ({
                   ) : (
                     <div className={successTextClass}>
                       Launchable with{" "}
-                      {effectiveInstrumentClasses.map(formatInstrumentClass).join(", ")}{" "}
+                      {effectiveInstrumentClasses
+                        .map(formatInstrumentClass)
+                        .join(", ")}{" "}
                       from assigned brokers.{" "}
                       <HelpTooltip glossaryId="launchability" />
                     </div>

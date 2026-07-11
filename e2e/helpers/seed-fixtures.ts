@@ -38,55 +38,58 @@ export async function seedPaperTradingSession(
   const experienceId = options?.experienceId ?? "edgar-catalyst";
   const allocatedUsd = options?.allocatedUsd ?? 5000;
 
-  return window.evaluate(async (seedOptions) => {
-    const exva = window.exva;
-    if (!exva) throw new Error("window.exva is not available");
+  return window.evaluate(
+    async (seedOptions) => {
+      const exva = window.exva;
+      if (!exva) throw new Error("window.exva is not available");
 
-    const brokerResult = await exva.accounts.addBroker({
-      brokerType: "mock",
-      name: "E2E Mock Broker",
-      mode: "paper",
-      credentials: {},
-    });
-    if (!brokerResult.ok) {
-      throw new Error(`Failed to add broker: ${brokerResult.message}`);
-    }
-    const brokerAccountId = brokerResult.id;
+      const brokerResult = await exva.accounts.addBroker({
+        brokerType: "mock",
+        name: "E2E Mock Broker",
+        mode: "paper",
+        credentials: {},
+      });
+      if (!brokerResult.ok) {
+        throw new Error(`Failed to add broker: ${brokerResult.message}`);
+      }
+      const brokerAccountId = brokerResult.id;
 
-    const providerResult = await exva.accounts.saveProvider({
-      name: "E2E OpenRouter",
-      category: "ai",
-      providerType: "openrouter",
-      apiKey: "e2e-test-key",
-    });
+      const providerResult = await exva.accounts.saveProvider({
+        name: "E2E OpenRouter",
+        category: "ai",
+        providerType: "openrouter",
+        apiKey: "e2e-test-key",
+      });
 
-    await exva.strategy.saveWorkspaceDefaultModel({
-      providerKey: providerResult.id,
-      modelId: "google/gemma-4-31b-it",
-    });
+      await exva.strategy.saveWorkspaceDefaultModel({
+        providerKey: providerResult.id,
+        modelId: "google/gemma-4-31b-it",
+      });
 
-    const created = await exva.session.create({
-      name: seedOptions.sessionName,
-      objective: `E2E paper trading on ${seedOptions.instrumentScope}`,
-      selectionMode: "manual_shortlist",
-      instrumentScope: seedOptions.instrumentScope,
-      selectorSettings: { aiPickerEnabled: false },
-      executionMode: "paper_only",
-      experienceId: seedOptions.experienceId,
-      brokerAssignments: [
-        { brokerAccountId, allocatedUsd: seedOptions.allocatedUsd },
-      ],
-      brokerOverridesByInstrumentClass: { stock: brokerAccountId },
-    });
+      const created = await exva.session.create({
+        name: seedOptions.sessionName,
+        objective: `E2E paper trading on ${seedOptions.instrumentScope}`,
+        selectionMode: "manual_shortlist",
+        instrumentScope: seedOptions.instrumentScope,
+        selectorSettings: { aiPickerEnabled: false },
+        executionMode: "paper_only",
+        experienceId: seedOptions.experienceId,
+        brokerAssignments: [
+          { brokerAccountId, allocatedUsd: seedOptions.allocatedUsd },
+        ],
+        brokerOverridesByInstrumentClass: { stock: brokerAccountId },
+      });
 
-    await exva.session.focus(created.id);
+      await exva.session.focus(created.id);
 
-    return {
-      brokerAccountId,
-      sessionId: created.id,
-      sessionName: seedOptions.sessionName,
-    };
-  }, { sessionName, instrumentScope, experienceId, allocatedUsd });
+      return {
+        brokerAccountId,
+        sessionId: created.id,
+        sessionName: seedOptions.sessionName,
+      };
+    },
+    { sessionName, instrumentScope, experienceId, allocatedUsd },
+  );
 }
 
 export async function seedMeanReversionSession(

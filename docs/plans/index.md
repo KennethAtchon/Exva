@@ -2,10 +2,10 @@
 
 ## Active
 
-| Plan                                                               | Status | Notes                                                               |
-| ------------------------------------------------------------------ | ------ | ------------------------------------------------------------------- |
-| [Exva 50→100 Deep Plan](./exva-50-to-100-deep-plan.md)             | Draft  | Full-system rearchitecture brainstorm                               |
-| [Polymarket Paper/Mock Mode](./polymarket-paper-mode.md)           | Draft  | Ghost trades + bet-verification for prediction markets in mock mode |
+| Plan                                                     | Status | Notes                                                               |
+| -------------------------------------------------------- | ------ | ------------------------------------------------------------------- |
+| [Exva 50→100 Deep Plan](./exva-50-to-100-deep-plan.md)   | Draft  | Full-system rearchitecture brainstorm                               |
+| [Polymarket Paper/Mock Mode](./polymarket-paper-mode.md) | Draft  | Ghost trades + bet-verification for prediction markets in mock mode |
 
 ## Archived
 

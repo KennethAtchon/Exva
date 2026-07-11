@@ -10,7 +10,10 @@ function resolveDotEnvCandidates(): string[] {
       ? __dirname
       : path.dirname(fileURLToPath(import.meta.url));
 
-  const roots = new Set<string>([process.cwd(), path.resolve(moduleDir, "../../..")]);
+  const roots = new Set<string>([
+    process.cwd(),
+    path.resolve(moduleDir, "../../.."),
+  ]);
   let dir = moduleDir;
   for (let depth = 0; depth < 6; depth += 1) {
     roots.add(dir);
@@ -57,6 +60,11 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((value) => value === "true"),
+  /** Default on (missing/undefined !== "false") so tests keep mock rehearsal. */
+  EXVA_ENABLE_MOCK_REHEARSAL: z
+    .string()
+    .optional()
+    .transform((value) => value !== "false"),
   OPEN_ROUTER_KEY: z.string().optional(),
   OPEN_ROUTER_MODEL: z.string().optional(),
   ALPACA_API_KEY: z.string().optional(),
@@ -87,6 +95,7 @@ function loadEnv(source: NodeJS.ProcessEnv = process.env) {
     devBypassKeychain: parsed.data.EXVA_DEV_BYPASS_KEYCHAIN ?? false,
     promptsDirOverride: parsed.data.EXVA_PROMPTS_DIR_OVERRIDE,
     utilityProcessRuntimes: parsed.data.EXVA_UTILITY_PROCESS_RUNTIMES ?? false,
+    enableMockRehearsal: parsed.data.EXVA_ENABLE_MOCK_REHEARSAL ?? true,
     openRouterKey: normalizeOptionalSecret(parsed.data.OPEN_ROUTER_KEY),
     openRouterModel: normalizeOptionalSecret(parsed.data.OPEN_ROUTER_MODEL),
     alpacaApiKey: normalizeOptionalSecret(parsed.data.ALPACA_API_KEY),

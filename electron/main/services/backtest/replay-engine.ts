@@ -112,16 +112,15 @@ export function runBacktest(spec: BacktestSpec): BacktestResult {
       });
       if (!signal) continue;
 
-      const entry = bars[i]!;
+      const entry = bars[i];
+      if (!entry) continue;
       const exitIdx = resolveExitIndex(bars, i, signal.action, spec.exitPolicy);
-      const exit = bars[exitIdx]!;
+      const exit = bars[exitIdx];
+      if (!exit) continue;
       const direction = signal.action === "buy" ? 1 : -1;
       const rawReturnBps =
         ((exit.close - entry.close) / entry.close) * 10_000 * direction;
-      const fold = Math.min(
-        spec.folds - 1,
-        Math.floor(i / foldSize),
-      );
+      const fold = Math.min(spec.folds - 1, Math.floor(i / foldSize));
 
       allTrades.push({
         symbol,
@@ -183,12 +182,14 @@ function resolveExitIndex(
   action: "buy" | "sell",
   policy: ExitPolicyConfig,
 ): number {
-  const entry = bars[entryIdx]!;
+  const entry = bars[entryIdx];
+  if (!entry) return entryIdx;
   const maxHold = policy.maxHoldBars ?? 20;
-  let exitIdx = Math.min(bars.length - 1, entryIdx + maxHold);
+  const exitIdx = Math.min(bars.length - 1, entryIdx + maxHold);
 
   for (let j = entryIdx + 1; j <= exitIdx; j++) {
-    const bar = bars[j]!;
+    const bar = bars[j];
+    if (!bar) continue;
     const movePct =
       action === "buy"
         ? (bar.close - entry.close) / entry.close
@@ -203,7 +204,10 @@ function resolveExitIndex(
   return exitIdx;
 }
 
-function summarizeFolds(trades: BacktestTrade[], foldCount: number): FoldMetrics[] {
+function summarizeFolds(
+  trades: BacktestTrade[],
+  foldCount: number,
+): FoldMetrics[] {
   const folds: FoldMetrics[] = [];
   for (let f = 0; f < foldCount; f++) {
     const subset = trades.filter((t) => t.fold === f);

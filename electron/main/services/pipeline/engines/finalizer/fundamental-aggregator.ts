@@ -4,11 +4,11 @@ import {
   catalystOutputSchema,
   earningsOutputSchema,
   sentimentOutputSchema,
-} from "../../../signal/aggregators/fundamental-aggregator";
+} from "../../../signals/aggregators/fundamental-aggregator";
 import {
   catalystAnalystOutputSchema,
   type CatalystAnalystOutput,
-} from "../../../signal/aggregators/catalyst-two-call-aggregator";
+} from "../../../signals/aggregators/catalyst-two-call-aggregator";
 import { fundamentalSignalSchema } from "@electron/shared/ai/trade-signals";
 import {
   encodeForecastSummary,

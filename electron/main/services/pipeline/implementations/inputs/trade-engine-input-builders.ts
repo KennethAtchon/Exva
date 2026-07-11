@@ -1,12 +1,6 @@
 import { AppError } from "@electron/shared/infra/errors";
 import type { InstrumentClass } from "@/lib/types";
-import type {
-  AggregationTrace,
-  DecisionCheck,
-  RiskGateTrace,
-  SizingTrace,
-  TradeDecisionTrace,
-} from "@electron/shared/domain";
+import type { TradeDecisionTrace } from "@electron/shared/domain";
 import {
   isWaitForOpenRejection,
   type RiskGateType,
@@ -30,7 +24,12 @@ import type {
   ExecutionCostEstimate,
 } from "@electron/shared/domain/edge-estimate";
 import { estimateExecutionCost } from "@electron/shared/quant/execution-cost-model";
-import { allocateCapital, kellyFractionBinary } from "@electron/shared/quant/kelly";
+import {
+  allocateCapital,
+  kellyFractionBinary,
+} from "@electron/shared/quant/kelly";
+import { evaluateEdgeDecision } from "@electron/shared/quant/decision-gate";
+import { defaultCalibrationService } from "../../../signals/forecast/calibration-service";
 import { requireExperience } from "../../../../experiences/index";
 
 const logger = createLogger("trade-engine-input-builders");
@@ -153,32 +152,11 @@ function persistTraceFragment(
       fragment,
     );
   } catch (err) {
-    logger.warn({ err, cycleId: ctx.cycleId }, "decision trace persist failed (non-blocking)");
+    logger.warn(
+      { err, cycleId: ctx.cycleId },
+      "decision trace persist failed (non-blocking)",
+    );
   }
-}
-
-function buildAggregationTrace(
-  state: InstrumentAnalysisState,
-  ctx: EngineRunCtx,
-): AggregationTrace {
-  const decision = state.decision?.output;
-  const threshold = ctx.strategyContext.riskConfig.waitForOpenThreshold ?? null;
-  const confidence = decision?.confidence ?? null;
-  const belowThreshold =
-    threshold != null && confidence != null && confidence < threshold;
-  const action = decision?.action ?? "skip";
-  return {
-    classifierConfidence: confidence,
-    classifierAction: action,
-    waitForOpenThreshold: threshold,
-    belowThreshold,
-    // Timer timing is embedded in the decision reasoning; not separately stored.
-    timerTiming: null,
-    timerBlocked: false,
-    reviewRecommendation: state.review?.output.recommendation ?? null,
-    finalAction: action,
-    skipReason: action === "skip" ? (decision?.reasoning ?? null) : null,
-  };
 }
 
 function applyRiskGateNoTrade(
@@ -376,18 +354,47 @@ export const riskGateInputBuilder: EngineInputBuilder = {
         cappedBy: economics.allocation.cappedBy,
       },
     });
-    if (economics.expectedNetReturnBps < 0) {
+    const calibrationHaircut = defaultCalibrationService.calibrationHaircut(
+      economics.edge.modelId,
+      economics.edge.modelVersion,
+      economics.edge.predictedProbability ?? 0.5,
+    );
+    const edgeDecision = evaluateEdgeDecision(
+      {
+        estimate: economics.edge,
+        calibrationHaircut,
+        rawKellyFraction: economics.allocation.fractionalKelly,
+      },
+      {
+        // Dual-read: keep floors permissive until calibrated labels exist.
+        minNetEdgeBps: 0,
+        maxUncertaintyBps: 5000,
+        minSampleSize: 1,
+        maxKellyFraction: 0.25,
+      },
+    );
+    if (edgeDecision.action === "skip") {
       throw createOutcomeError(
-        `Edge does not survive execution cost: expected net ${economics.expectedNetReturnBps.toFixed(1)}bps for ${ctx.instrument.symbol}`,
+        edgeDecision.skipReason ??
+          `Edge gate rejected ${ctx.instrument.symbol}`,
         "VALIDATION_FAILED",
         { outcome: "no_trade", reasonCategory: "cost_gate" },
       );
     }
     // Cap to the allocator recommendation when it is positive and smaller.
+    // Apply calibration haircut into size when the gate reduced Kelly.
+    const kellyScale =
+      economics.allocation.fractionalKelly > 0
+        ? Math.min(
+            1,
+            edgeDecision.sizedKellyFraction /
+              economics.allocation.fractionalKelly,
+          )
+        : 1;
     const allocatorSizeUsd =
       economics.allocation.sizeUsd > 0
-        ? Math.min(scaledSizeUsd, economics.allocation.sizeUsd)
-        : scaledSizeUsd;
+        ? Math.min(scaledSizeUsd, economics.allocation.sizeUsd) * kellyScale
+        : scaledSizeUsd * kellyScale;
 
     return {
       task: {

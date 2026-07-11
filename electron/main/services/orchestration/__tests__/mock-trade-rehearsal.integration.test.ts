@@ -9,7 +9,7 @@ import type {
 } from "@electron/shared/ai/trade-signals";
 import type { Trade, WorkspaceSession } from "@/lib/types";
 import { MockMarketSimulator } from "../../broker/mock/mock-market-simulator";
-import { registerDefaultEngines } from "../../signal/registry/register-default-engines";
+import { registerDefaultEngines } from "../../pipeline/engines/signal-registry/register-default-engines";
 import { ExitPolicyEvaluator } from "../../risk/exit-policy-evaluator";
 import { RiskEngine } from "../../risk/risk-engine";
 import { BrokerAllocationGate } from "../../risk/broker-allocation-gate";

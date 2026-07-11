@@ -25,7 +25,7 @@ All five phases are fully migrated. Every phase-level hook is a registered engin
 | review      | —                                                             | —                | —                         | review-aggregator                                 |
 | decision    | —                                                             | —                | —                         | trade-signal-aggregator                           |
 
-Finalizer engines delegate to deterministic functions in `services/signal/aggregators/` and `services/signal/scoring/`. This folder is the orchestration boundary; signal logic stays in `signal/`.
+Finalizer engines delegate to deterministic functions in `services/signals/aggregators/` and `services/signals/scoring/`. This folder is the orchestration boundary; signal compute stays in `signals/`.
 
 ## Contracts
 
@@ -42,4 +42,4 @@ Stage-local `applyResults()` logic is exempt — it only transforms one worker b
 
 ## Two engine systems
 
-This registry (`pipeline/engines/`) is separate from the signal engine registry (`signal/registry/`). Phase engines are orchestration hooks referenced by ID on `AIPhase`. Signal engines are deterministic functions referenced by `ENGINE_BINDINGS` for per-worker prompt enrichment and instrument-analysis engine steps.
+This registry (`pipeline/engines/`) is separate from the worker-level signal engine registry (`pipeline/engines/signal-registry/`). Phase engines are orchestration hooks referenced by ID on `AIPhase`. Signal engines are deterministic functions referenced by `ENGINE_BINDINGS` for per-worker prompt enrichment and instrument-analysis engine steps.

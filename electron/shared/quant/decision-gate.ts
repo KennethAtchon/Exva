@@ -136,10 +136,7 @@ function kellyFromNetEdge(estimate: EdgeEstimate): number {
   return Math.max(0, Math.min(0.25, estimate.expectedNetReturnBps / 2000));
 }
 
-function skip(
-  estimate: EdgeEstimate,
-  skipReason: string,
-): EdgeDecisionResult {
+function skip(estimate: EdgeEstimate, skipReason: string): EdgeDecisionResult {
   return { action: "skip", skipReason, sizedKellyFraction: 0, estimate };
 }
 

@@ -85,12 +85,12 @@ describe("taskBoundaryCheck", () => {
     });
   });
 
-  it("requires instrument scope when subscribed sources need manual symbols", async () => {
+  it("requires instrument scope when no signal sources are subscribed", async () => {
     const result = await taskBoundaryCheck(
       { ...baseSession, instrumentScope: "" } as never,
       {
         signalSourcesRepo: {
-          subscribedSourceTypesForSession: () => ["web_search"],
+          subscribedSourceTypesForSession: () => [],
         },
         sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
         sessionBrokerAssignmentsRepo: {
@@ -110,5 +110,28 @@ describe("taskBoundaryCheck", () => {
       code: "VALIDATION_FAILED",
       message: "Instrument scope is required.",
     });
+  });
+
+  it("does not require instrument scope for deprecated web_search-only sessions", async () => {
+    const result = await taskBoundaryCheck(
+      { ...baseSession, instrumentScope: "" } as never,
+      {
+        signalSourcesRepo: {
+          subscribedSourceTypesForSession: () => ["web_search"],
+        },
+        sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
+        sessionBrokerAssignmentsRepo: {
+          listBrokerAccountIds: () => ["broker-1"],
+        },
+        brokerAccountsRepo: {
+          find: () => ({
+            id: "broker-1",
+            supportedInstrumentClasses: ["stock"],
+          }),
+        },
+      } as never,
+    );
+
+    expect(result).toMatchObject({ ok: true });
   });
 });

@@ -321,40 +321,21 @@ services/pipeline/
     └── __tests__/
 ```
 
-Worker prompt text is compiled into TypeScript through `worker-prompts.ts` and assigned directly to `WorkerDefinition.prompt`. Phase definitions live in `definitions/`; phase-level engines (input, entry-mode, cache, finalizer) live in `engines/` and delegate deterministic finalizer work to `services/signal/`.
+Worker prompt text is compiled into TypeScript through `worker-prompts.ts` and assigned directly to `WorkerDefinition.prompt`. Phase definitions live in `definitions/`; phase-level engines (input, entry-mode, cache, finalizer) live in `engines/` and delegate deterministic finalizer work to `services/signals/`.
 
 ---
 
-## `services/signal/` - Deterministic Signal Processing
+## `services/signals/` - Signal Transport + Deterministic Compute
 
 ```
-services/signal/
-├── README.md
-├── aggregators/
-│   ├── README.md
-│   ├── technical-aggregator.ts
-│   ├── fundamental-aggregator.ts
-│   ├── review-aggregator.ts
-│   └── trade-signal-aggregator.ts
-├── scoring/
-│   ├── README.md
-│   ├── selector-scoring-engine.ts
-│   ├── selector-candidate-merger.ts
-│   ├── selector-risk-filter.ts
-│   ├── selector-submission-builder.ts
-│   └── prediction-market-candidate-engine.ts
-├── execution/
-│   ├── README.md
-│   └── trade-execution-profile.ts
-└── registry/
-    ├── README.md
-    ├── signal-engine-registry.ts
-    ├── register-trade-signal-engines.ts
-    ├── register-default-engines.ts
-    └── types.ts
+services/signals/
+├── aggregators/          # technical/fundamental/review/trade aggregators
+├── scoring/              # selector scoring, candidates, risk filter
+├── strategy/             # mean-reversion, trend, breakout, options-flow
+├── sources/ / repos/ / … # bus, deliveries, dead letters (transport)
 ```
 
-Signal code is deterministic TypeScript. It aggregates worker output, scores selector candidates, computes execution profiles, and registers engines. It should not call AI providers.
+Worker-level signal engines (ENGINE_BINDINGS) register via `pipeline/engines/signal-registry/`. Execution profiles live in `services/orchestration/trade-execution-profile.ts`.
 
 ---
 
@@ -653,7 +634,7 @@ e2e/
 | AI provider calls and normalized traces                | `electron/main/services/llm/`                                                  |
 | AI analysis sequencing, prompts, workers, tools        | `electron/main/services/pipeline/`                                             |
 | Phase-level engine registry (input, cache, finalizers) | `electron/main/services/pipeline/engines/`                                     |
-| Deterministic output processing                        | `electron/main/services/signal/`                                               |
+| Deterministic output processing                        | `electron/main/services/signals/`                                              |
 | LLM-callable tool implementations                      | `electron/main/services/tools/`                                                |
 | Search provider adapters                               | `electron/main/services/search/`                                               |
 | Broker adapters/routing/capital/balances               | `electron/main/services/broker/`                                               |

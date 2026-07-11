@@ -12,7 +12,7 @@ import { signalForWorkerPrompt } from "@electron/shared/ai/worker-prompt-payload
 import {
   conflictDetectorOutputSchema,
   riskAssessorOutputSchema,
-} from "../../signal/aggregators/review-aggregator";
+} from "../../signals/aggregators/review-aggregator";
 import type { AIPhase } from "../phases/types";
 import { resolvePipelinePhaseWorkers } from "../pipeline-phase-worker-resolver";
 import {
@@ -20,7 +20,7 @@ import {
   REVIEW_WORKERS_RISK_ASSESSOR_PROMPT,
   ADVERSARIAL_REVIEWER_PROMPT,
 } from "../worker-prompts";
-import { adversarialReviewerOutputSchema } from "../../signal/aggregators/catalyst-two-call-aggregator";
+import { adversarialReviewerOutputSchema } from "../../signals/aggregators/catalyst-two-call-aggregator";
 import type { AggregatorPlanState } from "./aggregator.types";
 
 export type { AggregatorPlanState };

@@ -6,7 +6,7 @@ import {
   aggregateCatalystTradeSignal,
   catalystAnalystOutputSchema,
   type CatalystAnalystOutput,
-} from "../../../signal/aggregators/catalyst-two-call-aggregator";
+} from "../../../signals/aggregators/catalyst-two-call-aggregator";
 
 function syntheticDecisionRun(
   sessionId: string,

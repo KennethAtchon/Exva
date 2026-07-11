@@ -140,31 +140,25 @@ export class MarketDataService {
         .onConflictDoNothing()
         .run();
     }
-    const firstTs = bars.reduce(
-      (min, b) => (b.ts < min ? b.ts : min),
-      bars[0]!.ts,
-    );
-    const lastTs = bars.reduce(
-      (max, b) => (b.ts > max ? b.ts : max),
-      bars[0]!.ts,
-    );
+    const seed = bars[0];
+    if (!seed) return;
+    const firstTs = bars.reduce((min, b) => (b.ts < min ? b.ts : min), seed.ts);
+    const lastTs = bars.reduce((max, b) => (b.ts > max ? b.ts : max), seed.ts);
     const existing = this.getCoverage(symbol, timeframe);
     this.db.db
       .insert(dataCoverage)
       .values({
         id: existing
-          ? (
-              this.db.db
-                .select({ id: dataCoverage.id })
-                .from(dataCoverage)
-                .where(
-                  and(
-                    eq(dataCoverage.symbol, symbol),
-                    eq(dataCoverage.timeframe, timeframe),
-                  ),
-                )
-                .get()?.id ?? crypto.randomUUID()
-            )
+          ? (this.db.db
+              .select({ id: dataCoverage.id })
+              .from(dataCoverage)
+              .where(
+                and(
+                  eq(dataCoverage.symbol, symbol),
+                  eq(dataCoverage.timeframe, timeframe),
+                ),
+              )
+              .get()?.id ?? crypto.randomUUID())
           : crypto.randomUUID(),
         symbol,
         timeframe,
@@ -202,7 +196,8 @@ export class MarketDataService {
   }
 
   private getBarsInWindow(input: GetBarsInput): OhlcvBar[] {
-    const window = input.window!;
+    const window = input.window;
+    if (!window) return [];
     const rows = this.db.db
       .select()
       .from(ohlcvBars)

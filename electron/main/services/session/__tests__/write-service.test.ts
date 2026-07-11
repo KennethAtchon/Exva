@@ -150,9 +150,7 @@ describe("SessionWriteService", () => {
       executionMode: "paper_only",
       experienceId: "edgar-catalyst",
       subscribedSourceIds: [sourceId],
-      brokerAssignments: [
-        { brokerAccountId: "broker-pm", allocatedUsd: 2500 },
-      ],
+      brokerAssignments: [{ brokerAccountId: "broker-pm", allocatedUsd: 2500 }],
     });
     expect(result.status).toBe("draft");
   });

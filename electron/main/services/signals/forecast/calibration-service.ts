@@ -50,8 +50,9 @@ export class CalibrationService {
   ): ModelCalibration {
     const buckets: CalibrationBucket[] = [];
     for (let i = 0; i < BUCKET_EDGES.length - 1; i++) {
-      const lo = BUCKET_EDGES[i]!;
-      const hi = BUCKET_EDGES[i + 1]!;
+      const lo = BUCKET_EDGES[i];
+      const hi = BUCKET_EDGES[i + 1];
+      if (lo == null || hi == null) continue;
       const inBucket = labels.filter(
         (l) => l.predictedProbability >= lo && l.predictedProbability < hi,
       );

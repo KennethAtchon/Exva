@@ -24,6 +24,12 @@ import type {
   OrderStatus,
   PolymarketMarketRow,
 } from "./broker-adapter";
+import {
+  POLYMARKET_CAPABILITIES,
+  adapterSupportsOrder,
+  lowerBrokerOrderV2ToV1,
+  type BrokerOrderV2,
+} from "../order-contract-v2";
 
 const logger = createLogger("polymarket-adapter");
 
@@ -74,6 +80,7 @@ export class PolymarketAdapter
    * but exits are driven by individual order tracking in this app.
    */
   readonly launchCapable = true;
+  readonly capabilities = POLYMARKET_CAPABILITIES;
 
   private authClientPromise: Promise<ClobClient> | null = null;
   private paperBalanceUsd = DEFAULT_PAPER_BALANCE_USD;
@@ -96,7 +103,8 @@ export class PolymarketAdapter
         await this.getReadOnlyClient().getOk();
         return {
           ok: true,
-          message: "Polymarket ghost (paper) mode — market data live, orders local",
+          message:
+            "Polymarket ghost (paper) mode — market data live, orders local",
           account_balance: this.paperBalanceUsd,
         };
       } catch (error) {
@@ -160,6 +168,25 @@ export class PolymarketAdapter
     };
   }
 
+  async placeOrderV2(order: BrokerOrderV2): Promise<BrokerOrderResult> {
+    const check = adapterSupportsOrder(this.capabilities, order);
+    if (!check.ok) {
+      throw new Error(`Polymarket rejects order: ${check.reason}`);
+    }
+    if (
+      order.orderType === "market" &&
+      order.quantity.kind === "notional_usd"
+    ) {
+      return this.placeOrder(lowerBrokerOrderV2ToV1(order));
+    }
+    if (order.orderType === "limit") {
+      return this.placeLimitOrderV2(order);
+    }
+    throw new Error(
+      `Polymarket placeOrderV2: ${order.orderType}/${order.quantity.kind} not yet wired`,
+    );
+  }
+
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
     logger.info(
       {
@@ -197,7 +224,10 @@ export class PolymarketAdapter
         ? order.sizeUsd
         : Number((order.sizeUsd / Math.max(price, 0.01)).toFixed(6));
 
-    const tickSize = await this.resolveTickSize(client, metadata.outcomeTokenId);
+    const tickSize = await this.resolveTickSize(
+      client,
+      metadata.outcomeTokenId,
+    );
 
     let response: unknown;
     try {
@@ -291,10 +321,140 @@ export class PolymarketAdapter
       open: true,
     });
     logger.info(
-      { brokerOrderId, filledAvgPrice: price, paperBalanceUsd: this.paperBalanceUsd },
+      {
+        brokerOrderId,
+        filledAvgPrice: price,
+        paperBalanceUsd: this.paperBalanceUsd,
+      },
       "polymarket ghost: order filled locally",
     );
     return { brokerOrderId, filledAvgPrice: price };
+  }
+
+  /**
+   * v2 limit: paper simulates an immediate fill when mid crosses the limit;
+   * live posts a GTC limit via createAndPostOrder.
+   */
+  private async placeLimitOrderV2(
+    order: BrokerOrderV2,
+  ): Promise<BrokerOrderResult> {
+    const limitPrice = order.limitPrice;
+    if (limitPrice == null || !(limitPrice > 0)) {
+      throw new AppError(
+        "Polymarket limit order requires a positive limitPrice.",
+        "VALIDATION_FAILED",
+      );
+    }
+    if (order.instrument.instrumentClass !== "prediction_market") {
+      throw new AppError(
+        "Polymarket adapter supports prediction markets only",
+        "UNSUPPORTED_INSTRUMENT",
+      );
+    }
+    const metadata = parsePredictionMetadata(order.instrument.metadataJson);
+    const sizeShares = resolveLimitSizeShares(order);
+
+    if (this.isPaper) {
+      return this.placeGhostLimitOrder(order, metadata, sizeShares, limitPrice);
+    }
+
+    const client = await this.getAuthedClient();
+    const tickSize = await this.resolveTickSize(
+      client,
+      metadata.outcomeTokenId,
+    );
+    let response: unknown;
+    try {
+      response = await traceBrokerInteraction(
+        this.interactionLogger,
+        "placeOrder_submit",
+        `${order.side}/${metadata.outcomeTokenId}/GTC/limit/${limitPrice}/sz${sizeShares}`,
+        () =>
+          client.createAndPostOrder(
+            {
+              tokenID: metadata.outcomeTokenId,
+              price: limitPrice,
+              size: sizeShares,
+              side: order.side === "BUY" ? Side.BUY : Side.SELL,
+            },
+            { tickSize },
+            OrderType.GTC,
+          ),
+      );
+    } catch (err) {
+      logger.error(
+        {
+          err,
+          tokenId: metadata.outcomeTokenId,
+          side: order.side,
+          limitPrice,
+          sizeShares,
+        },
+        "polymarket placeOrderV2: createAndPostOrder (GTC limit) threw",
+      );
+      throw err;
+    }
+
+    const brokerOrderId = extractOrderId(response);
+    logger.info(
+      { brokerOrderId, limitPrice },
+      "polymarket placeOrderV2: GTC limit posted",
+    );
+    // Resting limit may not fill immediately; report the limit as the working price.
+    return { brokerOrderId, filledAvgPrice: limitPrice };
+  }
+
+  private async placeGhostLimitOrder(
+    order: BrokerOrderV2,
+    metadata: PredictionInstrumentMetadata,
+    sizeShares: number,
+    limitPrice: number,
+  ): Promise<BrokerOrderResult> {
+    const mid = await this.resolveReferencePrice(
+      this.getReadOnlyClient(),
+      metadata.outcomeTokenId,
+    );
+    const crosses =
+      order.side === "BUY" ? mid <= limitPrice : mid >= limitPrice;
+    if (!crosses) {
+      throw new AppError(
+        `Polymarket paper limit: mid ${mid.toFixed(4)} has not crossed limit ${limitPrice.toFixed(4)}.`,
+        "BROKER_ERROR",
+        { mid, limitPrice, side: order.side },
+      );
+    }
+
+    const fillPrice = limitPrice;
+    const sizeUsd = sizeShares * fillPrice;
+    if (order.side === "BUY" && sizeUsd > this.paperBalanceUsd) {
+      throw new AppError(
+        `Insufficient paper balance: need $${sizeUsd.toFixed(2)}, have $${this.paperBalanceUsd.toFixed(2)}.`,
+        "BROKER_ERROR",
+      );
+    }
+
+    const brokerOrderId = `ghost-limit-${crypto.randomUUID()}`;
+    if (order.side === "BUY") this.paperBalanceUsd -= sizeUsd;
+    this.ghostOrders.set(brokerOrderId, {
+      tokenId: metadata.outcomeTokenId,
+      conditionId: metadata.conditionId,
+      market: metadata.conditionId,
+      side: order.side,
+      sizeUsd,
+      shares: sizeShares,
+      entryPrice: fillPrice,
+      open: true,
+    });
+    logger.info(
+      {
+        brokerOrderId,
+        filledAvgPrice: fillPrice,
+        mid,
+        paperBalanceUsd: this.paperBalanceUsd,
+      },
+      "polymarket ghost: limit filled locally (mid crossed)",
+    );
+    return { brokerOrderId, filledAvgPrice: fillPrice };
   }
 
   async cancelOrder(brokerOrderId: string): Promise<void> {
@@ -386,7 +546,12 @@ export class PolymarketAdapter
     this.paperBalanceUsd += proceeds;
     ghost.open = false;
     logger.info(
-      { orderId, exitPrice, realizedPnlUsd, paperBalanceUsd: this.paperBalanceUsd },
+      {
+        orderId,
+        exitPrice,
+        realizedPnlUsd,
+        paperBalanceUsd: this.paperBalanceUsd,
+      },
       "polymarket ghost: position closed locally",
     );
     return { brokerOrderId: orderId, realizedPnlUsd };
@@ -626,6 +791,26 @@ function parsePredictionMetadata(
 function parseConditionId(instrumentSymbol: string): string {
   if (!instrumentSymbol.startsWith("pm:")) return instrumentSymbol;
   return instrumentSymbol.slice(3);
+}
+
+function resolveLimitSizeShares(order: BrokerOrderV2): number {
+  if (order.quantity.kind === "units") {
+    if (!(order.quantity.value > 0)) {
+      throw new AppError(
+        "Polymarket limit+units requires a positive size.",
+        "VALIDATION_FAILED",
+      );
+    }
+    return order.quantity.value;
+  }
+  const limitPrice = order.limitPrice ?? 0;
+  if (!(limitPrice > 0) || !(order.quantity.value > 0)) {
+    throw new AppError(
+      "Polymarket limit+notional requires positive notional and limitPrice.",
+      "VALIDATION_FAILED",
+    );
+  }
+  return Number((order.quantity.value / limitPrice).toFixed(6));
 }
 
 function extractOrderId(response: unknown): string {

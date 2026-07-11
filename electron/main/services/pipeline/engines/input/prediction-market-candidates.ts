@@ -1,4 +1,4 @@
-import { fetchPredictionMarketCandidates } from "../../../signal/scoring/prediction-market-candidate-engine";
+import { fetchPredictionMarketCandidates } from "../../../signals/scoring/prediction-market-candidate-engine";
 import { registerEngine, type InputEngine } from "../registry";
 
 const predictionMarketCandidatesInputEngine: InputEngine = {

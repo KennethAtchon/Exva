@@ -20,10 +20,7 @@ describe("pipelines registration", () => {
       ALL_PIPELINES.map((pipeline) => [pipeline.id, pipeline]),
     );
 
-    expect(byId["default-trade-cycle"]?.signalSources).toEqual([
-      "web_search",
-      "manual",
-    ]);
+    expect(byId["default-trade-cycle"]?.signalSources).toEqual(["manual"]);
     expect(byId["edgar-8k-cycle"]?.signalSources).toEqual(["edgar_8k", "mock"]);
     expect(byId["prediction-event-cycle"]?.signalSources).toEqual([
       "prediction_event",

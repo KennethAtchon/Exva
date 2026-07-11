@@ -59,8 +59,8 @@ export class SessionWriteService {
         getSource(
           sourceId: string,
         ): { type: import("@electron/shared/domain").SignalSourceType } | null;
-        syncMockRehearsalSignalSourceTicker?(ticker: string): void;
       };
+      syncMockRehearsalSignalSourceTicker?(ticker: string): void;
     },
   ) {}
 
@@ -329,7 +329,7 @@ export class SessionWriteService {
     const subscribedSourceIds = input.subscribedSourceIds ?? [];
     if (
       !subscribedSourceIds.includes(MOCK_REHEARSAL_SIGNAL_SOURCE_ID) ||
-      !this.deps.signals?.syncMockRehearsalSignalSourceTicker
+      !this.deps.syncMockRehearsalSignalSourceTicker
     ) {
       return;
     }
@@ -368,6 +368,6 @@ export class SessionWriteService {
       })),
       brokerAssignmentIds,
     );
-    this.deps.signals.syncMockRehearsalSignalSourceTicker(ticker);
+    this.deps.syncMockRehearsalSignalSourceTicker(ticker);
   }
 }

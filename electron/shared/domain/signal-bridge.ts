@@ -27,7 +27,8 @@ export function kindFromSourceType(
 export function enrichSignalEvent(event: SignalEvent): SignalEvent {
   if (event.kind && event.dedupeKey && event.ttl) return event;
   const kind = event.kind ?? kindFromSourceType(event.sourceType);
-  const ttl = event.ttl ?? DEFAULT_SIGNAL_TTL[kind as MarketSignalKind] ?? "PT4H";
+  const ttl =
+    event.ttl ?? DEFAULT_SIGNAL_TTL[kind as MarketSignalKind] ?? "PT4H";
   const dedupeKey =
     event.dedupeKey ??
     event.accessionNumber ??
@@ -48,10 +49,7 @@ export function marketSignalToLegacyEvent(
   sourceType: SignalSourceType,
 ): SignalEvent {
   const ticker = signal.symbols[0] ?? "UNKNOWN";
-  const filing =
-    signal.kind === "filing"
-      ? signal.payload
-      : null;
+  const filing = signal.kind === "filing" ? signal.payload : null;
   return {
     id: signal.id,
     sourceId: signal.sourceId,

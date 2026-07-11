@@ -15,9 +15,9 @@ import {
   estimateBorrowUsd,
   estimateCommissionUsd,
 } from "@electron/shared/instruments/trade-exit-analytics";
-import {
-  runWithProviderCallScopeAsync,
-} from "../../infra/provider-call-log";
+import { runWithProviderCallScopeAsync } from "../../infra/provider-call-log";
+import { createPollOrderEventFeed } from "../../broker/order-event-feed";
+import type { OrderEventFeed } from "../../broker/order-contract-v2";
 
 const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
   multi_day_swing: 60_000,
@@ -34,6 +34,8 @@ export class TradeMonitor {
   private timer: NodeJS.Timeout | null = null;
   private pollIntervalMs = POLL_INTERVAL_MS.multi_day_swing;
   private readonly exitEvaluator = new ExitPolicyEvaluator();
+  /** Optional order-event feeds keyed by broker account (stream or poll). */
+  private readonly orderFeeds = new Map<string, OrderEventFeed>();
 
   constructor(
     private readonly sessionId: string,
@@ -63,6 +65,29 @@ export class TradeMonitor {
   stop(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    for (const feed of this.orderFeeds.values()) {
+      void feed.stop();
+    }
+    this.orderFeeds.clear();
+  }
+
+  /**
+   * Prefer adapter streaming feed when available; otherwise poll getOrderStatus.
+   * Complements the snapshot poll loop (does not replace it yet).
+   */
+  async ensureOrderEventFeed(
+    brokerAccountId: string,
+    orderIds: readonly string[],
+  ): Promise<OrderEventFeed> {
+    const existing = this.orderFeeds.get(brokerAccountId);
+    if (existing) return existing;
+    const adapter = await this.brokerRegistry.get(brokerAccountId);
+    const feed =
+      adapter.createOrderEventFeed?.() ??
+      createPollOrderEventFeed(adapter, orderIds, this.pollIntervalMs);
+    this.orderFeeds.set(brokerAccountId, feed);
+    await feed.start();
+    return feed;
   }
 
   private async tick(): Promise<void> {
@@ -93,7 +118,9 @@ export class TradeMonitor {
           tradeId: trade.id,
         },
         async () => {
-          const adapter = await this.brokerRegistry.get(trade.brokerAccountId!);
+          const brokerAccountId = trade.brokerAccountId;
+          if (!brokerAccountId || !trade.broker_order_id) return;
+          const adapter = await this.brokerRegistry.get(brokerAccountId);
           const wireSymbol = this.instrumentNormalizer
             ? this.instrumentNormalizer.toBrokerSymbol({
                 symbol: trade.instrumentSymbol,
@@ -176,7 +203,9 @@ export class TradeMonitor {
           }
 
           // Fallback: check if broker already closed the order externally
-          const status = await adapter.getOrderStatus(trade.broker_order_id!);
+          const brokerOrderId = trade.broker_order_id;
+          if (!brokerOrderId) return;
+          const status = await adapter.getOrderStatus(brokerOrderId);
           if (status.status === "closed") {
             this.closeTrade(
               trade.id,

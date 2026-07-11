@@ -1,7 +1,11 @@
 import type { AgentMessage, AgentRun } from "@/lib/types";
-import type { EngineInputBuilder } from "../../execution/input-builder-registry";
+import type {
+  EngineInputBuilder,
+  EngineRunCtx,
+} from "../../execution/input-builder-registry";
 import type { LLMRunResult } from "../../../llm/llm-types";
 import type { TradeSignal } from "@electron/shared/ai/trade-signals";
+import { edgeEstimateFromStrength } from "@electron/shared/quant/decision-gate";
 import { resolveRulesOhlcvRequest } from "./rules-ohlcv-timeframe";
 
 function syntheticDecisionRun(signal: TradeSignal): LLMRunResult<TradeSignal> {
@@ -76,8 +80,46 @@ export const rulesBreakoutInputBuilder: EngineInputBuilder = {
       },
     };
   },
-  applyOutput(state, output) {
+  applyOutput(state, output, ctx?: EngineRunCtx) {
     const signal = output as TradeSignal;
+    if (ctx) {
+      try {
+        const strength = Math.max(0, signal.confidence) * 4;
+        ctx.services.decisionTracesRepo.upsertFragment(
+          {
+            cycleId: ctx.cycleId,
+            sessionId: ctx.sessionId,
+            instrumentSymbol: ctx.instrument.symbol,
+          },
+          {
+            edgeEstimate: edgeEstimateFromStrength({
+              modelId: "rules:breakout",
+              modelVersion: "rules-1",
+              asOf: new Date().toISOString(),
+              targetHorizon: "1d",
+              strength,
+              expectedGrossReturnBps: signal.confidence * 100,
+              expectedCostBps: 15,
+              sampleSize: 0,
+              predictedProbability: signal.confidence,
+            }),
+            aggregation: {
+              classifierConfidence: signal.confidence,
+              classifierAction: signal.action,
+              waitForOpenThreshold: null,
+              belowThreshold: false,
+              timerTiming: null,
+              timerBlocked: false,
+              reviewRecommendation: null,
+              finalAction: signal.action,
+              skipReason: signal.action === "skip" ? signal.reasoning : null,
+            },
+          },
+        );
+      } catch {
+        // observability-only
+      }
+    }
     return {
       ...state,
       decision: syntheticDecisionRun(signal),

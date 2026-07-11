@@ -109,7 +109,11 @@ export function computeTradeTradeExecutionProfile(
   const afterReviewReduceUsd =
     reviewRecommendation === "reduce_size" ? baseUsd * 0.5 : baseUsd;
 
-  const capped = capPosition(afterReviewReduceUsd, maxPositionUsd, maxExposureUsd);
+  const capped = capPosition(
+    afterReviewReduceUsd,
+    maxPositionUsd,
+    maxExposureUsd,
+  );
   const orderType = signal.entryPrice != null ? "limit" : "market";
 
   const notes: string[] = [];

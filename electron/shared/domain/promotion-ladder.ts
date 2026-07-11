@@ -40,3 +40,21 @@ export function nextPromotionTier(
   if (idx < 0 || idx >= PROMOTION_TIERS.length - 1) return null;
   return PROMOTION_TIERS[idx + 1] ?? null;
 }
+
+export function nextEvidenceRung(current: EvidenceRung): EvidenceRung | null {
+  const idx = EVIDENCE_RUNGS.indexOf(current);
+  if (idx < 0 || idx >= EVIDENCE_RUNGS.length - 1) return null;
+  return EVIDENCE_RUNGS[idx + 1] ?? null;
+}
+
+/** True when `to` is exactly one rung above `from` (no skipping). */
+export function canTransitionEvidenceRung(
+  from: EvidenceRung,
+  to: EvidenceRung,
+): boolean {
+  return nextEvidenceRung(from) === to;
+}
+
+export function evidenceRungIndex(rung: EvidenceRung): number {
+  return EVIDENCE_RUNGS.indexOf(rung);
+}

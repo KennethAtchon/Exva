@@ -70,14 +70,14 @@ export function formatPlaceOrderEndpoint(order: {
   return `placeOrder/${order.side}/${order.instrumentSymbol}/${order.instrumentType}/$${order.sizeUsd.toFixed(2)}${clientSuffix}`;
 }
 
-export function inferAlpacaHttpCallType(
-  method: string,
-  path: string,
-): string {
+export function inferAlpacaHttpCallType(method: string, path: string): string {
   const upper = method.toUpperCase();
   if (upper === "POST" && path === "/v2/orders") return "placeOrder_submit";
-  if (upper === "DELETE" && /\/v2\/orders\//.test(path)) return "cancelOrder_submit";
-  if (upper === "DELETE" && /\/v2\/positions\//.test(path)) return "closePosition_submit";
-  if (upper === "GET" && /\/v2\/orders\//.test(path)) return "order_status_poll";
+  if (upper === "DELETE" && /\/v2\/orders\//.test(path))
+    return "cancelOrder_submit";
+  if (upper === "DELETE" && /\/v2\/positions\//.test(path))
+    return "closePosition_submit";
+  if (upper === "GET" && /\/v2\/orders\//.test(path))
+    return "order_status_poll";
   return "broker_http";
 }

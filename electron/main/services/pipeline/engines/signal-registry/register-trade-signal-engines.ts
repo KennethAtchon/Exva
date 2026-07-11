@@ -1,18 +1,18 @@
 import { z } from "zod";
 import type { TradeSignal } from "@electron/shared/ai/trade-signals";
 import { registerSignalEngine } from "./signal-engine-registry";
-import { aggregateTechnicalSignal } from "../aggregators/technical-aggregator";
-import { aggregateFundamentalSignal } from "../aggregators/fundamental-aggregator";
-import { aggregateReviewSignal } from "../aggregators/review-aggregator";
-import { aggregateTradeSignal } from "../aggregators/trade-signal-aggregator";
-import { mergeDiscoveryCandidates } from "../scoring/selector-candidate-merger";
-import { scoreCandidate } from "../scoring/selector-scoring-engine";
-import { buildInstrumentSelection } from "../scoring/selector-submission-builder";
-import { computeTradeTradeExecutionProfile } from "../execution/trade-execution-profile";
-import { computeMeanReversionSignal } from "../rules/mean-reversion-signal";
-import { computeTrendFollowingSignal } from "../rules/trend-following-signal";
-import { computeBreakoutSignal } from "../rules/breakout-signal";
-import { computeOptionsFlowSignal } from "../rules/options-flow-signal";
+import { aggregateTechnicalSignal } from "../../../signals/aggregators/technical-aggregator";
+import { aggregateFundamentalSignal } from "../../../signals/aggregators/fundamental-aggregator";
+import { aggregateReviewSignal } from "../../../signals/aggregators/review-aggregator";
+import { aggregateTradeSignal } from "../../../signals/aggregators/trade-signal-aggregator";
+import { mergeDiscoveryCandidates } from "../../../signals/scoring/selector-candidate-merger";
+import { scoreCandidate } from "../../../signals/scoring/selector-scoring-engine";
+import { buildInstrumentSelection } from "../../../signals/scoring/selector-submission-builder";
+import { computeTradeTradeExecutionProfile } from "../../../orchestration/trade-execution-profile";
+import { computeMeanReversionSignal } from "../../../signals/strategy/mean-reversion-signal";
+import { computeTrendFollowingSignal } from "../../../signals/strategy/trend-following-signal";
+import { computeBreakoutSignal } from "../../../signals/strategy/breakout-signal";
+import { computeOptionsFlowSignal } from "../../../signals/strategy/options-flow-signal";
 
 export function registerTradeSignalEngines(): void {
   registerSignalEngine({

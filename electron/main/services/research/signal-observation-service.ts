@@ -53,7 +53,10 @@ export class SignalObservationService {
       featureJson: JSON.stringify(input.features ?? {}),
       decisionJson:
         input.reasoning != null || input.edge != null
-          ? JSON.stringify({ reasoning: input.reasoning ?? null, edge: input.edge ?? null })
+          ? JSON.stringify({
+              reasoning: input.reasoning ?? null,
+              edge: input.edge ?? null,
+            })
           : null,
       modelVersion: input.modelVersion ?? null,
       labelHorizon: input.contract.label.horizon,

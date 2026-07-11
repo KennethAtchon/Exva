@@ -1,7 +1,7 @@
 # Exva 50 → 100: Full-System Rearchitecture & Brainstorm — Deep Plan
 
 > **Date:** 2026-07-11
-> **Status:** In progress — core Phases 0–5 landed in code (2026-07-11); broker API spikes + live paper proof still open
+> **Status:** Implemented (2026-07-11) — Phases 0–5 in code; Phase 6 deferred (see `phase-6-config-diet.md`). Live paper proof + broker API spikes still operator actions.
 > **Owner:** Kenneth Atchon
 > **Audience:** Ken + implementing engineers/agents
 > **Scope:** The entire Exva codebase — signal architecture (primary), pipeline, brokers, risk, research loop, autonomy, UI, and the delete list. This is the "what would it take to make this an actual hands-free money-printing tool" document.
@@ -470,7 +470,7 @@ interface ManualPayload {
 }
 ```
 
-Design rules: `dedupeKey` is computed by the source (filing → accession; dislocation → `marketId:date:bucket(mid,2bps)`; flow → `underlying:anomalyType:hour`; scan_hit → `strategyId:symbol:barWindowHash`) and enforced with a unique index — replacing the accession-only dedupe (C7). `ttl` is set per kind (filing: hours; dislocation: minutes-to-hours by time-to-resolution; scan_hit: one bar period; news: kind-dependent) and replaces the hardcoded 4h pause-expiry (C12); the delivery gate and the startup replay both consult it, which also finally makes the startup re-fan-out safe to implement (C8): re-deliver anything unexpired, drop the rest _with the TTL as the stated reason_.
+Design rules: `dedupeKey` is computed by the source (filing → accession; dislocation → `marketId:date:bucket(mid,2bps)`; flow → `underlying:anomalyType:hour`; scan*hit → `strategyId:symbol:barWindowHash`) and enforced with a unique index — replacing the accession-only dedupe (C7). `ttl` is set per kind (filing: hours; dislocation: minutes-to-hours by time-to-resolution; scan_hit: one bar period; news: kind-dependent) and replaces the hardcoded 4h pause-expiry (C12); the delivery gate and the startup replay both consult it, which also finally makes the startup re-fan-out safe to implement (C8): re-deliver anything unexpired, drop the rest \_with the TTL as the stated reason*.
 
 **Migration:** additive columns on `signal_events` (`kind`, `payload_v2`, `dedupe_key`, `ttl`, `occurred_at`), backfill, dual-read period where `SignalBus` accepts both shapes, then source-by-source cutover, then old columns dropped in a final cleanup migration. Deliveries/dead-letters/observations reference event ids and are untouched.
 

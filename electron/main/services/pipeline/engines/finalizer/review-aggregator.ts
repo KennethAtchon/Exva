@@ -3,11 +3,11 @@ import type { ReviewSignal } from "@electron/shared/ai/trade-signals";
 import {
   conflictDetectorOutputSchema,
   riskAssessorOutputSchema,
-} from "../../../signal/aggregators/review-aggregator";
+} from "../../../signals/aggregators/review-aggregator";
 import {
   adversarialReviewerOutputSchema,
   aggregateAdversarialReview,
-} from "../../../signal/aggregators/catalyst-two-call-aggregator";
+} from "../../../signals/aggregators/catalyst-two-call-aggregator";
 import {
   encodeRedTeamSummary,
   predictionRedTeamSchema,
@@ -43,7 +43,7 @@ const reviewAggregatorEngine: FinalizerEngine<
       workerResults,
       adversarialReviewerOutputSchema,
     ) as
-      | import("../../../signal/aggregators/catalyst-two-call-aggregator").AdversarialReviewerOutput
+      | import("../../../signals/aggregators/catalyst-two-call-aggregator").AdversarialReviewerOutput
       | null;
     if (adversarial) {
       return aggregateAdversarialReview(

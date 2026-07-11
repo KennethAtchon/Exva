@@ -2,8 +2,8 @@ import { z } from "zod";
 import { registerAllPhases } from "../definitions";
 import { registerAllPipelineWorkers } from "../register-all-workers";
 import { registerDefaultInstrumentAnalyses } from "../implementations/registry/register-analyses";
-import { registerSignalEngine } from "../../signal/registry/signal-engine-registry";
-import { registerTradeSignalEngines } from "../../signal/registry/register-trade-signal-engines";
+import { registerSignalEngine } from "../engines/signal-registry/signal-engine-registry";
+import { registerTradeSignalEngines } from "../engines/signal-registry/register-trade-signal-engines";
 
 let booted = false;
 

@@ -1,5 +1,8 @@
 import type { InstrumentClass, Trade } from "@/lib/types";
-import type { OrderRequest } from "../../../broker/adapters/broker-adapter";
+import {
+  adapterCapabilitiesOf,
+  type OrderRequest,
+} from "../../../broker/adapters/broker-adapter";
 import { liftBrokerOrderV1ToV2 } from "../../../broker/order-contract-v2";
 import type { TradingCycleContext } from "../trading-cycle-context";
 
@@ -12,6 +15,7 @@ export async function placeRoutedOrder(
 ): Promise<{ brokerOrderId: string; filledAvgPrice: number } | null> {
   const { adapter, brokerAccountId } =
     await ctx.deps.brokerRouting.resolveAdapter(ctx.sessionId, instrumentClass);
+  const caps = adapterCapabilitiesOf(adapter);
   ctx.deps.logger.debug(
     {
       sessionId: ctx.sessionId,
@@ -19,6 +23,7 @@ export async function placeRoutedOrder(
       brokerAccountId,
       instrumentClass,
       brokerType: adapter.brokerType,
+      capabilities: caps,
     },
     "resolved broker adapter",
   );
@@ -75,12 +80,13 @@ export async function placeRoutedOrder(
 
   let result;
   try {
-    // Prefer v2 when the adapter implements it; lift keeps market+notional
-    // shape so existing adapters/tests stay compatible.
-    result =
-      typeof adapter.placeOrderV2 === "function"
-        ? await adapter.placeOrderV2(liftBrokerOrderV1ToV2(v1Order))
-        : await adapter.placeOrder(v1Order);
+    // Prefer v2 when the adapter implements it and advertises market orders;
+    // lift keeps market+notional shape so existing adapters/tests stay compatible.
+    const placeV2 = adapter.placeOrderV2?.bind(adapter);
+    const useV2 = placeV2 != null && caps.orderTypes.includes("market");
+    result = useV2
+      ? await placeV2(liftBrokerOrderV1ToV2(v1Order))
+      : await adapter.placeOrder(v1Order);
   } catch (err) {
     ctx.deps.logger.error(
       {

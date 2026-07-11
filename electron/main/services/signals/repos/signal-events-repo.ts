@@ -22,9 +22,7 @@ export class SignalEventsRepo {
         detectedAt: event.detectedAt,
         dispatchStatus: "new",
         kind: event.kind ?? null,
-        payloadV2: event.payloadV2
-          ? JSON.stringify(event.payloadV2)
-          : null,
+        payloadV2: event.payloadV2 ? JSON.stringify(event.payloadV2) : null,
         dedupeKey: event.dedupeKey ?? null,
         ttl: event.ttl ?? null,
         occurredAt: event.occurredAt ?? null,

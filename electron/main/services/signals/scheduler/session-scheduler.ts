@@ -30,9 +30,9 @@ export interface ScheduledScan {
   symbol: string;
   instrumentClass: string;
   analysisTimeframe: string;
-  run(ctx: ScanContext): Promise<
-    import("@electron/shared/domain/market-signal").MarketSignal[]
-  >;
+  run(
+    ctx: ScanContext,
+  ): Promise<import("@electron/shared/domain/market-signal").MarketSignal[]>;
 }
 
 export interface ScheduleTelemetry {

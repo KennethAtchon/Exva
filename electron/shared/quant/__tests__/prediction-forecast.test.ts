@@ -51,7 +51,11 @@ describe("evaluatePredictionEdge — red-team-aware gating", () => {
   it("skips when the widened uncertainty band exceeds the rule", () => {
     const res = evaluatePredictionEdge(
       { ...baseInput, uncertaintyBps: 3000 },
-      { minNetEdge: 0.02, minCalibrationSampleSize: 30, maxUncertaintyBps: 1500 },
+      {
+        minNetEdge: 0.02,
+        minCalibrationSampleSize: 30,
+        maxUncertaintyBps: 1500,
+      },
       "2026-06-26T00:00:00Z",
     );
     expect(res.side).toBe("skip");
@@ -76,7 +80,11 @@ describe("evaluatePredictionEdge — red-team-aware gating", () => {
         orderBookDepthUsd: 5000,
         requiredSizeUsd: 500,
       },
-      { minNetEdge: 0.02, minCalibrationSampleSize: 30, maxUncertaintyBps: 1500 },
+      {
+        minNetEdge: 0.02,
+        minCalibrationSampleSize: 30,
+        maxUncertaintyBps: 1500,
+      },
       "2026-06-26T00:00:00Z",
     );
     expect(res.side).toBe("BUY");

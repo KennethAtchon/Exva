@@ -61,13 +61,19 @@ export class KalshiAdapter implements BrokerAdapter {
     const check = adapterSupportsOrder(this.capabilities, order);
     if (!check.ok) throw new Error(`Kalshi rejects order: ${check.reason}`);
     // Until the REST client lands, lower market+notional to v1 path.
-    if (order.orderType === "market" && order.quantity.kind === "notional_usd") {
+    if (
+      order.orderType === "market" &&
+      order.quantity.kind === "notional_usd"
+    ) {
       return this.placeOrder(lowerBrokerOrderV2ToV1(order));
     }
-    throw new Error("Kalshi placeOrderV2 not implemented — complete API spike.");
+    throw new Error(
+      "Kalshi placeOrderV2 not implemented — complete API spike.",
+    );
   }
 
-  async cancelOrder(_brokerOrderId: string): Promise<void> {
+  async cancelOrder(brokerOrderId: string): Promise<void> {
+    void brokerOrderId;
     throw new Error("Kalshi cancelOrder not implemented.");
   }
 

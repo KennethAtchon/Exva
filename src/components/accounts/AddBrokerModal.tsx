@@ -369,8 +369,14 @@ export const AddBrokerModal = ({
                 label: "Tradovate (futures — simulated v1)",
               },
               { value: "polymarket", label: "Polymarket (prediction markets)" },
-              { value: "kalshi", label: "Kalshi (US event contracts — skeleton)" },
-              { value: "tradier", label: "Tradier (stocks/options — skeleton)" },
+              {
+                value: "kalshi",
+                label: "Kalshi (US event contracts — skeleton)",
+              },
+              {
+                value: "tradier",
+                label: "Tradier (stocks/options — skeleton)",
+              },
               { value: "kraken", label: "Kraken (crypto — skeleton)" },
             ]}
           />

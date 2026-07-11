@@ -10,7 +10,7 @@ import { resolvePipelinePhaseWorkers } from "../pipeline-phase-worker-resolver";
 import {
   momentumOutputSchema,
   volumeOutputSchema,
-} from "../../signal/aggregators/technical-aggregator";
+} from "../../signals/aggregators/technical-aggregator";
 import type { AIPhase } from "../phases/types";
 import {
   TECHNICAL_WORKERS_PRICE_REACTION_CHECKER_PROMPT,

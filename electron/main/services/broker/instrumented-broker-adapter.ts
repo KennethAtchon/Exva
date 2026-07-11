@@ -62,8 +62,11 @@ export function createInstrumentedBrokerAdapter(
       ),
 
     getMarketSnapshot: (instrumentSymbol: string) =>
-      traceBrokerInteraction(logger, "getMarketSnapshot", instrumentSymbol, () =>
-        inner.getMarketSnapshot(instrumentSymbol),
+      traceBrokerInteraction(
+        logger,
+        "getMarketSnapshot",
+        instrumentSymbol,
+        () => inner.getMarketSnapshot(instrumentSymbol),
       ),
 
     getOrderStatus: (orderId: string) =>
@@ -87,7 +90,13 @@ export function createInstrumentedBrokerAdapter(
         logger,
         "getOhlcv",
         `${instrumentSymbol}/${timeframe}?limit=${barCount}`,
-        () => inner.getOhlcv!(instrumentSymbol, timeframe, barCount),
+        () => {
+          const getOhlcv = inner.getOhlcv;
+          if (!getOhlcv) {
+            throw new Error("Broker adapter getOhlcv unexpectedly unavailable");
+          }
+          return getOhlcv(instrumentSymbol, timeframe, barCount);
+        },
       ) as Promise<OhlcvBar[]>;
   }
 

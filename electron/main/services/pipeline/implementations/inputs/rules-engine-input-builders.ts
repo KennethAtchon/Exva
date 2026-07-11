@@ -5,6 +5,7 @@ import type {
 } from "../../execution/input-builder-registry";
 import type { LLMRunResult } from "../../../llm/llm-types";
 import type { TradeSignal } from "@electron/shared/ai/trade-signals";
+import { edgeEstimateFromStrength } from "@electron/shared/quant/decision-gate";
 import { resolveRulesOhlcvRequest } from "./rules-ohlcv-timeframe";
 import { createLogger } from "../../../infra/log";
 
@@ -51,6 +52,50 @@ function syntheticDecisionRun(
     created_at: new Date().toISOString(),
   };
   return { run, message, output: signal };
+}
+
+function persistRulesEdgeEstimate(
+  ctx: EngineRunCtx,
+  signal: TradeSignal,
+  modelId: string,
+): void {
+  try {
+    const strength = Math.max(0, signal.confidence) * 4;
+    const edgeEstimate = edgeEstimateFromStrength({
+      modelId,
+      modelVersion: "rules-1",
+      asOf: new Date().toISOString(),
+      targetHorizon: "1d",
+      strength,
+      expectedGrossReturnBps: signal.confidence * 100,
+      expectedCostBps: 5,
+      sampleSize: 0,
+      predictedProbability: signal.confidence,
+    });
+    ctx.services.decisionTracesRepo.upsertFragment(
+      {
+        cycleId: ctx.cycleId,
+        sessionId: ctx.sessionId,
+        instrumentSymbol: ctx.instrument.symbol,
+      },
+      {
+        edgeEstimate,
+        aggregation: {
+          classifierConfidence: signal.confidence,
+          classifierAction: signal.action,
+          waitForOpenThreshold: null,
+          belowThreshold: false,
+          timerTiming: null,
+          timerBlocked: false,
+          reviewRecommendation: null,
+          finalAction: signal.action,
+          skipReason: signal.action === "skip" ? signal.reasoning : null,
+        },
+      },
+    );
+  } catch {
+    // observability-only, non-blocking
+  }
 }
 
 export const rulesMeanReversionInputBuilder: EngineInputBuilder = {
@@ -100,30 +145,7 @@ export const rulesMeanReversionInputBuilder: EngineInputBuilder = {
   applyOutput(state, output, ctx?: EngineRunCtx) {
     const signal = output as TradeSignal;
     if (ctx) {
-      try {
-        ctx.services.decisionTracesRepo.upsertFragment(
-          {
-            cycleId: ctx.cycleId,
-            sessionId: ctx.sessionId,
-            instrumentSymbol: ctx.instrument.symbol,
-          },
-          {
-            aggregation: {
-              classifierConfidence: signal.confidence,
-              classifierAction: signal.action,
-              waitForOpenThreshold: null,
-              belowThreshold: false,
-              timerTiming: null,
-              timerBlocked: false,
-              reviewRecommendation: null,
-              finalAction: signal.action,
-              skipReason: signal.action === "skip" ? signal.reasoning : null,
-            },
-          },
-        );
-      } catch {
-        // observability-only, non-blocking
-      }
+      persistRulesEdgeEstimate(ctx, signal, "rules:mean-reversion");
     }
     return {
       ...state,

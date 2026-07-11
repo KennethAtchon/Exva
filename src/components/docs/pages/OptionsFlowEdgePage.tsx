@@ -40,8 +40,8 @@ export function OptionsFlowEdgePage() {
           </>,
           <>
             <DocStrong>Trade the read.</DocStrong> v1 trades the underlying
-            equity on the directional signal; confidence scales with how
-            unusual and how lopsided the flow is, capped at 0.85.
+            equity on the directional signal; confidence scales with how unusual
+            and how lopsided the flow is, capped at 0.85.
           </>,
         ]}
       />
@@ -52,8 +52,8 @@ export function OptionsFlowEdgePage() {
         is deliberately strict — balanced flow, or volume that is merely above
         average, is skipped. The next phase adds an AI-search step that asks{" "}
         <DocStrong>why</DocStrong> the flow is happening (earnings, M&amp;A
-        chatter, a known event) before committing, the same
-        challenge-your-bias discipline used by the prediction-market pipeline.
+        chatter, a known event) before committing, the same challenge-your-bias
+        discipline used by the prediction-market pipeline.
       </DocParagraph>
 
       <DocHeading id="configuration">Configuration</DocHeading>
@@ -78,7 +78,9 @@ export function OptionsFlowEdgePage() {
         ]}
       />
 
-      <DocHeading id="roadmap">Contract-level execution (next phase)</DocHeading>
+      <DocHeading id="roadmap">
+        Contract-level execution (next phase)
+      </DocHeading>
       <DocParagraph>
         v1 trades the underlying so it can reuse the proven equity order path.
         The defined-risk options upgrade — selecting a specific contract (a long

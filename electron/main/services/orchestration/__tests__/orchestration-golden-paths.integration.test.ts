@@ -18,7 +18,7 @@ import type {
 import type { Trade, WorkspaceSession } from "@/lib/types";
 import { createOutcomeError } from "../cycle/runtime-outcome";
 import { MockMarketSimulator } from "../../broker/mock/mock-market-simulator";
-import { registerDefaultEngines } from "../../signal/registry/register-default-engines";
+import { registerDefaultEngines } from "../../pipeline/engines/signal-registry/register-default-engines";
 import { registerDefaultInstrumentAnalyses } from "../../pipeline/implementations/registry/register-analyses";
 import { ExitPolicyEvaluator } from "../../risk/exit-policy-evaluator";
 import { RiskEngine } from "../../risk/risk-engine";

@@ -4,7 +4,11 @@ import {
 } from "../../broker/adapters/broker-adapter";
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 
-type PredictionToken = { outcome?: unknown; token_id?: unknown; price?: unknown };
+type PredictionToken = {
+  outcome?: unknown;
+  token_id?: unknown;
+  price?: unknown;
+};
 
 /** Parse a token's mid price into a probability in (0,1), or null if unusable. */
 function tokenPrice(token: unknown): number | null {

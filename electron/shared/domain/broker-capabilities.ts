@@ -73,13 +73,13 @@ export function brokerSupportsOrder(
   instrumentClass: InstrumentClass,
   side: TradeSide,
 ): boolean {
-  const supportedClasses =
-    BROKER_SUPPORTED_INSTRUMENT_CLASSES[brokerType] as readonly string[];
+  const supportedClasses = BROKER_SUPPORTED_INSTRUMENT_CLASSES[
+    brokerType
+  ] as readonly string[];
   if (!supportedClasses.includes(instrumentClass)) return false;
-  const allowedSides =
-    BROKER_SIDE_RESTRICTIONS[brokerType]?.[instrumentClass] as
-      | readonly string[]
-      | undefined;
+  const allowedSides = BROKER_SIDE_RESTRICTIONS[brokerType]?.[
+    instrumentClass
+  ] as readonly string[] | undefined;
   if (!allowedSides) return true;
   return allowedSides.includes(side);
 }

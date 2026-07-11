@@ -364,16 +364,14 @@ const forceCloseTrade = defineCapability<{ tradeId: string }>({
     const trade = services.repos.trades.require(input.tradeId);
     let pnl = 0;
     if (trade.broker_order_id && trade.brokerAccountId) {
+      const brokerAccountId = trade.brokerAccountId;
+      const brokerOrderId = trade.broker_order_id;
       const result = await runWithProviderCallScopeAsync(
         {
           sessionId: trade.sessionId ?? null,
           tradeId: trade.id,
         },
-        () =>
-          services.broker.closeOrder(
-            trade.brokerAccountId!,
-            trade.broker_order_id!,
-          ),
+        () => services.broker.closeOrder(brokerAccountId, brokerOrderId),
       );
       pnl = result.realizedPnlUsd;
     }

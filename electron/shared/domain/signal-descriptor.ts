@@ -28,4 +28,3 @@ export interface SignalDescriptor {
     scriptedWorkerOutputs: ScriptedWorkerOutputs;
   };
 }
-

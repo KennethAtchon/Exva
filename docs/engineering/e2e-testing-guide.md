@@ -30,11 +30,11 @@ E2E tests target exactly those seams and conditions:
 
 ## 2. Test taxonomy
 
-| Layer | Lives in | Runs | Proves |
-|------|----------|------|--------|
-| Unit | `**/__tests__/*.test.ts` | always | one function/class in isolation |
-| Integration / E2E | `**/__tests__/*.integration.test.ts` | always (same `vitest run`) | multiple services wired together through real repos + mock broker |
-| Manual app E2E | `/run`, `/verify` skills + force-trade button | on demand | the packaged Electron app against a paper broker |
+| Layer             | Lives in                                      | Runs                       | Proves                                                            |
+| ----------------- | --------------------------------------------- | -------------------------- | ----------------------------------------------------------------- |
+| Unit              | `**/__tests__/*.test.ts`                      | always                     | one function/class in isolation                                   |
+| Integration / E2E | `**/__tests__/*.integration.test.ts`          | always (same `vitest run`) | multiple services wired together through real repos + mock broker |
+| Manual app E2E    | `/run`, `/verify` skills + force-trade button | on demand                  | the packaged Electron app against a paper broker                  |
 
 We do **not** use Playwright/Electron UI automation today. The cost/benefit
 favors in-process integration tests plus the manual force-trade check for the
@@ -48,7 +48,7 @@ E2E tests touch the things that make suites flaky. Hold the line on these:
 
 1. **Never read the real clock.** Anything whose behavior depends on market
    hours must take an injectable clock. The Alpaca adapter takes a `now: () =>
-   Date` constructor arg; `MarketHoursService` and `getUsEquitySession` take a
+Date` constructor arg; `MarketHoursService` and `getUsEquitySession` take a
    `now` parameter. Pin a fixed instant per test.
    - Regular hours: `new Date("2026-06-12T14:00:00Z")` (Fri 10:00 ET)
    - Extended hours: `new Date("2026-06-12T22:00:00Z")` (Fri 18:00 ET)
@@ -89,15 +89,15 @@ Off-hours order routing is the area most prone to silent breakage. Every change
 to order construction or the market-hours guard must keep this matrix green
 (current coverage in parentheses):
 
-| Instrument | Session | Off-hours policy | Expected |
-|-----------|---------|------------------|----------|
-| crypto | any (incl. closed) | any | market `gtc`, notional — always fills (`alpaca-adapter.test.ts`) |
-| stock | regular | any | market `day`, notional (`alpaca-adapter.test.ts`) |
-| stock | extended | `extended_hours` | limit `day` + `extended_hours`, marketable price, whole-share qty (`alpaca-adapter.test.ts`) |
-| stock | extended | `disabled` | excluded by guard (`market-hours-service.test.ts`) |
-| stock | closed | any | refused `MARKET_CLOSED` (`alpaca-adapter.test.ts`) / excluded by guard |
-| options | regular | any | market `day`, qty in contracts (`alpaca-adapter.test.ts`) |
-| options | extended/closed | any | refused `MARKET_CLOSED` (`alpaca-adapter.test.ts`) |
+| Instrument | Session            | Off-hours policy | Expected                                                                                     |
+| ---------- | ------------------ | ---------------- | -------------------------------------------------------------------------------------------- |
+| crypto     | any (incl. closed) | any              | market `gtc`, notional — always fills (`alpaca-adapter.test.ts`)                             |
+| stock      | regular            | any              | market `day`, notional (`alpaca-adapter.test.ts`)                                            |
+| stock      | extended           | `extended_hours` | limit `day` + `extended_hours`, marketable price, whole-share qty (`alpaca-adapter.test.ts`) |
+| stock      | extended           | `disabled`       | excluded by guard (`market-hours-service.test.ts`)                                           |
+| stock      | closed             | any              | refused `MARKET_CLOSED` (`alpaca-adapter.test.ts`) / excluded by guard                       |
+| options    | regular            | any              | market `day`, qty in contracts (`alpaca-adapter.test.ts`)                                    |
+| options    | extended/closed    | any              | refused `MARKET_CLOSED` (`alpaca-adapter.test.ts`)                                           |
 
 **Invariant:** a market order is **never** sent outside regular hours. An
 off-hours order is a limit + `extended_hours` order or it is not placed at all.

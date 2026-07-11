@@ -37,7 +37,9 @@ const HORIZON_FETCH: Record<
  * is resolution-based (event markets are labeled elsewhere).
  */
 export function createBrokerForwardReturnResolver(deps: ResolverDeps) {
-  return async (observation: SignalObservation): Promise<ForwardReturn | null> => {
+  return async (
+    observation: SignalObservation,
+  ): Promise<ForwardReturn | null> => {
     if (observation.labelHorizon === "resolution") return null;
     if (!observation.sessionId) return null;
 
@@ -136,9 +138,7 @@ async function resolveBenchmarkReturnBps(
 function roundTripCostBps(experienceId: string): number {
   try {
     const c = requireExperience(experienceId).researchContract.costs;
-    return (
-      c.spreadBps + c.slippageBps + c.commissionBps + (c.borrowBps ?? 0)
-    );
+    return c.spreadBps + c.slippageBps + c.commissionBps + (c.borrowBps ?? 0);
   } catch {
     return 0;
   }

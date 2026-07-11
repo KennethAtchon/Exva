@@ -102,7 +102,9 @@ export class StatsRepo {
     const closed = tradeRows.filter((row) => row.status === "closed");
     // Exclude no_trade rows (strategy evaluated but chose not to trade) from
     // the headline count — they are not trade attempts.
-    const attemptedTrades = tradeRows.filter((row) => row.status !== "no_trade");
+    const attemptedTrades = tradeRows.filter(
+      (row) => row.status !== "no_trade",
+    );
     const dailyPnl = closed.reduce(
       (sum, row) => sum + Number(row.final_pnl_usd ?? 0),
       0,

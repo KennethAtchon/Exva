@@ -34,7 +34,9 @@ function depsWith(opts: {
               adapter: { brokerType: "alpaca", getOhlcv: opts.getOhlcv },
             }),
       },
-      instrumentNormalizer: { toBrokerSymbol: ({ symbol }: { symbol: string }) => symbol },
+      instrumentNormalizer: {
+        toBrokerSymbol: ({ symbol }: { symbol: string }) => symbol,
+      },
       logger: { warn },
     } as never,
     warn,
@@ -102,7 +104,10 @@ describe("ohlcvDataProbeCheck", () => {
   });
 
   it("does not block when broker resolution fails (covered by other checks)", async () => {
-    const { deps, warn } = depsWith({ source: stockSource, resolveThrows: true });
+    const { deps, warn } = depsWith({
+      source: stockSource,
+      resolveThrows: true,
+    });
 
     const result = await ohlcvDataProbeCheck(session as never, deps);
 

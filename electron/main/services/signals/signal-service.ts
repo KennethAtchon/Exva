@@ -10,12 +10,6 @@ import {
   ensureAllExperienceSignalSources,
   ensureExperienceSignalSources,
 } from "../../experiences/ensure-experience-signal-sources";
-import {
-  ensureMockRehearsalSignalSource,
-  syncMockRehearsalSignalSourceTicker,
-} from "../../experiences/ensure-mock-rehearsal-signal-source";
-import { migrateEligibleSessionsToMockRehearsal } from "../../experiences/migrate-mock-rehearsal-subscriptions";
-import { resolveMockRehearsalTicker } from "@electron/shared/instruments/mock-rehearsal";
 import { SignalDeadLettersRepo } from "./repos/signal-dead-letters-repo";
 import { SignalDeliveriesRepo } from "./repos/signal-deliveries-repo";
 import { SignalEventsRepo } from "./repos/signal-events-repo";
@@ -53,7 +47,6 @@ export class SignalService {
     }
   > {
     this.ensureAllExperienceSignalSources();
-    this.ensureMockRehearsalSignalSource();
     return this.sourcesRepo.list().map((source) => {
       const runtime = this.registry.status(source.id);
       const snapshot = this.registry.snapshot(source.id);
@@ -78,6 +71,12 @@ export class SignalService {
     description?: string | null;
     config?: Record<string, unknown>;
   }): Promise<SignalSourceRecord> {
+    if (input.type === "web_search") {
+      throw new AppError(
+        "web_search signal sources can no longer be created; use edgar_8k, timer, mock, or prediction_event.",
+        "VALIDATION_FAILED",
+      );
+    }
     const source = this.sourcesRepo.create({
       id: crypto.randomUUID(),
       type: input.type,
@@ -97,6 +96,8 @@ export class SignalService {
       experienceId,
     );
     for (const source of sources) {
+      // Defense: timers are owned by SessionScheduler, never start here.
+      if (source.type === "timer") continue;
       if (!this.registry.get(source.id)) {
         this.registry.create(source);
         if (source.enabled) {
@@ -110,6 +111,7 @@ export class SignalService {
   ensureAllExperienceSignalSources(): SignalSourceRecord[] {
     const sources = ensureAllExperienceSignalSources(this.sourcesRepo);
     for (const source of sources) {
+      if (source.type === "timer") continue;
       if (!this.registry.get(source.id)) {
         this.registry.create(source);
         if (source.enabled) {
@@ -118,62 +120,6 @@ export class SignalService {
       }
     }
     return sources;
-  }
-
-  ensureMockRehearsalSignalSource(
-    ticker: string = resolveMockRehearsalTicker(),
-  ): SignalSourceRecord {
-    const source = ensureMockRehearsalSignalSource(this.sourcesRepo, ticker);
-    if (!this.registry.get(source.id)) {
-      this.registry.create(source);
-      if (source.enabled) {
-        void this.registry.start(source.id);
-      }
-    } else {
-      const runtime = this.registry.get(source.id);
-      if (runtime) {
-        void runtime.restart(
-          JSON.parse(source.configJson) as Record<string, unknown>,
-        );
-      }
-    }
-    return source;
-  }
-
-  syncMockRehearsalSignalSourceTicker(ticker: string): SignalSourceRecord {
-    const source = syncMockRehearsalSignalSourceTicker(
-      this.sourcesRepo,
-      ticker,
-    );
-    const runtime = this.registry.get(source.id);
-    if (runtime) {
-      void runtime.restart(
-        JSON.parse(source.configJson) as Record<string, unknown>,
-      );
-    }
-    return source;
-  }
-
-  migrateEligibleSessionsToMockRehearsal(deps: {
-    sessions: Array<{ id: string; experienceId: string }>;
-    listAssignments: (sessionId: string) => Array<{ brokerAccountId: string }>;
-    brokerAccounts: Array<{
-      id: string;
-      brokerType: string;
-      mockScenarioKind?:
-        | import("@electron/shared/domain/mock-scenario").MockScenarioKind
-        | null;
-    }>;
-  }): string[] {
-    return migrateEligibleSessionsToMockRehearsal({
-      sessions: deps.sessions,
-      listAssignments: deps.listAssignments,
-      brokerAccounts: deps.brokerAccounts,
-      signalSources: this.sourcesRepo,
-      syncTicker: (ticker) => {
-        this.syncMockRehearsalSignalSourceTicker(ticker);
-      },
-    });
   }
 
   getSource(sourceId: string): SignalSourceRecord | null {
@@ -325,6 +271,9 @@ export class SignalService {
     }
     for (const source of this.sourcesRepo.list()) {
       if (source.type === "manual") continue;
+      // SessionScheduler owns timer cadence; leave DB rows but do not start
+      // TimerSignalSource runtimes (avoids duplicate quiet ticks).
+      if (source.type === "timer") continue;
       this.registry.create(source);
       if (source.enabled) {
         void this.registry.start(source.id);

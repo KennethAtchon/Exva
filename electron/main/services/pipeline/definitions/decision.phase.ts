@@ -13,7 +13,7 @@ import { signalForWorkerPrompt } from "@electron/shared/ai/worker-prompt-payload
 import {
   entryTimerOutputSchema,
   signalClassifierOutputSchema,
-} from "../../signal/aggregators/trade-signal-aggregator";
+} from "../../signals/aggregators/trade-signal-aggregator";
 import type { AIPhase } from "../phases/types";
 import { resolvePipelinePhaseWorkers } from "../pipeline-phase-worker-resolver";
 import {

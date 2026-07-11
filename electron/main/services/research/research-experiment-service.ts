@@ -7,7 +7,10 @@ import type {
   ResearchTier,
   SignalLabel,
 } from "@electron/shared/domain";
-import { brierScore, sharpeLowerBound } from "@electron/shared/quant/statistics";
+import {
+  brierScore,
+  sharpeLowerBound,
+} from "@electron/shared/quant/statistics";
 import type {
   BacktestRunsRepo,
   ModelVersionsRepo,
@@ -67,12 +70,11 @@ export class ResearchExperimentService {
   }): BacktestRun {
     const labels = this.labeledFor(input.experienceId);
     const evaluation = evaluatePromotion(input.contract, labels);
-    const verdict: BacktestVerdict =
-      evaluation.promote
-        ? "pass"
-        : labels.length < input.contract.validation.minOutOfSampleTrades
-          ? "inconclusive"
-          : "fail";
+    const verdict: BacktestVerdict = evaluation.promote
+      ? "pass"
+      : labels.length < input.contract.validation.minOutOfSampleTrades
+        ? "inconclusive"
+        : "fail";
 
     const window = observationWindow(labels);
     const run: BacktestRun = {
@@ -179,8 +181,7 @@ export class ResearchExperimentService {
   }
 
   private labeledFor(experienceId: string): SignalLabel[] {
-    const observations =
-      this.deps.observations.listByExperience(experienceId);
+    const observations = this.deps.observations.listByExperience(experienceId);
     const labels: SignalLabel[] = [];
     for (const obs of observations) {
       const obsLabels = this.deps.labels.listByObservation(obs.id);

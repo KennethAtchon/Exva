@@ -93,7 +93,9 @@ describe("BrokerCapitalService", () => {
     const sessions = new SessionRepo(db);
     const assignments = new SessionBrokerAssignmentsRepo(db);
     const sessionIds = Array.from({ length: 5 }, (_, index) => {
-      const session = createMinimalSession(db, { name: `Session ${index + 1}` });
+      const session = createMinimalSession(db, {
+        name: `Session ${index + 1}`,
+      });
       assignments.replaceAssignments(session.id, [
         { brokerAccountId: "broker-1", allocatedUsd: 20_000 },
       ]);
@@ -119,7 +121,9 @@ describe("BrokerCapitalService", () => {
     const sessions = new SessionRepo(db);
     const assignments = new SessionBrokerAssignmentsRepo(db);
     const sessionIds = Array.from({ length: 5 }, (_, index) => {
-      const session = createMinimalSession(db, { name: `Session ${index + 1}` });
+      const session = createMinimalSession(db, {
+        name: `Session ${index + 1}`,
+      });
       assignments.replaceAssignments(session.id, [
         { brokerAccountId: "broker-1", allocatedUsd: 20_000 },
       ]);
@@ -137,8 +141,7 @@ describe("BrokerCapitalService", () => {
         expect.objectContaining({
           brokerAccountId: "broker-1",
           reason: "over_allocated",
-          detail:
-            "Mock Paper has $0.00 free but session requests $20000.00.",
+          detail: "Mock Paper has $0.00 free but session requests $20000.00.",
         }),
       ],
     });

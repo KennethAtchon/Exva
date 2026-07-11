@@ -18,7 +18,12 @@ export type TimerSignalSourceConfig = {
   analysisTimeframe?: string;
   /** Milliseconds between ticks (default 15 minutes). */
   intervalMs?: number;
-  instrumentClass?: "stock" | "crypto" | "futures" | "options" | "prediction_market";
+  instrumentClass?:
+    | "stock"
+    | "crypto"
+    | "futures"
+    | "options"
+    | "prediction_market";
 };
 
 /**
@@ -177,9 +182,9 @@ function cadenceToMs(cadence: string): number {
 
 function cadenceToIsoDuration(cadence: string): string {
   const match = cadence.match(/^(\d+)(m|h|d)$/i);
-  if (!match) return "PT1H";
-  const n = match[1]!;
-  const unit = match[2]!.toLowerCase();
+  if (!match?.[1] || !match[2]) return "PT1H";
+  const n = match[1];
+  const unit = match[2].toLowerCase();
   if (unit === "m") return `PT${n}M`;
   if (unit === "h") return `PT${n}H`;
   return `P${n}D`;

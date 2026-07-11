@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Trade } from "@/lib/types";
-import { registerDefaultEngines } from "../../../../signal/registry/register-default-engines";
+import { registerDefaultEngines } from "../../../../pipeline/engines/signal-registry/register-default-engines";
 import { RiskEngine } from "../../../../risk/risk-engine";
 import { BrokerAllocationGate } from "../../../../risk/broker-allocation-gate";
 import { ExitPolicyEvaluator } from "../../../../risk/exit-policy-evaluator";

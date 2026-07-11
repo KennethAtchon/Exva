@@ -131,16 +131,12 @@
       "indexes": {
         "idx_agent_messages_run": {
           "name": "idx_agent_messages_run",
-          "columns": [
-            "agent_run_id"
-          ],
+          "columns": ["agent_run_id"],
           "isUnique": false
         },
         "idx_agent_messages_trade": {
           "name": "idx_agent_messages_trade",
-          "columns": [
-            "trade_id"
-          ],
+          "columns": ["trade_id"],
           "isUnique": false
         }
       },
@@ -149,12 +145,8 @@
           "name": "agent_messages_agent_run_id_agent_runs_id_fk",
           "tableFrom": "agent_messages",
           "tableTo": "agent_runs",
-          "columnsFrom": [
-            "agent_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agent_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -162,12 +154,8 @@
           "name": "agent_messages_session_id_sessions_id_fk",
           "tableFrom": "agent_messages",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -175,12 +163,8 @@
           "name": "agent_messages_trade_id_trades_id_fk",
           "tableFrom": "agent_messages",
           "tableTo": "trades",
-          "columnsFrom": [
-            "trade_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["trade_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -289,9 +273,7 @@
       "indexes": {
         "idx_agent_runs_session": {
           "name": "idx_agent_runs_session",
-          "columns": [
-            "session_id"
-          ],
+          "columns": ["session_id"],
           "isUnique": false
         }
       },
@@ -300,12 +282,8 @@
           "name": "agent_runs_session_id_sessions_id_fk",
           "tableFrom": "agent_runs",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -313,12 +291,8 @@
           "name": "agent_runs_trade_id_trades_id_fk",
           "tableFrom": "agent_runs",
           "tableTo": "trades",
-          "columnsFrom": [
-            "trade_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["trade_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -426,16 +400,12 @@
       "indexes": {
         "idx_api_call_log_session": {
           "name": "idx_api_call_log_session",
-          "columns": [
-            "session_id"
-          ],
+          "columns": ["session_id"],
           "isUnique": false
         },
         "idx_api_call_log_created": {
           "name": "idx_api_call_log_created",
-          "columns": [
-            "created_at"
-          ],
+          "columns": ["created_at"],
           "isUnique": false
         }
       },
@@ -444,12 +414,8 @@
           "name": "api_call_log_session_id_sessions_id_fk",
           "tableFrom": "api_call_log",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -457,12 +423,8 @@
           "name": "api_call_log_trade_id_trades_id_fk",
           "tableFrom": "api_call_log",
           "tableTo": "trades",
-          "columnsFrom": [
-            "trade_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["trade_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -597,37 +559,27 @@
       "indexes": {
         "idx_autopsy_lessons_autopsy": {
           "name": "idx_autopsy_lessons_autopsy",
-          "columns": [
-            "autopsy_id"
-          ],
+          "columns": ["autopsy_id"],
           "isUnique": false
         },
         "idx_autopsy_lessons_period": {
           "name": "idx_autopsy_lessons_period",
-          "columns": [
-            "period_autopsy_id"
-          ],
+          "columns": ["period_autopsy_id"],
           "isUnique": false
         },
         "idx_autopsy_lessons_session": {
           "name": "idx_autopsy_lessons_session",
-          "columns": [
-            "session_id"
-          ],
+          "columns": ["session_id"],
           "isUnique": false
         },
         "idx_autopsy_lessons_status": {
           "name": "idx_autopsy_lessons_status",
-          "columns": [
-            "status"
-          ],
+          "columns": ["status"],
           "isUnique": false
         },
         "idx_autopsy_lessons_scope": {
           "name": "idx_autopsy_lessons_scope",
-          "columns": [
-            "scope"
-          ],
+          "columns": ["scope"],
           "isUnique": false
         }
       },
@@ -636,12 +588,8 @@
           "name": "autopsy_lessons_autopsy_id_trade_autopsies_id_fk",
           "tableFrom": "autopsy_lessons",
           "tableTo": "trade_autopsies",
-          "columnsFrom": [
-            "autopsy_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["autopsy_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -649,12 +597,8 @@
           "name": "autopsy_lessons_period_autopsy_id_period_autopsies_id_fk",
           "tableFrom": "autopsy_lessons",
           "tableTo": "period_autopsies",
-          "columnsFrom": [
-            "period_autopsy_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["period_autopsy_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -662,12 +606,8 @@
           "name": "autopsy_lessons_trade_id_trades_id_fk",
           "tableFrom": "autopsy_lessons",
           "tableTo": "trades",
-          "columnsFrom": [
-            "trade_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["trade_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -675,12 +615,8 @@
           "name": "autopsy_lessons_session_id_sessions_id_fk",
           "tableFrom": "autopsy_lessons",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -773,10 +709,7 @@
       "indexes": {
         "idx_backtest_runs_experience": {
           "name": "idx_backtest_runs_experience",
-          "columns": [
-            "experience_id",
-            "created_at"
-          ],
+          "columns": ["experience_id", "created_at"],
           "isUnique": false
         }
       },
@@ -921,12 +854,8 @@
           "name": "broker_routing_default_broker_account_id_broker_accounts_id_fk",
           "tableFrom": "broker_routing",
           "tableTo": "broker_accounts",
-          "columnsFrom": [
-            "default_broker_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["default_broker_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1006,17 +935,12 @@
       "indexes": {
         "idx_capital_reservations_session": {
           "name": "idx_capital_reservations_session",
-          "columns": [
-            "session_id",
-            "status"
-          ],
+          "columns": ["session_id", "status"],
           "isUnique": false
         },
         "idx_capital_reservations_approval": {
           "name": "idx_capital_reservations_approval",
-          "columns": [
-            "approval_id"
-          ],
+          "columns": ["approval_id"],
           "isUnique": false
         }
       },
@@ -1025,12 +949,8 @@
           "name": "capital_reservations_session_id_sessions_id_fk",
           "tableFrom": "capital_reservations",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1038,12 +958,8 @@
           "name": "capital_reservations_approval_id_trade_approvals_id_fk",
           "tableFrom": "capital_reservations",
           "tableTo": "trade_approvals",
-          "columnsFrom": [
-            "approval_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["approval_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1051,12 +967,8 @@
           "name": "capital_reservations_trade_id_trades_id_fk",
           "tableFrom": "capital_reservations",
           "tableTo": "trades",
-          "columnsFrom": [
-            "trade_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["trade_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1154,9 +1066,7 @@
       "indexes": {
         "idx_control_conversations_updated": {
           "name": "idx_control_conversations_updated",
-          "columns": [
-            "updated_at"
-          ],
+          "columns": ["updated_at"],
           "isUnique": false
         }
       },
@@ -1165,12 +1075,8 @@
           "name": "control_conversations_scope_session_id_sessions_id_fk",
           "tableFrom": "control_conversations",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "scope_session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["scope_session_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1257,10 +1163,7 @@
       "indexes": {
         "idx_control_messages_conversation": {
           "name": "idx_control_messages_conversation",
-          "columns": [
-            "conversation_id",
-            "created_at"
-          ],
+          "columns": ["conversation_id", "created_at"],
           "isUnique": false
         }
       },
@@ -1269,12 +1172,8 @@
           "name": "control_messages_conversation_id_control_conversations_id_fk",
           "tableFrom": "control_messages",
           "tableTo": "control_conversations",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1375,16 +1274,12 @@
       "indexes": {
         "idx_control_tool_calls_conversation": {
           "name": "idx_control_tool_calls_conversation",
-          "columns": [
-            "conversation_id"
-          ],
+          "columns": ["conversation_id"],
           "isUnique": false
         },
         "idx_control_tool_calls_affected": {
           "name": "idx_control_tool_calls_affected",
-          "columns": [
-            "affected_entity"
-          ],
+          "columns": ["affected_entity"],
           "isUnique": false
         }
       },
@@ -1393,12 +1288,8 @@
           "name": "control_tool_calls_conversation_id_control_conversations_id_fk",
           "tableFrom": "control_tool_calls",
           "tableTo": "control_conversations",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1463,16 +1354,12 @@
       "indexes": {
         "idx_decision_traces_session": {
           "name": "idx_decision_traces_session",
-          "columns": [
-            "session_id"
-          ],
+          "columns": ["session_id"],
           "isUnique": false
         },
         "idx_decision_traces_trade": {
           "name": "idx_decision_traces_trade",
-          "columns": [
-            "trade_id"
-          ],
+          "columns": ["trade_id"],
           "isUnique": false
         }
       },
@@ -1481,12 +1368,8 @@
           "name": "decision_traces_session_id_sessions_id_fk",
           "tableFrom": "decision_traces",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1494,12 +1377,8 @@
           "name": "decision_traces_trade_id_trades_id_fk",
           "tableFrom": "decision_traces",
           "tableTo": "trades",
-          "columnsFrom": [
-            "trade_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["trade_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1629,16 +1508,12 @@
       "indexes": {
         "idx_events_session_id": {
           "name": "idx_events_session_id",
-          "columns": [
-            "session_id"
-          ],
+          "columns": ["session_id"],
           "isUnique": false
         },
         "idx_events_cycle_id": {
           "name": "idx_events_cycle_id",
-          "columns": [
-            "cycle_id"
-          ],
+          "columns": ["cycle_id"],
           "isUnique": false
         }
       },
@@ -1647,12 +1522,8 @@
           "name": "events_session_id_sessions_id_fk",
           "tableFrom": "events",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1660,12 +1531,8 @@
           "name": "events_trade_id_trades_id_fk",
           "tableFrom": "events",
           "tableTo": "trades",
-          "columnsFrom": [
-            "trade_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["trade_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1747,10 +1614,7 @@
       "indexes": {
         "idx_experience_experiments_experience": {
           "name": "idx_experience_experiments_experience",
-          "columns": [
-            "experience_id",
-            "created_at"
-          ],
+          "columns": ["experience_id", "created_at"],
           "isUnique": false
         }
       },
@@ -1883,10 +1747,7 @@
       "indexes": {
         "idx_model_versions_experience": {
           "name": "idx_model_versions_experience",
-          "columns": [
-            "experience_id",
-            "created_at"
-          ],
+          "columns": ["experience_id", "created_at"],
           "isUnique": false
         }
       },
@@ -2029,23 +1890,17 @@
       "indexes": {
         "idx_period_autopsies_scope": {
           "name": "idx_period_autopsies_scope",
-          "columns": [
-            "scope"
-          ],
+          "columns": ["scope"],
           "isUnique": false
         },
         "idx_period_autopsies_session": {
           "name": "idx_period_autopsies_session",
-          "columns": [
-            "session_id"
-          ],
+          "columns": ["session_id"],
           "isUnique": false
         },
         "idx_period_autopsies_created": {
           "name": "idx_period_autopsies_created",
-          "columns": [
-            "created_at"
-          ],
+          "columns": ["created_at"],
           "isUnique": false
         }
       },
@@ -2054,12 +1909,8 @@
           "name": "period_autopsies_session_id_sessions_id_fk",
           "tableFrom": "period_autopsies",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2131,10 +1982,7 @@
       "indexes": {
         "idx_promotion_decisions_experience": {
           "name": "idx_promotion_decisions_experience",
-          "columns": [
-            "experience_id",
-            "decided_at"
-          ],
+          "columns": ["experience_id", "decided_at"],
           "isUnique": false
         }
       },
@@ -2292,10 +2140,7 @@
       "indexes": {
         "idx_research_summaries_period": {
           "name": "idx_research_summaries_period",
-          "columns": [
-            "period",
-            "created_at"
-          ],
+          "columns": ["period", "created_at"],
           "isUnique": false
         }
       },
@@ -2475,23 +2320,15 @@
           "name": "session_ai_phase_workers_session_id_sessions_id_fk",
           "tableFrom": "session_ai_phase_workers",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "session_ai_phase_workers_session_id_phase_worker_id_pk": {
-          "columns": [
-            "session_id",
-            "phase",
-            "worker_id"
-          ],
+          "columns": ["session_id", "phase", "worker_id"],
           "name": "session_ai_phase_workers_session_id_phase_worker_id_pk"
         }
       },
@@ -2582,9 +2419,7 @@
       "indexes": {
         "idx_session_ai_phases_session": {
           "name": "idx_session_ai_phases_session",
-          "columns": [
-            "session_id"
-          ],
+          "columns": ["session_id"],
           "isUnique": false
         }
       },
@@ -2593,22 +2428,15 @@
           "name": "session_ai_phases_session_id_sessions_id_fk",
           "tableFrom": "session_ai_phases",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "session_ai_phases_session_id_phase_pk": {
-          "columns": [
-            "session_id",
-            "phase"
-          ],
+          "columns": ["session_id", "phase"],
           "name": "session_ai_phases_session_id_phase_pk"
         }
       },
@@ -2647,12 +2475,8 @@
           "name": "session_ai_settings_session_id_sessions_id_fk",
           "tableFrom": "session_ai_settings",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2693,12 +2517,8 @@
           "name": "session_broker_assignments_session_id_sessions_id_fk",
           "tableFrom": "session_broker_assignments",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2706,22 +2526,15 @@
           "name": "session_broker_assignments_broker_account_id_broker_accounts_id_fk",
           "tableFrom": "session_broker_assignments",
           "tableTo": "broker_accounts",
-          "columnsFrom": [
-            "broker_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["broker_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "session_broker_assignments_session_id_broker_account_id_pk": {
-          "columns": [
-            "session_id",
-            "broker_account_id"
-          ],
+          "columns": ["session_id", "broker_account_id"],
           "name": "session_broker_assignments_session_id_broker_account_id_pk"
         }
       },
@@ -2756,10 +2569,7 @@
       "indexes": {
         "idx_session_broker_override": {
           "name": "idx_session_broker_override",
-          "columns": [
-            "session_id",
-            "instrument_class"
-          ],
+          "columns": ["session_id", "instrument_class"],
           "isUnique": false
         }
       },
@@ -2768,12 +2578,8 @@
           "name": "session_broker_routing_overrides_session_id_sessions_id_fk",
           "tableFrom": "session_broker_routing_overrides",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2781,22 +2587,15 @@
           "name": "session_broker_routing_overrides_broker_account_id_broker_accounts_id_fk",
           "tableFrom": "session_broker_routing_overrides",
           "tableTo": "broker_accounts",
-          "columnsFrom": [
-            "broker_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["broker_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "session_broker_routing_overrides_session_id_instrument_class_pk": {
-          "columns": [
-            "session_id",
-            "instrument_class"
-          ],
+          "columns": ["session_id", "instrument_class"],
           "name": "session_broker_routing_overrides_session_id_instrument_class_pk"
         }
       },
@@ -2917,27 +2716,17 @@
       "indexes": {
         "idx_ses_steps_session_cycle": {
           "name": "idx_ses_steps_session_cycle",
-          "columns": [
-            "session_id",
-            "cycle_id"
-          ],
+          "columns": ["session_id", "cycle_id"],
           "isUnique": false
         },
         "idx_ses_steps_session_status": {
           "name": "idx_ses_steps_session_status",
-          "columns": [
-            "session_id",
-            "status"
-          ],
+          "columns": ["session_id", "status"],
           "isUnique": false
         },
         "ux_ses_steps_session_cycle_stage": {
           "name": "ux_ses_steps_session_cycle_stage",
-          "columns": [
-            "session_id",
-            "cycle_id",
-            "stage"
-          ],
+          "columns": ["session_id", "cycle_id", "stage"],
           "isUnique": true
         }
       },
@@ -2946,12 +2735,8 @@
           "name": "session_execution_steps_session_id_sessions_id_fk",
           "tableFrom": "session_execution_steps",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3034,12 +2819,8 @@
           "name": "session_instrument_cache_session_id_sessions_id_fk",
           "tableFrom": "session_instrument_cache",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3047,12 +2828,8 @@
           "name": "session_instrument_cache_selector_agent_run_id_agent_runs_id_fk",
           "tableFrom": "session_instrument_cache",
           "tableTo": "agent_runs",
-          "columnsFrom": [
-            "selector_agent_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["selector_agent_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -3133,12 +2910,8 @@
           "name": "session_research_posture_session_id_sessions_id_fk",
           "tableFrom": "session_research_posture",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3318,12 +3091,8 @@
           "name": "session_risk_config_session_id_sessions_id_fk",
           "tableFrom": "session_risk_config",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3371,12 +3140,8 @@
           "name": "session_selector_settings_session_id_sessions_id_fk",
           "tableFrom": "session_selector_settings",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3490,17 +3255,12 @@
       "indexes": {
         "idx_ssd_session": {
           "name": "idx_ssd_session",
-          "columns": [
-            "session_id"
-          ],
+          "columns": ["session_id"],
           "isUnique": false
         },
         "idx_ssd_status": {
           "name": "idx_ssd_status",
-          "columns": [
-            "session_id",
-            "status_bucket"
-          ],
+          "columns": ["session_id", "status_bucket"],
           "isUnique": false
         }
       },
@@ -3509,12 +3269,8 @@
           "name": "session_signal_deliveries_session_id_sessions_id_fk",
           "tableFrom": "session_signal_deliveries",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3522,12 +3278,8 @@
           "name": "session_signal_deliveries_signal_event_id_signal_events_id_fk",
           "tableFrom": "session_signal_deliveries",
           "tableTo": "signal_events",
-          "columnsFrom": [
-            "signal_event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["signal_event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3560,12 +3312,8 @@
           "name": "session_signal_sources_session_id_sessions_id_fk",
           "tableFrom": "session_signal_sources",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3573,22 +3321,15 @@
           "name": "session_signal_sources_source_id_signal_sources_id_fk",
           "tableFrom": "session_signal_sources",
           "tableTo": "signal_sources",
-          "columnsFrom": [
-            "source_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["source_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "session_signal_sources_session_id_source_id_pk": {
-          "columns": [
-            "session_id",
-            "source_id"
-          ],
+          "columns": ["session_id", "source_id"],
           "name": "session_signal_sources_session_id_source_id_pk"
         }
       },
@@ -3730,12 +3471,8 @@
           "name": "session_strategies_session_id_sessions_id_fk",
           "tableFrom": "session_strategies",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3800,9 +3537,7 @@
       "indexes": {
         "session_templates_name_unique": {
           "name": "session_templates_name_unique",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "isUnique": true
         }
       },
@@ -3881,12 +3616,8 @@
           "name": "session_timeframe_config_session_id_sessions_id_fk",
           "tableFrom": "session_timeframe_config",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3983,12 +3714,8 @@
           "name": "session_trade_rules_session_id_sessions_id_fk",
           "tableFrom": "session_trade_rules",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4121,16 +3848,12 @@
       "indexes": {
         "idx_sessions_status": {
           "name": "idx_sessions_status",
-          "columns": [
-            "status"
-          ],
+          "columns": ["status"],
           "isUnique": false
         },
         "idx_sessions_is_focused": {
           "name": "idx_sessions_is_focused",
-          "columns": [
-            "is_focused"
-          ],
+          "columns": ["is_focused"],
           "isUnique": false
         }
       },
@@ -4139,12 +3862,8 @@
           "name": "sessions_default_search_provider_id_provider_accounts_id_fk",
           "tableFrom": "sessions",
           "tableTo": "provider_accounts",
-          "columnsFrom": [
-            "default_search_provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["default_search_provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -4245,16 +3964,12 @@
       "indexes": {
         "idx_signal_dead_letters_session": {
           "name": "idx_signal_dead_letters_session",
-          "columns": [
-            "session_id"
-          ],
+          "columns": ["session_id"],
           "isUnique": false
         },
         "idx_signal_dead_letters_signal_event": {
           "name": "idx_signal_dead_letters_signal_event",
-          "columns": [
-            "signal_event_id"
-          ],
+          "columns": ["signal_event_id"],
           "isUnique": false
         }
       },
@@ -4263,12 +3978,8 @@
           "name": "signal_dead_letters_session_id_sessions_id_fk",
           "tableFrom": "signal_dead_letters",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4276,12 +3987,8 @@
           "name": "signal_dead_letters_signal_event_id_signal_events_id_fk",
           "tableFrom": "signal_dead_letters",
           "tableTo": "signal_events",
-          "columnsFrom": [
-            "signal_event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["signal_event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4389,17 +4096,12 @@
       "indexes": {
         "idx_signal_events_source": {
           "name": "idx_signal_events_source",
-          "columns": [
-            "source_id"
-          ],
+          "columns": ["source_id"],
           "isUnique": false
         },
         "idx_signal_events_accession": {
           "name": "idx_signal_events_accession",
-          "columns": [
-            "source_id",
-            "accession_number"
-          ],
+          "columns": ["source_id", "accession_number"],
           "isUnique": true,
           "where": "\"signal_events\".\"accession_number\" is not null"
         }
@@ -4409,12 +4111,8 @@
           "name": "signal_events_source_id_signal_sources_id_fk",
           "tableFrom": "signal_events",
           "tableTo": "signal_sources",
-          "columnsFrom": [
-            "source_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["source_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4517,23 +4215,15 @@
           "name": "signal_labels_observation_id_signal_observations_id_fk",
           "tableFrom": "signal_labels",
           "tableTo": "signal_observations",
-          "columnsFrom": [
-            "observation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["observation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "signal_labels_observation_id_horizon_benchmark_pk": {
-          "columns": [
-            "observation_id",
-            "horizon",
-            "benchmark"
-          ],
+          "columns": ["observation_id", "horizon", "benchmark"],
           "name": "signal_labels_observation_id_horizon_benchmark_pk"
         }
       },
@@ -4681,24 +4371,17 @@
       "indexes": {
         "idx_signal_observations_experience": {
           "name": "idx_signal_observations_experience",
-          "columns": [
-            "experience_id",
-            "event_time"
-          ],
+          "columns": ["experience_id", "event_time"],
           "isUnique": false
         },
         "idx_signal_observations_session": {
           "name": "idx_signal_observations_session",
-          "columns": [
-            "session_id"
-          ],
+          "columns": ["session_id"],
           "isUnique": false
         },
         "idx_signal_observations_label_ready": {
           "name": "idx_signal_observations_label_ready",
-          "columns": [
-            "label_ready_at"
-          ],
+          "columns": ["label_ready_at"],
           "isUnique": false
         }
       },
@@ -4707,12 +4390,8 @@
           "name": "signal_observations_session_id_sessions_id_fk",
           "tableFrom": "signal_observations",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -4983,10 +4662,7 @@
       "indexes": {
         "idx_approvals_session": {
           "name": "idx_approvals_session",
-          "columns": [
-            "session_id",
-            "status"
-          ],
+          "columns": ["session_id", "status"],
           "isUnique": false
         }
       },
@@ -4995,12 +4671,8 @@
           "name": "trade_approvals_session_id_sessions_id_fk",
           "tableFrom": "trade_approvals",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -5008,12 +4680,8 @@
           "name": "trade_approvals_trade_id_trades_id_fk",
           "tableFrom": "trade_approvals",
           "tableTo": "trades",
-          "columnsFrom": [
-            "trade_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["trade_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -5117,9 +4785,7 @@
       "indexes": {
         "idx_trade_autopsies_trade": {
           "name": "idx_trade_autopsies_trade",
-          "columns": [
-            "trade_id"
-          ],
+          "columns": ["trade_id"],
           "isUnique": false
         }
       },
@@ -5128,12 +4794,8 @@
           "name": "trade_autopsies_trade_id_trades_id_fk",
           "tableFrom": "trade_autopsies",
           "tableTo": "trades",
-          "columnsFrom": [
-            "trade_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["trade_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -5141,12 +4803,8 @@
           "name": "trade_autopsies_session_id_sessions_id_fk",
           "tableFrom": "trade_autopsies",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -5462,25 +5120,17 @@
       "indexes": {
         "idx_trades_session_id": {
           "name": "idx_trades_session_id",
-          "columns": [
-            "session_id"
-          ],
+          "columns": ["session_id"],
           "isUnique": false
         },
         "idx_trades_status": {
           "name": "idx_trades_status",
-          "columns": [
-            "status"
-          ],
+          "columns": ["status"],
           "isUnique": false
         },
         "idx_trades_instrument": {
           "name": "idx_trades_instrument",
-          "columns": [
-            "instrument_symbol",
-            "broker_account_id",
-            "status"
-          ],
+          "columns": ["instrument_symbol", "broker_account_id", "status"],
           "isUnique": false
         }
       },
@@ -5489,12 +5139,8 @@
           "name": "trades_session_id_sessions_id_fk",
           "tableFrom": "trades",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -5502,12 +5148,8 @@
           "name": "trades_broker_account_id_broker_accounts_id_fk",
           "tableFrom": "trades",
           "tableTo": "broker_accounts",
-          "columnsFrom": [
-            "broker_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["broker_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -5595,12 +5237,8 @@
           "name": "workspace_preferences_default_search_provider_id_provider_accounts_id_fk",
           "tableFrom": "workspace_preferences",
           "tableTo": "provider_accounts",
-          "columnsFrom": [
-            "default_search_provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["default_search_provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }

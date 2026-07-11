@@ -88,7 +88,7 @@ describe("pipeline router", () => {
       displayName: "conflict",
       automation: "ai",
       phases: [...FOUR_PHASES],
-      signalSources: ["web_search"], // already claimed by default-trade-cycle
+      signalSources: ["manual"], // already claimed by default-trade-cycle
       plan: clonePlan("conflict-plan"),
       phaseWorkers: PIPELINE_WORKER_SETS.defaultTrade,
     });

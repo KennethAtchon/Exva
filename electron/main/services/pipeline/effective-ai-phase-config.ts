@@ -12,7 +12,7 @@ import type {
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { AppError } from "@electron/shared/infra/errors";
 import { requireExperience } from "../../experiences/index";
-import { requireEngine } from "../signal/registry/signal-engine-registry";
+import { requireEngine } from "./engines/signal-registry/signal-engine-registry";
 import { SUPPORTED_TOOL_IDS } from "./worker-tools/worker-tool-factory";
 import {
   assertValidPipelineDefinitionRegistry,

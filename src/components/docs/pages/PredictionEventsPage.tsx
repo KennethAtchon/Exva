@@ -15,8 +15,8 @@ export function PredictionEventsPage() {
       <DocParagraph>
         The <DocInlineCode>prediction_event</DocInlineCode> source watches{" "}
         <DocStrong>Polymarket</DocStrong> for markets that look worth analyzing
-        — typically ones where the odds have moved meaningfully away from a
-        coin flip. When it finds one, it emits a signal that kicks off the{" "}
+        — typically ones where the odds have moved meaningfully away from a coin
+        flip. When it finds one, it emits a signal that kicks off the{" "}
         <DocLink to="experiences">Prediction Event Edge</DocLink> pipeline. The
         source itself is a fast, simple scanner; the AI pipeline decides whether
         there is real probability edge and whether to trade.
@@ -46,9 +46,9 @@ export function PredictionEventsPage() {
             <em>dropped</em>).
           </>,
           <>
-            A market that passes and has <DocStrong>never been seen before</DocStrong>{" "}
-            in this source&apos;s lifetime emits a signal (counted as{" "}
-            <em>passed</em>).
+            A market that passes and has{" "}
+            <DocStrong>never been seen before</DocStrong> in this source&apos;s
+            lifetime emits a signal (counted as <em>passed</em>).
           </>,
           <>
             A market that already emitted is ignored — each market triggers at
@@ -62,7 +62,9 @@ export function PredictionEventsPage() {
         monitoring of a single contract.
       </DocParagraph>
 
-      <DocHeading id="dislocation">What &quot;interesting&quot; means</DocHeading>
+      <DocHeading id="dislocation">
+        What &quot;interesting&quot; means
+      </DocHeading>
       <DocParagraph>
         On Polymarket, contract prices are implied probabilities. A price of{" "}
         <DocInlineCode>0.50</DocInlineCode> (50¢) means the market is roughly
@@ -71,13 +73,13 @@ export function PredictionEventsPage() {
       </DocParagraph>
       <DocParagraph>
         The default trigger mode (
-        <DocInlineCode>odds_volume_dislocation</DocInlineCode>) looks for markets
-        whose last traded price is at least{" "}
+        <DocInlineCode>odds_volume_dislocation</DocInlineCode>) looks for
+        markets whose last traded price is at least{" "}
         <DocInlineCode>minPriceDeviation</DocInlineCode> away from 50¢ — default{" "}
-        <DocInlineCode>0.12</DocInlineCode>, so 38¢ or 62¢ and beyond. The
-        idea is that a large move <em>might</em> signal mispricing, stale odds,
-        or volume-driven distortion worth investigating. Passing this filter
-        does <DocStrong>not</DocStrong> mean the market is wrong — it only means
+        <DocInlineCode>0.12</DocInlineCode>, so 38¢ or 62¢ and beyond. The idea
+        is that a large move <em>might</em> signal mispricing, stale odds, or
+        volume-driven distortion worth investigating. Passing this filter does{" "}
+        <DocStrong>not</DocStrong> mean the market is wrong — it only means
         &quot;worth sending to the AI pipeline.&quot;
       </DocParagraph>
 
@@ -103,7 +105,8 @@ export function PredictionEventsPage() {
           </>,
           <>
             <DocStrong>Outcome</DocStrong> — the pipeline may propose a trade,
-            reject the setup, or drop it. Most scanner hits do not become trades.
+            reject the setup, or drop it. Most scanner hits do not become
+            trades.
           </>,
         ]}
       />
@@ -178,9 +181,7 @@ export function PredictionEventsPage() {
       />
 
       <DocHeading id="signal-payload">What&apos;s in a signal</DocHeading>
-      <DocParagraph>
-        When a market emits, the event includes:
-      </DocParagraph>
+      <DocParagraph>When a market emits, the event includes:</DocParagraph>
       <DocList
         items={[
           <>

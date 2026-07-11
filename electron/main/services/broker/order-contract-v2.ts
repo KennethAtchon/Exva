@@ -65,6 +65,18 @@ export const ALPACA_CAPABILITIES: AdapterCapabilities = {
   orderTypes: ["market", "limit", "stop", "stop_limit"],
 };
 
+/** Polymarket CLOB: market FOK + GTC limit; units (shares) or notional USDC. */
+export const POLYMARKET_CAPABILITIES: AdapterCapabilities = {
+  supportsLimit: true,
+  supportsStop: false,
+  supportsStopLimit: false,
+  supportsBracket: false,
+  supportsStreaming: false,
+  quantityKinds: ["notional_usd", "units"],
+  timeInForce: ["gtc", "fok"],
+  orderTypes: ["market", "limit"],
+};
+
 /** Lift v1 market+notional order into v2. */
 export function liftBrokerOrderV1ToV2(order: {
   instrumentSymbol: string;
@@ -146,7 +158,10 @@ export function adapterSupportsOrder(
     return { ok: false, reason: `orderType ${order.orderType} unsupported` };
   }
   if (!caps.timeInForce.includes(order.timeInForce)) {
-    return { ok: false, reason: `timeInForce ${order.timeInForce} unsupported` };
+    return {
+      ok: false,
+      reason: `timeInForce ${order.timeInForce} unsupported`,
+    };
   }
   if (!caps.quantityKinds.includes(order.quantity.kind)) {
     return {

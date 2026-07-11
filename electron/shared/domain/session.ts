@@ -80,6 +80,10 @@ export const OFF_HOURS_TRADING_VALUES: readonly OffHoursTrading[] = [
   "extended_hours",
 ];
 
+export function isOffHoursTrading(value: string): value is OffHoursTrading {
+  return (OFF_HOURS_TRADING_VALUES as readonly string[]).includes(value);
+}
+
 export interface SessionRiskConfig {
   sessionId: string;
   riskPresetId: RiskPresetId;

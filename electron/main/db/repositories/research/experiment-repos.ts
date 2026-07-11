@@ -1,10 +1,6 @@
 import { asc, desc, eq } from "drizzle-orm";
 import type { DbClient } from "../../client";
-import {
-  backtestRuns,
-  modelVersions,
-  promotionDecisions,
-} from "../../schema";
+import { backtestRuns, modelVersions, promotionDecisions } from "../../schema";
 import type {
   BacktestRun,
   BacktestVerdict,

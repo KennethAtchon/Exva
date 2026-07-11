@@ -10,18 +10,29 @@ export function ensureExperienceSignalSources(
   experienceId: string,
 ): SignalSourceRecord[] {
   const experience = requireExperience(experienceId);
-  return experience.signals.map((signal) => {
+  const ensured: SignalSourceRecord[] = [];
+  for (const signal of experience.signals) {
+    // SessionScheduler owns cadence for timer-backed rules scans now.
+    // Do not create/update timer signal sources from experience ensure —
+    // existing DB rows are left in place for subscription identity, but
+    // bootstrapFromDb will not start TimerSignalSource runtimes.
+    if (signal.sourceType === "timer") continue;
+
     const sourceId = signalSourceId(experienceId, signal.id);
     const desired = desiredExperienceSignalSource(experience, signal, sourceId);
     const existing = sourcesRepo.get(sourceId);
     if (existing) {
       const patch = generatedSourcePatch(existing, desired);
-      return Object.keys(patch).length > 0
-        ? sourcesRepo.update(sourceId, patch)
-        : existing;
+      ensured.push(
+        Object.keys(patch).length > 0
+          ? sourcesRepo.update(sourceId, patch)
+          : existing,
+      );
+    } else {
+      ensured.push(sourcesRepo.create(desired));
     }
-    return sourcesRepo.create(desired);
-  });
+  }
+  return ensured;
 }
 
 export function ensureAllExperienceSignalSources(

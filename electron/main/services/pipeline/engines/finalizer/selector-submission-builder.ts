@@ -1,5 +1,5 @@
 import type { InstrumentSelection } from "@/lib/schemas";
-import { buildInstrumentSelection } from "../../../signal/scoring/selector-submission-builder";
+import { buildInstrumentSelection } from "../../../signals/scoring/selector-submission-builder";
 import { parseWorkerToolTrace } from "../../definitions/selector.helpers";
 import { summarizeWorkerToolCoverage } from "../../execution/worker-tool-requirements";
 import {

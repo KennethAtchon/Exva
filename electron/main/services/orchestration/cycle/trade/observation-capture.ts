@@ -31,6 +31,9 @@ export function captureSignalObservation(
     const service = new SignalObservationService(
       ctx.deps.signalObservationsRepo,
     );
+    const edgeEstimate =
+      ctx.deps.decisionTracesRepo.getByCycle(context.cycleId)?.edgeEstimate ??
+      null;
     service.record({
       sessionId: ctx.sessionId,
       experienceId: session.experienceId,
@@ -46,6 +49,7 @@ export function captureSignalObservation(
         reasoning: decision.output.reasoning,
       },
       reasoning: decision.output.reasoning,
+      edge: edgeEstimate,
       modelVersion: decision.run.model ?? null,
       referencePrice,
       contract: experience.researchContract,

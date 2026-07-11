@@ -3,8 +3,8 @@ import type {
   PipelinePhase,
 } from "@electron/shared/ai/ai-phase";
 import type { SessionStrategyContext } from "@electron/shared/domain";
-import { requireEngine } from "../../signal/registry/signal-engine-registry";
-import type { SignalEngineContext } from "../../signal/registry/types";
+import { requireEngine } from "../engines/signal-registry/signal-engine-registry";
+import type { SignalEngineContext } from "../engines/signal-registry/types";
 import { createLogger } from "../../infra/log";
 
 const logger = createLogger("pipeline-runtime");

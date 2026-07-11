@@ -89,7 +89,9 @@ function parseMetadata(json: string | null | undefined): PredictionMetadata {
   }
 }
 
-function hoursToResolution(resolutionTime: string | undefined): number | undefined {
+function hoursToResolution(
+  resolutionTime: string | undefined,
+): number | undefined {
   if (!resolutionTime) return undefined;
   const ms = new Date(resolutionTime).getTime() - Date.now();
   return Number.isFinite(ms) ? ms / (1000 * 60 * 60) : undefined;
@@ -110,12 +112,17 @@ export const predictionEdgeInputBuilder: EngineInputBuilder = {
   id: "prediction-edge-input",
   build({ planCtx: ctx, state }) {
     const symbol = ctx.instrument.symbol;
-    const forecast = decodeForecastSummary(state.fundamental?.output.rawSummary);
+    const forecast = decodeForecastSummary(
+      state.fundamental?.output.rawSummary,
+    );
     const redTeam = decodeRedTeamSummary(state.review?.output.rawSummary);
 
     if (!forecast) {
       return {
-        task: skip(symbol, "No forecaster probability available; cannot size an edge."),
+        task: skip(
+          symbol,
+          "No forecaster probability available; cannot size an edge.",
+        ),
       };
     }
 
@@ -130,20 +137,27 @@ export const predictionEdgeInputBuilder: EngineInputBuilder = {
 
     if (forecast.informationFreshness === "stale" || redTeam?.alreadyPricedIn) {
       return {
-        task: skip(symbol, "Catalyst already priced in (stale information); no edge."),
+        task: skip(
+          symbol,
+          "Catalyst already priced in (stale information); no edge.",
+        ),
       };
     }
 
     const meta = parseMetadata(ctx.instrument.instrumentMetadataJson);
     if (meta.marketMid == null) {
       return {
-        task: skip(symbol, "No market mid price available; cannot compute edge."),
+        task: skip(
+          symbol,
+          "No market mid price available; cannot compute edge.",
+        ),
       };
     }
 
     const costs = (() => {
       try {
-        return requireExperience(ctx.session.experienceId).researchContract.costs;
+        return requireExperience(ctx.session.experienceId).researchContract
+          .costs;
       } catch {
         return { spreadBps: 50, slippageBps: 10, commissionBps: 0 };
       }

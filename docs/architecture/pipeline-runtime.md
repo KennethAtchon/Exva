@@ -28,7 +28,7 @@ graph TB
         Definitions["Phase definitions\nservices/pipeline/definitions/"]
         PhaseEngines["Phase engines\nservices/pipeline/engines/"]
         Worker["runAIWorker\nservices/pipeline/execution/worker-executor.ts"]
-        Signals["Signal engines\nservices/signal/**"]
+        Signals["Signal engines\nservices/signals/**"]
         Tools["Worker tools\nservices/tools/**"]
     end
     subgraph Storage["Local Storage"]
@@ -78,7 +78,7 @@ graph TB
 | `ResearchDiscoveryMode`    | Session strategy field (`trend_scan` or `event_contract_scan`) that selects worker sets via each phase's `resolveWorkersForMode`. Catalog metadata defaults to `trend_scan`; runtime uses the session's actual mode.     |
 | `AISpendTracker`           | Per-phase tracker that enforces phase, pipeline, and session spend caps. Sandbox/mock sessions use warn-only budget behavior.                                                                                            |
 | `WorkerToolContext`        | Runtime dependency bag used to build callable tools: session id, cycle id, search provider, broker routing, mock data, instrument classes, and API-call logging.                                                         |
-| `Signal engine`            | Deterministic TypeScript logic in `services/signal/` used for aggregation, selector scoring/filtering, execution-profile calculation, and registry lookup. It does not call an LLM.                                      |
+| `Signal engine`            | Deterministic TypeScript logic in `services/signals/` used for aggregation, selector scoring/filtering, and registry lookup (plus execution profiles in `orchestration/`). It does not call an LLM.                      |
 | `Terminal output tool`     | Runtime-created submit tool, usually `submit_result`, whose Zod schema validates structured worker output.                                                                                                               |
 | `Selector cache`           | `session_instrument_cache` entry managed by the `selector-instrument-cache` phase engine; only non-empty selector outputs are cached.                                                                                    |
 
@@ -154,7 +154,7 @@ graph LR
 | Prompt builder                  | System/user message assembly from inline prompt, trusted strategy facts, strategy guidance, worker guidance, engine results, task JSON, and sandbox block | `electron/main/services/pipeline/prompting/worker-prompt-builder.ts`                |
 | Worker tools                    | Runtime creation of `search_web`, `fetch_url`, `get_trending_symbols`, `get_quote`, `get_ohlcv`, and terminal submit tools                                | `electron/main/services/pipeline/worker-tools/`                                     |
 | Trade-cycle wiring              | `default-trade-cycle` plan, declarative stage table, trade-engine input builders, analysis registration                                                   | `electron/main/services/pipeline/implementations/trade/`, `implementations/inputs/` |
-| Signal processing               | Deterministic aggregation, scoring, risk filtering, execution profiles, signal registry                                                                   | `electron/main/services/signal/`                                                    |
+| Signal processing               | Deterministic aggregation, scoring, risk filtering, execution profiles, signal registry                                                                   | `electron/main/services/signals/` + `pipeline/engines/signal-registry/`             |
 
 ---
 
@@ -534,6 +534,6 @@ Debug checklist:
 | Trade-cycle wiring                    | `electron/main/services/pipeline/implementations/trade/`                                                      |
 | Trade-engine input builders           | `electron/main/services/pipeline/implementations/inputs/trade-engine-input-builders.ts`                       |
 | Analysis registry/dispatcher          | `electron/main/services/pipeline/implementations/registry/`                                                   |
-| Signal aggregators                    | `electron/main/services/signal/aggregators/`                                                                  |
-| Signal scoring                        | `electron/main/services/signal/scoring/`                                                                      |
-| Signal engine registry                | `electron/main/services/signal/registry/`                                                                     |
+| Signal aggregators                    | `electron/main/services/signals/aggregators/`                                                                 |
+| Signal scoring                        | `electron/main/services/signals/scoring/`                                                                     |
+| Signal engine registry                | `electron/main/services/pipeline/engines/signal-registry/`                                                    |

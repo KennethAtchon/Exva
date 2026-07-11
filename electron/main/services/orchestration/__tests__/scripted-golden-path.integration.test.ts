@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aggregateTradeSignal } from "../../signal/aggregators/trade-signal-aggregator";
+import { aggregateTradeSignal } from "../../signals/aggregators/trade-signal-aggregator";
 import {
   scriptedWorkerOutputsForScenario,
   resolveScriptedWorkerOutput,
@@ -7,18 +7,18 @@ import {
 import {
   conflictDetectorOutputSchema,
   riskAssessorOutputSchema,
-} from "../../signal/aggregators/review-aggregator";
+} from "../../signals/aggregators/review-aggregator";
 import {
   entryTimerOutputSchema,
   signalClassifierOutputSchema,
-} from "../../signal/aggregators/trade-signal-aggregator";
-import { aggregateReviewSignal } from "../../signal/aggregators/review-aggregator";
+} from "../../signals/aggregators/trade-signal-aggregator";
+import { aggregateReviewSignal } from "../../signals/aggregators/review-aggregator";
 import {
   adversarialReviewerOutputSchema,
   aggregateAdversarialReview,
   aggregateCatalystTradeSignal,
   catalystAnalystOutputSchema,
-} from "../../signal/aggregators/catalyst-two-call-aggregator";
+} from "../../signals/aggregators/catalyst-two-call-aggregator";
 
 describe("scripted golden path", () => {
   it("clean_breakout 2-call catalyst scripted outputs produce a buy without LLM", () => {

@@ -64,7 +64,10 @@ export function computeOptionsFlowSignal(
   // Confidence scales with how far past the unusual-activity bar the flow is,
   // how lopsided the skew is, and (if known) elevated IV. Capped to 0.85 — a
   // deterministic flow read is never a high-conviction standalone signal.
-  const ratioStrength = Math.min(1, volumeOiRatio / (input.volumeOiRatioThreshold * 2));
+  const ratioStrength = Math.min(
+    1,
+    volumeOiRatio / (input.volumeOiRatioThreshold * 2),
+  );
   const directionalShare = bullish ? callShare : putShare;
   const skewStrength = Math.min(
     1,
@@ -87,7 +90,11 @@ export function computeOptionsFlowSignal(
   });
 }
 
-function skip(symbol: string, confidence: number, reasoning: string): TradeSignal {
+function skip(
+  symbol: string,
+  confidence: number,
+  reasoning: string,
+): TradeSignal {
   return tradeSignalSchema.parse({
     symbol,
     action: "skip",

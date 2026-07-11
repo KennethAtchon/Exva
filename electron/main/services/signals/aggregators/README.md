@@ -1,4 +1,4 @@
-# signal/aggregators
+# signals/aggregators
 
 Aggregators take the separate JSON outputs from parallel AI workers and collapse them into one clean signal for the next phase. They are the deterministic referee between many specialist observations and the single typed object the pipeline carries forward.
 
