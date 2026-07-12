@@ -202,9 +202,10 @@ describe("session onboarding integration", () => {
 
       const experience = requireExperience(experienceId);
       harness.ensureExperienceSignalSource(experienceId);
-      const firstSignal = experience.signals[0];
-      if (!firstSignal) throw new Error(`${experienceId} has no signals`);
-      const signalSourceIds = [`${experienceId}/${firstSignal.id}`];
+      const first = experience.signals[0] ?? experience.schedules?.[0] ?? null;
+      if (!first)
+        throw new Error(`${experienceId} has no signals or schedules`);
+      const signalSourceIds = [`${experienceId}/${first.id}`];
       const { id: sessionId } = harness.sessionWrites.create({
         name: `${experience.displayName} Session`,
         objective: `Run ${experience.displayName}`,
@@ -647,14 +648,32 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
           });
         }
       }
+      for (const schedule of experience.schedules ?? []) {
+        const sourceId = `${experienceId}/${schedule.id}`;
+        if (!signalSourcesRepo.get(sourceId)) {
+          signalSourcesRepo.create({
+            id: sourceId,
+            type: "timer",
+            name: experience.displayName,
+            description: null,
+            enabled: true,
+            experienceId,
+            configJson: JSON.stringify({
+              signalId: schedule.id,
+              symbol: schedule.symbol,
+              cadence: schedule.cadence,
+            }),
+          });
+        }
+      }
     },
     subscribeExperienceSignal(sessionId: string, experienceId: string) {
       this.ensureExperienceSignalSource(experienceId);
       const experience = requireExperience(experienceId);
-      signalSourcesRepo.replaceSessionSubscriptions(
-        sessionId,
-        experience.signals.map((s) => `${experienceId}/${s.id}`),
-      );
+      signalSourcesRepo.replaceSessionSubscriptions(sessionId, [
+        ...experience.signals.map((s) => `${experienceId}/${s.id}`),
+        ...(experience.schedules ?? []).map((s) => `${experienceId}/${s.id}`),
+      ]);
     },
   };
 }

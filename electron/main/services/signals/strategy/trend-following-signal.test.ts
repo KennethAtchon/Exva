@@ -68,7 +68,7 @@ describe("computeTrendFollowingSignal", () => {
     expect(signal.reasoning).toContain("No bullish SMA crossover");
   });
 
-  it("clamps strong trend-following confidence at 0.9", () => {
+  it("clamps strong trend-following strength at 0.9", () => {
     const signal = computeTrendFollowingSignal({
       symbol: "CL",
       ohlcv: [
@@ -83,6 +83,7 @@ describe("computeTrendFollowingSignal", () => {
     });
 
     expect(signal.action).toBe("buy");
+    expect(signal.strength).toBe(0.9);
     expect(signal.confidence).toBe(0.9);
   });
 

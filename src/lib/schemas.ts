@@ -30,30 +30,6 @@ const instrumentClassSchema = z.enum([
   "prediction_market",
 ]);
 
-export const sessionConfigSchema = z.object({
-  strategy: z.string().min(1),
-  max_position_usd: z.number().positive(),
-  stop_loss_pct: z.number().positive(),
-  take_profit_pct: z.number().positive(),
-  max_concurrent_trades: z.number().int().positive(),
-  research_depth: z.enum(["light", "balanced", "deep"]),
-  daily_loss_limit_usd: z.number().positive(),
-  profit_target_usd: z.number().positive(),
-  max_api_spend_usd: z.number().positive(),
-  human_approval_required: z.boolean(),
-  off_hours_trading: z
-    .enum(["disabled", "extended_hours"])
-    .optional()
-    .default("disabled"),
-});
-
-export const brokerCredentialsSchema = z.object({
-  provider: z.literal("alpaca"),
-  api_key: z.string().min(1),
-  secret_key: z.string().min(1),
-  mode: z.enum(["paper", "live"]),
-});
-
 export const eventFiltersSchema = z
   .object({
     minLevel: logLevelSchema.optional(),

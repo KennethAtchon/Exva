@@ -60,17 +60,17 @@ function persistRulesEdgeEstimate(
   modelId: string,
 ): void {
   try {
-    const strength = Math.max(0, signal.confidence) * 4;
+    const strength = Math.max(0, signal.strength ?? signal.confidence) * 4;
     const edgeEstimate = edgeEstimateFromStrength({
       modelId,
       modelVersion: "rules-1",
       asOf: new Date().toISOString(),
       targetHorizon: "1d",
       strength,
-      expectedGrossReturnBps: signal.confidence * 100,
+      expectedGrossReturnBps: (signal.strength ?? signal.confidence) * 100,
       expectedCostBps: 5,
       sampleSize: 0,
-      predictedProbability: signal.confidence,
+      predictedProbability: signal.strength ?? signal.confidence,
     });
     ctx.services.decisionTracesRepo.upsertFragment(
       {
@@ -81,7 +81,7 @@ function persistRulesEdgeEstimate(
       {
         edgeEstimate,
         aggregation: {
-          classifierConfidence: signal.confidence,
+          classifierConfidence: signal.strength ?? signal.confidence,
           classifierAction: signal.action,
           waitForOpenThreshold: null,
           belowThreshold: false,

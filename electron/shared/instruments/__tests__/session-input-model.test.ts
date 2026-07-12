@@ -99,12 +99,15 @@ describe("session-input-model", () => {
         timerCadence: "15m",
         instrumentScope: "",
       }),
-    ).toBe("SPY @ 15m (timer)");
+    ).toBe("SPY @ 15m (schedule)");
   });
 
   it("labels all signal source types", () => {
     expect(formatSignalSourceTypeLabel("prediction_event")).toBe(
       "Prediction Event",
+    );
+    expect(formatSignalSourceTypeLabel("timer")).toBe(
+      "Schedule identity (deprecated)",
     );
   });
 

@@ -4,9 +4,9 @@ export const RULES_MEAN_REVERSION_EXPERIENCE: ExperienceDescriptor = {
   id: "rules-mean-reversion",
   displayName: "Rules: Mean Reversion",
   description:
-    "Deterministic mean-reversion entries on timer-polled liquid instruments. No LLM calls.",
+    "Deterministic mean-reversion entries on scheduled liquid-instrument scans. No LLM calls.",
   capabilities: {
-    signalSourceTypes: ["timer"],
+    signalSourceTypes: [],
     brokerRequirement: "any_supported_class",
   },
   pipelineId: "rules-mean-reversion-cycle",
@@ -33,15 +33,16 @@ export const RULES_MEAN_REVERSION_EXPERIENCE: ExperienceDescriptor = {
     },
     costs: { spreadBps: 1, slippageBps: 2, commissionBps: 0 },
   },
-  signals: [
+  signals: [],
+  schedules: [
     {
       id: "spy-15m-meanrev",
-      sourceType: "timer",
       instrumentClass: "stock",
       symbol: "SPY",
-      pollCadence: "15m",
+      cadence: "15m",
       defaultAnalysisTimeframe: "1h",
       enabledByDefault: true,
+      marketHours: "regular",
       mockFixtures: {
         defaultScenario: "clean_breakout",
         scriptedWorkerOutputs: {},
@@ -49,12 +50,12 @@ export const RULES_MEAN_REVERSION_EXPERIENCE: ExperienceDescriptor = {
     },
     {
       id: "qqq-15m-meanrev",
-      sourceType: "timer",
       instrumentClass: "stock",
       symbol: "QQQ",
-      pollCadence: "15m",
+      cadence: "15m",
       defaultAnalysisTimeframe: "1h",
       enabledByDefault: true,
+      marketHours: "regular",
       mockFixtures: {
         defaultScenario: "clean_breakout",
         scriptedWorkerOutputs: {},

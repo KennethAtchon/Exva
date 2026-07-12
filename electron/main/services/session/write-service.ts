@@ -9,7 +9,10 @@ import {
   resolveMockRehearsalTickerFromBrokers,
   sessionEligibleForMockRehearsal,
 } from "@electron/shared/instruments/mock-rehearsal";
-import { requireExperience } from "../../experiences/index";
+import {
+  experienceAcceptsScanHit,
+  requireExperience,
+} from "../../experiences/index";
 import type { EventsRepo } from "../../db/repositories/system/events-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import type { SessionSelectorSettingsRepo } from "../../db/repositories/sessions/session-selector-settings-repo";
@@ -261,7 +264,12 @@ export class SessionWriteService {
           { sourceId, field: "subscribedSourceIds" },
         );
       }
-      if (!experience.capabilities.signalSourceTypes.includes(source.type)) {
+      const isScheduleIdentity =
+        source.type === "timer" && experienceAcceptsScanHit(experience);
+      if (
+        !isScheduleIdentity &&
+        !experience.capabilities.signalSourceTypes.includes(source.type)
+      ) {
         throw new AppError(
           `${experience.displayName} does not support ${source.type} signal sources.`,
           "VALIDATION_FAILED",

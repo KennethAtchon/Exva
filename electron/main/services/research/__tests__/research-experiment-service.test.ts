@@ -127,6 +127,13 @@ describe("ResearchExperimentService", () => {
       Array.from({ length: 40 }, (_, i) => 30 + (i % 3)),
     );
 
+    // Promotion requires a recent passing backtest for this contract.
+    const run = service.runBacktest({
+      experienceId: "rules-mean-reversion",
+      contract: CONTRACT,
+    });
+    expect(run.verdict).toBe("pass");
+
     expect(service.currentTier("rules-mean-reversion")).toBe("research");
     const decision = service.attemptPromotion({
       experienceId: "rules-mean-reversion",
@@ -143,6 +150,53 @@ describe("ResearchExperimentService", () => {
       toTier: "live",
     });
     expect(skip.decision).toBe("rejected");
+  });
+
+  it("rejects promotion when no passing backtest_runs row exists", () => {
+    const { obsService, labelsRepo, service, session } = setup();
+    seedLabeled(
+      obsService,
+      labelsRepo,
+      session.id,
+      Array.from({ length: 40 }, (_, i) => 30 + (i % 3)),
+    );
+
+    const decision = service.attemptPromotion({
+      experienceId: "rules-mean-reversion",
+      contract: CONTRACT,
+      toTier: "backtest",
+    });
+    expect(decision.decision).toBe("rejected");
+    const evidence = JSON.parse(decision.evidenceJson) as {
+      reasons: string[];
+    };
+    expect(evidence.reasons).toContain("missing_backtest_run");
+  });
+
+  it("rejects promotion when the latest backtest failed", () => {
+    const { obsService, labelsRepo, service, session } = setup();
+    seedLabeled(
+      obsService,
+      labelsRepo,
+      session.id,
+      Array.from({ length: 20 }, (_, i) => (i % 2 ? 80 : -80)),
+    );
+    const failed = service.runBacktest({
+      experienceId: "rules-mean-reversion",
+      contract: CONTRACT,
+    });
+    expect(failed.verdict).toBe("fail");
+
+    const decision = service.attemptPromotion({
+      experienceId: "rules-mean-reversion",
+      contract: CONTRACT,
+      toTier: "backtest",
+    });
+    expect(decision.decision).toBe("rejected");
+    const evidence = JSON.parse(decision.evidenceJson) as {
+      reasons: string[];
+    };
+    expect(evidence.reasons).toContain("backtest_not_pass");
   });
 
   it("drift check flags a recently-decayed edge", () => {

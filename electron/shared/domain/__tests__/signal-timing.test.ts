@@ -3,13 +3,43 @@ import {
   formatSignalSourceTimingSubtitle,
   formatSignalTimingLabel,
   resolveOhlcvTimeframe,
+  scheduleDisplayName,
   signalDisplayName,
   summarizeSignalTiming,
 } from "../signal-timing";
-import type { SignalDescriptor } from "../signal-descriptor";
+import type {
+  ScheduledScanDescriptor,
+  SignalDescriptor,
+} from "../signal-descriptor";
 
-const meanReversionSpy: SignalDescriptor = {
+const meanReversionSpy: ScheduledScanDescriptor = {
   id: "spy-15m-meanrev",
+  instrumentClass: "stock",
+  symbol: "SPY",
+  cadence: "15m",
+  defaultAnalysisTimeframe: "1h",
+  enabledByDefault: true,
+  mockFixtures: {
+    defaultScenario: "clean_breakout",
+    scriptedWorkerOutputs: {},
+  },
+};
+
+const breakoutBtc: ScheduledScanDescriptor = {
+  id: "btc-1h-breakout",
+  instrumentClass: "crypto",
+  symbol: "BTC-USD",
+  cadence: "1h",
+  defaultAnalysisTimeframe: "4h",
+  enabledByDefault: true,
+  mockFixtures: {
+    defaultScenario: "clean_breakout",
+    scriptedWorkerOutputs: {},
+  },
+};
+
+const legacyTimerDescriptor: SignalDescriptor = {
+  id: "legacy-timer",
   sourceType: "timer",
   instrumentClass: "stock",
   symbol: "SPY",
@@ -22,26 +52,18 @@ const meanReversionSpy: SignalDescriptor = {
   },
 };
 
-const breakoutBtc: SignalDescriptor = {
-  id: "btc-1h-breakout",
-  sourceType: "timer",
-  instrumentClass: "crypto",
-  symbol: "BTC-USD",
-  pollCadence: "1h",
-  defaultAnalysisTimeframe: "4h",
-  enabledByDefault: true,
-  mockFixtures: {
-    defaultScenario: "clean_breakout",
-    scriptedWorkerOutputs: {},
-  },
-};
-
 describe("signal timing labels", () => {
   it("shows poll cadence separately from the bar timeframe traded on", () => {
-    expect(signalDisplayName(meanReversionSpy)).toBe(
+    expect(scheduleDisplayName(meanReversionSpy)).toBe(
       "SPY · polls every 15m · trades on 1h bars",
     );
-    expect(summarizeSignalTiming(meanReversionSpy)).toEqual({
+    expect(
+      summarizeSignalTiming({
+        sourceType: "timer",
+        pollCadence: meanReversionSpy.cadence,
+        analysisTimeframe: meanReversionSpy.defaultAnalysisTimeframe,
+      }),
+    ).toEqual({
       pollLabel: "polls every 15m",
       tradingTimeframeLabel: "trades on 1h bars",
     });
@@ -70,8 +92,14 @@ describe("signal timing labels", () => {
   });
 
   it("describes breakout poll cadence separately from trading timeframe", () => {
-    expect(signalDisplayName(breakoutBtc)).toBe(
+    expect(scheduleDisplayName(breakoutBtc)).toBe(
       "BTC-USD · polls every 1h · trades on 4h bars",
+    );
+  });
+
+  it("still formats legacy timer SignalDescriptors for dual-read", () => {
+    expect(signalDisplayName(legacyTimerDescriptor)).toBe(
+      "SPY · polls every 15m · trades on 1h bars",
     );
   });
 

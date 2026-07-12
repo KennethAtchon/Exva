@@ -3,7 +3,10 @@ import {
   adapterCapabilitiesOf,
   type OrderRequest,
 } from "../../../broker/adapters/broker-adapter";
-import { liftBrokerOrderV1ToV2 } from "../../../broker/order-contract-v2";
+import {
+  adapterSupportsOrder,
+  liftBrokerOrderV1ToV2,
+} from "../../../broker/order-contract-v2";
 import type { TradingCycleContext } from "../trading-cycle-context";
 
 export async function placeRoutedOrder(
@@ -78,6 +81,23 @@ export async function placeRoutedOrder(
     clientOrderId,
   };
 
+  const liftedOrder = liftBrokerOrderV1ToV2(v1Order);
+  const support = adapterSupportsOrder(caps, liftedOrder);
+  if (!support.ok) {
+    ctx.deps.logger.warn(
+      {
+        sessionId: ctx.sessionId,
+        tradeId: trade.id,
+        brokerAccountId,
+        brokerType: adapter.brokerType,
+        reason: support.reason,
+        capabilities: caps,
+      },
+      "order skipped: adapter does not support order shape",
+    );
+    return null;
+  }
+
   let result;
   try {
     // Prefer v2 when the adapter implements it and advertises market orders;
@@ -85,7 +105,7 @@ export async function placeRoutedOrder(
     const placeV2 = adapter.placeOrderV2?.bind(adapter);
     const useV2 = placeV2 != null && caps.orderTypes.includes("market");
     result = useV2
-      ? await placeV2(liftBrokerOrderV1ToV2(v1Order))
+      ? await placeV2(liftedOrder)
       : await adapter.placeOrder(v1Order);
   } catch (err) {
     ctx.deps.logger.error(

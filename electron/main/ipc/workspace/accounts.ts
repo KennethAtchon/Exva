@@ -4,7 +4,6 @@ import {
   apiKeySchema,
   brokerAccountAddSchema,
   brokerAccountIdSchema,
-  brokerCredentialsSchema,
   brokerRoutingUpdateSchema,
   brokerTestEphemeralSchema,
   providerAccountSaveSchema,
@@ -25,19 +24,6 @@ import { secretKeys } from "../../services/infra/secrets-service";
 import { handle } from "../handle";
 
 export function registerAccountHandlers(services: AppServices): void {
-  handle(ipcMain, channels.accounts.saveBroker, async (payload) => {
-    const credentials = brokerCredentialsSchema.parse(payload);
-    return services.broker.saveBroker(credentials);
-  });
-
-  handle(ipcMain, channels.accounts.testBroker, async () =>
-    services.broker.testConnection(),
-  );
-
-  handle(ipcMain, channels.accounts.removeBroker, async () =>
-    services.broker.removeBroker(),
-  );
-
   handle(ipcMain, channels.accounts.saveApiKey, async (payload) => {
     const { keyType, value } = apiKeySchema.parse(payload);
     const keyByType = {

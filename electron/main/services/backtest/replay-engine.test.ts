@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { purgedWalkForwardFolds } from "@electron/shared/quant/statistics";
 import type { OhlcvBar } from "../broker/adapters/broker-adapter";
 import {
+  foldIndexForBar,
   hashBarWindow,
   runBacktest,
   type BacktestSpec,
@@ -48,9 +50,10 @@ function baseSpec(
     timeframe: "1h",
     window: {
       start: "2026-01-01T00:00:00.000Z",
-      end: "2026-01-02T00:00:00.000Z",
+      end: "2026-01-03T00:00:00.000Z",
     },
     folds: 2,
+    foldConfig: { purge: 1 },
     costs: { spreadBps: 5, feeBps: 2, slippageBps: 3 },
     exitPolicy: { maxHoldBars: 2, takeProfitPct: 0.1 },
     ...overrides,
@@ -59,14 +62,13 @@ function baseSpec(
 
 describe("runBacktest", () => {
   it("finds a planted setup and records a trade", () => {
-    const bars: OhlcvBar[] = [
-      bar("2026-01-01T00:00:00.000Z", 100),
-      bar("2026-01-01T01:00:00.000Z", 101),
-      bar("2026-01-01T02:00:00.000Z", 102),
-      bar("2026-01-01T03:00:00.000Z", 99), // planted trigger after warmup
-      bar("2026-01-01T04:00:00.000Z", 105),
-      bar("2026-01-01T05:00:00.000Z", 110),
-    ];
+    // 12 bars → purgedWalkForwardFolds(12, 2, 1): fold0 test is [5, 9).
+    const bars: OhlcvBar[] = Array.from({ length: 12 }, (_, i) =>
+      bar(
+        `2026-01-01T${String(i).padStart(2, "0")}:00:00.000Z`,
+        i === 5 ? 99 : 100 + i,
+      ),
+    );
     const result = runBacktest(
       baseSpec({
         strategy: plantedStrategy(99),
@@ -76,18 +78,75 @@ describe("runBacktest", () => {
     expect(result.tradeCount).toBeGreaterThanOrEqual(1);
     expect(result.trades[0]?.side).toBe("buy");
     expect(result.trades[0]?.evidence).toEqual({ trigger: 99 });
+    expect(result.trades[0]?.fold).toBe(0);
     expect(result.strategyId).toBe("planted-buy");
   });
 
+  it("assigns fold indices from purged walk-forward test ranges", () => {
+    const bars: OhlcvBar[] = Array.from({ length: 24 }, (_, i) =>
+      bar(`2026-01-01T${String(i).padStart(2, "0")}:00:00.000Z`, 100 + i),
+    );
+    const folds = purgedWalkForwardFolds(bars.length, 2, 1);
+    expect(folds.length).toBe(2);
+
+    // Plant triggers at the first bar of each test segment.
+    const triggers = new Set(folds.map((f) => f.testStart));
+    const strategy: DeterministicStrategy = {
+      id: "multi-fold",
+      warmupBars: 1,
+      evaluate(window) {
+        const idx = window.length - 1;
+        if (!triggers.has(idx)) return null;
+        return {
+          action: "buy",
+          strength: 1,
+          evidence: { idx },
+          barWindowHash: hashBarWindow(window),
+        };
+      },
+    };
+
+    const result = runBacktest(
+      baseSpec({
+        strategy,
+        folds: 2,
+        foldConfig: { purge: 1 },
+        exitPolicy: { maxHoldBars: 1 },
+        barsBySymbol: { SPY: bars },
+      }),
+    );
+
+    expect(result.tradeCount).toBe(2);
+    expect(result.trades.map((t) => t.fold).sort()).toEqual([0, 1]);
+    for (const trade of result.trades) {
+      const entryIdx = bars.findIndex((b) => b.ts === trade.entryTs);
+      expect(foldIndexForBar(entryIdx, folds)).toBe(trade.fold);
+    }
+  });
+
+  it("skips bars in train/purge segments", () => {
+    const bars: OhlcvBar[] = Array.from({ length: 12 }, (_, i) =>
+      bar(
+        `2026-01-01T${String(i).padStart(2, "0")}:00:00.000Z`,
+        i === 1 ? 99 : 100, // index 1 is in train for folds=2, purge=1
+      ),
+    );
+    const result = runBacktest(
+      baseSpec({
+        strategy: { ...plantedStrategy(99), warmupBars: 0 },
+        barsBySymbol: { SPY: bars },
+      }),
+    );
+    expect(result.tradeCount).toBe(0);
+  });
+
   it("produces an identical runHash for an identical spec", () => {
-    const bars: OhlcvBar[] = [
-      bar("2026-01-01T00:00:00.000Z", 100),
-      bar("2026-01-01T01:00:00.000Z", 101),
-      bar("2026-01-01T02:00:00.000Z", 102),
-      bar("2026-01-01T03:00:00.000Z", 99),
-      bar("2026-01-01T04:00:00.000Z", 108),
-      bar("2026-01-01T05:00:00.000Z", 107),
-    ];
+    const bars: OhlcvBar[] = Array.from({ length: 12 }, (_, i) =>
+      bar(
+        `2026-01-01T${String(i).padStart(2, "0")}:00:00.000Z`,
+        i === 5 ? 99 : 100 + i,
+      ),
+    );
     const spec = baseSpec({
       strategy: plantedStrategy(99),
       barsBySymbol: { SPY: bars },

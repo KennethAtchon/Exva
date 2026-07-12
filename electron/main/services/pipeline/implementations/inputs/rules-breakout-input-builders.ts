@@ -84,7 +84,8 @@ export const rulesBreakoutInputBuilder: EngineInputBuilder = {
     const signal = output as TradeSignal;
     if (ctx) {
       try {
-        const strength = Math.max(0, signal.confidence) * 4;
+        const p = signal.strength ?? signal.confidence;
+        const strength = Math.max(0, p) * 4;
         ctx.services.decisionTracesRepo.upsertFragment(
           {
             cycleId: ctx.cycleId,
@@ -98,13 +99,13 @@ export const rulesBreakoutInputBuilder: EngineInputBuilder = {
               asOf: new Date().toISOString(),
               targetHorizon: "1d",
               strength,
-              expectedGrossReturnBps: signal.confidence * 100,
+              expectedGrossReturnBps: p * 100,
               expectedCostBps: 15,
               sampleSize: 0,
-              predictedProbability: signal.confidence,
+              predictedProbability: p,
             }),
             aggregation: {
-              classifierConfidence: signal.confidence,
+              classifierConfidence: p,
               classifierAction: signal.action,
               waitForOpenThreshold: null,
               belowThreshold: false,

@@ -43,13 +43,13 @@ export function formatSignalSourceTypeLabel(type: SignalSourceType): string {
     case "edgar_8k":
       return "EDGAR 8-K";
     case "web_search":
-      return "Web Search";
+      return "Web Search (deprecated)";
     case "manual":
       return "Manual";
     case "mock":
       return "Mock";
     case "timer":
-      return "Timer";
+      return "Schedule identity (deprecated)";
     case "prediction_event":
       return "Prediction Event";
     default:
@@ -229,8 +229,8 @@ export function formatInstrumentOriginLabel(input: {
     case "listener":
       if (input.experienceSignalSourceType === "timer" && input.timerSymbol) {
         return input.timerCadence
-          ? `${input.timerSymbol} @ ${input.timerCadence} (timer)`
-          : `${input.timerSymbol} (timer)`;
+          ? `${input.timerSymbol} @ ${input.timerCadence} (schedule)`
+          : `${input.timerSymbol} (schedule)`;
       }
       if (input.experienceSignalSourceType) {
         return `From ${formatSignalSourceTypeLabel(input.experienceSignalSourceType)}`;
@@ -313,6 +313,8 @@ function formatInstrumentClass(value: InstrumentClass): string {
 export function sourceIsCompatibleWithExperience(
   sourceType: SignalSourceType,
   allowedTypes: readonly SignalSourceType[],
+  options?: { acceptsScanHit?: boolean },
 ): boolean {
+  if (options?.acceptsScanHit && sourceType === "timer") return true;
   return allowedTypes.includes(sourceType);
 }

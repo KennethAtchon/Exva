@@ -37,7 +37,7 @@ export const RULES_MEAN_REVERSION_PIPELINE: PipelineDescriptor = {
   displayName: "Rules mean reversion",
   automation: "deterministic",
   phases: ["decision"],
-  signalSources: ["timer"],
+  signalSources: [],
   plan: RULES_MEAN_REVERSION_CYCLE,
   phaseWorkers: { decision: [] },
 };
@@ -47,7 +47,7 @@ export const RULES_TREND_FOLLOWING_PIPELINE: PipelineDescriptor = {
   displayName: "Rules trend following",
   automation: "deterministic",
   phases: ["decision"],
-  signalSources: ["timer"],
+  signalSources: [],
   plan: RULES_TREND_FOLLOWING_CYCLE,
   phaseWorkers: { decision: [] },
 };
@@ -57,7 +57,7 @@ export const RULES_BREAKOUT_PIPELINE: PipelineDescriptor = {
   displayName: "Rules momentum breakout",
   automation: "deterministic",
   phases: ["decision"],
-  signalSources: ["timer"],
+  signalSources: [],
   plan: RULES_BREAKOUT_CYCLE,
   phaseWorkers: { decision: [] },
 };
@@ -67,7 +67,7 @@ export const OPTIONS_FLOW_PIPELINE: PipelineDescriptor = {
   displayName: "Options flow edge",
   automation: "deterministic",
   phases: ["decision"],
-  signalSources: ["timer"],
+  signalSources: [],
   plan: OPTIONS_FLOW_CYCLE,
   phaseWorkers: { decision: [] },
 };

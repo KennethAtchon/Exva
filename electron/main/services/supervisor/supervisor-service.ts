@@ -1,6 +1,7 @@
 import type { EventBus } from "../infra/event-bus";
 import type { NotificationService } from "../infra/notification-service";
 import type { MarketDataService } from "../marketdata/market-data-service";
+import type { TradingTimeframe } from "@electron/shared/domain/enums";
 import {
   runNightlyResearchJobs,
   type NightlyResearchJobDeps,
@@ -30,12 +31,20 @@ export interface SessionHeartbeat {
   expectedIntervalMs: number;
 }
 
+export interface WatchedSymbol {
+  symbol: string;
+  timeframe: TradingTimeframe;
+  sessionId: string | null;
+}
+
 export interface SupervisorDeps {
   eventBus: EventBus;
   notifications: NotificationService;
   marketData?: MarketDataService;
   /** Optional ntfy topic URL, e.g. https://ntfy.sh/exva-ken */
   ntfyTopicUrl?: string | null;
+  /** Optional http(s) webhook that relays supervisor digests (email bridge). */
+  smtpUrl?: string | null;
   /** Freshness lag threshold before data_freshness alarm. */
   freshnessLagMs?: number;
   /** Optional nightly research job hooks (calibration, labels, autopsy). */
@@ -50,16 +59,19 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export class SupervisorService {
   private heartbeats = new Map<string, SessionHeartbeat>();
+  private watchedSymbols = new Map<string, WatchedSymbol>();
   private alarms: SupervisorAlarm[] = [];
   private timer: ReturnType<typeof setInterval> | null = null;
   private aiSpendUsd = new Map<string, number>();
   private readonly freshnessLagMs: number;
   private readonly ntfyTopicUrl: string | null;
+  private readonly smtpUrl: string | null;
   private lastNightlyRunMs = 0;
 
   constructor(private readonly deps: SupervisorDeps) {
     this.freshnessLagMs = deps.freshnessLagMs ?? 30 * 60 * 1000;
     this.ntfyTopicUrl = deps.ntfyTopicUrl ?? null;
+    this.smtpUrl = deps.smtpUrl ?? null;
   }
 
   start(pollMs = 60_000): void {
@@ -85,8 +97,54 @@ export class SupervisorService {
     );
   }
 
+  /** Track a symbol for continuous data-freshness checks in tick(). */
+  watchSymbol(
+    symbol: string,
+    timeframe: TradingTimeframe,
+    sessionId: string | null = null,
+  ): void {
+    const key = `${symbol}|${timeframe}|${sessionId ?? ""}`;
+    this.watchedSymbols.set(key, { symbol, timeframe, sessionId });
+  }
+
   getAlarms(): SupervisorAlarm[] {
     return [...this.alarms];
+  }
+
+  async raiseConsecutiveSkip(
+    sessionId: string,
+    message: string,
+  ): Promise<void> {
+    await this.raise({
+      id: crypto.randomUUID(),
+      sessionId,
+      kind: "consecutive_skip",
+      severity: "error",
+      message,
+      firedAt: new Date().toISOString(),
+    });
+  }
+
+  async raiseDrawdown(sessionId: string, message: string): Promise<void> {
+    await this.raise({
+      id: crypto.randomUUID(),
+      sessionId,
+      kind: "drawdown",
+      severity: "kill",
+      message,
+      firedAt: new Date().toISOString(),
+    });
+  }
+
+  async raiseDrift(sessionId: string, message: string): Promise<void> {
+    await this.raise({
+      id: crypto.randomUUID(),
+      sessionId,
+      kind: "drift",
+      severity: "error",
+      message,
+      firedAt: new Date().toISOString(),
+    });
   }
 
   async tick(nowMs: number = Date.now()): Promise<void> {
@@ -104,8 +162,12 @@ export class SupervisorService {
       }
     }
 
-    if (this.deps.marketData) {
-      // Freshness checks are opt-in via recorded symbols; no global scan yet.
+    for (const watched of this.watchedSymbols.values()) {
+      await this.checkSymbolFreshness(
+        watched.symbol,
+        watched.timeframe,
+        watched.sessionId,
+      );
     }
 
     for (const [sessionId, spend] of this.aiSpendUsd) {
@@ -136,7 +198,7 @@ export class SupervisorService {
 
   async checkSymbolFreshness(
     symbol: string,
-    timeframe: import("@electron/shared/domain/enums").TradingTimeframe,
+    timeframe: TradingTimeframe,
     sessionId: string | null = null,
   ): Promise<void> {
     if (!this.deps.marketData) return;
@@ -172,11 +234,13 @@ export class SupervisorService {
         : "WARN",
     );
 
-    if (
-      this.ntfyTopicUrl &&
-      (alarm.severity === "error" || alarm.severity === "kill")
-    ) {
-      await pushNtfy(this.ntfyTopicUrl, `Exva: ${alarm.kind}`, alarm.message);
+    if (alarm.severity === "error" || alarm.severity === "kill") {
+      if (this.ntfyTopicUrl) {
+        await pushNtfy(this.ntfyTopicUrl, `Exva: ${alarm.kind}`, alarm.message);
+      }
+      if (this.smtpUrl) {
+        await pushSmtp(this.smtpUrl, `Exva: ${alarm.kind}`, alarm.message);
+      }
     }
   }
 }
@@ -194,6 +258,26 @@ async function pushNtfy(
         Priority: "high",
       },
       body,
+    });
+  } catch {
+    // Notification sink failures must not take down the supervisor loop.
+  }
+}
+
+/** Best-effort digest webhook (http/https). Nodemailer not a dependency. */
+async function pushSmtp(
+  smtpUrl: string,
+  title: string,
+  body: string,
+): Promise<void> {
+  if (!smtpUrl.startsWith("http://") && !smtpUrl.startsWith("https://")) {
+    return;
+  }
+  try {
+    await fetch(smtpUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, body, source: "exva-supervisor" }),
     });
   } catch {
     // Notification sink failures must not take down the supervisor loop.

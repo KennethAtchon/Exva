@@ -4,9 +4,9 @@ export const RULES_TREND_FOLLOWING_EXPERIENCE: ExperienceDescriptor = {
   id: "rules-trend-following",
   displayName: "Rules: Trend Following",
   description:
-    "Deterministic SMA-crossover trend entries on timer-polled futures instruments. No LLM calls.",
+    "Deterministic SMA-crossover trend entries on scheduled futures scans. No LLM calls.",
   capabilities: {
-    signalSourceTypes: ["timer"],
+    signalSourceTypes: [],
     brokerRequirement: "any_supported_class",
   },
   pipelineId: "rules-trend-following-cycle",
@@ -33,15 +33,16 @@ export const RULES_TREND_FOLLOWING_EXPERIENCE: ExperienceDescriptor = {
     },
     costs: { spreadBps: 2, slippageBps: 3, commissionBps: 1 },
   },
-  signals: [
+  signals: [],
+  schedules: [
     {
       id: "gc-4h-trend",
-      sourceType: "timer",
       instrumentClass: "futures",
       symbol: "GC",
-      pollCadence: "4h",
+      cadence: "4h",
       defaultAnalysisTimeframe: "4h",
       enabledByDefault: true,
+      marketHours: "24_7",
       mockFixtures: {
         defaultScenario: "clean_breakout",
         scriptedWorkerOutputs: {},
@@ -49,12 +50,12 @@ export const RULES_TREND_FOLLOWING_EXPERIENCE: ExperienceDescriptor = {
     },
     {
       id: "cl-4h-trend",
-      sourceType: "timer",
       instrumentClass: "futures",
       symbol: "CL",
-      pollCadence: "4h",
+      cadence: "4h",
       defaultAnalysisTimeframe: "4h",
       enabledByDefault: true,
+      marketHours: "24_7",
       mockFixtures: {
         defaultScenario: "clean_breakout",
         scriptedWorkerOutputs: {},

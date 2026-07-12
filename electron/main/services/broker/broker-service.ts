@@ -1,4 +1,3 @@
-import type { BrokerCredentials, ConnectionTestResult } from "@/lib/types";
 import type { BrokerRegistry } from "./broker-registry";
 import type { CloseResult } from "./adapters/broker-adapter";
 import { runWithProviderCallScopeAsync } from "../infra/provider-call-log";
@@ -20,27 +19,5 @@ export class BrokerService {
       const adapter = await this.registry.get(brokerAccountId);
       return adapter.closeOrder(brokerOrderId);
     });
-  }
-
-  /** @deprecated Legacy Alpaca-only flow — prefer broker registry IPC. */
-  async saveBroker(
-    _credentials: BrokerCredentials,
-  ): Promise<ConnectionTestResult> {
-    void _credentials;
-    return {
-      ok: false,
-      message: "Use Accounts → Add broker to register a broker account.",
-    };
-  }
-
-  async testConnection(): Promise<ConnectionTestResult> {
-    return {
-      ok: false,
-      message: "Test a specific broker account from the broker list.",
-    };
-  }
-
-  async removeBroker(): Promise<void> {
-    /* no-op: legacy */
   }
 }

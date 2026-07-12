@@ -27,13 +27,31 @@ export const SIGNAL_SOURCE_CAPABILITIES: Record<
   prediction_event: { emittedInstrumentClasses: ["prediction_market"] },
 };
 
-export function extractSignalInstrumentClass(
-  signal: SignalEvent,
+function instrumentClassFromPayload(
+  payload: Record<string, unknown> | null | undefined,
 ): InstrumentClass | null {
-  const raw = signal.payloadJson.instrumentClass;
+  if (!payload) return null;
+  const raw = payload.instrumentClass;
   if (typeof raw === "string" && isInstrumentClass(raw)) {
     return raw;
   }
+  return null;
+}
+
+export function extractSignalInstrumentClass(
+  signal: SignalEvent,
+): InstrumentClass | null {
+  const fromPayload =
+    instrumentClassFromPayload(signal.payloadJson) ??
+    instrumentClassFromPayload(signal.payloadV2 ?? undefined);
+  if (fromPayload) return fromPayload;
+
+  // scan_hit schedules carry instrumentClass on the MarketSignal envelope,
+  // mirrored into payloadJson by marketSignalToLegacyEvent.
+  if (signal.kind === "scan_hit") {
+    return null;
+  }
+
   if (signal.sourceType === "edgar_8k") {
     return "stock";
   }

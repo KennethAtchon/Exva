@@ -99,6 +99,8 @@ export interface OrchestratorDeps {
   signalDeliveryLifecycle?: import("../signals/signal-delivery-lifecycle").SignalDeliveryLifecycle;
   signalSourcesRepo: SignalSourcesRepo;
   signalObservationsRepo: SignalObservationsRepo;
+  /** Optional supervisor for consecutive-skip / drawdown / drift alarms. */
+  supervisor?: import("../supervisor/supervisor-service").SupervisorService;
 }
 
 /** Per-check failure (preflight runner adds `check` name). */

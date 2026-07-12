@@ -98,8 +98,9 @@ export class ResearchExperimentService {
   }
 
   /**
-   * Attempt a one-tier promotion. Records and returns the decision. Requires the
-   * statistical promotion gate to pass over labeled out-of-sample data.
+   * Attempt a one-tier promotion. Records and returns the decision. Requires a
+   * recent passing backtest_runs row for this experience (matching contractHash)
+   * plus the statistical promotion gate over labeled out-of-sample data.
    */
   attemptPromotion(input: {
     experienceId: string;
@@ -108,6 +109,48 @@ export class ResearchExperimentService {
     modelVersionId?: string | null;
   }): PromotionDecision {
     const fromTier = this.currentTier(input.experienceId);
+    const contractHash = hashResearchContract(input.contract);
+    const passingBacktest = this.deps.backtestRuns.latestForExperience(
+      input.experienceId,
+      { verdict: "pass", contractHash },
+    );
+
+    if (!passingBacktest) {
+      const latest = this.deps.backtestRuns.latestForExperience(
+        input.experienceId,
+      );
+      const decision: PromotionDecision = {
+        id: crypto.randomUUID(),
+        experienceId: input.experienceId,
+        modelVersionId: input.modelVersionId ?? null,
+        fromTier,
+        toTier: input.toTier,
+        decision: "rejected",
+        evidenceJson: JSON.stringify({
+          promote: false,
+          reasons: [
+            latest == null
+              ? "missing_backtest_run"
+              : latest.verdict !== "pass"
+                ? "backtest_not_pass"
+                : "backtest_contract_mismatch",
+          ],
+          backtest: latest
+            ? {
+                id: latest.id,
+                verdict: latest.verdict,
+                contractHash: latest.contractHash,
+                expectedContractHash: contractHash,
+              }
+            : null,
+          oneStepUp: isOneStepUp(fromTier, input.toTier),
+        }),
+        decidedAt: new Date().toISOString(),
+      };
+      this.deps.promotionDecisions.insert(decision);
+      return decision;
+    }
+
     const labels = this.labeledFor(input.experienceId);
     const evaluation = evaluatePromotion(input.contract, labels);
 
@@ -121,6 +164,11 @@ export class ResearchExperimentService {
       decision: decided ? "approved" : "rejected",
       evidenceJson: JSON.stringify({
         ...evaluation,
+        backtest: {
+          id: passingBacktest.id,
+          verdict: passingBacktest.verdict,
+          contractHash: passingBacktest.contractHash,
+        },
         oneStepUp: isOneStepUp(fromTier, input.toTier),
       }),
       decidedAt: new Date().toISOString(),

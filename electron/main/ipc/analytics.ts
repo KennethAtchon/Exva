@@ -68,4 +68,14 @@ export function registerAnalyticsHandlers(services: AppServices): void {
     const summary = services.researchSummary.generateSummary({});
     return { summary };
   });
+
+  handle(
+    ipcMain,
+    channels.experiences.approveLadderUpgrade,
+    async (payload) => {
+      const { experienceId } = experienceIdSchema.parse(payload);
+      const state = services.approveLadderUpgrade(experienceId);
+      return { state };
+    },
+  );
 }

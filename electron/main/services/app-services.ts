@@ -70,14 +70,28 @@ import { createLogger } from "./infra/log";
 import { NotificationService } from "./infra/notification-service";
 import { MarketDataService } from "./marketdata/market-data-service";
 import { CalibrationService } from "./signals/forecast/calibration-service";
+import type { LabelObservation } from "./signals/forecast/calibration-service";
 import { SupervisorService } from "./supervisor/supervisor-service";
+import type { NightlyResearchJobDeps } from "./research/nightly-jobs";
+import {
+  periodAutopsyNightlyFlagsFromEnv,
+  runPeriodAutopsyNightly,
+} from "./research/period-autopsy-nightly";
+import {
+  approveLadderUpgrade,
+  tickLadderAutomation,
+  type LadderAutomationDeps,
+  type LadderState,
+} from "./research/ladder-automation";
+import { evaluatePromotion } from "./research/promotion-gate";
+import { listExperiences, requireExperience } from "../experiences/index";
 import { SessionScheduler } from "./signals/scheduler/session-scheduler";
 import {
   asTradingTimeframe,
   createRulesScheduledScan,
 } from "./signals/scheduler/rules-scheduled-scan";
 import { signalSourceId } from "@electron/shared/instruments/session-input-model";
-import { signalDisplayName } from "@electron/shared/domain/signal-descriptor";
+import { scheduleDisplayName } from "@electron/shared/domain/signal-descriptor";
 import { RULES_MEAN_REVERSION_EXPERIENCE } from "../experiences/rules-mean-reversion/descriptor";
 import { RULES_BREAKOUT_EXPERIENCE } from "../experiences/rules-breakout/descriptor";
 import { RULES_TREND_FOLLOWING_EXPERIENCE } from "../experiences/rules-trend-following/descriptor";
@@ -89,7 +103,6 @@ import { registerDefaultEngines } from "./pipeline/engines/signal-registry/regis
 import { assertValidPipelineDefinitionCatalog } from "./pipeline/effective-ai-phase-config";
 import { registerAllPhases } from "./pipeline/definitions";
 import { registerDefaultInstrumentAnalyses } from "./pipeline/implementations/registry/register-analyses";
-import "../experiences/index";
 import { ProviderRegistry } from "./llm/provider-registry";
 import { SearchRegistry } from "./search/search-registry";
 import { SecretsService } from "./infra/secrets-service";
@@ -225,6 +238,12 @@ export interface AppServices {
   sessionScheduler: SessionScheduler;
   controlRepo: ControlRepo;
   control: ControlAgentService;
+  /** In-memory promotion ladder states (experienceId → state). */
+  ladderStates: Map<string, LadderState>;
+  /** Operator tap to accept a pending ladder upgrade. */
+  approveLadderUpgrade: (experienceId: string) => LadderState | null;
+  /** Tick ladder automation for all known experiences (also runs nightly). */
+  tickLadderAutomation: () => void;
 }
 
 export async function createAppServices(app: App): Promise<AppServices> {
@@ -357,13 +376,41 @@ export async function createAppServices(app: App): Promise<AppServices> {
     }
   });
   const calibration = new CalibrationService();
+  const nightlyResearch: NightlyResearchJobDeps = { calibration };
   const supervisor = new SupervisorService({
     eventBus,
     notifications,
     marketData,
-    nightlyResearch: { calibration },
+    ntfyTopicUrl: env.ntfyTopicUrl,
+    smtpUrl: env.smtpUrl,
+    nightlyResearch,
   });
   supervisor.start();
+  const ladderStates = new Map<string, LadderState>();
+  const makeLadderDeps = (): LadderAutomationDeps => ({
+    getState: (experienceId) => ladderStates.get(experienceId) ?? null,
+    setState: (state) => {
+      ladderStates.set(state.experienceId, state);
+    },
+    evaluateEligibility: (experienceId) => {
+      const experience = requireExperience(experienceId);
+      const observations =
+        repos.signalObservations.listByExperience(experienceId);
+      const labels = observations.flatMap((obs) =>
+        repos.signalLabels.listByObservation(obs.id),
+      );
+      return evaluatePromotion(experience.researchContract, labels);
+    },
+    notify: (title, body) => notifications.notify(title, body, "INFO"),
+  });
+  const tickAllLadders = (): void => {
+    for (const experience of listExperiences()) {
+      tickLadderAutomation(makeLadderDeps(), experience.id);
+    }
+  };
+  const approveLadderUpgradeForExperience = (
+    experienceId: string,
+  ): LadderState | null => approveLadderUpgrade(makeLadderDeps(), experienceId);
   const candidateValidation = new CandidateValidationService();
   const orderPolicyGate = new OrderPolicyGate();
   const exitPolicyEvaluator = new ExitPolicyEvaluator();
@@ -461,6 +508,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     signalDeliveriesRepo,
     signalDeliveryLifecycle,
     signalSourcesRepo,
+    supervisor,
   };
 
   const runtimeManagerDeps: SessionRuntimeManagerDeps = {
@@ -544,6 +592,19 @@ export async function createAppServices(app: App): Promise<AppServices> {
     logger,
   );
   labelBuilderTicker.start();
+  nightlyResearch.runLabelBuilder = async () => {
+    await labelBuilderTicker.tick();
+  };
+  nightlyResearch.runLadderAutomation = tickAllLadders;
+  nightlyResearch.sendDigest = (summary) => {
+    notifications.notify("Exva: nightly digest", summary, "INFO");
+  };
+  nightlyResearch.loadCalibrationLabels = () =>
+    loadCalibrationLabelsFromRepos(
+      listExperiences().map((e) => e.id),
+      repos.signalObservations,
+      repos.signalLabels,
+    );
   const researchExperiment = new ResearchExperimentService({
     observations: repos.signalObservations,
     labels: repos.signalLabels,
@@ -624,6 +685,18 @@ export async function createAppServices(app: App): Promise<AppServices> {
     workspacePrefs: repos.workspacePreferences,
     eventBus,
   });
+  nightlyResearch.runPeriodAutopsy = async () => {
+    const flags = periodAutopsyNightlyFlagsFromEnv({
+      periodAutopsyRun: env.periodAutopsyRun,
+      periodAutopsyAllowHighCost: env.periodAutopsyAllowHighCost,
+    });
+    const result = await runPeriodAutopsyNightly({
+      preview: (input) => periodAutopsy.preview(input),
+      run: (input) => periodAutopsy.run(input),
+      ...flags,
+    });
+    return result.summary;
+  };
   const autopsyExport = new AutopsyExportService();
   const signalBus = new SignalBus(
     signalEventsRepo,
@@ -639,7 +712,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
   );
   const sessionScheduler = new SessionScheduler(async (signals) => {
     for (const sig of signals) {
-      // Dual-read: rules experiences still gate on sourceType "timer".
+      // Legacy sourceType "timer" matches schedule identity rows / subscriptions.
+      // Delivery gate accepts scan_hit by kind when experience.schedules is set.
       await signalBus.ingestMarketSignal(sig, "timer");
     }
   });
@@ -754,8 +828,64 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sessionScheduler,
     controlRepo,
     control,
+    ladderStates,
+    approveLadderUpgrade: approveLadderUpgradeForExperience,
+    tickLadderAutomation: tickAllLadders,
   };
   return appServices;
+}
+
+function loadCalibrationLabelsFromRepos(
+  experienceIds: string[],
+  observations: SignalObservationsRepo,
+  labels: SignalLabelsRepo,
+): Array<{
+  modelId: string;
+  modelVersion: string;
+  labels: LabelObservation[];
+}> {
+  const byModel = new Map<string, LabelObservation[]>();
+  for (const experienceId of experienceIds) {
+    for (const obs of observations.listByExperience(experienceId)) {
+      const predicted = extractPredictedProbability(obs.decisionJson);
+      if (predicted == null) continue;
+      for (const label of labels.listByObservation(obs.id)) {
+        if (label.outcomeWin == null) continue;
+        const modelId = experienceId;
+        const modelVersion = obs.modelVersion ?? "latest";
+        const key = `${modelId}@${modelVersion}`;
+        const bucket = byModel.get(key) ?? [];
+        bucket.push({
+          predictedProbability: predicted,
+          outcomeWin: label.outcomeWin === 1,
+        });
+        byModel.set(key, bucket);
+      }
+    }
+  }
+  return [...byModel.entries()].map(([key, labelObs]) => {
+    const at = key.lastIndexOf("@");
+    return {
+      modelId: at >= 0 ? key.slice(0, at) : key,
+      modelVersion: at >= 0 ? key.slice(at + 1) : "latest",
+      labels: labelObs,
+    };
+  });
+}
+
+function extractPredictedProbability(
+  decisionJson: string | null,
+): number | null {
+  if (!decisionJson) return null;
+  try {
+    const parsed = JSON.parse(decisionJson) as {
+      edge?: { predictedProbability?: number | null };
+    };
+    const p = parsed.edge?.predictedProbability;
+    return typeof p === "number" && Number.isFinite(p) ? p : null;
+  } catch {
+    return null;
+  }
 }
 
 function registerRulesScheduledScans(input: {
@@ -791,29 +921,30 @@ function registerRulesScheduledScans(input: {
   ];
 
   for (const { experience, strategyId, marketHours } of specs) {
-    for (const signal of experience.signals) {
-      if (!signal.symbol || !signal.pollCadence) continue;
-      const sourceId = signalSourceId(experience.id, signal.id);
-      // Identity row for subscription/fan-out only — SessionScheduler owns cadence.
+    for (const schedule of experience.schedules ?? []) {
+      if (!schedule.symbol || !schedule.cadence) continue;
+      const sourceId = signalSourceId(experience.id, schedule.id);
+      // Deprecated persisted identity only — type "timer" for subscription/
+      // fan-out compat. SessionScheduler owns cadence; never start as a source.
       if (!input.sourcesRepo.get(sourceId)) {
         input.sourcesRepo.create({
           id: sourceId,
           type: "timer",
-          name: signalDisplayName(signal),
+          name: scheduleDisplayName(schedule),
           description: `${experience.displayName} schedule identity (SessionScheduler)`,
-          enabled: signal.enabledByDefault,
+          enabled: schedule.enabledByDefault,
           experienceId: experience.id,
-          instrumentClass: signal.instrumentClass,
-          pollCadence: signal.pollCadence,
-          analysisTimeframe: signal.defaultAnalysisTimeframe,
+          instrumentClass: schedule.instrumentClass,
+          pollCadence: schedule.cadence,
+          analysisTimeframe: schedule.defaultAnalysisTimeframe,
           pipelineId: experience.pipelineId,
           configJson: JSON.stringify({
-            signalId: signal.id,
-            symbol: signal.symbol,
-            cadence: signal.pollCadence,
-            pollCadence: signal.pollCadence,
-            analysisTimeframe: signal.defaultAnalysisTimeframe,
-            instrumentClass: signal.instrumentClass,
+            signalId: schedule.id,
+            symbol: schedule.symbol,
+            cadence: schedule.cadence,
+            pollCadence: schedule.cadence,
+            analysisTimeframe: schedule.defaultAnalysisTimeframe,
+            instrumentClass: schedule.instrumentClass,
           }),
         });
       }
@@ -823,18 +954,18 @@ function registerRulesScheduledScans(input: {
           id: sourceId,
           experienceId: experience.id,
           strategyId,
-          symbol: signal.symbol,
-          instrumentClass: signal.instrumentClass,
-          analysisTimeframe: signal.defaultAnalysisTimeframe ?? "1h",
+          symbol: schedule.symbol,
+          instrumentClass: schedule.instrumentClass,
+          analysisTimeframe: schedule.defaultAnalysisTimeframe ?? "1h",
           schedule: {
-            cadence: signal.pollCadence,
-            marketHours,
+            cadence: schedule.cadence,
+            marketHours: schedule.marketHours ?? marketHours,
             jitterPct: 0.05,
           },
           getBars: async (symbol, tf, count) =>
             input.marketData.getBars({
               symbol,
-              instrumentClass: signal.instrumentClass,
+              instrumentClass: schedule.instrumentClass,
               timeframe: asTradingTimeframe(tf),
               barCount: count,
             }),

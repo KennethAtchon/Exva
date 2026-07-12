@@ -25,13 +25,10 @@ describe("pipelines registration", () => {
     expect(byId["prediction-event-cycle"]?.signalSources).toEqual([
       "prediction_event",
     ]);
-    expect(byId["rules-mean-reversion-cycle"]?.signalSources).toEqual([
-      "timer",
-    ]);
-    expect(byId["rules-trend-following-cycle"]?.signalSources).toEqual([
-      "timer",
-    ]);
-    expect(byId["rules-breakout-cycle"]?.signalSources).toEqual(["timer"]);
+    expect(byId["rules-mean-reversion-cycle"]?.signalSources).toEqual([]);
+    expect(byId["rules-trend-following-cycle"]?.signalSources).toEqual([]);
+    expect(byId["rules-breakout-cycle"]?.signalSources).toEqual([]);
+    expect(byId["options-flow-cycle"]?.signalSources).toEqual([]);
   });
 
   it("marks exactly one pipeline as default", () => {

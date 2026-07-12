@@ -71,9 +71,9 @@ export class SignalService {
     description?: string | null;
     config?: Record<string, unknown>;
   }): Promise<SignalSourceRecord> {
-    if (input.type === "web_search") {
+    if (input.type === "web_search" || input.type === "timer") {
       throw new AppError(
-        "web_search signal sources can no longer be created; use edgar_8k, timer, mock, or prediction_event.",
+        "Cannot create deprecated signal sources; use edgar_8k, mock, manual, or prediction_event. Timers are schedules, not sources.",
         "VALIDATION_FAILED",
       );
     }

@@ -6,7 +6,10 @@ import {
 } from "@electron/shared/domain/signal-source-capabilities";
 import type { SignalDeadLetterReason } from "@electron/shared/domain/signal-dead-letters";
 import { AppError } from "@electron/shared/infra/errors";
-import { requireExperience } from "../../experiences/index";
+import {
+  experienceAcceptsScanHit,
+  requireExperience,
+} from "../../experiences/index";
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { BrokerRoutingService } from "../broker/broker-routing-service";
 
@@ -17,6 +20,12 @@ export type SignalDeliveryGateResult =
       reason: SignalDeadLetterReason;
       detail: Record<string, unknown>;
     };
+
+function isScanHitSignal(signal: SignalEvent): boolean {
+  if (signal.kind === "scan_hit") return true;
+  const payloadKind = signal.payloadJson?.kind ?? signal.payloadV2?.kind;
+  return payloadKind === "scan_hit";
+}
 
 export function evaluateSignalDeliveryGate(input: {
   sessionId: string;
@@ -31,8 +40,11 @@ export function evaluateSignalDeliveryGate(input: {
 
   const isMockRehearsalSignal =
     input.signal.sourceType === "mock" && capabilities.mockRehearsalEligible;
+  const isScheduledScanHit =
+    isScanHitSignal(input.signal) && experienceAcceptsScanHit(experience);
   if (
     !isMockRehearsalSignal &&
+    !isScheduledScanHit &&
     !capabilities.signalSourceTypes.includes(input.signal.sourceType)
   ) {
     return {
@@ -41,6 +53,7 @@ export function evaluateSignalDeliveryGate(input: {
       detail: {
         sourceType: input.signal.sourceType,
         allowedSourceTypes: capabilities.signalSourceTypes,
+        acceptsScanHit: experienceAcceptsScanHit(experience),
       },
     };
   }
@@ -58,6 +71,7 @@ export function evaluateSignalDeliveryGate(input: {
   }
 
   if (
+    !isScheduledScanHit &&
     !signalSourceEmitsClass(
       input.signal.sourceType,
       input.signal,

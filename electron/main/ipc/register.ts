@@ -2,7 +2,6 @@ import type { AppServices } from "../services/app-services";
 import { registerAccountHandlers } from "./workspace/accounts";
 import { registerApprovalHandlers } from "./trading/approvals";
 import { registerBrokerAccountHandlers } from "./trading/broker-accounts";
-import { registerConfigHandlers } from "./workspace/config";
 import { registerDashboardHandlers } from "./system/dashboard";
 import { registerDeveloperHandlers } from "./system/developer";
 import { registerEventHandlers } from "./system/events";
@@ -31,7 +30,6 @@ export function registerIpcHandlers(services: AppServices): void {
   registerStrategyHandlers(services);
   registerWorkspaceHandlers(services);
   registerTemplateHandlers(services);
-  registerConfigHandlers(services);
   registerAccountHandlers(services);
   registerBrokerAccountHandlers(services);
   registerEventHandlers(services);

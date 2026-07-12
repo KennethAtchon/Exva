@@ -1,8 +1,14 @@
 import { z } from "zod";
 import {
+  strengthFields,
   tradeSignalSchema,
   type TradeSignal,
 } from "@electron/shared/ai/trade-signals";
+import {
+  hashBarWindow,
+  type DeterministicStrategy,
+} from "../../backtest/replay-engine";
+import type { OhlcvBar } from "../../broker/adapters/broker-adapter";
 
 export const meanReversionInputSchema = z.object({
   symbol: z.string(),
@@ -14,22 +20,24 @@ export const meanReversionInputSchema = z.object({
   zScoreEntry: z.number().default(-2),
 });
 
+export const MEAN_REVERSION_WARMUP_BARS = 20;
+
 export function computeMeanReversionSignal(
   input: z.infer<typeof meanReversionInputSchema>,
 ): TradeSignal {
   const closes = input.ohlcv.map((bar) => bar.close);
-  if (closes.length < 20) {
+  if (closes.length < MEAN_REVERSION_WARMUP_BARS) {
     return tradeSignalSchema.parse({
       symbol: input.symbol,
       action: "skip",
       executionStrategy: "mean_reversion",
       entryPrice: null,
-      confidence: 0.2,
+      ...strengthFields(0.2),
       reasoning: "Insufficient bars for z-score mean reversion.",
     });
   }
 
-  const window = closes.slice(-20);
+  const window = closes.slice(-MEAN_REVERSION_WARMUP_BARS);
   const mean = window.reduce((a, b) => a + b, 0) / window.length;
   const variance =
     window.reduce((sum, v) => sum + (v - mean) ** 2, 0) / window.length;
@@ -38,13 +46,13 @@ export function computeMeanReversionSignal(
   const zScore = (last - mean) / std;
 
   if (zScore <= input.zScoreEntry) {
-    const confidence = Math.min(0.95, Math.abs(zScore) / 4);
+    const strength = Math.min(0.95, Math.abs(zScore) / 4);
     return tradeSignalSchema.parse({
       symbol: input.symbol,
       action: "buy",
       executionStrategy: "mean_reversion",
       entryPrice: null,
-      confidence,
+      ...strengthFields(strength),
       reasoning: `Z-score ${zScore.toFixed(2)} below entry ${input.zScoreEntry}; mean-reversion buy.`,
     });
   }
@@ -54,7 +62,48 @@ export function computeMeanReversionSignal(
     action: "skip",
     executionStrategy: "mean_reversion",
     entryPrice: null,
-    confidence: Math.min(0.5, Math.abs(zScore) / 4),
+    ...strengthFields(Math.min(0.5, Math.abs(zScore) / 4)),
     reasoning: `Z-score ${zScore.toFixed(2)} not extended enough for entry.`,
   });
+}
+
+export function createMeanReversionStrategy(options?: {
+  zScoreEntry?: number;
+  id?: string;
+}): DeterministicStrategy {
+  const zScoreEntry = options?.zScoreEntry ?? -2;
+  return {
+    id: options?.id ?? "mean-reversion",
+    warmupBars: MEAN_REVERSION_WARMUP_BARS,
+    evaluate(bars: OhlcvBar[], ctx) {
+      const signal = computeMeanReversionSignal({
+        symbol: ctx.symbol,
+        ohlcv: bars.map((b) => ({ close: b.close })),
+        zScoreEntry,
+      });
+      if (signal.action !== "buy" && signal.action !== "sell") return null;
+
+      const closes = bars.map((b) => b.close);
+      const window = closes.slice(-MEAN_REVERSION_WARMUP_BARS);
+      const mean =
+        window.length > 0
+          ? window.reduce((a, b) => a + b, 0) / window.length
+          : 0;
+      const variance =
+        window.length > 0
+          ? window.reduce((sum, v) => sum + (v - mean) ** 2, 0) / window.length
+          : 0;
+      const std = Math.sqrt(variance) || 1;
+      const last = closes[closes.length - 1] ?? mean;
+      const zScore = (last - mean) / std;
+      const strength = signal.strength ?? signal.confidence;
+
+      return {
+        action: signal.action,
+        strength,
+        evidence: { zScore, mean, std, close: last, strength },
+        barWindowHash: hashBarWindow(bars),
+      };
+    },
+  };
 }

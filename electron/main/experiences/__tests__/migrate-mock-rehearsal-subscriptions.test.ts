@@ -91,13 +91,13 @@ describe("migrateEligibleSessionsToMockRehearsal", () => {
     expect(first[0]?.id).toBe(expectedId);
   });
 
-  it("skips timer signal sources — SessionScheduler owns cadence", () => {
+  it("skips schedule identity — SessionScheduler owns cadence via registerRulesScheduledScans", () => {
     const repo = new SignalSourcesRepo(db);
-    const signal = RULES_MEAN_REVERSION_EXPERIENCE.signals[0];
-    if (!signal) throw new Error("Expected mean-reversion signal");
+    const schedule = RULES_MEAN_REVERSION_EXPERIENCE.schedules?.[0];
+    if (!schedule) throw new Error("Expected mean-reversion schedule");
     const sourceId = signalSourceId(
       RULES_MEAN_REVERSION_EXPERIENCE.id,
-      signal.id,
+      schedule.id,
     );
 
     const ensured = ensureExperienceSignalSources(

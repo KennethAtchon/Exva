@@ -14,6 +14,7 @@ describe("consecutive skip alarm", () => {
       },
     );
     const emit = vi.fn();
+    const raiseConsecutiveSkip = vi.fn(async () => undefined);
     let status: "active" | "attention_required" = "active";
 
     const ctx = new TradingCycleContext("session-skip-alarm", {
@@ -48,6 +49,7 @@ describe("consecutive skip alarm", () => {
       tradesRepo: {
         listOpenAndPending: () => [],
       },
+      supervisor: { raiseConsecutiveSkip },
     } as never);
 
     for (let i = 0; i < 9; i++) {
@@ -86,6 +88,10 @@ describe("consecutive skip alarm", () => {
         title: "Exva: consecutive skips",
         level: "ERROR",
       }),
+    );
+    expect(raiseConsecutiveSkip).toHaveBeenCalledWith(
+      "session-skip-alarm",
+      expect.stringContaining("10 consecutive skips"),
     );
   });
 });

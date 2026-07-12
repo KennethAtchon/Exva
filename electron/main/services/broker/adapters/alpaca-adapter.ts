@@ -26,7 +26,9 @@ import {
   adapterSupportsOrder,
   lowerBrokerOrderV2ToV1,
   type BrokerOrderV2,
+  type OrderEventFeed,
 } from "../order-contract-v2";
+import { createPollOrderEventFeed } from "../order-event-feed";
 
 const logger = createLogger("alpaca-adapter");
 
@@ -35,6 +37,9 @@ const ALPACA_DATA_URL = "https://data.alpaca.markets";
 /** Poll a freshly-placed order this many times before declaring no fill. */
 const FILL_POLL_ATTEMPTS = 3;
 const FILL_POLL_INTERVAL_MS = 500;
+/** Order-event feed cadence: paper is slower to be gentle on rate limits. */
+const ORDER_EVENT_POLL_MS_PAPER = 15_000;
+const ORDER_EVENT_POLL_MS_LIVE = 5_000;
 const ALPACA_TIMEFRAME_MAP: Record<string, string> = {
   "15m": "15Min",
   "30m": "30Min",
@@ -525,6 +530,18 @@ export class AlpacaAdapter implements BrokerAdapter {
         : null,
       realizedPnlUsd: null,
     };
+  }
+
+  /**
+   * Poll-based order feed (Alpaca trade_updates websocket not wired yet).
+   * TradeMonitor calls watchOrders after create; empty seed is intentional.
+   */
+  createOrderEventFeed(): OrderEventFeed {
+    const intervalMs =
+      this.credentials.mode === "paper"
+        ? ORDER_EVENT_POLL_MS_PAPER
+        : ORDER_EVENT_POLL_MS_LIVE;
+    return createPollOrderEventFeed(this, [], intervalMs);
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {

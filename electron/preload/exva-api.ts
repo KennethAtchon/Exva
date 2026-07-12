@@ -6,7 +6,6 @@ import type {
   ApprovalSummary,
   BrokerAccount,
   BrokerAccountWithState,
-  BrokerCredentials,
   BrokerRoutingDefault,
   ConnectionTestResult,
   CostBreakdown,
@@ -18,7 +17,6 @@ import type {
   ProviderAccount,
   SessionRiskConfig,
   SessionStatus,
-  SessionStrategy,
   SessionTradeRules,
   SessionTemplatePayload,
   SessionTimeframeConfig,
@@ -357,13 +355,7 @@ export interface ExvaApi {
       >;
     }>;
     createSource(input: {
-      type:
-        | "edgar_8k"
-        | "web_search"
-        | "manual"
-        | "prediction_event"
-        | "mock"
-        | "timer";
+      type: "edgar_8k" | "manual" | "prediction_event" | "mock";
       name: string;
       description?: string | null;
       config?: Record<string, unknown>;
@@ -426,14 +418,7 @@ export interface ExvaApi {
         | "no_inputs";
     }>;
   };
-  config: {
-    getStrategy(): Promise<SessionStrategy>;
-    saveStrategy(config: SessionStrategy): Promise<void>;
-  };
   accounts: {
-    saveBroker(credentials: BrokerCredentials): Promise<ConnectionTestResult>;
-    testBroker(): Promise<ConnectionTestResult>;
-    removeBroker(): Promise<void>;
     saveApiKey(keyType: string, value: string): Promise<void>;
     listProviders(): Promise<{ providers: ProviderAccount[] }>;
     saveProvider(input: {

@@ -50,7 +50,7 @@ describe("computeBreakoutSignal", () => {
     expect(tradeSignalSchema.parse(signal)).toEqual(signal);
   });
 
-  it("buys with lower confidence when volume is not confirmed", () => {
+  it("buys with lower strength when volume is not confirmed", () => {
     const window = Array.from({ length: 3 }, () => bar(101, 99, 100, 1000));
     const signal = computeBreakoutSignal({
       symbol: "AAPL",
@@ -60,11 +60,12 @@ describe("computeBreakoutSignal", () => {
     });
 
     expect(signal.action).toBe("buy");
+    expect(signal.strength).toBe(0.55);
     expect(signal.confidence).toBe(0.55);
     expect(signal.reasoning).toContain("low volume");
   });
 
-  it("sells with lower confidence when breakdown volume is not confirmed", () => {
+  it("sells with lower strength when breakdown volume is not confirmed", () => {
     const window = Array.from({ length: 3 }, () => bar(101, 99, 100, 1000));
     const signal = computeBreakoutSignal({
       symbol: "AAPL",
@@ -74,6 +75,7 @@ describe("computeBreakoutSignal", () => {
     });
 
     expect(signal.action).toBe("sell");
+    expect(signal.strength).toBe(0.55);
     expect(signal.confidence).toBe(0.55);
     expect(signal.reasoning).toContain("low volume");
   });
@@ -102,6 +104,7 @@ describe("computeBreakoutSignal", () => {
     });
 
     expect(signal.action).toBe("buy");
+    expect(signal.strength).toBe(0.55);
     expect(signal.confidence).toBe(0.55);
   });
 

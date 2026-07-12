@@ -40,6 +40,7 @@ export const channels = {
     recordExperiment: "experiences:recordExperiment",
     compareExperiments: "experiences:compareExperiments",
     getResearchSummary: "experiences:getResearchSummary",
+    approveLadderUpgrade: "experiences:approveLadderUpgrade",
   },
   session: {
     start: "session:start",
@@ -127,14 +128,7 @@ export const channels = {
       getReadiness: "signals:sessions:get-readiness",
     },
   },
-  config: {
-    getStrategy: "config:get-strategy",
-    saveStrategy: "config:save-strategy",
-  },
   accounts: {
-    saveBroker: "accounts:save-broker",
-    testBroker: "accounts:test-broker",
-    removeBroker: "accounts:remove-broker",
     saveApiKey: "accounts:save-api-key",
     listProviders: "accounts:providers:list",
     saveProvider: "accounts:providers:save",

@@ -84,5 +84,16 @@ export function createPollOrderEventFeed(
       handlers.add(handler);
       return () => handlers.delete(handler);
     },
+    watchOrders(orderIds) {
+      for (const id of orderIds) {
+        if (!emitted.has(id)) pending.add(id);
+      }
+      if (!timer && pending.size > 0) {
+        timer = setInterval(() => {
+          void tick();
+        }, intervalMs);
+        void tick();
+      }
+    },
   };
 }

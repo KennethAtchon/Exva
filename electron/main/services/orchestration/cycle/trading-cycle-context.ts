@@ -378,18 +378,14 @@ export class TradingCycleContext {
 
     const reason = input.reasonCategory;
     const count = this.consecutiveSameSkipCount;
-    this.emitEvent(
-      "ERROR",
-      null,
-      `Session needs attention: ${count} consecutive skips with reason "${reason}". Data starvation and healthy no-setup look the same until this fires.`,
-      "orchestrator",
-      input.cycleId,
-    );
+    const message = `Session needs attention: ${count} consecutive skips with reason "${reason}". Data starvation and healthy no-setup look the same until this fires.`;
+    this.emitEvent("ERROR", null, message, "orchestrator", input.cycleId);
     this.deps.bus.emit("notification", {
       title: "Exva: consecutive skips",
       body: `Session ${this.sessionId.slice(0, 8)}… skipped ${count} times (${reason}).`,
       level: "ERROR",
     });
+    void this.deps.supervisor?.raiseConsecutiveSkip(this.sessionId, message);
     this.setSessionStatus("attention_required");
   }
 

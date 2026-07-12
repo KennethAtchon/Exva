@@ -14,6 +14,12 @@ export function registerExperienceHandlers(services: AppServices): void {
       pipelineId: experience.pipelineId,
       defaultPresets: experience.defaultPresets,
       capabilities: experience.capabilities,
+      schedules: (experience.schedules ?? []).map((schedule) => ({
+        id: schedule.id,
+        symbol: schedule.symbol,
+        cadence: schedule.cadence,
+        instrumentClass: schedule.instrumentClass,
+      })),
     }));
   });
 }

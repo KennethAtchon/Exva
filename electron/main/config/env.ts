@@ -69,6 +69,21 @@ const envSchema = z.object({
   OPEN_ROUTER_MODEL: z.string().optional(),
   ALPACA_API_KEY: z.string().optional(),
   ALPACA_SECRET_KEY: z.string().optional(),
+  /** ntfy.sh topic URL for supervisor push (e.g. https://ntfy.sh/exva-ken). */
+  EXVA_NTFY_URL: z.string().optional(),
+  EXVA_NTFY_TOPIC_URL: z.string().optional(),
+  /** Optional SMTP sink for supervisor digests (mailto://user:pass@host:port). */
+  EXVA_SMTP_URL: z.string().optional(),
+  /** Opt-in LLM period autopsy on nightly job (default preview-only). */
+  EXVA_PERIOD_AUTOPSY_RUN: z
+    .string()
+    .optional()
+    .transform((value) => value === "true"),
+  /** Allow unattended period autopsy above $5 estimate when RUN is also set. */
+  EXVA_PERIOD_AUTOPSY_ALLOW_HIGH_COST: z
+    .string()
+    .optional()
+    .transform((value) => value === "true"),
 });
 
 function normalizeOptionalSecret(value?: string): string | null {
@@ -100,6 +115,13 @@ function loadEnv(source: NodeJS.ProcessEnv = process.env) {
     openRouterModel: normalizeOptionalSecret(parsed.data.OPEN_ROUTER_MODEL),
     alpacaApiKey: normalizeOptionalSecret(parsed.data.ALPACA_API_KEY),
     alpacaSecretKey: normalizeOptionalSecret(parsed.data.ALPACA_SECRET_KEY),
+    ntfyTopicUrl:
+      normalizeOptionalSecret(parsed.data.EXVA_NTFY_URL) ??
+      normalizeOptionalSecret(parsed.data.EXVA_NTFY_TOPIC_URL),
+    smtpUrl: normalizeOptionalSecret(parsed.data.EXVA_SMTP_URL),
+    periodAutopsyRun: parsed.data.EXVA_PERIOD_AUTOPSY_RUN ?? false,
+    periodAutopsyAllowHighCost:
+      parsed.data.EXVA_PERIOD_AUTOPSY_ALLOW_HIGH_COST ?? false,
   });
 }
 

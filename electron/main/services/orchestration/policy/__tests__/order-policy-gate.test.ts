@@ -219,3 +219,62 @@ describe("OrderPolicyGate - exit_contract", () => {
     expect(result.gatesFailed).not.toContain("exit_contract");
   });
 });
+
+describe("OrderPolicyGate - adapter_capabilities", () => {
+  const marketOrder = {
+    clientOrderId: "c1:t1",
+    instrument: { symbol: "AAPL", instrumentClass: "stock" as const },
+    side: "BUY" as const,
+    quantity: { kind: "notional_usd" as const, value: 300 },
+    orderType: "market" as const,
+    timeInForce: "day" as const,
+  };
+
+  const marketOnlyCaps = {
+    supportsLimit: false,
+    supportsStop: false,
+    supportsStopLimit: false,
+    supportsBracket: true,
+    supportsStreaming: false,
+    quantityKinds: ["notional_usd" as const],
+    timeInForce: ["day" as const],
+    orderTypes: ["market" as const],
+  };
+
+  it("skips the gate when orderV2 or capabilities are omitted", () => {
+    const result = new OrderPolicyGate().evaluate(makeInput());
+    expect(result.gatesFailed).not.toContain("adapter_capabilities");
+    expect(
+      result.checks.find((c) => c.id === "adapter_capabilities"),
+    ).toBeUndefined();
+  });
+
+  it("passes when the adapter supports the order shape", () => {
+    const result = new OrderPolicyGate().evaluate(
+      makeInput({
+        orderV2: marketOrder,
+        adapterCapabilities: marketOnlyCaps,
+      }),
+    );
+    expect(result.gatesFailed).not.toContain("adapter_capabilities");
+    expect(
+      result.checks.find((c) => c.id === "adapter_capabilities")?.pass,
+    ).toBe(true);
+  });
+
+  it("fails when the adapter cannot honor the order type", () => {
+    const result = new OrderPolicyGate().evaluate(
+      makeInput({
+        orderV2: {
+          ...marketOrder,
+          orderType: "limit",
+          limitPrice: 100,
+        },
+        adapterCapabilities: marketOnlyCaps,
+      }),
+    );
+    expect(result.allowed).toBe(false);
+    expect(result.gatesFailed).toContain("adapter_capabilities");
+    expect(result.reason).toMatch(/orderType|limit/i);
+  });
+});

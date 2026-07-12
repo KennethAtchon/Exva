@@ -1,6 +1,11 @@
 import type { InstrumentClass } from "@/lib/types";
 import type { DecisionCheck, HoldingStyle } from "@electron/shared/domain";
 import type { DecisionRiskInput } from "../../risk/risk-engine";
+import {
+  adapterSupportsOrder,
+  type AdapterCapabilities,
+  type BrokerOrderV2,
+} from "../../broker/order-contract-v2";
 
 type PolicyGateName =
   | "runtime"
@@ -10,6 +15,7 @@ type PolicyGateName =
   | "spread"
   | "capital"
   | "broker"
+  | "adapter_capabilities"
   | "idempotency"
   | "exit_contract";
 
@@ -24,6 +30,9 @@ export interface PolicyGateInput {
     brokerAccountId: string,
   ) => boolean;
   sessionIsPaused: () => boolean;
+  /** Optional v2 order + adapter caps — when both set, adapter_capabilities gate runs. */
+  orderV2?: BrokerOrderV2;
+  adapterCapabilities?: AdapterCapabilities;
 }
 
 export interface PolicyGateResult {
@@ -85,6 +94,7 @@ export class OrderPolicyGate {
       spread: "Spread",
       capital: "Capital limit",
       broker: "Broker",
+      adapter_capabilities: "Adapter capabilities",
       idempotency: "Idempotency",
       exit_contract: "Exit contract",
     };
@@ -167,6 +177,20 @@ export class OrderPolicyGate {
       gatesFailed.push("broker");
     }
 
+    // adapter_capabilities: refuse order shapes the adapter cannot honor
+    let adapterCapabilityReason: string | undefined;
+    if (input.orderV2 && input.adapterCapabilities) {
+      evaluated.push("adapter_capabilities");
+      const support = adapterSupportsOrder(
+        input.adapterCapabilities,
+        input.orderV2,
+      );
+      if (!support.ok) {
+        gatesFailed.push("adapter_capabilities");
+        adapterCapabilityReason = support.reason;
+      }
+    }
+
     // idempotency: duplicate order guard
     evaluated.push("idempotency");
     if (input.existingOrderCheck(clientOrderId, brokerAccountId)) {
@@ -217,6 +241,8 @@ export class OrderPolicyGate {
         d.brokerSupportsClass === false
           ? "Broker does not support instrument class"
           : "Market is closed",
+      adapter_capabilities:
+        adapterCapabilityReason ?? "Adapter does not support this order shape",
       idempotency: `Duplicate order: clientOrderId ${clientOrderId} already exists`,
       exit_contract:
         "No enforceable exit policy — configure stopLoss, takeProfit, or maxHoldDays",

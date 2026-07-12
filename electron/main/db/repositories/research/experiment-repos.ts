@@ -63,6 +63,30 @@ export class BacktestRunsRepo {
       .all()
       .map((row) => ({ ...row, verdict: row.verdict as BacktestVerdict }));
   }
+
+  /**
+   * Most recent backtest for an experience, optionally filtered by verdict
+   * and/or contract hash.
+   */
+  latestForExperience(
+    experienceId: string,
+    filter?: { verdict?: BacktestVerdict; contractHash?: string },
+  ): BacktestRun | null {
+    const rows = this.listByExperience(experienceId);
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const row = rows[i];
+      if (!row) continue;
+      if (filter?.verdict != null && row.verdict !== filter.verdict) continue;
+      if (
+        filter?.contractHash != null &&
+        row.contractHash !== filter.contractHash
+      ) {
+        continue;
+      }
+      return row;
+    }
+    return null;
+  }
 }
 
 export class PromotionDecisionsRepo {

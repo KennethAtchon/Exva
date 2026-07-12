@@ -1,5 +1,8 @@
 import { isTradingTimeframe, type TradingTimeframe } from "./enums";
-import type { SignalDescriptor } from "./signal-descriptor";
+import type {
+  ScheduledScanDescriptor,
+  SignalDescriptor,
+} from "./signal-descriptor";
 import type { SignalSourceRecord, SignalSourceType } from "./signals";
 
 export type OhlcvTimeframe = TradingTimeframe;
@@ -161,6 +164,11 @@ export function signalDisplayName(signal: SignalDescriptor): string {
     pollCadence: signal.pollCadence,
     analysisTimeframe: signal.defaultAnalysisTimeframe,
   });
+}
+
+export function scheduleDisplayName(schedule: ScheduledScanDescriptor): string {
+  const symbol = schedule.symbol.trim() || "Schedule";
+  return `${symbol} · polls every ${schedule.cadence} · trades on ${schedule.defaultAnalysisTimeframe} bars`;
 }
 
 export function formatSignalSourceTimingSubtitle(

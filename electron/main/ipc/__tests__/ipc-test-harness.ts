@@ -402,6 +402,9 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     } as unknown as AppServices["sessionScheduler"],
     controlRepo: {} as AppServices["controlRepo"],
     control: {} as AppServices["control"],
+    ladderStates: new Map(),
+    approveLadderUpgrade: () => null,
+    tickLadderAutomation: () => undefined,
   };
 
   function configureAiProvider(sessionId?: string) {

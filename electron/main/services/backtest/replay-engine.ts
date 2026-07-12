@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
 import type { TradingTimeframe } from "@electron/shared/domain/enums";
+import {
+  purgedWalkForwardFolds,
+  type PurgedFold,
+} from "@electron/shared/quant/statistics";
 import type { OhlcvBar } from "../broker/adapters/broker-adapter";
 
 /**
@@ -35,6 +39,11 @@ export interface BacktestCosts {
   slippageBps: number;
 }
 
+export interface FoldConfig {
+  /** Bars dropped between train and test to avoid leakage. Default 1. */
+  purge?: number;
+}
+
 export interface BacktestSpec {
   experienceId: string;
   strategy: DeterministicStrategy;
@@ -42,6 +51,8 @@ export interface BacktestSpec {
   timeframe: TradingTimeframe;
   window: { start: string; end: string };
   folds: number;
+  /** Purged walk-forward fold settings. */
+  foldConfig?: FoldConfig;
   costs: BacktestCosts;
   exitPolicy: ExitPolicyConfig;
   /** Bars keyed by symbol (pre-loaded from MarketDataService). */
@@ -92,6 +103,7 @@ export function runBacktest(spec: BacktestSpec): BacktestResult {
   const allTrades: BacktestTrade[] = [];
   const costBps =
     spec.costs.spreadBps + spec.costs.feeBps + spec.costs.slippageBps;
+  const purge = spec.foldConfig?.purge ?? 1;
 
   for (const symbol of spec.symbols) {
     const bars = (spec.barsBySymbol[symbol] ?? []).filter(
@@ -99,12 +111,17 @@ export function runBacktest(spec: BacktestSpec): BacktestResult {
     );
     if (bars.length <= spec.strategy.warmupBars + 1) continue;
 
-    const foldSize = Math.max(
-      1,
-      Math.floor(bars.length / Math.max(1, spec.folds)),
+    const purgedFolds = purgedWalkForwardFolds(
+      bars.length,
+      Math.max(1, spec.folds),
+      purge,
     );
 
     for (let i = spec.strategy.warmupBars; i < bars.length - 1; i++) {
+      const fold = foldIndexForBar(i, purgedFolds);
+      // Only score out-of-sample test segments (train + purge are excluded).
+      if (fold == null) continue;
+
       const window = bars.slice(0, i + 1);
       const signal = spec.strategy.evaluate(window, {
         symbol,
@@ -120,7 +137,6 @@ export function runBacktest(spec: BacktestSpec): BacktestResult {
       const direction = signal.action === "buy" ? 1 : -1;
       const rawReturnBps =
         ((exit.close - entry.close) / entry.close) * 10_000 * direction;
-      const fold = Math.min(spec.folds - 1, Math.floor(i / foldSize));
 
       allTrades.push({
         symbol,
@@ -152,6 +168,7 @@ export function runBacktest(spec: BacktestSpec): BacktestResult {
         strategyId: spec.strategy.id,
         window: spec.window,
         folds: spec.folds,
+        foldConfig: { purge },
         costs: spec.costs,
         exitPolicy: spec.exitPolicy,
         symbols: spec.symbols,
@@ -174,6 +191,19 @@ export function runBacktest(spec: BacktestSpec): BacktestResult {
     maxDrawdownPct,
     costDragBps: costBps,
   };
+}
+
+/** Map a bar index to its purged walk-forward test fold, or null if in train/purge. */
+export function foldIndexForBar(
+  barIndex: number,
+  folds: readonly PurgedFold[],
+): number | null {
+  for (const fold of folds) {
+    if (barIndex >= fold.testStart && barIndex < fold.testEnd) {
+      return fold.index;
+    }
+  }
+  return null;
 }
 
 function resolveExitIndex(

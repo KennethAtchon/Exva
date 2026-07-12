@@ -13,6 +13,8 @@ import {
   resolveSessionPromotionTier,
 } from "../domain/promotion-ladder";
 import {
+  isDeprecatedSignalSourceType,
+  isLiveSignalSourceType,
   isSearchStyleSignalSourceType,
   isSelfDescribingSignalSourceType,
   sessionRequiresInstrumentScope,
@@ -100,12 +102,17 @@ describe("promotion-ladder", () => {
 });
 
 describe("signals helpers", () => {
-  it("classifies search-style vs self-describing sources", () => {
+  it("classifies live vs deprecated and self-describing sources", () => {
+    expect(isLiveSignalSourceType("edgar_8k")).toBe(true);
+    expect(isLiveSignalSourceType("timer")).toBe(false);
+    expect(isDeprecatedSignalSourceType("timer")).toBe(true);
+    expect(isDeprecatedSignalSourceType("web_search")).toBe(true);
     // web_search is deprecated; search-style is always false.
     expect(isSearchStyleSignalSourceType("web_search")).toBe(false);
     expect(isSearchStyleSignalSourceType("edgar_8k")).toBe(false);
     expect(isSelfDescribingSignalSourceType("edgar_8k")).toBe(true);
     expect(isSelfDescribingSignalSourceType("web_search")).toBe(false);
+    expect(isSelfDescribingSignalSourceType("timer")).toBe(false);
     expect(isSelfDescribingSignalSourceType("manual")).toBe(false);
   });
 

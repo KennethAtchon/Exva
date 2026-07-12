@@ -83,3 +83,15 @@ export function resolveEngine<T extends Engine>(
   }
   return engine as T;
 }
+
+/**
+ * Deterministic signal engines (Zod + run(input, ctx)) live in a separate Map
+ * from phase engines — IDs can overlap (e.g. technical-aggregator is both a
+ * phase finalizer and a signal transformer). Do not merge Maps.
+ *
+ * Re-exported here so `pipeline/engines` is the single import root.
+ */
+export {
+  registerSignalEngine,
+  requireEngine as requireSignalEngine,
+} from "./signal-registry/signal-engine-registry";

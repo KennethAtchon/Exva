@@ -4,7 +4,7 @@ import type { SignalSourceType } from "@electron/shared/domain/signals";
 import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
 import type { ScriptedWorkerOutputs } from "../../main/services/broker/mock/mock-scenario-worker-outputs";
 
-export { signalDisplayName } from "./signal-timing";
+export { signalDisplayName, scheduleDisplayName } from "./signal-timing";
 
 export interface ExperiencePresetIds {
   posturePresetId: string;
@@ -27,4 +27,20 @@ export interface SignalDescriptor {
     defaultScenario: MockScenarioKind;
     scriptedWorkerOutputs: ScriptedWorkerOutputs;
   };
+}
+
+/**
+ * Clock-driven scan owned by SessionScheduler — not a SignalSourceType.
+ * Legacy DB identity rows may still use type `timer` for subscription fan-out.
+ */
+export interface ScheduledScanDescriptor {
+  id: string;
+  instrumentClass: InstrumentClass;
+  symbol: string;
+  cadence: string;
+  defaultAnalysisTimeframe: TradingTimeframe;
+  enabledByDefault: boolean;
+  marketHours?: "regular" | "extended" | "24_7";
+  presetOverrides?: Partial<ExperiencePresetIds>;
+  mockFixtures: SignalDescriptor["mockFixtures"];
 }

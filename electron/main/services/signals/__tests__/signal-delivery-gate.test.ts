@@ -27,6 +27,19 @@ function stockSignal(overrides?: Partial<SignalEvent>): SignalEvent {
   };
 }
 
+function scanHitSignal(overrides?: Partial<SignalEvent>): SignalEvent {
+  return stockSignal({
+    sourceType: "timer",
+    kind: "scan_hit",
+    payloadJson: {
+      instrumentClass: "stock",
+      kind: "scan_hit",
+      strategyId: "mean-reversion",
+    },
+    ...overrides,
+  });
+}
+
 describe("evaluateSignalDeliveryGate", () => {
   beforeAll(() => {
     try {
@@ -35,16 +48,16 @@ describe("evaluateSignalDeliveryGate", () => {
         id: "test-multi-class-rules",
         displayName: "Test multi-class rules",
         capabilities: {
-          signalSourceTypes: ["timer"],
+          signalSourceTypes: [],
           brokerRequirement: "any_supported_class",
         },
-        signals: [
+        signals: [],
+        schedules: [
           {
             id: "es-15m-test",
-            sourceType: "timer",
             instrumentClass: "stock",
             symbol: "ES",
-            pollCadence: "15m",
+            cadence: "15m",
             defaultAnalysisTimeframe: "1h",
             enabledByDefault: true,
             mockFixtures: {
@@ -108,7 +121,7 @@ describe("evaluateSignalDeliveryGate", () => {
     db.sqlite.close();
   });
 
-  it("dead-letters prediction_market signals when only a stock broker is assigned", () => {
+  it("accepts scan_hit when experience has schedules", () => {
     const db = createTestDb();
     const brokerAccounts = new BrokerAccountsRepo(db);
     brokerAccounts.insert({
@@ -147,10 +160,59 @@ describe("evaluateSignalDeliveryGate", () => {
     const result = evaluateSignalDeliveryGate({
       sessionId: session.id,
       experienceId: "rules-mean-reversion",
-      signal: stockSignal({
-        sourceType: "timer",
+      signal: scanHitSignal({ ticker: "SPY" }),
+      brokerAssignments: ["broker-stock"],
+      brokerAccounts,
+      brokerRouting: routing,
+    });
+
+    expect(result.ok).toBe(true);
+    db.sqlite.close();
+  });
+
+  it("dead-letters prediction_market scan_hit when only a stock broker is assigned", () => {
+    const db = createTestDb();
+    const brokerAccounts = new BrokerAccountsRepo(db);
+    brokerAccounts.insert({
+      id: "broker-stock",
+      name: "Stock",
+      brokerType: "mock",
+      supportedInstrumentClasses: ["stock"],
+      mode: "paper",
+      secretRef: "secret",
+    });
+    const sessions = new SessionRepo(db);
+    const session = sessions.create({
+      name: "Rules Session",
+      objective: "Test",
+      selectionMode: "manual_shortlist",
+      instrumentClasses: ["stock"],
+      instrumentScope: "SPY",
+      executionMode: "paper_only",
+      experienceId: "rules-mean-reversion",
+    });
+    const assignments = new SessionBrokerAssignmentsRepo(db);
+    assignments.replaceAssignments(session.id, [
+      { brokerAccountId: "broker-stock", allocatedUsd: 1000 },
+    ]);
+    const routing = new BrokerRoutingService(
+      brokerAccounts,
+      assignments,
+      new BrokerRoutingRepo(db),
+      new BrokerRegistry(brokerAccounts, {
+        get: async () => {
+          throw new Error("not needed");
+        },
+      } as never),
+    );
+
+    const result = evaluateSignalDeliveryGate({
+      sessionId: session.id,
+      experienceId: "rules-mean-reversion",
+      signal: scanHitSignal({
         payloadJson: {
           instrumentClass: "prediction_market",
+          kind: "scan_hit",
           cadence: "15m",
         },
       }),
@@ -169,7 +231,7 @@ describe("evaluateSignalDeliveryGate", () => {
     db.sqlite.close();
   });
 
-  it("dead-letters futures signals when only a stock broker is assigned", () => {
+  it("dead-letters futures scan_hit when only a stock broker is assigned", () => {
     const db = createTestDb();
     const brokerAccounts = new BrokerAccountsRepo(db);
     brokerAccounts.insert({
@@ -208,10 +270,13 @@ describe("evaluateSignalDeliveryGate", () => {
     const result = evaluateSignalDeliveryGate({
       sessionId: session.id,
       experienceId: "test-multi-class-rules",
-      signal: stockSignal({
-        sourceType: "timer",
+      signal: scanHitSignal({
         ticker: "ES",
-        payloadJson: { instrumentClass: "futures", cadence: "15m" },
+        payloadJson: {
+          instrumentClass: "futures",
+          kind: "scan_hit",
+          cadence: "15m",
+        },
       }),
       brokerAssignments: ["broker-stock"],
       brokerAccounts,

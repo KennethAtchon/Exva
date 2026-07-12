@@ -12,6 +12,9 @@ import {
   type PipelineStep,
 } from "../services/pipeline/implementations/registry/pipeline-descriptor-store";
 
+export { experienceAcceptsScanHit } from "./types";
+export type { ExperienceDescriptor } from "./types";
+
 const EXPERIENCES = new Map<string, ExperienceDescriptor>();
 
 export function registerExperience(descriptor: ExperienceDescriptor): void {
@@ -49,10 +52,12 @@ export function validateExperienceRegistry(): void {
     }
 
     const pipeline = requirePipelineDescriptor(experience.pipelineId);
+    const signals = experience.signals ?? [];
+    const schedules = experience.schedules ?? [];
 
-    if (!experience.signals || experience.signals.length === 0) {
+    if (signals.length === 0 && schedules.length === 0) {
       throw new Error(
-        `Experience '${experience.id}' must declare at least one signal.`,
+        `Experience '${experience.id}' must declare at least one signal or schedule.`,
       );
     }
 
@@ -69,8 +74,8 @@ export function validateExperienceRegistry(): void {
       );
     }
 
-    // I1: every signal.sourceType ∈ pipeline.signalSources
-    for (const signal of experience.signals) {
+    // I1: every signal.sourceType ∈ pipeline.signalSources (schedules excluded)
+    for (const signal of signals) {
       if (!pipeline.signalSources.includes(signal.sourceType)) {
         throw new Error(
           `Experience '${experience.id}' signal '${signal.id}' has sourceType '${signal.sourceType}' ` +
@@ -79,16 +84,24 @@ export function validateExperienceRegistry(): void {
       }
     }
 
-    if (!experience.capabilities.signalSourceTypes.length) {
+    for (const schedule of schedules) {
+      if (!schedule.symbol?.trim()) {
+        throw new Error(
+          `Experience '${experience.id}' schedule '${schedule.id}' must declare a non-null symbol.`,
+        );
+      }
+    }
+
+    const hasSchedules = schedules.length > 0;
+    if (!experience.capabilities.signalSourceTypes.length && !hasSchedules) {
       throw new Error(
-        `Experience '${experience.id}' must declare at least one signal source type.`,
+        `Experience '${experience.id}' must declare at least one signal source type ` +
+          `(or schedules for scan_hit delivery).`,
       );
     }
 
     // I3: capabilities.signalSourceTypes == union of signals[].sourceType
-    const signalSourceTypeUnion = new Set(
-      experience.signals.map((s) => s.sourceType),
-    );
+    const signalSourceTypeUnion = new Set(signals.map((s) => s.sourceType));
     for (const t of experience.capabilities.signalSourceTypes) {
       if (!signalSourceTypeUnion.has(t)) {
         throw new Error(

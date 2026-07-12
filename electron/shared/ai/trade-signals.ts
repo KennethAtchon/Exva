@@ -78,6 +78,20 @@ export const tradeSignalSchema = z.object({
   executionStrategy: executionStrategySchema,
   entryPrice: z.number().positive().nullable().default(null),
   confidence: z.number().min(0).max(1),
+  /**
+   * Raw setup strength in [0, 1] (e.g. |z|/4 capped). Prefer this over
+   * `confidence`, which is kept as a deprecated alias equal to strength.
+   */
+  strength: z.number().min(0).max(1).optional(),
   reasoning: z.string().min(1),
 });
 export type TradeSignal = z.infer<typeof tradeSignalSchema>;
+
+/** Emit strength and keep confidence as a deprecated alias of the same value. */
+export function strengthFields(strength: number): {
+  strength: number;
+  confidence: number;
+} {
+  const clamped = Math.max(0, Math.min(1, strength));
+  return { strength: clamped, confidence: clamped };
+}

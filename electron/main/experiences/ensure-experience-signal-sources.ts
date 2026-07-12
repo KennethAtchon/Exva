@@ -12,10 +12,10 @@ export function ensureExperienceSignalSources(
   const experience = requireExperience(experienceId);
   const ensured: SignalSourceRecord[] = [];
   for (const signal of experience.signals) {
-    // SessionScheduler owns cadence for timer-backed rules scans now.
+    // SessionScheduler owns cadence for schedule identity rows (type timer).
     // Do not create/update timer signal sources from experience ensure —
     // existing DB rows are left in place for subscription identity, but
-    // bootstrapFromDb will not start TimerSignalSource runtimes.
+    // bootstrapFromDb will not start DeprecatedTimerStub runtimes as emitters.
     if (signal.sourceType === "timer") continue;
 
     const sourceId = signalSourceId(experienceId, signal.id);

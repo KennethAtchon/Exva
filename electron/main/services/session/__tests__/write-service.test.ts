@@ -426,16 +426,21 @@ function insertExperienceSignal(
   const signalSourcesRepo = new SignalSourcesRepo(db);
   const experience = requireExperience(experienceId);
   const signal = experience.signals[0];
-  if (!signal) throw new Error(`${experienceId} has no signals`);
-  const sourceId = `${experienceId}/${signal.id}`;
+  const schedule = experience.schedules?.[0];
+  const entry = signal ?? schedule;
+  if (!entry) throw new Error(`${experienceId} has no signals or schedules`);
+  const sourceId = `${experienceId}/${entry.id}`;
   signalSourcesRepo.create({
     id: sourceId,
-    type: signal.sourceType,
+    type: signal?.sourceType ?? "timer",
     name: experience.displayName,
     description: null,
     enabled: true,
     experienceId,
-    configJson: JSON.stringify({ signalId: signal.id, symbol: signal.symbol }),
+    configJson: JSON.stringify({
+      signalId: entry.id,
+      symbol: entry.symbol,
+    }),
   });
   return { signalSourcesRepo, sourceId };
 }

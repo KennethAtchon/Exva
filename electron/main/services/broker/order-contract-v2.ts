@@ -59,7 +59,8 @@ export const ALPACA_CAPABILITIES: AdapterCapabilities = {
   supportsStop: true,
   supportsStopLimit: true,
   supportsBracket: true,
-  supportsStreaming: true,
+  // Poll-based OrderEventFeed only for now; flip true when trade_updates WS ships.
+  supportsStreaming: false,
   quantityKinds: ["notional_usd", "units"],
   timeInForce: ["day", "gtc", "ioc", "fok"],
   orderTypes: ["market", "limit", "stop", "stop_limit"],
@@ -209,4 +210,6 @@ export interface OrderEventFeed {
   start(): Promise<void>;
   stop(): Promise<void>;
   onEvent(handler: (event: OrderEvent) => void): () => void;
+  /** Optional: add more broker order ids to watch (poll feeds). */
+  watchOrders?(orderIds: readonly string[]): void;
 }

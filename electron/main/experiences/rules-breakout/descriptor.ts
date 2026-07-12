@@ -4,9 +4,9 @@ export const RULES_BREAKOUT_EXPERIENCE: ExperienceDescriptor = {
   id: "rules-breakout",
   displayName: "Rules: Momentum Breakout",
   description:
-    "Deterministic resistance-breakout entries on timer-polled crypto instruments. No LLM calls.",
+    "Deterministic resistance-breakout entries on scheduled crypto scans. No LLM calls.",
   capabilities: {
-    signalSourceTypes: ["timer"],
+    signalSourceTypes: [],
     brokerRequirement: "any_supported_class",
   },
   pipelineId: "rules-breakout-cycle",
@@ -33,15 +33,16 @@ export const RULES_BREAKOUT_EXPERIENCE: ExperienceDescriptor = {
     },
     costs: { spreadBps: 5, slippageBps: 8, commissionBps: 10 },
   },
-  signals: [
+  signals: [],
+  schedules: [
     {
       id: "btc-1h-breakout",
-      sourceType: "timer",
       instrumentClass: "crypto",
       symbol: "BTC-USD",
-      pollCadence: "1h",
+      cadence: "1h",
       defaultAnalysisTimeframe: "4h",
       enabledByDefault: true,
+      marketHours: "24_7",
       mockFixtures: {
         defaultScenario: "clean_breakout",
         scriptedWorkerOutputs: {},

@@ -6,7 +6,10 @@ import {
   requirePipelineDescriptor,
 } from "../../services/pipeline/implementations/registry/pipeline-router";
 import { ALL_PIPELINES } from "../../services/pipeline/implementations/registry/pipelines";
-import { signalDisplayName } from "@electron/shared/domain/signal-descriptor";
+import {
+  scheduleDisplayName,
+  signalDisplayName,
+} from "@electron/shared/domain/signal-descriptor";
 import { loadExperiencePresetBundle } from "../session-bootstrap";
 import { validateExperienceSourceEmissions } from "../validate-source-capabilities";
 import { EDGAR_CATALYST_EXPERIENCE } from "../edgar-catalyst/descriptor";
@@ -32,6 +35,7 @@ type DescriptorContract = {
   displayName: string;
   pipelineId: string;
   signalIds: string[];
+  scheduleIds: string[];
   signalSourceTypes: ExperienceDescriptor["capabilities"]["signalSourceTypes"];
   brokerRequirement: ExperienceDescriptor["capabilities"]["brokerRequirement"];
   defaultPresets: ExperienceDescriptor["defaultPresets"];
@@ -44,6 +48,7 @@ const SHIPPED_DESCRIPTOR_CONTRACTS: DescriptorContract[] = [
     displayName: "EDGAR Catalyst",
     pipelineId: "edgar-8k-cycle",
     signalIds: ["edgar-8k-catalyst"],
+    scheduleIds: [],
     signalSourceTypes: ["edgar_8k"],
     brokerRequirement: "any_supported_class",
     defaultPresets: {
@@ -58,8 +63,9 @@ const SHIPPED_DESCRIPTOR_CONTRACTS: DescriptorContract[] = [
     id: "rules-mean-reversion",
     displayName: "Rules: Mean Reversion",
     pipelineId: "rules-mean-reversion-cycle",
-    signalIds: ["spy-15m-meanrev", "qqq-15m-meanrev"],
-    signalSourceTypes: ["timer"],
+    signalIds: [],
+    scheduleIds: ["spy-15m-meanrev", "qqq-15m-meanrev"],
+    signalSourceTypes: [],
     brokerRequirement: "any_supported_class",
     defaultPresets: {
       posturePresetId: "manual_watchlist",
@@ -73,8 +79,9 @@ const SHIPPED_DESCRIPTOR_CONTRACTS: DescriptorContract[] = [
     id: "rules-trend-following",
     displayName: "Rules: Trend Following",
     pipelineId: "rules-trend-following-cycle",
-    signalIds: ["gc-4h-trend", "cl-4h-trend"],
-    signalSourceTypes: ["timer"],
+    signalIds: [],
+    scheduleIds: ["gc-4h-trend", "cl-4h-trend"],
+    signalSourceTypes: [],
     brokerRequirement: "any_supported_class",
     defaultPresets: {
       posturePresetId: "manual_watchlist",
@@ -88,8 +95,9 @@ const SHIPPED_DESCRIPTOR_CONTRACTS: DescriptorContract[] = [
     id: "rules-breakout",
     displayName: "Rules: Momentum Breakout",
     pipelineId: "rules-breakout-cycle",
-    signalIds: ["btc-1h-breakout"],
-    signalSourceTypes: ["timer"],
+    signalIds: [],
+    scheduleIds: ["btc-1h-breakout"],
+    signalSourceTypes: [],
     brokerRequirement: "any_supported_class",
     defaultPresets: {
       posturePresetId: "manual_watchlist",
@@ -104,6 +112,7 @@ const SHIPPED_DESCRIPTOR_CONTRACTS: DescriptorContract[] = [
     displayName: "Prediction Event Edge",
     pipelineId: "prediction-event-cycle",
     signalIds: ["prediction-event-edge"],
+    scheduleIds: [],
     signalSourceTypes: ["prediction_event"],
     brokerRequirement: "polymarket_broker",
     defaultPresets: {
@@ -117,15 +126,20 @@ const SHIPPED_DESCRIPTOR_CONTRACTS: DescriptorContract[] = [
 
 describe("experience descriptor contracts", () => {
   it.each(SHIPPED_DESCRIPTOR_CONTRACTS.map((c) => [c.id, c]))(
-    "%s declares id, displayName, pipelineId, signals, and capabilities",
+    "%s declares id, displayName, pipelineId, signals/schedules, and capabilities",
     (_id, contract) => {
       const { experience } = contract;
 
       expect(experience.id).toBe(contract.id);
       expect(experience.displayName).toBe(contract.displayName);
       expect(experience.pipelineId).toBe(contract.pipelineId);
-      expect(experience.signals.length).toBeGreaterThanOrEqual(1);
+      expect(
+        experience.signals.length + (experience.schedules?.length ?? 0),
+      ).toBeGreaterThanOrEqual(1);
       expect(experience.signals.map((s) => s.id)).toEqual(contract.signalIds);
+      expect((experience.schedules ?? []).map((s) => s.id)).toEqual(
+        contract.scheduleIds,
+      );
       expect(experience.capabilities.brokerRequirement).toBe(
         contract.brokerRequirement,
       );
@@ -189,11 +203,12 @@ describe("experience descriptor validation", () => {
     },
   );
 
-  it("rules-mean-reversion has cadence and timeframe distinct on each signal (I4)", () => {
-    for (const signal of RULES_MEAN_REVERSION_EXPERIENCE.signals) {
-      expect(signal.pollCadence).not.toBe(signal.defaultAnalysisTimeframe);
-      expect(signal.pollCadence).toBeTruthy();
-      expect(signal.defaultAnalysisTimeframe).toBeTruthy();
+  it("rules-mean-reversion has cadence and timeframe distinct on each schedule (I4)", () => {
+    for (const schedule of RULES_MEAN_REVERSION_EXPERIENCE.schedules ?? []) {
+      expect(schedule.cadence).not.toBe(schedule.defaultAnalysisTimeframe);
+      expect(schedule.cadence).toBeTruthy();
+      expect(schedule.defaultAnalysisTimeframe).toBeTruthy();
+      expect(schedule.symbol).toBeTruthy();
     }
   });
 
@@ -233,13 +248,19 @@ describe("pipeline automation invariant (I2)", () => {
   });
 });
 
-describe("signalDisplayName format", () => {
-  it("includes poll cadence and trading timeframe distinctly", () => {
-    const spy = RULES_MEAN_REVERSION_EXPERIENCE.signals[0];
-    if (!spy) throw new Error("Expected at least one signal");
-    const name = signalDisplayName(spy);
+describe("signalDisplayName / scheduleDisplayName format", () => {
+  it("includes poll cadence and trading timeframe distinctly for schedules", () => {
+    const spy = RULES_MEAN_REVERSION_EXPERIENCE.schedules?.[0];
+    if (!spy) throw new Error("Expected at least one schedule");
+    const name = scheduleDisplayName(spy);
     expect(name).toContain("polls every 15m");
     expect(name).toContain("trades on 1h bars");
-    expect(spy.pollCadence).not.toBe(spy.defaultAnalysisTimeframe);
+    expect(spy.cadence).not.toBe(spy.defaultAnalysisTimeframe);
+  });
+
+  it("still formats event-driven SignalDescriptors", () => {
+    const edgar = EDGAR_CATALYST_EXPERIENCE.signals[0];
+    if (!edgar) throw new Error("Expected edgar signal");
+    expect(signalDisplayName(edgar)).toContain("EDGAR 8-K");
   });
 });

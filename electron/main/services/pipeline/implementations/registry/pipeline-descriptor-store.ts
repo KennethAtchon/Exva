@@ -39,7 +39,8 @@ export interface PipelineStep {
 const DESCRIPTORS = new Map<string, PipelineDescriptor>();
 const PHASE_POOL = new Set<string>(PIPELINE_PHASES);
 
-const SHAREABLE_SIGNAL_SOURCES = new Set<SignalSourceType>(["timer"]);
+/** Sources that may appear on more than one pipeline. Empty: schedules replaced timer. */
+const SHAREABLE_SIGNAL_SOURCES = new Set<SignalSourceType>();
 
 const SIGNAL_PRODUCING_PHASES: readonly PipelinePhase[] = [
   "technical",

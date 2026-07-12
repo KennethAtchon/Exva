@@ -52,6 +52,41 @@ describe("placeRoutedOrder", () => {
     expect(result).toBeNull();
   });
 
+  it("returns null when adapter capabilities reject the order shape", async () => {
+    const ctx = createContext({
+      capabilities: {
+        supportsLimit: false,
+        supportsStop: false,
+        supportsStopLimit: false,
+        supportsBracket: true,
+        supportsStreaming: false,
+        quantityKinds: ["units"],
+        timeInForce: ["day"],
+        orderTypes: ["market"],
+      },
+    });
+    const trade = makeTrade();
+
+    const result = await placeRoutedOrder(
+      ctx,
+      trade,
+      "stock",
+      {
+        instrumentSymbol: "NVDA",
+        instrumentType: "stock",
+        side: "BUY",
+        sizeUsd: 500,
+      },
+      "cycle-1:trade-1",
+    );
+
+    expect(result).toBeNull();
+    expect(ctx.deps.logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: expect.stringContaining("quantity") }),
+      "order skipped: adapter does not support order shape",
+    );
+  });
+
   it("patches broker account id when routing resolves a different account", async () => {
     const ctx = createContext({ brokerAccountId: "broker-alt" });
     const trade = makeTrade();
@@ -110,9 +145,20 @@ function makeTrade(): Trade {
 function createContext(options?: {
   instrumentConflict?: boolean;
   brokerAccountId?: string;
+  capabilities?: {
+    supportsLimit: boolean;
+    supportsStop: boolean;
+    supportsStopLimit: boolean;
+    supportsBracket: boolean;
+    supportsStreaming: boolean;
+    quantityKinds: Array<"notional_usd" | "units">;
+    timeInForce: Array<"day" | "gtc" | "ioc" | "fok">;
+    orderTypes: Array<"market" | "limit" | "stop" | "stop_limit">;
+  };
 }) {
   const adapter = {
     brokerType: "mock" as const,
+    capabilities: options?.capabilities,
     placeOrder: vi.fn(async () => ({
       brokerOrderId: "mock-order-1",
       filledAvgPrice: 185.5,

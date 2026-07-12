@@ -19,7 +19,7 @@ export const OPTIONS_FLOW_EDGE_EXPERIENCE: ExperienceDescriptor = {
   description:
     "Detects unusual options activity (volume >> open interest with directional skew) on liquid underlyings and trades the resulting directional read. Deterministic; no LLM calls in v1.",
   capabilities: {
-    signalSourceTypes: ["timer"],
+    signalSourceTypes: [],
     brokerRequirement: "any_supported_class",
   },
   pipelineId: "options-flow-cycle",
@@ -48,15 +48,16 @@ export const OPTIONS_FLOW_EDGE_EXPERIENCE: ExperienceDescriptor = {
     // low, but the signal still has to clear a real hurdle.
     costs: { spreadBps: 2, slippageBps: 3, commissionBps: 0 },
   },
-  signals: [
+  signals: [],
+  schedules: [
     {
       id: "aapl-options-flow",
-      sourceType: "timer",
       instrumentClass: "stock",
       symbol: "AAPL",
-      pollCadence: "15m",
+      cadence: "15m",
       defaultAnalysisTimeframe: "1d",
       enabledByDefault: false,
+      marketHours: "regular",
       mockFixtures: {
         defaultScenario: "clean_breakout",
         scriptedWorkerOutputs: {},
@@ -64,12 +65,12 @@ export const OPTIONS_FLOW_EDGE_EXPERIENCE: ExperienceDescriptor = {
     },
     {
       id: "nvda-options-flow",
-      sourceType: "timer",
       instrumentClass: "stock",
       symbol: "NVDA",
-      pollCadence: "15m",
+      cadence: "15m",
       defaultAnalysisTimeframe: "1d",
       enabledByDefault: false,
+      marketHours: "regular",
       mockFixtures: {
         defaultScenario: "clean_breakout",
         scriptedWorkerOutputs: {},

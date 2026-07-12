@@ -36,7 +36,7 @@ describe("SignalSourceRegistry", () => {
     return new SignalSourceRegistry(db, bus);
   }
 
-  it("instantiates timer sources and exposes runtime snapshots", async () => {
+  it("loads deprecated timer as a non-emitting schedule identity stub", async () => {
     const registry = createRegistry();
     const record = new SignalSourcesRepo(db).create({
       id: "timer-runtime",
@@ -50,9 +50,12 @@ describe("SignalSourceRegistry", () => {
     registry.create(record);
     await registry.start(record.id);
 
-    expect(registry.status(record.id)).toMatchObject({ status: "running" });
-    expect(await registry.test(record.id)).toMatchObject({ passed: 1 });
-    expect(registry.snapshot(record.id)?.lastSignalTicker).toBe("SPY");
+    expect(registry.status(record.id)).toMatchObject({ status: "idle" });
+    expect(await registry.test(record.id)).toMatchObject({
+      passed: 0,
+      errors: expect.arrayContaining([expect.stringMatching(/schedule/i)]),
+    });
+    expect(registry.snapshot(record.id)?.lastSignalTicker).toBeNull();
 
     await registry.stop(record.id);
     expect(registry.status(record.id)?.status).toBe("paused");

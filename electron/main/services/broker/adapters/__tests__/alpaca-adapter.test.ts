@@ -566,4 +566,20 @@ describe("AlpacaAdapter", () => {
     });
     expect(orderBody).not.toHaveProperty("notional");
   });
+
+  it("createOrderEventFeed returns a feed that starts and stops", async () => {
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+    expect(adapter.capabilities.supportsStreaming).toBe(false);
+
+    const feed = adapter.createOrderEventFeed();
+    expect(feed).toBeDefined();
+    expect(typeof feed.start).toBe("function");
+    expect(typeof feed.stop).toBe("function");
+    expect(typeof feed.onEvent).toBe("function");
+    expect(typeof feed.watchOrders).toBe("function");
+
+    await expect(feed.start()).resolves.toBeUndefined();
+    feed.watchOrders?.(["alpaca-order-1"]);
+    await expect(feed.stop()).resolves.toBeUndefined();
+  });
 });

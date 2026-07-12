@@ -74,6 +74,7 @@ describe("createRulesScheduledScan", () => {
     expect(sig.payload.proposedAction).toBe("buy");
     expect(sig.payload.strategyId).toBe("mean-reversion");
     expect(sig.payload.evidence.zScore).toBeLessThan(-2);
+    expect(sig.payload.evidence.strength).toBeGreaterThan(0.5);
     expect(sig.payload.barWindowHash).toMatch(/^[a-f0-9]{16}$/);
     expect(sig.symbols).toEqual(["SPY"]);
     expect(sig.sourceId).toBe("rules-mean-reversion/spy-15m-meanrev");

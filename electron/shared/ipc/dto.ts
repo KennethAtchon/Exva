@@ -81,6 +81,13 @@ export interface ExperienceSummary {
     timeframePresetId: string;
   };
   capabilities: ExperienceCapabilities;
+  /** Schedule identities (rules experiences); empty for event-driven experiences. */
+  schedules?: Array<{
+    id: string;
+    symbol: string;
+    cadence: string;
+    instrumentClass: string;
+  }>;
 }
 
 export interface ExperienceScorecardSummary {

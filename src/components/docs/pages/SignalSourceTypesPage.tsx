@@ -7,7 +7,9 @@ export function SignalSourceTypesPage() {
         Signal sources are global resources. Create them on the Signals page,
         enable them, then subscribe sessions during session creation or editing.
         Disabling a source keeps subscriptions intact but moves subscribed
-        sessions to a waiting state.
+        sessions to a waiting state. Rules experiences use{" "}
+        <DocLink to="timer-signals">schedules</DocLink> (SessionScheduler), not
+        a creatable timer source type.
       </DocParagraph>
       <DocTable
         headers={["Type", "Description", "Typical use"]}
@@ -19,14 +21,6 @@ export function SignalSourceTypesPage() {
               <DocLink to="edgar-overview">EDGAR docs</DocLink>.
             </>,
             "EDGAR Catalyst experience.",
-          ],
-          [
-            "timer",
-            <>
-              Emits on a fixed cadence for a configured symbol. See{" "}
-              <DocLink to="timer-signals">Timer signals</DocLink>.
-            </>,
-            "Rules-based strategies (mean reversion, momentum, trend).",
           ],
           [
             "manual",
@@ -56,8 +50,16 @@ export function SignalSourceTypesPage() {
             </>,
           ],
           [
+            "timer",
+            <>
+              Deprecated DB identity for schedules — not a creatable source. See{" "}
+              <DocLink to="timer-signals">Schedules (was timer)</DocLink>.
+            </>,
+            "Rules experiences via SessionScheduler.",
+          ],
+          [
             "web_search",
-            "Deprecated — kept for DB compatibility only. Cannot be created or started; use edgar_8k, timer, or prediction_event instead.",
+            "Deleted as a source — kept for DB compatibility only. Cannot be created or started.",
             "Removed from the product surface.",
           ],
         ]}

@@ -40,7 +40,10 @@ export function SignalSourcesPage() {
       const next = await api.listSignalSources();
       setSources(
         next.sources.filter(
-          (source) => source.type !== "manual" && source.type !== "web_search",
+          (source) =>
+            source.type !== "manual" &&
+            source.type !== "web_search" &&
+            source.type !== "timer",
         ),
       );
     } catch (err) {
@@ -819,7 +822,7 @@ function describeSourceType(type: Source["type"]): string {
     return "Synthetic filing-style signals for rehearsal.";
   }
   if (type === "timer") {
-    return "Clock-driven ticks for rules engines.";
+    return "Schedule identity (deprecated) — SessionScheduler owns cadence.";
   }
   if (type === "prediction_event") {
     return "Prediction-market odds and volume dislocations.";

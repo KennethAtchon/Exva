@@ -6,7 +6,6 @@ import type {
   ApprovalSummary,
   BrokerAccount,
   BrokerAccountWithState,
-  BrokerCredentials,
   BrokerRoutingDefault,
   ConnectionTestResult,
   CostBreakdown,
@@ -18,7 +17,6 @@ import type {
   ProviderAccount,
   SessionRiskConfig,
   SessionTradeRules,
-  SessionStrategy,
   SessionStatus,
   SessionTemplatePayload,
   SessionTimeframeConfig,
@@ -308,11 +306,6 @@ export const api = {
   }): Promise<{ savedAt: string }> =>
     bridge().strategy.saveWorkspaceDefaultModel(input),
 
-  getStrategyConfig: (): Promise<SessionStrategy> =>
-    bridge().config.getStrategy(),
-  saveStrategyConfig: (cfg: SessionStrategy): Promise<void> =>
-    bridge().config.saveStrategy(cfg),
-
   listSignalSources: (): Promise<{
     sources: Array<
       SignalSourceRecord & {
@@ -338,7 +331,7 @@ export const api = {
     >;
   }> => bridge().signals.listSources(),
   createSignalSource: (input: {
-    type: "edgar_8k" | "manual" | "prediction_event" | "mock" | "timer";
+    type: "edgar_8k" | "manual" | "prediction_event" | "mock";
     name: string;
     description?: string | null;
     config?: Record<string, unknown>;
@@ -402,11 +395,6 @@ export const api = {
       | "no_inputs";
   }> => bridge().signals.getSessionReadiness(input),
 
-  addBrokerAccount: (creds: BrokerCredentials): Promise<ConnectionTestResult> =>
-    bridge().accounts.saveBroker(creds),
-  testBrokerConnection: (): Promise<ConnectionTestResult> =>
-    bridge().accounts.testBroker(),
-  removeBrokerAccount: (): Promise<void> => bridge().accounts.removeBroker(),
   saveApiKey: (keyType: string, value: string): Promise<void> =>
     bridge().accounts.saveApiKey(keyType, value),
   listProviders: (): Promise<{ providers: ProviderAccount[] }> =>

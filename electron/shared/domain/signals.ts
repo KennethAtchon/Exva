@@ -1,15 +1,38 @@
-export type SignalSourceType =
+export type LiveSignalSourceType =
   | "edgar_8k"
-  | "web_search"
   | "manual"
   | "mock"
-  | "timer"
   | "prediction_event";
 
+/** Persisted identity / dual-read only — not creatable or startable. */
+export type DeprecatedSignalSourceType = "timer" | "web_search";
+
+/** Persisted + dual-read; includes deprecated DB values. */
+export type SignalSourceType =
+  | LiveSignalSourceType
+  | DeprecatedSignalSourceType;
+
+const LIVE_SIGNAL_SOURCE_TYPES = new Set<string>([
+  "edgar_8k",
+  "manual",
+  "mock",
+  "prediction_event",
+]);
+
+const DEPRECATED_SIGNAL_SOURCE_TYPES = new Set<string>(["timer", "web_search"]);
+
+export function isLiveSignalSourceType(t: string): t is LiveSignalSourceType {
+  return LIVE_SIGNAL_SOURCE_TYPES.has(t);
+}
+
+export function isDeprecatedSignalSourceType(
+  t: string,
+): t is DeprecatedSignalSourceType {
+  return DEPRECATED_SIGNAL_SOURCE_TYPES.has(t);
+}
+
 /**
- * Formerly true for `web_search`. That source type is deprecated (kept in the
- * union for DB compat only) — always false so UI/session logic treats nothing
- * as search-style discovery.
+ * Formerly true for `web_search`. Deprecated sources are never search-style.
  */
 export function isSearchStyleSignalSourceType(type: SignalSourceType): boolean {
   void type;
@@ -19,12 +42,8 @@ export function isSearchStyleSignalSourceType(type: SignalSourceType): boolean {
 export function isSelfDescribingSignalSourceType(
   type: SignalSourceType,
 ): boolean {
-  return (
-    type !== "web_search" &&
-    type !== "manual" &&
-    type !== "timer" &&
-    type !== "prediction_event"
-  );
+  if (isDeprecatedSignalSourceType(type)) return false;
+  return type !== "manual" && type !== "prediction_event";
 }
 
 /** True when the session must carry manual tickers / instrument scope. */

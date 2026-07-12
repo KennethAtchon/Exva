@@ -30,8 +30,8 @@ export function CoreConceptsPage() {
           [
             "Signal",
             <>
-              An external event Exva can react to: an SEC filing, timer tick,
-              prediction-market dislocation, or synthetic test event.
+              An external event Exva can react to: an SEC filing, schedule
+              scan_hit, prediction-market dislocation, or synthetic test event.
             </>,
           ],
           [

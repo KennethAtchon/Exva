@@ -22,27 +22,4 @@ describe("BrokerService", () => {
       realizedPnlUsd: 42.5,
     });
   });
-
-  it("returns legacy deprecation responses for removed Alpaca-only flows", async () => {
-    const service = new BrokerService({
-      get: vi.fn(),
-    } as unknown as BrokerRegistry);
-
-    await expect(
-      service.saveBroker({
-        provider: "alpaca",
-        api_key: "k",
-        secret_key: "s",
-        mode: "paper",
-      }),
-    ).resolves.toMatchObject({
-      ok: false,
-      message: expect.stringContaining("Add broker"),
-    });
-    await expect(service.testConnection()).resolves.toMatchObject({
-      ok: false,
-      message: expect.stringContaining("specific broker account"),
-    });
-    await expect(service.removeBroker()).resolves.toBeUndefined();
-  });
 });

@@ -87,7 +87,7 @@ export function ExperiencesPage() {
           [
             "Rules: Mean Reversion",
             <>
-              <DocInlineCode>timer</DocInlineCode> — SPY · polls every 15m ·
+              <DocInlineCode>schedule</DocInlineCode> — SPY · polls every 15m ·
               trades on 1h bars, QQQ · polls every 15m · trades on 1h bars
             </>,
             "Stocks",
@@ -96,7 +96,7 @@ export function ExperiencesPage() {
           [
             "Rules: Trend Following",
             <>
-              <DocInlineCode>timer</DocInlineCode> — GC · polls every 4h ·
+              <DocInlineCode>schedule</DocInlineCode> — GC · polls every 4h ·
               trades on 4h bars, CL · polls every 4h · trades on 4h bars
             </>,
             "Futures",
@@ -105,8 +105,8 @@ export function ExperiencesPage() {
           [
             "Rules: Momentum Breakout",
             <>
-              <DocInlineCode>timer</DocInlineCode> — BTC-USD · polls every 1h ·
-              trades on 4h bars
+              <DocInlineCode>schedule</DocInlineCode> — BTC-USD · polls every 1h
+              · trades on 4h bars
             </>,
             "Crypto",
             "Deterministic resistance breakout",
@@ -138,17 +138,18 @@ export function ExperiencesPage() {
       </DocParagraph>
 
       <DocHeading id="rules" level={2}>
-        Rule-based experiences (timer)
+        Rule-based experiences (schedules)
       </DocHeading>
       <DocParagraph>
         The mean-reversion, trend-following, and momentum-breakout experiences
         are <DocStrong>rule-based</DocStrong>: a{" "}
-        <DocLink to="timer-signals">timer source</DocLink> fires on a fixed
-        cadence per symbol, and a deterministic engine computes the setup from
-        OHLCV data with no LLM involvement. The signal is the timer tick; the
-        &quot;edge&quot; is the rule math. Each experience offers multiple
-        symbols as toggleable signals — enabling both SPY and QQQ in one session
-        runs the same mean-reversion pipeline for each independently.
+        <DocLink to="timer-signals">schedule</DocLink> runs on a fixed cadence
+        per symbol, and a deterministic engine computes the setup from OHLCV
+        data with no LLM involvement. Quiet ticks emit nothing; setups emit{" "}
+        <DocInlineCode>scan_hit</DocInlineCode>. Each experience offers multiple
+        symbols as toggleable schedule identities — enabling both SPY and QQQ in
+        one session runs the same mean-reversion pipeline for each
+        independently.
       </DocParagraph>
       <DocTable
         headers={["Experience", "Signals (toggleable)", "Engine"]}

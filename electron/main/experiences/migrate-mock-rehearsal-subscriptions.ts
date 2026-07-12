@@ -56,9 +56,14 @@ export function migrateEligibleSessionsToMockRehearsal(deps: {
 
     // Session is on mock rehearsal candidate if ALL subscribed sources are
     // experience-owned signal sources for this experience.
-    const experienceSignalSourceIds = new Set(
-      experience.signals.map((s) => signalSourceId(session.experienceId, s.id)),
-    );
+    const experienceSignalSourceIds = new Set([
+      ...experience.signals.map((s) =>
+        signalSourceId(session.experienceId, s.id),
+      ),
+      ...(experience.schedules ?? []).map((s) =>
+        signalSourceId(session.experienceId, s.id),
+      ),
+    ]);
     const onlyExperienceSources =
       subscribedSourceIds.length > 0 &&
       subscribedSourceIds.every((id) => experienceSignalSourceIds.has(id));

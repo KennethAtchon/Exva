@@ -10,7 +10,6 @@ import type { ISignalSource, SignalSourceSnapshot } from "./ISignalSource";
 import { CikTickerCache } from "./cache/cik-ticker-cache";
 import { EdgarSignalSource } from "./sources/edgar-signal-source";
 import { MockSignalSource } from "./sources/mock-signal-source";
-import { TimerSignalSource } from "./sources/timer-signal-source";
 import { PredictionEventSignalSource } from "./sources/prediction-event-signal-source";
 import { SignalBus } from "./signal-bus";
 
@@ -30,7 +29,7 @@ class DeprecatedWebSearchStub implements ISignalSource {
   async start(): Promise<void> {
     this.status = "error";
     this.lastError =
-      "web_search signal source is deprecated; delete this source and use edgar_8k, timer, or prediction_event";
+      "web_search signal source is deprecated; delete this source and use edgar_8k, mock, or prediction_event";
   }
 
   async stop(): Promise<void> {
@@ -70,6 +69,64 @@ class DeprecatedWebSearchStub implements ISignalSource {
 
   configuredInstrumentClasses(): InstrumentClass[] {
     return ["stock"];
+  }
+}
+
+/**
+ * DB-compat stub for deprecated `timer` rows (schedule identity). Never emits;
+ * SessionScheduler owns cadence. New creates are blocked in createSource.
+ */
+class DeprecatedTimerStub implements ISignalSource {
+  readonly type = "timer" as const;
+  status: SignalSourceRuntimeStatus = "idle";
+  lastError: string | null =
+    "timer is a schedule identity, not a runnable signal source";
+
+  constructor(public readonly id: string) {}
+
+  async start(): Promise<void> {
+    this.status = "idle";
+    this.lastError =
+      "timer rows are schedule identities; SessionScheduler owns cadence";
+  }
+
+  async stop(): Promise<void> {
+    this.status = "paused";
+  }
+
+  async restart(_config: Record<string, unknown>): Promise<void> {
+    void _config;
+    await this.start();
+  }
+
+  async test(): Promise<PollResult> {
+    return {
+      detected: 0,
+      passed: 0,
+      dropped: 0,
+      errors: [this.lastError ?? "timer is a schedule, not a source"],
+    };
+  }
+
+  snapshot(): SignalSourceSnapshot {
+    return {
+      lastPollAt: null,
+      lastPollResult: null,
+      lastSignalAt: null,
+      lastSignalTicker: null,
+      recentActivity: [],
+    };
+  }
+
+  onSignal(handler: (event: SignalEvent) => void): void {
+    void handler;
+  }
+  offSignal(handler: (event: SignalEvent) => void): void {
+    void handler;
+  }
+
+  configuredInstrumentClasses(): InstrumentClass[] {
+    return [];
   }
 }
 
@@ -156,7 +213,7 @@ export class SignalSourceRegistry {
       return new MockSignalSource(record.id, record.configJson);
     }
     if (record.type === "timer") {
-      return new TimerSignalSource(record.id, record.configJson);
+      return new DeprecatedTimerStub(record.id);
     }
     if (record.type === "prediction_event") {
       return new PredictionEventSignalSource(record.id, record.configJson);

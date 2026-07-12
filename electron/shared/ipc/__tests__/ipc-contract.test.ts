@@ -43,7 +43,6 @@ const EXPECTED_HANDLER_REGISTRARS = [
   "registerStrategyHandlers",
   "registerWorkspaceHandlers",
   "registerTemplateHandlers",
-  "registerConfigHandlers",
   "registerAccountHandlers",
   "registerBrokerAccountHandlers",
   "registerEventHandlers",

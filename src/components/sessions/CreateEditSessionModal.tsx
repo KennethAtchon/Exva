@@ -369,19 +369,27 @@ export const CreateEditSessionModal = ({
         : false,
     [assignedBrokerIds, mockRehearsalBrokers, selectedExperience],
   );
-  const compatibleSignalSources = useMemo(
-    () =>
-      (selectedExperience
+  const compatibleSignalSources = useMemo(() => {
+    const acceptsScanHit = (selectedExperience?.schedules?.length ?? 0) > 0;
+    return (
+      selectedExperience
         ? signalSources.filter((source) =>
             sourceIsCompatibleWithExperience(
               source.type,
               selectedExperience.capabilities.signalSourceTypes,
+              { acceptsScanHit },
             ),
           )
         : signalSources
-      ).filter((source) => source.type !== "web_search"),
-    [selectedExperience, signalSources],
-  );
+    ).filter((source) => {
+      if (source.type === "web_search") return false;
+      // Schedule identities only for experiences that declare schedules.
+      if (source.type === "timer") {
+        return acceptsScanHit && source.experienceId === selectedExperience?.id;
+      }
+      return true;
+    });
+  }, [selectedExperience, signalSources]);
   const subscribedSources = useMemo(
     () =>
       subscribedSourceIds.flatMap((sourceId) => {
@@ -576,12 +584,23 @@ export const CreateEditSessionModal = ({
                         );
                         const matchingSourceIds = experience
                           ? signalSources
-                              .filter((source) =>
-                                sourceIsCompatibleWithExperience(
-                                  source.type,
-                                  experience.capabilities.signalSourceTypes,
-                                ),
-                              )
+                              .filter((source) => {
+                                const acceptsScanHit =
+                                  (experience.schedules?.length ?? 0) > 0;
+                                if (
+                                  !sourceIsCompatibleWithExperience(
+                                    source.type,
+                                    experience.capabilities.signalSourceTypes,
+                                    { acceptsScanHit },
+                                  )
+                                ) {
+                                  return false;
+                                }
+                                if (source.type === "timer") {
+                                  return source.experienceId === experience.id;
+                                }
+                                return source.type !== "web_search";
+                              })
                               .map((source) => source.id)
                           : [];
                         const preferredSourceId = experience
@@ -650,9 +669,14 @@ export const CreateEditSessionModal = ({
                     {selectedExperience ? (
                       <div className={inlineHintClass}>
                         Signal sources:{" "}
-                        {selectedExperience.capabilities.signalSourceTypes.join(
-                          ", ",
-                        )}
+                        {selectedExperience.capabilities.signalSourceTypes
+                          .length > 0
+                          ? selectedExperience.capabilities.signalSourceTypes.join(
+                              ", ",
+                            )
+                          : (selectedExperience.schedules?.length ?? 0) > 0
+                            ? "schedules (scan_hit)"
+                            : "—"}
                         .
                         {EXPERIENCE_HELP_IDS[
                           selectedExperience.id as keyof typeof EXPERIENCE_HELP_IDS
@@ -920,7 +944,14 @@ export const CreateEditSessionModal = ({
                     {sessionSubscribedToMockRehearsal(subscribedSources)
                       ? "Mock rehearsal listens via synthetic filings. Instruments come from the fired signal — not from a manual ticker list."
                       : selectedExperience
-                        ? `${selectedExperience.displayName} listens via ${formatSignalSourceTypeLabel(selectedExperience.capabilities.signalSourceTypes[0] ?? "manual")}. Instruments come from the signal feed — not from a manual ticker list.`
+                        ? `${selectedExperience.displayName} listens via ${
+                            (selectedExperience.schedules?.length ?? 0) > 0
+                              ? "schedules (scan_hit)"
+                              : formatSignalSourceTypeLabel(
+                                  selectedExperience.capabilities
+                                    .signalSourceTypes[0] ?? "manual",
+                                )
+                          }. Instruments come from the signal feed — not from a manual ticker list.`
                         : "Automatic listener — nothing to configure."}
                   </div>
                 )}

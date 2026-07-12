@@ -24,7 +24,7 @@ function closesWithLastZScore(lastZScore: number) {
 
 describe("computeMeanReversionSignal", () => {
   it.each([0, 19])(
-    "skips with low confidence when %i closes cannot form a 20-bar z-score",
+    "skips with low strength when %i closes cannot form a 20-bar z-score",
     (count) => {
       const signal = computeMeanReversionSignal({
         symbol: "SPY",
@@ -33,6 +33,7 @@ describe("computeMeanReversionSignal", () => {
       });
 
       expect(signal.action).toBe("skip");
+      expect(signal.strength).toBe(0.2);
       expect(signal.confidence).toBe(0.2);
       expect(signal.executionStrategy).toBe("mean_reversion");
       expect(tradeSignalSchema.parse(signal)).toEqual(signal);
@@ -60,7 +61,8 @@ describe("computeMeanReversionSignal", () => {
     });
 
     expect(signal.action).toBe("buy");
-    expect(signal.confidence).toBeGreaterThan(0.5);
+    expect(signal.strength).toBeGreaterThan(0.5);
+    expect(signal.confidence).toBe(signal.strength);
     expect(signal.reasoning).toContain("mean-reversion buy");
     expect(tradeSignalSchema.parse(signal)).toEqual(signal);
   });
@@ -87,7 +89,7 @@ describe("computeMeanReversionSignal", () => {
     expect(signal.reasoning).toContain("not extended enough");
   });
 
-  it("clamps extreme mean-reversion confidence at 0.95", () => {
+  it("clamps extreme mean-reversion strength at 0.95", () => {
     const signal = computeMeanReversionSignal({
       symbol: "QQQ",
       ohlcv: [...flatCloses(100, 19), { close: 1 }],
@@ -95,6 +97,7 @@ describe("computeMeanReversionSignal", () => {
     });
 
     expect(signal.action).toBe("buy");
+    expect(signal.strength).toBe(0.95);
     expect(signal.confidence).toBe(0.95);
   });
 
@@ -128,6 +131,7 @@ describe("computeMeanReversionSignal", () => {
     });
 
     expect(signal.action).toBe("skip");
+    expect(signal.strength).toBe(0);
     expect(signal.confidence).toBe(0);
     expect(signal.reasoning).toContain("Z-score 0.00");
   });

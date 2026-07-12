@@ -3,6 +3,7 @@ import type { TradesRepo } from "../../../db/repositories/trades/trades-repo";
 import type { SessionStrategyContextService } from "../../session/session-strategy-context-service";
 import type { BrokerRegistry } from "../../broker/broker-registry";
 import type { EventBus } from "../../infra/event-bus";
+import { createLogger } from "../../infra/log";
 import type { SessionRepo } from "../../../db/repositories/sessions/session-repo";
 import type { CapitalReservationService } from "../../risk/capital-reservation-service";
 import type { HoldingStyle, InstrumentClass } from "@/lib/types";
@@ -17,7 +18,12 @@ import {
 } from "@electron/shared/instruments/trade-exit-analytics";
 import { runWithProviderCallScopeAsync } from "../../infra/provider-call-log";
 import { createPollOrderEventFeed } from "../../broker/order-event-feed";
-import type { OrderEventFeed } from "../../broker/order-contract-v2";
+import type {
+  OrderEvent,
+  OrderEventFeed,
+} from "../../broker/order-contract-v2";
+
+const logger = createLogger("trade-monitor");
 
 const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
   multi_day_swing: 60_000,
@@ -36,6 +42,8 @@ export class TradeMonitor {
   private readonly exitEvaluator = new ExitPolicyEvaluator();
   /** Optional order-event feeds keyed by broker account (stream or poll). */
   private readonly orderFeeds = new Map<string, OrderEventFeed>();
+  /** Accounts that already have an onEvent handler registered (avoid duplicates). */
+  private readonly feedHandlerUnsubs = new Map<string, () => void>();
 
   constructor(
     private readonly sessionId: string,
@@ -65,6 +73,8 @@ export class TradeMonitor {
   stop(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    for (const unsub of this.feedHandlerUnsubs.values()) unsub();
+    this.feedHandlerUnsubs.clear();
     for (const feed of this.orderFeeds.values()) {
       void feed.stop();
     }
@@ -80,14 +90,72 @@ export class TradeMonitor {
     orderIds: readonly string[],
   ): Promise<OrderEventFeed> {
     const existing = this.orderFeeds.get(brokerAccountId);
-    if (existing) return existing;
+    if (existing) {
+      existing.watchOrders?.(orderIds);
+      return existing;
+    }
     const adapter = await this.brokerRegistry.get(brokerAccountId);
     const feed =
       adapter.createOrderEventFeed?.() ??
       createPollOrderEventFeed(adapter, orderIds, this.pollIntervalMs);
+    feed.watchOrders?.(orderIds);
     this.orderFeeds.set(brokerAccountId, feed);
     await feed.start();
     return feed;
+  }
+
+  private async syncOrderEventFeeds(
+    openTrades: ReturnType<TradesRepo["listOpenAndPending"]>,
+  ): Promise<void> {
+    const byAccount = new Map<string, string[]>();
+    for (const trade of openTrades) {
+      if (!trade.brokerAccountId || !trade.broker_order_id) continue;
+      const list = byAccount.get(trade.brokerAccountId) ?? [];
+      list.push(trade.broker_order_id);
+      byAccount.set(trade.brokerAccountId, list);
+    }
+
+    for (const [brokerAccountId, orderIds] of byAccount) {
+      try {
+        const feed = await this.ensureOrderEventFeed(brokerAccountId, orderIds);
+        if (!this.feedHandlerUnsubs.has(brokerAccountId)) {
+          const unsub = feed.onEvent((event) =>
+            this.onOrderEvent(brokerAccountId, event),
+          );
+          this.feedHandlerUnsubs.set(brokerAccountId, unsub);
+        }
+      } catch (err) {
+        logger.warn(
+          { err, sessionId: this.sessionId, brokerAccountId },
+          "failed to ensure order event feed",
+        );
+      }
+    }
+  }
+
+  private onOrderEvent(brokerAccountId: string, event: OrderEvent): void {
+    if (
+      event.kind !== "fill" &&
+      event.kind !== "canceled" &&
+      event.kind !== "rejected" &&
+      event.kind !== "partial_fill"
+    ) {
+      return;
+    }
+    logger.info(
+      {
+        sessionId: this.sessionId,
+        brokerAccountId,
+        brokerOrderId: event.brokerOrderId,
+        kind: event.kind,
+        filledAvgPrice: event.filledAvgPrice,
+        realizedPnlUsd: event.realizedPnlUsd,
+        message: event.message,
+      },
+      "order event feed update",
+    );
+    // Terminal fill/cancel/reject: nudge a re-check via the next poll tick's
+    // getOrderStatus path. We do not close here to avoid racing exit policy.
   }
 
   private async tick(): Promise<void> {
@@ -96,6 +164,8 @@ export class TradeMonitor {
       .filter((trade) => trade.status === "open");
     const strategyContext = this.strategyContextService.get(this.sessionId);
     this.ensurePollInterval(strategyContext.timeframe);
+
+    await this.syncOrderEventFeeds(openTrades);
 
     await this.enforceMaxHoldDays(
       openTrades,

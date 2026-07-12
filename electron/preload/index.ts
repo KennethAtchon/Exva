@@ -16,7 +16,6 @@ import {
   approveTradeSchema,
   brokerAccountAddSchema,
   brokerAccountIdSchema,
-  brokerCredentialsSchema,
   brokerRoutingUpdateSchema,
   brokerTestEphemeralSchema,
   eventFiltersSchema,
@@ -26,7 +25,6 @@ import {
   providerAccountTestSchema,
   apiCallLogFiltersSchema,
   cycleIdSchema,
-  sessionConfigSchema,
   strategyRiskConfigSaveSchema,
   strategyRulesSaveSchema,
   strategyResearchPostureSaveSchema,
@@ -268,19 +266,7 @@ const exva: ExvaApi = {
     buildPayloadFromSession: (sessionId) =>
       invoke(channels.templates.buildPayloadFromSession, { sessionId }),
   },
-  config: {
-    getStrategy: () => invoke(channels.config.getStrategy),
-    saveStrategy: (config) =>
-      invoke(channels.config.saveStrategy, sessionConfigSchema.parse(config)),
-  },
   accounts: {
-    saveBroker: (credentials) =>
-      invoke(
-        channels.accounts.saveBroker,
-        brokerCredentialsSchema.parse(credentials),
-      ),
-    testBroker: () => invoke(channels.accounts.testBroker),
-    removeBroker: () => invoke(channels.accounts.removeBroker),
     saveApiKey: (keyType, value) =>
       invoke(
         channels.accounts.saveApiKey,

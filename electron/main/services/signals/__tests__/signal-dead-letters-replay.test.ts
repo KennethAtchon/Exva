@@ -28,16 +28,16 @@ describe("SignalService replayDeadLetter", () => {
         id: "test-multi-class-rules",
         displayName: "Test multi-class rules",
         capabilities: {
-          signalSourceTypes: ["timer"],
+          signalSourceTypes: [],
           brokerRequirement: "any_supported_class",
         },
-        signals: [
+        signals: [],
+        schedules: [
           {
             id: "es-15m-test",
-            sourceType: "timer",
             instrumentClass: "stock",
             symbol: "ES",
-            pollCadence: "15m",
+            cadence: "15m",
             defaultAnalysisTimeframe: "1h",
             enabledByDefault: true,
             mockFixtures: {
@@ -108,7 +108,12 @@ describe("SignalService replayDeadLetter", () => {
       companyName: null,
       documentUrl: null,
       accessionNumber: null,
-      payloadJson: { instrumentClass: "futures", cadence: "15m" },
+      payloadJson: {
+        instrumentClass: "futures",
+        kind: "scan_hit",
+        cadence: "15m",
+      },
+      kind: "scan_hit",
       filedAt: new Date().toISOString(),
       detectedAt: new Date().toISOString(),
     };
