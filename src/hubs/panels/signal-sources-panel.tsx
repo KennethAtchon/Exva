@@ -26,15 +26,36 @@ type ConfigureState = {
   minFilingAgeMinutes: string;
 };
 
-export function SignalSourcesPage() {
+export function SignalSourcesPage({
+  embedded = false,
+  hideHeader = false,
+  addOpenExternal,
+  onAddOpenChange,
+}: {
+  /** Hub pane: drop page chrome, soft-refresh without skeleton flash. */
+  embedded?: boolean;
+  hideHeader?: boolean;
+  /** When set with onAddOpenChange, Add dialog is controlled by hub actions. */
+  addOpenExternal?: boolean;
+  onAddOpenChange?: (open: boolean) => void;
+} = {}) {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
+  const [addOpenInternal, setAddOpenInternal] = useState(false);
   const [configure, setConfigure] = useState<ConfigureState | null>(null);
 
-  const load = async () => {
-    setLoading(true);
+  const addControlled = onAddOpenChange != null;
+  const addOpen = addControlled ? Boolean(addOpenExternal) : addOpenInternal;
+  const setAddOpen = (open: boolean) => {
+    if (onAddOpenChange) onAddOpenChange(open);
+    else setAddOpenInternal(open);
+  };
+
+  const load = async (opts?: { soft?: boolean }) => {
+    if (!opts?.soft) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const next = await api.listSignalSources();
@@ -50,38 +71,57 @@ export function SignalSourcesPage() {
     void load();
   }, []);
 
-  useExvaEvent("signal_received", () => void load());
-  useExvaEvent("signal_delivery_updated", () => void load());
+  useExvaEvent("signal_received", () => void load({ soft: true }));
+  useExvaEvent("signal_delivery_updated", () => void load({ soft: true }));
+
+  const showHeader = !embedded && !hideHeader;
 
   return (
-    <div className="hub-panel-body flex flex-col gap-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
-            SOURCES
+    <div
+      className={
+        embedded ? "flex flex-col gap-3" : "hub-panel-body flex flex-col gap-5"
+      }
+    >
+      {showHeader ? (
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
+              SOURCES
+            </div>
+            <h1 className="m-0 mt-2.5 text-[28px]">Signal Sources</h1>
+            <p className="mt-2 text-[13px] text-[var(--text3)]">
+              Connect real-time data feeds to drive the trading pipeline. For
+              scheduled scan feeds, see Event Sources.
+            </p>
+            <div className="mt-2">
+              <HelpTooltip
+                glossaryId="signal-source"
+                body="Sources are global. Sessions subscribe to one active source at a time."
+              />
+            </div>
           </div>
-          <h1 className="m-0 mt-2.5 text-[28px]">Signal Sources</h1>
-          <p className="mt-2 text-[13px] text-[var(--text3)]">
-            Connect real-time data feeds to drive the trading pipeline. For
-            scheduled scan feeds, see Event Sources.
-          </p>
-          <div className="mt-2">
-            <HelpTooltip
-              glossaryId="signal-source"
-              body="Sources are global. Sessions subscribe to one active source at a time."
-            />
-          </div>
+          <Button
+            className="bg-[var(--accent)] text-white"
+            onClick={() => setAddOpen(true)}
+          >
+            Add Source
+          </Button>
         </div>
-        <Button
-          className="bg-[var(--accent)] text-white"
-          onClick={() => setAddOpen(true)}
-        >
-          Add Source
-        </Button>
-      </div>
+      ) : null}
+
+      {embedded && !addControlled ? (
+        <div className="flex justify-end">
+          <Button
+            className="bg-[var(--accent)] text-white"
+            onClick={() => setAddOpen(true)}
+          >
+            Add Source
+          </Button>
+        </div>
+      ) : null}
 
       <Card className="!p-0">
-        {loading ? (
+        {loading && sources.length === 0 ? (
           <div className="grid gap-3 p-4">
             {[0, 1, 2].map((idx) => (
               <div
@@ -117,7 +157,7 @@ export function SignalSourcesPage() {
               <SourceRow
                 key={source.id}
                 source={source}
-                onChanged={() => void load()}
+                onChanged={() => void load({ soft: true })}
                 onConfigure={() =>
                   setConfigure({
                     source,
@@ -154,7 +194,7 @@ export function SignalSourcesPage() {
       <AddSourceDialog
         open={addOpen}
         onOpenChange={setAddOpen}
-        onCreated={() => void load()}
+        onCreated={() => void load({ soft: true })}
       />
       <ConfigureSourceDialog
         state={configure}
@@ -163,7 +203,7 @@ export function SignalSourcesPage() {
         }}
         onSaved={() => {
           setConfigure(null);
-          void load();
+          void load({ soft: true });
         }}
       />
     </div>

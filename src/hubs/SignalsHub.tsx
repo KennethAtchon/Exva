@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { HelpTooltip } from "@/components/ui";
+import { Button, HelpTooltip } from "@/components/ui";
 import {
   HubBody,
   HubFrame,
@@ -36,6 +36,7 @@ export function SignalsHub({
   initialTab?: SignalsTab;
 } = {}) {
   const [tab, setTab] = useState<SignalsTab>(initialTab);
+  const [addSourceOpen, setAddSourceOpen] = useState(false);
   useEffect(() => {
     setTab(initialTab);
   }, [initialTab]);
@@ -63,20 +64,32 @@ export function SignalsHub({
                 eyebrow="Information"
                 title="Signal feeds"
                 className="h-full"
+                actions={
+                  <Button
+                    className="h-7 bg-[var(--accent)] px-2.5 text-[11px] text-white"
+                    onClick={() => setAddSourceOpen(true)}
+                  >
+                    Add source
+                  </Button>
+                }
               >
                 <div className="p-3">
-                  <SignalSourcesPage />
+                  <SignalSourcesPage
+                    embedded
+                    addOpenExternal={addSourceOpen}
+                    onAddOpenChange={setAddSourceOpen}
+                  />
                 </div>
               </HubPane>
             }
             right={
               <HubPane
                 eyebrow="Cadence"
-                title="Schedules & events"
+                title="Schedules & catalog"
                 className="h-full"
               >
                 <div className="p-3">
-                  <EventSourcesPage />
+                  <EventSourcesPage embedded />
                 </div>
               </HubPane>
             }

@@ -86,8 +86,17 @@ export const sourceDefinitionsApi = {
     }>;
   },
 
-  get(input: { id: string }): Promise<{ source: SourceDefinition }> {
+  get(input: { id: string }): Promise<{ source: SourceDefinition | null }> {
     return bridge().sourceDefinitions.get(input) as Promise<{
+      source: SourceDefinition | null;
+    }>;
+  },
+
+  setEnabled(input: {
+    id: string;
+    enabled: boolean;
+  }): Promise<{ source: SourceDefinition }> {
+    return bridge().sourceDefinitions.setEnabled(input) as Promise<{
       source: SourceDefinition;
     }>;
   },

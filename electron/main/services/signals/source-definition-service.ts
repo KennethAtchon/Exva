@@ -28,6 +28,10 @@ export class SourceDefinitionService {
     return def;
   }
 
+  setEnabled(id: string, enabled: boolean): SourceDefinition {
+    return this.repo.setEnabled(id, enabled);
+  }
+
   /**
    * Seed all built-in source definitions. Idempotent.
    */

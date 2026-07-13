@@ -352,8 +352,11 @@ const exva: ExvaApi = {
       invoke("instrument-sets:create-revision", input),
   },
   sourceDefinitions: {
-    list: () => invoke("source-definitions:list"),
-    get: (input: { id: string }) => invoke("source-definitions:get", input),
+    list: () => invoke(channels.sourceDefinitions.list),
+    get: (input: { id: string }) =>
+      invoke(channels.sourceDefinitions.get, input),
+    setEnabled: (input: { id: string; enabled: boolean }) =>
+      invoke(channels.sourceDefinitions.setEnabled, input),
   },
   sessionInputs: {
     get: (input: { sessionId: string }) => invoke("session-inputs:get", input),

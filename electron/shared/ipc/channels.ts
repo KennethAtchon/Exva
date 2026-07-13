@@ -231,6 +231,7 @@ export const channels = {
   sourceDefinitions: {
     list: "source-definitions:list",
     get: "source-definitions:get",
+    setEnabled: "source-definitions:setEnabled",
   },
   sessionInputs: {
     get: "session-inputs:get",

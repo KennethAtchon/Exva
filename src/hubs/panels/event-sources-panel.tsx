@@ -5,17 +5,21 @@ import { Card } from "@/components/custom-ui";
 import { Button, HelpTooltip, Switch } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
-export function EventSourcesPage() {
+export function EventSourcesPage({
+  embedded = false,
+}: {
+  embedded?: boolean;
+} = {}) {
   const [sources, setSources] = useState<SourceDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (opts?: { soft?: boolean }) => {
+    if (!opts?.soft) setLoading(true);
     setError(null);
     try {
       const { sources: next } = await sourceDefinitionsApi.list();
-      setSources(next);
+      setSources(next ?? []);
     } catch (err) {
       setError(
         err instanceof Error
@@ -32,29 +36,34 @@ export function EventSourcesPage() {
   }, []);
 
   return (
-    <div className="hub-panel-body flex flex-col gap-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
-            CONFIGURATION
-          </div>
-          <h1 className="m-0 mt-2.5 text-[28px]">Event Sources</h1>
-          <p className="mt-2 text-[13px] text-[var(--text3)]">
-            Feed definitions that produce trading signals for event-driven
-            strategies. Distinct from legacy integrations — these are the
-            protocol-level source definitions used by input subscriptions.
-          </p>
-          <div className="mt-2 text-[12px] text-[var(--text3)]">
-            <HelpTooltip
-              topic="Event sources vs. integrations"
-              body="Event sources define the output contract of an external signal feed. Integrations (in Accounts) manage credentials and connectivity. A single integration can back multiple event source definitions."
-            />
+    <div
+      className={
+        embedded ? "flex flex-col gap-3" : "hub-panel-body flex flex-col gap-5"
+      }
+    >
+      {!embedded ? (
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
+              CONFIGURATION
+            </div>
+            <h1 className="m-0 mt-2.5 text-[28px]">Event Sources</h1>
+            <p className="mt-2 text-[13px] text-[var(--text3)]">
+              Catalog definitions used by session input subscriptions (V2).
+              Toggle disables fanout for that definition.
+            </p>
+            <div className="mt-2 text-[12px] text-[var(--text3)]">
+              <HelpTooltip
+                topic="Event sources vs. integrations"
+                body="Event sources define the output contract of an external signal feed. Integrations (in Settings → Accounts) manage credentials. A single integration can back multiple event source definitions."
+              />
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
 
       <Card className="!p-0">
-        {loading ? (
+        {loading && sources.length === 0 ? (
           <div className="grid gap-3 p-4">
             {[0, 1, 2].map((i) => (
               <div
@@ -80,9 +89,8 @@ export function EventSourcesPage() {
               No event source definitions found
             </div>
             <p className="m-0 leading-relaxed">
-              Event source definitions are registered by the backend when an
-              integration is configured. Connect an integration in{" "}
-              <strong>Accounts</strong> to provision source definitions here.
+              Built-in definitions seed on first boot. If this stays empty,
+              check Settings → Developer for catalog seed errors.
             </p>
           </div>
         ) : (
@@ -90,27 +98,24 @@ export function EventSourcesPage() {
             <SourceRow
               key={source.id}
               source={source}
-              onChanged={() => void load()}
+              onChanged={() => void load({ soft: true })}
             />
           ))
         )}
       </Card>
 
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-3 text-[12px] text-[var(--text3)]">
-        <strong className="font-semibold text-[var(--text2)]">
-          Looking for legacy signal sources?
-        </strong>{" "}
-        Timer-based schedules and raw EDGAR/mock sources live in{" "}
-        <strong>Signals</strong> in the nav bar. This page shows only
-        event-source definitions used by V2 input subscriptions.
-      </div>
+      {!embedded ? (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-3 text-[12px] text-[var(--text3)]">
+          <strong className="font-semibold text-[var(--text2)]">
+            Looking for live EDGAR / mock pollers?
+          </strong>{" "}
+          Those runtime sources sit in the left pane under{" "}
+          <strong>Signal feeds</strong> on this hub.
+        </div>
+      ) : null}
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Source row
-// ---------------------------------------------------------------------------
 
 function SourceRow({
   source,
@@ -120,14 +125,18 @@ function SourceRow({
   onChanged: () => void;
 }) {
   const [pending, setPending] = useState(false);
+  const [rowError, setRowError] = useState<string | null>(null);
 
   const toggleEnabled = async (next: boolean) => {
     setPending(true);
+    setRowError(null);
     try {
-      // Backend channel for toggle is not yet wired — optimistic UI only
-      void next;
-      void onChanged;
-      window.alert("Enable/disable for V2 sources is not yet implemented.");
+      await sourceDefinitionsApi.setEnabled({ id: source.id, enabled: next });
+      onChanged();
+    } catch (err) {
+      setRowError(
+        err instanceof Error ? err.message : "Failed to update source.",
+      );
     } finally {
       setPending(false);
     }
@@ -171,13 +180,17 @@ function SourceRow({
             : null}
         </div>
 
+        {rowError ? (
+          <div className="mt-1 text-[12px] text-error">{rowError}</div>
+        ) : null}
+
         <ConfigSummary source={source} />
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
         <HelpTooltip
           topic="Enable source"
-          body="Disabling prevents new subscriptions from receiving events from this source. Existing subscriptions stay in place but will wait until the source is re-enabled."
+          body="Disabling stops fanout for this definition. Existing subscriptions stay, but new signals will not deliver until re-enabled."
         >
           <Switch
             checked={source.enabled}
@@ -188,13 +201,10 @@ function SourceRow({
         <Button
           variant="outline"
           className="h-8 text-xs"
-          disabled={pending}
-          onClick={() => {
-            const json = JSON.stringify(source.config, null, 2);
-            window.alert(`Source config (read-only):\n\n${json}`);
-          }}
+          disabled
+          title="Config editing lands with input-catalog editors"
         >
-          View config
+          Configure
         </Button>
       </div>
     </div>
@@ -202,36 +212,27 @@ function SourceRow({
 }
 
 function ConfigSummary({ source }: { source: SourceDefinition }) {
-  const keys = Object.keys(source.config);
-  if (keys.length === 0) return null;
-  const preview = keys
-    .slice(0, 3)
-    .map((k) => `${k}: ${String(source.config[k]).slice(0, 24)}`)
-    .join(" · ");
+  const keys = Object.keys(source.config ?? {});
+  if (keys.length === 0) {
+    return (
+      <div className="mt-1 text-[12px] text-[var(--text3)]">
+        No config overrides
+      </div>
+    );
+  }
   return (
     <div className="mt-1 text-[12px] text-[var(--text3)]">
-      Config: {preview}
-      {keys.length > 3 ? ` +${keys.length - 3} more` : null}
+      Config keys: {keys.slice(0, 6).join(", ")}
+      {keys.length > 6 ? ` (+${keys.length - 6})` : ""}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function formatKind(kind: string): string {
-  if (kind === "edgar_8k") return "EDGAR 8-K";
-  if (kind === "prediction_event") return "Prediction Event";
-  if (kind === "mock") return "Mock";
-  return kind;
+  return kind.replace(/_/g, " ");
 }
 
 function kindChipClass(kind: string): string {
-  const base = "rounded-full border px-2 py-[2px] text-[11px] font-medium";
-  if (kind === "edgar_8k")
-    return `${base} border-info-border bg-info-dim text-info`;
-  if (kind === "prediction_event")
-    return `${base} border-market-border bg-market-dim text-market`;
-  return `${base} border-[var(--border)] text-[var(--text2)]`;
+  void kind;
+  return "rounded-full border border-[var(--border)] bg-[var(--surface2)] px-2 py-[2px] text-[11px] capitalize text-[var(--text2)]";
 }

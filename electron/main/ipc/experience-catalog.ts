@@ -87,12 +87,19 @@ export function registerExperienceCatalogHandlers(services: AppServices): void {
   // ------------------------------------------------------------------
 
   handle(ipcMain, channels.sourceDefinitions.list, async () => {
-    return { definitions: services.sourceDefinitionService.list() };
+    return { sources: services.sourceDefinitionService.list() };
   });
 
   handle(ipcMain, channels.sourceDefinitions.get, async (payload) => {
     const { id } = payload as { id: string };
-    return { definition: services.sourceDefinitionService.get(id) };
+    return { source: services.sourceDefinitionService.get(id) };
+  });
+
+  handle(ipcMain, channels.sourceDefinitions.setEnabled, async (payload) => {
+    const { id, enabled } = payload as { id: string; enabled: boolean };
+    return {
+      source: services.sourceDefinitionService.setEnabled(id, enabled),
+    };
   });
 
   // ------------------------------------------------------------------

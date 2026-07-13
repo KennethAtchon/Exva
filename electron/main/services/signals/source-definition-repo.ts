@@ -159,6 +159,26 @@ export class SourceDefinitionRepo {
     if (existing) return existing;
     return this.create(input);
   }
+
+  setEnabled(id: string, enabled: boolean): SourceDefinition {
+    const existing = this.get(id);
+    if (!existing) {
+      throw new Error(`SourceDefinitionRepo: definition ${id} not found`);
+    }
+    const now = new Date().toISOString();
+    this.db.db
+      .update(sourceDefinitions)
+      .set({ enabled, updatedAt: now })
+      .where(eq(sourceDefinitions.id, id))
+      .run();
+    const saved = this.get(id);
+    if (!saved) {
+      throw new Error(
+        `SourceDefinitionRepo: definition ${id} missing after setEnabled`,
+      );
+    }
+    return saved;
+  }
 }
 
 // ---------------------------------------------------------------------------

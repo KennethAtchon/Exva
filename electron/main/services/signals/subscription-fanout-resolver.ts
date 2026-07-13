@@ -1,6 +1,6 @@
 import { eq, and, inArray } from "drizzle-orm";
 import type { DbClient } from "../../db/client";
-import { sessionInputSubscriptions } from "../../db/schema";
+import { sessionInputSubscriptions, sourceDefinitions } from "../../db/schema";
 
 /**
  * Resolves subscription IDs and event-source definition IDs to the
@@ -15,7 +15,7 @@ export class SubscriptionFanoutResolver {
   /**
    * Given a source definition ID, find all enabled subscriptions that
    * reference it and return `{sessionId, subscriptionId, templateId,
-   * templateVersion}` for each.
+   * templateVersion}` for each. Disabled source definitions yield no targets.
    */
   resolveEventFanout(sourceDefinitionId: string): Array<{
     sessionId: string;
@@ -23,6 +23,16 @@ export class SubscriptionFanoutResolver {
     templateId: string;
     templateVersion: number;
   }> {
+    const source = this.db.db
+      .select({
+        id: sourceDefinitions.id,
+        enabled: sourceDefinitions.enabled,
+      })
+      .from(sourceDefinitions)
+      .where(eq(sourceDefinitions.id, sourceDefinitionId))
+      .get();
+    if (!source?.enabled) return [];
+
     const rows = this.db.db
       .select({
         id: sessionInputSubscriptions.id,
