@@ -14,7 +14,6 @@ describe("trade-record-builder", () => {
     const trade = createTradeFromDecision(
       ctx,
       { symbol: "NVDA", instrumentClass: "stock" },
-      ctx.getSessionConfig(),
       signal,
       0.25,
       "proceed",
@@ -32,7 +31,6 @@ describe("trade-record-builder", () => {
     const trade = createTradeFromDecision(
       ctx,
       { symbol: "NVDA", instrumentClass: "stock" },
-      ctx.getSessionConfig(),
       signal,
       0.1,
     );
@@ -50,7 +48,6 @@ describe("trade-record-builder", () => {
       ctx,
       "trade-existing",
       { symbol: "BTC-USD", instrumentClass: "crypto" },
-      ctx.getSessionConfig(),
       signal,
       0.5,
       "proceed",
@@ -75,7 +72,6 @@ describe("trade-record-builder", () => {
           resolutionTime: "2028-11-05T00:00:00.000Z",
         }),
       },
-      ctx.getSessionConfig(),
       signal,
       0.2,
     );
@@ -107,6 +103,10 @@ function createContext() {
       getStatus: () => "active",
     },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         researchPosture: {},
         rules: { sideBias: "long_only", setupType: "momentum" },
@@ -122,9 +122,6 @@ function createContext() {
           maxHoldDays: 1,
         },
       }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: { upsert: vi.fn() },
     eventsRepo: { insert: vi.fn((event) => event) },

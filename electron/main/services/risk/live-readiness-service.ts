@@ -236,7 +236,7 @@ export class LiveReadinessService {
       .run();
   }
 
-  private getAcknowledgedAt(sessionId: string): string | null {
+  getAcknowledgedAt(sessionId: string): string | null {
     const row = this.client.db
       .select({
         liveReadinessAcknowledgedAt: sessions.liveReadinessAcknowledgedAt,

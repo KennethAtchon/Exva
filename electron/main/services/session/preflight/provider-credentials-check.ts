@@ -7,7 +7,7 @@ export async function providerCredentialsCheck(
   session: WorkspaceSession,
   deps: OrchestratorDeps,
 ): Promise<StepResult> {
-  const phases = deps.sessionAiPhasesRepo.listBySession(session.id);
+  const phases = deps.strategyContextService.listAiPhases(session.id);
   for (const phase of phases) {
     if (!phase.providerKey.trim()) {
       return {

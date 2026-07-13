@@ -4,36 +4,40 @@ export function AppPagesPage() {
   return (
     <>
       <DocParagraph>
-        Reference map of every major page in the Exva desktop app and its role
-        in the operator workflow.
+        Exva’s operator UI is five hubs plus Docs. Trade detail and trade
+        autopsy remain drill-in overlays. ⌘K opens the command palette (actions
+        + search); the assistant is available from the palette or its own
+        control.
       </DocParagraph>
       <DocTable
-        headers={["Page", "Category", "Purpose"]}
+        headers={["Hub", "Absorbs", "Purpose"]}
         rows={[
-          ["Dashboard", "Primary", "Live stats, open trades, agent feed."],
-          ["Sessions", "Primary", "Create, configure, and monitor sessions."],
-          ["Trades", "Primary", "Trade history, filters, and summaries."],
-          ["Strategy", "Primary", "Risk limits, sizing, AI phase config."],
-          ["Autopsy", "Analysis", "Period and trade-level post-mortems."],
           [
-            "Leaderboard",
-            "Analysis",
-            "Experience scorecards and promotion tiers.",
+            "Dashboard",
+            "Live pulse + attention",
+            "Equity curve, morning briefing, kill-switch panel, P&L, approvals, promotion ladder, agent feed.",
           ],
           [
-            "API Usage",
-            "Analysis",
-            "Model spend, projections, cost attribution.",
+            "Sessions",
+            "Sessions / Trades / Config",
+            "Runtime controls, trade history, strategy document for the focused session.",
           ],
-          ["Brokers", "Setup", "Broker accounts, health, capital allocation."],
-          ["Signals", "Setup", "Global signal source configuration."],
           [
-            "Accounts",
-            "Setup",
-            "AI keys, search providers, environment toggle.",
+            "Signals & Schedules",
+            "Feeds / Events / Instrument sets / Data Doctor",
+            "Two-pane feeds vs schedules, instrument sets, coverage matrix and backfill.",
           ],
-          ["Docs", "Setup", "This documentation."],
-          ["Developer", "Setup", "Event log and agent run traces."],
+          [
+            "Research",
+            "Leaderboard / Autopsies / Costs / Lab / Attribution",
+            "Scorecards, merged period autopsies, API spend, Backtest Lab, equity net of AI.",
+          ],
+          [
+            "Settings",
+            "Accounts / Brokers / Developer",
+            "Credentials, paper balances, notification sinks, backups; Dev workbench when developing.",
+          ],
+          ["Docs", "Standalone", "This documentation and glossary."],
         ]}
       />
     </>

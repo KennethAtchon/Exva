@@ -66,7 +66,7 @@ export function DashboardDocPage() {
       <DocCallout variant="info" title="Agent feed">
         The activity feed streams what each pipeline phase is doing in real
         time; deeper run traces live on the{" "}
-        <DocLink to="app-pages">Developer</DocLink> page.
+        <DocLink to="app-pages">Settings → Developer</DocLink> tab.
       </DocCallout>
     </>
   );

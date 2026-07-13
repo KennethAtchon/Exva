@@ -39,12 +39,13 @@ function createContext(input: {
       getStatus: () => "active",
     },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         riskConfig: { waitForOpenThreshold: 0.8 },
       }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: {
       upsert: () => undefined,
@@ -71,9 +72,11 @@ function createContext(input: {
     },
   } as never);
 
-  ctx.getSessionConfig = () =>
+  ctx.getStrategyContext = () =>
     ({
-      max_concurrent_trades: input.maxConcurrentTrades,
+      riskConfig: {
+        maxConcurrentTrades: input.maxConcurrentTrades,
+      },
     }) as never;
 
   return ctx;

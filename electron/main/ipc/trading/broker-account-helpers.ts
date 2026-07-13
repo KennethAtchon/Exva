@@ -59,6 +59,26 @@ export function serializeBrokerCredentials(
         host: creds.host ?? "https://clob.polymarket.com",
         chainId: Number(creds.chainId ?? creds.chain_id ?? 137),
       });
+    case "kalshi":
+      return JSON.stringify({
+        keyId: creds.keyId ?? creds.key_id ?? creds.apiKey ?? "",
+        privateKeyPem:
+          creds.privateKeyPem ??
+          creds.private_key_pem ??
+          creds.privateKey ??
+          "",
+      });
+    case "tradier":
+      return JSON.stringify({
+        accessToken:
+          creds.accessToken ?? creds.access_token ?? creds.apiKey ?? "",
+        accountId: creds.accountId ?? creds.account_id ?? "",
+      });
+    case "kraken":
+      return JSON.stringify({
+        apiKey: creds.apiKey ?? creds.api_key ?? "",
+        apiSecret: creds.apiSecret ?? creds.api_secret ?? creds.secretKey ?? "",
+      });
     default:
       throw new AppError(
         `Unknown broker type: ${brokerType}`,

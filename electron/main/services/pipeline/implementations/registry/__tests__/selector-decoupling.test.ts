@@ -61,7 +61,7 @@ describe("selector-as-ordinary-phase decoupling", () => {
       ).toEqual([]);
       expect(
         discoveryWorkerIds("rules-mean-reversion-cycle", {
-          sourceType: "web_search",
+          sourceType: "edgar_8k",
         }),
       ).toEqual([]);
     });

@@ -16,6 +16,7 @@ import {
 } from "@electron/shared/quant/prediction-edge";
 import { requireExperience } from "../../../../experiences/index";
 import { createLogger } from "../../../infra/log";
+import { kalshiDefaultCommissionBps } from "@electron/shared/quant/kalshi-fees";
 
 const logger = createLogger("prediction-edge-input");
 
@@ -156,8 +157,25 @@ export const predictionEdgeInputBuilder: EngineInputBuilder = {
 
     const costs = (() => {
       try {
-        return requireExperience(ctx.session.experienceId).researchContract
-          .costs;
+        const base = requireExperience(ctx.session.experienceId)
+          .researchContract.costs;
+        // Kalshi venue: inject schedule fee when commission is unset / zero.
+        let venue = "";
+        try {
+          venue = String(
+            JSON.parse(ctx.instrument.instrumentMetadataJson ?? "{}")?.venue ??
+              "",
+          ).toLowerCase();
+        } catch {
+          venue = "";
+        }
+        if (venue === "kalshi" && (base.commissionBps ?? 0) === 0) {
+          return {
+            ...base,
+            commissionBps: kalshiDefaultCommissionBps(),
+          };
+        }
+        return base;
       } catch {
         return { spreadBps: 50, slippageBps: 10, commissionBps: 0 };
       }

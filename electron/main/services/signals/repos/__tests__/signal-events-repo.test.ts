@@ -30,6 +30,10 @@ describe("SignalEventsRepo", () => {
       payloadJson: { form: "8-K" },
       filedAt: now,
       detectedAt: now,
+      kind: "filing",
+      dedupeKey: "0001234567-25-000001",
+      ttl: "PT6H",
+      occurredAt: now,
     });
 
     expect(

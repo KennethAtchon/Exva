@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { SessionConfig, WorkspaceSession } from "@/lib/types";
+import type { SessionStrategyContext, WorkspaceSession } from "@/lib/types";
 import { buildSearchEverythingScope } from "@electron/shared/instruments/session-instrument-classes";
 import { registerAllPhases } from "../../../pipeline/definitions";
 import { registerDefaultInstrumentAnalyses } from "../../../pipeline/implementations/registry/register-analyses";
@@ -114,8 +114,10 @@ describe("AgentOrchestrator", () => {
     const deps = createDeps({ noInstrumentRetryMinutes: 5 });
     const orchestrator = new AgentOrchestrator("session-1", deps as never);
     vi.spyOn(
-      orchestrator as never as { getSessionConfig: () => SessionConfig },
-      "getSessionConfig",
+      orchestrator as never as {
+        getStrategyContext: () => SessionStrategyContext;
+      },
+      "getStrategyContext",
     ).mockReturnValue(baseConfig());
     vi.spyOn(runSelectorModule, "runSelector").mockRejectedValue(
       Object.assign(new Error("selector provider unavailable"), {
@@ -142,8 +144,10 @@ describe("AgentOrchestrator", () => {
     const deps = createDeps({ noInstrumentRetryMinutes: 5 });
     const orchestrator = new AgentOrchestrator("session-1", deps as never);
     vi.spyOn(
-      orchestrator as never as { getSessionConfig: () => SessionConfig },
-      "getSessionConfig",
+      orchestrator as never as {
+        getStrategyContext: () => SessionStrategyContext;
+      },
+      "getStrategyContext",
     ).mockReturnValue(baseConfig());
     vi.spyOn(
       orchestrator as never as {
@@ -192,8 +196,10 @@ describe("AgentOrchestrator", () => {
     const deps = createDeps({ noInstrumentRetryMinutes: 5 });
     const orchestrator = new AgentOrchestrator("session-1", deps as never);
     vi.spyOn(
-      orchestrator as never as { getSessionConfig: () => SessionConfig },
-      "getSessionConfig",
+      orchestrator as never as {
+        getStrategyContext: () => SessionStrategyContext;
+      },
+      "getStrategyContext",
     ).mockReturnValue(baseConfig());
     vi.spyOn(runSelectorModule, "runSelector").mockImplementation(async () => {
       await gate;
@@ -227,8 +233,10 @@ describe("AgentOrchestrator", () => {
     });
     const orchestrator = new AgentOrchestrator("session-1", deps as never);
     vi.spyOn(
-      orchestrator as never as { getSessionConfig: () => SessionConfig },
-      "getSessionConfig",
+      orchestrator as never as {
+        getStrategyContext: () => SessionStrategyContext;
+      },
+      "getStrategyContext",
     ).mockReturnValue(baseConfig());
     const runSelector = vi.spyOn(runSelectorModule, "runSelector");
 
@@ -253,8 +261,10 @@ describe("AgentOrchestrator", () => {
       "handleResolvedInstruments",
     );
     vi.spyOn(
-      orchestrator as never as { getSessionConfig: () => SessionConfig },
-      "getSessionConfig",
+      orchestrator as never as {
+        getStrategyContext: () => SessionStrategyContext;
+      },
+      "getStrategyContext",
     ).mockReturnValue(baseConfig());
     vi.spyOn(runSelectorModule, "runSelector").mockImplementation(async () => {
       await gate;
@@ -310,7 +320,7 @@ describe("selector input builders", () => {
           strategyContext: deps.strategyContextService.get() as never,
         } as never,
         services: {
-          sessionSelectorSettingsRepo: deps.sessionSelectorSettingsRepo,
+          strategyContextService: deps.strategyContextService,
           sessionBrokerAssignmentsRepo: deps.sessionBrokerAssignmentsRepo,
           brokerAccountsRepo: deps.brokerAccountsRepo,
           brokerRouting: { resolveAdapter: vi.fn() },
@@ -349,7 +359,7 @@ function createDeps({
       "stock" | "crypto" | "futures" | "prediction_market"
     >;
   }>;
-  signalSourceTypes?: Array<"edgar_8k" | "web_search" | "manual">;
+  signalSourceTypes?: Array<"edgar_8k" | "mock" | "manual">;
 }) {
   const steps = new Map<string, StepRecord>();
   const sessionStatus = { current: "active" as WorkspaceSession["status"] };
@@ -373,17 +383,19 @@ function createDeps({
   return {
     sessionStatus,
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: noInstrumentRetryMinutes ?? null,
+      }),
       get: () => ({
         researchPosture: {},
         rules: {},
-        riskConfig: { maxExposureUsd: null, waitForOpenThreshold: 0.8 },
+        riskConfig: {
+          maxExposureUsd: null,
+          waitForOpenThreshold: 0.8,
+          maxConcurrentTrades: 3,
+        },
         timeframe: {},
-      }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({
-        aiPickerEnabled: session?.selectionMode === "ai_selected_universe",
-        noInstrumentRetryMinutes: noInstrumentRetryMinutes ?? null,
       }),
     },
     sessionRepo: {
@@ -461,21 +473,25 @@ function createDeps({
   };
 }
 
-function baseConfig(): SessionConfig {
+function baseConfig(): SessionStrategyContext {
   return {
-    strategy: "passive_income",
-    off_hours_trading: "disabled",
-    max_position_usd: 500,
-    stop_loss_pct: 2,
-    take_profit_pct: 4,
-    max_concurrent_trades: 3,
-    max_consecutive_losers: 5,
-    research_depth: "balanced",
-    daily_loss_limit_usd: 200,
-    profit_target_usd: 1000,
-    max_api_spend_usd: 5,
-    human_approval_required: false,
-  };
+    researchPosture: {},
+    rules: { setupType: "passive_income" },
+    riskConfig: {
+      offHoursTrading: "disabled",
+      maxPositionUsd: 500,
+      stopLossPct: 2,
+      takeProfitPct: 4,
+      maxConcurrentTrades: 3,
+      maxConsecutiveLosers: 5,
+      dailyLossLimitUsd: 200,
+      profitTargetUsd: 1000,
+      maxAiSpendUsd: 5,
+      humanApprovalRequired: false,
+    },
+    timeframe: {},
+    aiSettings: {},
+  } as unknown as SessionStrategyContext;
 }
 
 type StepRecord = {

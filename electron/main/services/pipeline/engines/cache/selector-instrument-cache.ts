@@ -68,16 +68,17 @@ export function buildSelectorDefinitionFingerprint(
   session: WorkspaceSession,
   services: Pick<
     AIPhaseServices,
-    | "sessionSelectorSettingsRepo"
-    | "sessionAiPhasesRepo"
+    | "strategyContextService"
     | "workspacePreferencesRepo"
     | "brokerRouting"
     | "sessionBrokerAssignmentsRepo"
     | "brokerAccountsRepo"
   >,
 ): SelectorDefinitionFingerprint {
-  const selectorSettings = services.sessionSelectorSettingsRepo.get(session.id);
-  const selectorPhase = services.sessionAiPhasesRepo.getByPhase(
+  const selectorSettings = services.strategyContextService.getSelectorSettings(
+    session.id,
+  );
+  const selectorPhase = services.strategyContextService.getAiPhase(
     session.id,
     "selector",
   );

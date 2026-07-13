@@ -18,6 +18,10 @@ export function captureSignalObservation(
   referencePrice: number | null,
   eventTime: string,
 ): void {
+  if (!ctx.deps.signalObservationsRepo) {
+    // Test/minimal harnesses may omit research repos; money path must proceed.
+    return;
+  }
   try {
     const session = ctx.deps.sessionRepo.requireById(ctx.sessionId);
     const experience = requireExperience(session.experienceId);
@@ -32,7 +36,7 @@ export function captureSignalObservation(
       ctx.deps.signalObservationsRepo,
     );
     const edgeEstimate =
-      ctx.deps.decisionTracesRepo.getByCycle(context.cycleId)?.edgeEstimate ??
+      ctx.deps.decisionTracesRepo?.getByCycle(context.cycleId)?.edgeEstimate ??
       null;
     service.record({
       sessionId: ctx.sessionId,
@@ -55,9 +59,28 @@ export function captureSignalObservation(
       contract: experience.researchContract,
     });
   } catch (err) {
+    // Swallow is correct: observation is research substrate and must never
+    // abort the money path. Surface via events + bus so the UI sees it.
+    const message = err instanceof Error ? err.message : String(err);
     ctx.deps.logger.warn(
       { err, sessionId: ctx.sessionId, cycleId: context.cycleId },
       "signal observation capture failed (non-blocking)",
     );
+    try {
+      const event = ctx.deps.eventsRepo.insert({
+        session_id: ctx.sessionId,
+        trade_id: null,
+        cycle_id: context.cycleId,
+        level: "WARN",
+        agent_type: "session",
+        message: `Signal observation capture failed: ${message}`,
+      });
+      ctx.deps.bus.emit("agent_event", event);
+    } catch (emitErr) {
+      ctx.deps.logger.warn(
+        { err: emitErr, sessionId: ctx.sessionId },
+        "failed to surface observation-capture failure",
+      );
+    }
   }
 }

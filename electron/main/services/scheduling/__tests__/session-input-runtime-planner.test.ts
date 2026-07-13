@@ -1,4 +1,5 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTestDb } from "../../../db/test-helpers";
 import {
@@ -208,7 +209,10 @@ describe("SessionInputRuntimePlanner", () => {
     const db = createTestDb();
     const registry = new StrategyDefinitionRegistry();
     registry.register(makeStrategyDef("mean-reversion"));
-    const planner = new SessionInputRuntimePlanner({ db, strategyRegistry: registry });
+    const planner = new SessionInputRuntimePlanner({
+      db,
+      strategyRegistry: registry,
+    });
     expect(planner.buildPlans()).toHaveLength(0);
   });
 
@@ -217,7 +221,10 @@ describe("SessionInputRuntimePlanner", () => {
     const registry = new StrategyDefinitionRegistry();
     registry.register(makeStrategyDef("mean-reversion"));
     setupFixtures(db);
-    const planner = new SessionInputRuntimePlanner({ db, strategyRegistry: registry });
+    const planner = new SessionInputRuntimePlanner({
+      db,
+      strategyRegistry: registry,
+    });
     const plans = planner.buildPlans();
     expect(plans).toHaveLength(1);
     const plan = plans[0];
@@ -234,7 +241,10 @@ describe("SessionInputRuntimePlanner", () => {
     registry.register(makeStrategyDef("mean-reversion"));
     // sub-1 and sub-2 both use identical cadence / analysisTimeframe / params
     setupFixtures(db);
-    const planner = new SessionInputRuntimePlanner({ db, strategyRegistry: registry });
+    const planner = new SessionInputRuntimePlanner({
+      db,
+      strategyRegistry: registry,
+    });
     const plans = planner.buildPlans();
     // Both subscriptions should collapse to 1 group
     expect(plans).toHaveLength(1);
@@ -248,7 +258,10 @@ describe("SessionInputRuntimePlanner", () => {
     const registry = new StrategyDefinitionRegistry();
     registry.register(makeStrategyDef("mean-reversion"));
     setupFixtures(db, { analysisTimeframe2: "4h" }); // sub-2 uses 4h instead of 1h
-    const planner = new SessionInputRuntimePlanner({ db, strategyRegistry: registry });
+    const planner = new SessionInputRuntimePlanner({
+      db,
+      strategyRegistry: registry,
+    });
     const plans = planner.buildPlans();
     expect(plans).toHaveLength(2);
   });
@@ -258,7 +271,10 @@ describe("SessionInputRuntimePlanner", () => {
     const registry = new StrategyDefinitionRegistry();
     registry.register(makeStrategyDef("mean-reversion"));
     setupFixtures(db, { cadence2: "30" }); // sub-2 uses 30m
-    const planner = new SessionInputRuntimePlanner({ db, strategyRegistry: registry });
+    const planner = new SessionInputRuntimePlanner({
+      db,
+      strategyRegistry: registry,
+    });
     const plans = planner.buildPlans();
     expect(plans).toHaveLength(2);
   });
@@ -267,17 +283,17 @@ describe("SessionInputRuntimePlanner", () => {
     const db = createTestDb();
     const registry = new StrategyDefinitionRegistry();
     registry.register(makeStrategyDef("mean-reversion"));
-    const now = new Date().toISOString();
     setupFixtures(db);
     // Disable sub-2
     db.db
       .update(sessionInputSubscriptions)
       .set({ enabled: false })
-      .where(
-        require("drizzle-orm").eq(sessionInputSubscriptions.id, "sub-2"),
-      )
+      .where(eq(sessionInputSubscriptions.id, "sub-2"))
       .run();
-    const planner = new SessionInputRuntimePlanner({ db, strategyRegistry: registry });
+    const planner = new SessionInputRuntimePlanner({
+      db,
+      strategyRegistry: registry,
+    });
     const plans = planner.buildPlans();
     expect(plans).toHaveLength(1);
     expect(plans[0].subscriptionIds).toHaveLength(1);
@@ -317,7 +333,12 @@ describe("SessionInputRuntimePlanner", () => {
         revision: 1,
         instrumentSetId: "set-x",
         instrumentSetRevision: 1,
-        cadenceJson: JSON.stringify({ kind: "interval", every: 15, unit: "minute", jitterPct: 0.05 }),
+        cadenceJson: JSON.stringify({
+          kind: "interval",
+          every: 15,
+          unit: "minute",
+          jitterPct: 0.05,
+        }),
         analysisTimeframe: "1h",
         marketCalendarId: "nyse-regular",
         strategyParametersJson: "{}",
@@ -325,7 +346,10 @@ describe("SessionInputRuntimePlanner", () => {
         updatedAt: now,
       })
       .run();
-    const planner = new SessionInputRuntimePlanner({ db, strategyRegistry: registry });
+    const planner = new SessionInputRuntimePlanner({
+      db,
+      strategyRegistry: registry,
+    });
     // Should not throw; orphan is silently skipped
     expect(() => planner.buildPlans()).not.toThrow();
   });
@@ -335,17 +359,26 @@ describe("SessionInputRuntimePlanner", () => {
     const registry = new StrategyDefinitionRegistry();
     // Intentionally do NOT register "mean-reversion"
     setupFixtures(db);
-    const planner = new SessionInputRuntimePlanner({ db, strategyRegistry: registry });
+    const planner = new SessionInputRuntimePlanner({
+      db,
+      strategyRegistry: registry,
+    });
     expect(planner.buildPlans()).toHaveLength(0);
   });
 
   it("skips subscriptions with a disabled strategy", () => {
     const db = createTestDb();
     const registry = new StrategyDefinitionRegistry();
-    const disabledDef = { ...makeStrategyDef("mean-reversion"), implementationStatus: "disabled" as const };
+    const disabledDef = {
+      ...makeStrategyDef("mean-reversion"),
+      implementationStatus: "disabled" as const,
+    };
     registry.register(disabledDef);
     setupFixtures(db);
-    const planner = new SessionInputRuntimePlanner({ db, strategyRegistry: registry });
+    const planner = new SessionInputRuntimePlanner({
+      db,
+      strategyRegistry: registry,
+    });
     expect(planner.buildPlans()).toHaveLength(0);
   });
 
@@ -354,7 +387,10 @@ describe("SessionInputRuntimePlanner", () => {
     const registry = new StrategyDefinitionRegistry();
     registry.register(makeStrategyDef("mean-reversion"));
     setupFixtures(db, { strategyId: null });
-    const planner = new SessionInputRuntimePlanner({ db, strategyRegistry: registry });
+    const planner = new SessionInputRuntimePlanner({
+      db,
+      strategyRegistry: registry,
+    });
     expect(planner.buildPlans()).toHaveLength(0);
   });
 
@@ -363,7 +399,10 @@ describe("SessionInputRuntimePlanner", () => {
     const registry = new StrategyDefinitionRegistry();
     registry.register(makeStrategyDef("mean-reversion", 7));
     setupFixtures(db);
-    const planner = new SessionInputRuntimePlanner({ db, strategyRegistry: registry });
+    const planner = new SessionInputRuntimePlanner({
+      db,
+      strategyRegistry: registry,
+    });
     const plans = planner.buildPlans();
     expect(plans[0].strategyImplementationVersion).toBe(7);
   });

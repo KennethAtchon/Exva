@@ -1,8 +1,15 @@
 # Exva AI Runtime - Architecture Design Document
 
-> **Last updated:** 2026-05-25
+> **Last updated:** 2026-07-13 (post finish-line)
 > **Scope:** Main-process runtime from session start through selector/trade analysis, approval, broker placement, monitoring, persistence, events, and observability. Includes how the runtime calls the LLM/pipeline layer (see also `docs/architecture/pipeline-runtime.md` for pipeline internals). Excludes renderer component design and broker-adapter implementation details.
 > **Audience:** Engineers onboarding, reviewers, future maintainers
+> **Related:** `docs/plans/finish-line/00-INDEX.md`
+
+---
+
+## 0. Post finish-line operator surface
+
+Ken runs five hubs, not seventeen pages. Money path is unchanged: RiskEngine → allocation gate → order-policy gate; paper default; live needs per-session readiness ack. Failures surface via supervisor alarms + hub `HubQueryError` (typed IPC codes). Seed catalog (experiences, presets, DuckDuckGo) loads on first boot via `runSeed` / `seedExperienceCatalog`.
 
 ---
 
@@ -26,7 +33,7 @@ graph TB
     Keychain[("OS Keychain\nkeytar service=exva")]
     AI["AI Providers\nAnthropic / OpenAI / OpenRouter"]
     Search["Search Providers\nDuckDuckGo / Brave / Tavily / MCP"]
-    Brokers["Broker APIs\nAlpaca / Coinbase / Tradovate / Polymarket / Mock"]
+    Brokers["Broker APIs\nAlpaca / Kalshi / Tradier / Kraken /\nPolymarket / Coinbase / Tradovate / Mock"]
 
     User --> Renderer
     Renderer <--> Preload

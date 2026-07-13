@@ -13,8 +13,12 @@ export function TimerSignalPage() {
     <>
       <DocCallout variant="info" title="Removed from product surface">
         The <DocInlineCode>timer</DocInlineCode> source type has been removed.
-        Scheduled scans are now owned by the SessionScheduler via the
-        Experience Inputs editor. Legacy DB rows are no longer instantiated.
+        Scheduled scans are now owned by the SessionScheduler via the Experience
+        Inputs editor. Migration{" "}
+        <DocInlineCode>0006_purge_deprecated_signal_sources</DocInlineCode>{" "}
+        deletes leftover <DocInlineCode>timer</DocInlineCode> /{" "}
+        <DocInlineCode>web_search</DocInlineCode> rows from{" "}
+        <DocInlineCode>signal_sources</DocInlineCode>.
       </DocCallout>
       <DocParagraph>
         Schedules are declared on experience descriptors;{" "}
@@ -84,7 +88,6 @@ export function TimerSignalPage() {
           </>,
         ]}
       />
-
     </>
   );
 }

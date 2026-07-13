@@ -29,28 +29,44 @@ import {
   adapterSupportsOrder,
   lowerBrokerOrderV2ToV1,
   type BrokerOrderV2,
+  type OrderEvent,
+  type OrderEventFeed,
 } from "../order-contract-v2";
+import {
+  GhostFillSimulator,
+  type GhostQuote,
+} from "../mock/ghost-fill-simulator";
+import { brokerError } from "../broker-errors";
+import {
+  DEFAULT_PAPER_STARTING_BALANCE_USD,
+  type PaperBalancesRepo,
+} from "../../../db/repositories/brokers/paper-balances-repo";
 
 const logger = createLogger("polymarket-adapter");
 
-/**
- * Starting paper (ghost) balance in USDC. Polymarket has no native paper mode,
- * so ghost orders fill locally against real market prices and settle against a
- * separate in-memory balance. Per-account, reset when the adapter is rebuilt.
- */
-const DEFAULT_PAPER_BALANCE_USD = 10_000;
-
-/** A locally-filled ghost order, tracked so status/close can settle against it. */
-type GhostOrder = {
+/** Filled (or pending-metadata) ghost position keyed by ghost order id. */
+type GhostPosition = {
   tokenId: string;
   conditionId: string;
   market: string | null;
   side: "BUY" | "SELL";
   sizeUsd: number;
-  /** Shares acquired = sizeUsd / entryPrice (BUY). */
   shares: number;
   entryPrice: number;
+  /** Position still open (not closed/settled). */
   open: boolean;
+  /** Order still resting in GhostFillSimulator (not filled yet). */
+  resting: boolean;
+  order: BrokerOrderV2;
+};
+
+export type PolymarketAdapterOptions = {
+  accountId?: string;
+  paperBalances?: PaperBalancesRepo;
+  /** Starting balance when no persisted row yet (tests / ephemeral). */
+  startingPaperBalanceUsd?: number;
+  /** Parity-check failure hook (registry wires to supervisor). */
+  onParityWarning?: (message: string, details: Record<string, unknown>) => void;
 };
 
 type PolymarketCredentials = {
@@ -83,14 +99,28 @@ export class PolymarketAdapter
   readonly capabilities = POLYMARKET_CAPABILITIES;
 
   private authClientPromise: Promise<ClobClient> | null = null;
-  private paperBalanceUsd = DEFAULT_PAPER_BALANCE_USD;
-  private readonly ghostOrders = new Map<string, GhostOrder>();
+  private readonly ghosts = new GhostFillSimulator();
+  private readonly ghostPositions = new Map<string, GhostPosition>();
+  /** In-memory fallback when PaperBalancesRepo is not injected (unit tests). */
+  private memoryPaperBalanceUsd: number;
+  private readonly accountId: string | undefined;
+  private readonly paperBalances: PaperBalancesRepo | undefined;
+  private readonly onParityWarning:
+    | ((message: string, details: Record<string, unknown>) => void)
+    | undefined;
 
   constructor(
     private readonly credentials: PolymarketCredentials,
     private readonly mode: BrokerMode = "live",
     private readonly interactionLogger?: BrokerInteractionLogger,
-  ) {}
+    options?: PolymarketAdapterOptions,
+  ) {
+    this.accountId = options?.accountId;
+    this.paperBalances = options?.paperBalances;
+    this.onParityWarning = options?.onParityWarning;
+    this.memoryPaperBalanceUsd =
+      options?.startingPaperBalanceUsd ?? DEFAULT_PAPER_STARTING_BALANCE_USD;
+  }
 
   /** Ghost (paper) mode: fill locally against real prices, never post to the CLOB. */
   private get isPaper(): boolean {
@@ -101,11 +131,12 @@ export class PolymarketAdapter
     if (this.isPaper) {
       try {
         await this.getReadOnlyClient().getOk();
+        const balance = this.readPaperBalance();
         return {
           ok: true,
           message:
             "Polymarket ghost (paper) mode — market data live, orders local",
-          account_balance: this.paperBalanceUsd,
+          account_balance: balance,
         };
       } catch (error) {
         return {
@@ -141,7 +172,7 @@ export class PolymarketAdapter
   }
 
   async getAccountBalance(): Promise<number> {
-    if (this.isPaper) return this.paperBalanceUsd;
+    if (this.isPaper) return this.readPaperBalance();
     logger.debug("polymarket getAccountBalance: fetching balance");
     const client = await this.getAuthedClient();
     const balance = await client.getBalanceAllowance({
@@ -211,7 +242,20 @@ export class PolymarketAdapter
     const metadata = parsePredictionMetadata(order.instrumentMetadataJson);
 
     if (this.isPaper) {
-      return this.placeGhostOrder(order, metadata);
+      const v2: BrokerOrderV2 = {
+        clientOrderId: order.clientOrderId,
+        instrument: {
+          symbol: order.instrumentSymbol,
+          instrumentClass: "prediction_market",
+          displayName: order.instrumentDisplayName,
+          metadataJson: order.instrumentMetadataJson,
+        },
+        side: order.side,
+        quantity: { kind: "notional_usd", value: order.sizeUsd },
+        orderType: "market",
+        timeInForce: "ioc",
+      };
+      return this.placeGhostOrderV2(v2, metadata);
     }
 
     const client = await this.getAuthedClient();
@@ -274,67 +318,81 @@ export class PolymarketAdapter
   }
 
   /**
-   * Ghost fill: resolve the real market price, fill immediately and locally,
-   * deduct the cost from the paper balance, and verify the market actually
-   * exists (parity check). Never posts to the CLOB.
+   * Ghost fill via shared GhostFillSimulator. Market → mid; limits rest until
+   * marketable. Debits persisted paper balance on fill. Never posts to CLOB.
    */
-  private async placeGhostOrder(
-    order: BrokerOrder,
+  private async placeGhostOrderV2(
+    order: BrokerOrderV2,
     metadata: PredictionInstrumentMetadata,
   ): Promise<BrokerOrderResult> {
     const readClient = this.getReadOnlyClient();
-    const price = await this.resolveReferencePrice(
+    const quote = await this.resolveGhostQuote(
       readClient,
       metadata.outcomeTokenId,
     );
+    await this.runParityCheck(metadata);
 
-    if (order.side === "BUY" && order.sizeUsd > this.paperBalanceUsd) {
-      throw new AppError(
-        `Insufficient paper balance: need $${order.sizeUsd.toFixed(2)}, have $${this.paperBalanceUsd.toFixed(2)}.`,
-        "BROKER_ERROR",
+    const receipt = this.ghosts.simulateFill(order, quote);
+    const brokerOrderId = receipt.ghostOrderId;
+
+    if (receipt.status === "filled" && receipt.filledAvgPrice != null) {
+      const sizeUsd = receipt.filledQty * receipt.filledAvgPrice;
+      if (order.side === "BUY") this.debitPaper(sizeUsd);
+      this.ghostPositions.set(brokerOrderId, {
+        tokenId: metadata.outcomeTokenId,
+        conditionId: metadata.conditionId,
+        market: metadata.conditionId,
+        side: order.side,
+        sizeUsd,
+        shares: receipt.filledQty,
+        entryPrice: receipt.filledAvgPrice,
+        open: true,
+        resting: false,
+        order,
+      });
+      logger.info(
+        {
+          brokerOrderId,
+          filledAvgPrice: receipt.filledAvgPrice,
+          paperBalanceUsd: this.readPaperBalance(),
+        },
+        "polymarket ghost: order filled locally",
       );
+      return {
+        brokerOrderId,
+        filledAvgPrice: receipt.filledAvgPrice,
+        filledSizeUsd: sizeUsd,
+      };
     }
 
-    // Parity check: confirm the market exists and isn't already resolved away.
-    const marketOk = await readClient
-      .getMarket(metadata.conditionId)
-      .then((m) => m != null)
-      .catch(() => false);
-    if (!marketOk) {
-      logger.warn(
-        { conditionId: metadata.conditionId },
-        "polymarket ghost: market not found on gamma-api; ghost trade may drift from reality",
-      );
-    }
-
-    const brokerOrderId = `ghost-${crypto.randomUUID()}`;
-    const shares = order.sizeUsd / Math.max(price, 0.01);
-    if (order.side === "BUY") this.paperBalanceUsd -= order.sizeUsd;
-    this.ghostOrders.set(brokerOrderId, {
+    // Resting limit — no debit until fill on poll.
+    const estPrice = order.limitPrice ?? quote.last;
+    const estQty =
+      order.quantity.kind === "units"
+        ? order.quantity.value
+        : order.quantity.value / Math.max(estPrice, 0.01);
+    this.ghostPositions.set(brokerOrderId, {
       tokenId: metadata.outcomeTokenId,
       conditionId: metadata.conditionId,
       market: metadata.conditionId,
       side: order.side,
-      sizeUsd: order.sizeUsd,
-      shares,
-      entryPrice: price,
+      sizeUsd: estQty * estPrice,
+      shares: estQty,
+      entryPrice: estPrice,
       open: true,
+      resting: true,
+      order,
     });
     logger.info(
-      {
-        brokerOrderId,
-        filledAvgPrice: price,
-        paperBalanceUsd: this.paperBalanceUsd,
-      },
-      "polymarket ghost: order filled locally",
+      { brokerOrderId, limitPrice: order.limitPrice },
+      "polymarket ghost: resting limit waiting for marketable quote",
     );
-    return { brokerOrderId, filledAvgPrice: price };
+    return {
+      brokerOrderId,
+      filledAvgPrice: order.limitPrice ?? 0,
+    };
   }
 
-  /**
-   * v2 limit: paper simulates an immediate fill when mid crosses the limit;
-   * live posts a GTC limit via createAndPostOrder.
-   */
   private async placeLimitOrderV2(
     order: BrokerOrderV2,
   ): Promise<BrokerOrderResult> {
@@ -352,12 +410,12 @@ export class PolymarketAdapter
       );
     }
     const metadata = parsePredictionMetadata(order.instrument.metadataJson);
-    const sizeShares = resolveLimitSizeShares(order);
 
     if (this.isPaper) {
-      return this.placeGhostLimitOrder(order, metadata, sizeShares, limitPrice);
+      return this.placeGhostOrderV2(order, metadata);
     }
 
+    const sizeShares = resolveLimitSizeShares(order);
     const client = await this.getAuthedClient();
     const tickSize = await this.resolveTickSize(
       client,
@@ -400,66 +458,19 @@ export class PolymarketAdapter
       { brokerOrderId, limitPrice },
       "polymarket placeOrderV2: GTC limit posted",
     );
-    // Resting limit may not fill immediately; report the limit as the working price.
     return { brokerOrderId, filledAvgPrice: limitPrice };
-  }
-
-  private async placeGhostLimitOrder(
-    order: BrokerOrderV2,
-    metadata: PredictionInstrumentMetadata,
-    sizeShares: number,
-    limitPrice: number,
-  ): Promise<BrokerOrderResult> {
-    const mid = await this.resolveReferencePrice(
-      this.getReadOnlyClient(),
-      metadata.outcomeTokenId,
-    );
-    const crosses =
-      order.side === "BUY" ? mid <= limitPrice : mid >= limitPrice;
-    if (!crosses) {
-      throw new AppError(
-        `Polymarket paper limit: mid ${mid.toFixed(4)} has not crossed limit ${limitPrice.toFixed(4)}.`,
-        "BROKER_ERROR",
-        { mid, limitPrice, side: order.side },
-      );
-    }
-
-    const fillPrice = limitPrice;
-    const sizeUsd = sizeShares * fillPrice;
-    if (order.side === "BUY" && sizeUsd > this.paperBalanceUsd) {
-      throw new AppError(
-        `Insufficient paper balance: need $${sizeUsd.toFixed(2)}, have $${this.paperBalanceUsd.toFixed(2)}.`,
-        "BROKER_ERROR",
-      );
-    }
-
-    const brokerOrderId = `ghost-limit-${crypto.randomUUID()}`;
-    if (order.side === "BUY") this.paperBalanceUsd -= sizeUsd;
-    this.ghostOrders.set(brokerOrderId, {
-      tokenId: metadata.outcomeTokenId,
-      conditionId: metadata.conditionId,
-      market: metadata.conditionId,
-      side: order.side,
-      sizeUsd,
-      shares: sizeShares,
-      entryPrice: fillPrice,
-      open: true,
-    });
-    logger.info(
-      {
-        brokerOrderId,
-        filledAvgPrice: fillPrice,
-        mid,
-        paperBalanceUsd: this.paperBalanceUsd,
-      },
-      "polymarket ghost: limit filled locally (mid crossed)",
-    );
-    return { brokerOrderId, filledAvgPrice: fillPrice };
   }
 
   async cancelOrder(brokerOrderId: string): Promise<void> {
     if (this.isPaper) {
-      this.ghostOrders.delete(brokerOrderId);
+      const canceled = this.ghosts.cancel(brokerOrderId);
+      const pos = this.ghostPositions.get(brokerOrderId);
+      if (pos?.resting) {
+        pos.open = false;
+        pos.resting = false;
+      } else if (canceled?.status === "canceled") {
+        this.ghostPositions.delete(brokerOrderId);
+      }
       return;
     }
     logger.info({ brokerOrderId }, "polymarket cancelOrder: cancelling order");
@@ -470,6 +481,24 @@ export class PolymarketAdapter
       brokerOrderId,
       () => client.cancelOrder({ orderID: brokerOrderId }),
     );
+  }
+
+  /** Resting ghost limits (paper) or empty for immediate-fill ghosts. */
+  async getOpenOrders(): Promise<
+    Array<{
+      brokerOrderId: string;
+      clientOrderId: string;
+      status: "open";
+      remainingQty: number;
+    }>
+  > {
+    if (!this.isPaper) return [];
+    return this.ghosts.listOpen().map((r) => ({
+      brokerOrderId: r.ghostOrderId,
+      clientOrderId: r.clientOrderId,
+      status: "open" as const,
+      remainingQty: r.remainingQty,
+    }));
   }
 
   async getPositions(): Promise<BrokerPosition[]> {
@@ -531,26 +560,35 @@ export class PolymarketAdapter
     };
   }
 
-  /** Settle a ghost position at the current real market price; credit proceeds. */
+  /**
+   * Settle a ghost position: prefer real gamma resolution price (0 or 1),
+   * else mark-to-market at last trade. Credits paper balance with proceeds.
+   */
   private async closeGhostOrder(orderId: string): Promise<CloseResult> {
-    const ghost = this.ghostOrders.get(orderId);
-    if (!ghost || !ghost.open) {
+    await this.promoteRestingIfFilled(orderId);
+    const ghost = this.ghostPositions.get(orderId);
+    if (!ghost || !ghost.open || ghost.resting) {
       return { brokerOrderId: orderId, realizedPnlUsd: 0 };
     }
-    const exitPrice = await this.resolveReferencePrice(
-      this.getReadOnlyClient(),
-      ghost.tokenId,
-    );
+    const readClient = this.getReadOnlyClient();
+    const market = ghost.market
+      ? await readClient.getMarket(ghost.market).catch(() => null)
+      : null;
+    const settlement = readResolutionSettlement(market, ghost.tokenId);
+    const exitPrice =
+      settlement.settlementPrice ??
+      (await this.resolveReferencePrice(readClient, ghost.tokenId));
     const proceeds = ghost.shares * exitPrice;
     const realizedPnlUsd = proceeds - ghost.sizeUsd;
-    this.paperBalanceUsd += proceeds;
+    this.creditPaper(proceeds);
     ghost.open = false;
     logger.info(
       {
         orderId,
         exitPrice,
+        resolved: settlement.resolved,
         realizedPnlUsd,
-        paperBalanceUsd: this.paperBalanceUsd,
+        paperBalanceUsd: this.readPaperBalance(),
       },
       "polymarket ghost: position closed locally",
     );
@@ -587,12 +625,23 @@ export class PolymarketAdapter
   }
 
   /**
-   * Ghost status: a ghost fill is "open" until the real market resolves, using
-   * the real resolution time and price. This is how a paper position rides to
-   * settlement against reality without ever touching the CLOB.
+   * Ghost status: resting limits re-check quotes; filled positions stay open
+   * until real resolution (or forced close). Auto-settles on resolution.
    */
   private async getGhostOrderStatus(orderId: string): Promise<OrderStatus> {
-    const ghost = this.ghostOrders.get(orderId);
+    const sim = this.ghosts.get(orderId);
+    if (sim?.status === "canceled") {
+      return {
+        brokerOrderId: orderId,
+        status: "closed",
+        latestPrice: null,
+        realizedPnlUsd: null,
+      };
+    }
+
+    await this.promoteRestingIfFilled(orderId);
+
+    const ghost = this.ghostPositions.get(orderId);
     if (!ghost) {
       return {
         brokerOrderId: orderId,
@@ -601,23 +650,270 @@ export class PolymarketAdapter
         realizedPnlUsd: null,
       };
     }
+
+    if (ghost.resting) {
+      return {
+        brokerOrderId: orderId,
+        status: "open",
+        latestPrice: null,
+        realizedPnlUsd: null,
+      };
+    }
+
+    if (!ghost.open) {
+      return {
+        brokerOrderId: orderId,
+        status: "closed",
+        latestPrice: ghost.entryPrice,
+        realizedPnlUsd: null,
+      };
+    }
+
     const readClient = this.getReadOnlyClient();
+    const market = ghost.market
+      ? await readClient.getMarket(ghost.market).catch(() => null)
+      : null;
+    const settlement = readResolutionSettlement(market, ghost.tokenId);
+
+    if (settlement.resolved) {
+      const closed = await this.closeGhostOrder(orderId);
+      return {
+        brokerOrderId: orderId,
+        status: "closed",
+        latestPrice: settlement.settlementPrice,
+        realizedPnlUsd: closed.realizedPnlUsd,
+      };
+    }
+
     const latestPrice = await this.resolveOptionalPrice(
       readClient,
       ghost.tokenId,
     );
-    const market = ghost.market
-      ? await readClient.getMarket(ghost.market).catch(() => null)
-      : null;
-    const resolutionTime = readMarketResolutionTime(market);
-    const resolvedByTime =
-      resolutionTime != null && resolutionTime.getTime() <= Date.now();
     return {
       brokerOrderId: orderId,
-      status: ghost.open && !resolvedByTime ? "open" : "closed",
+      status: "open",
       latestPrice,
       realizedPnlUsd: null,
     };
+  }
+
+  /** Re-check resting ghost against fresh quote; debit paper on fill. */
+  private async promoteRestingIfFilled(orderId: string): Promise<void> {
+    const pos = this.ghostPositions.get(orderId);
+    if (!pos?.resting) return;
+    const quote = await this.resolveGhostQuote(
+      this.getReadOnlyClient(),
+      pos.tokenId,
+    );
+    const receipt = this.ghosts.poll(orderId, quote);
+    if (receipt?.status !== "filled" || receipt.filledAvgPrice == null) return;
+    const sizeUsd = receipt.filledQty * receipt.filledAvgPrice;
+    if (pos.side === "BUY") this.debitPaper(sizeUsd);
+    pos.resting = false;
+    pos.shares = receipt.filledQty;
+    pos.entryPrice = receipt.filledAvgPrice;
+    pos.sizeUsd = sizeUsd;
+    pos.open = true;
+    logger.info(
+      {
+        brokerOrderId: orderId,
+        filledAvgPrice: receipt.filledAvgPrice,
+        paperBalanceUsd: this.readPaperBalance(),
+      },
+      "polymarket ghost: resting limit filled on quote cross",
+    );
+  }
+
+  createOrderEventFeed(): OrderEventFeed {
+    const handlers = new Set<(event: OrderEvent) => void>();
+    const watched = new Set<string>();
+    const fillEmitted = new Set<string>();
+    const terminalEmitted = new Set<string>();
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let polling = false;
+
+    const emit = (event: OrderEvent): void => {
+      for (const h of handlers) h(event);
+    };
+
+    const tick = async (): Promise<void> => {
+      if (polling || watched.size === 0) return;
+      polling = true;
+      try {
+        for (const orderId of [...watched]) {
+          if (terminalEmitted.has(orderId)) {
+            watched.delete(orderId);
+            continue;
+          }
+          const before = this.ghostPositions.get(orderId);
+          const wasResting = before?.resting === true;
+          let status: OrderStatus;
+          try {
+            status = await this.getOrderStatus(orderId);
+          } catch {
+            continue;
+          }
+          const after = this.ghostPositions.get(orderId);
+          if (
+            wasResting &&
+            after &&
+            !after.resting &&
+            !fillEmitted.has(orderId)
+          ) {
+            fillEmitted.add(orderId);
+            emit({
+              brokerOrderId: orderId,
+              clientOrderId: after.order.clientOrderId,
+              kind: "fill",
+              ts: new Date().toISOString(),
+              filledAvgPrice: after.entryPrice,
+              filledQty: after.shares,
+              remainingQty: 0,
+            });
+          }
+          if (status.status === "closed") {
+            terminalEmitted.add(orderId);
+            watched.delete(orderId);
+            const sim = this.ghosts.get(orderId);
+            emit({
+              brokerOrderId: orderId,
+              kind: sim?.status === "canceled" ? "canceled" : "fill",
+              ts: new Date().toISOString(),
+              filledAvgPrice: status.latestPrice ?? undefined,
+              realizedPnlUsd: status.realizedPnlUsd ?? undefined,
+            });
+          }
+        }
+      } finally {
+        polling = false;
+      }
+    };
+
+    return {
+      async start() {
+        if (timer) return;
+        timer = setInterval(() => {
+          void tick();
+        }, 2_000);
+        void tick();
+      },
+      async stop() {
+        if (timer) clearInterval(timer);
+        timer = null;
+        handlers.clear();
+        watched.clear();
+      },
+      onEvent(handler) {
+        handlers.add(handler);
+        return () => handlers.delete(handler);
+      },
+      watchOrders(orderIds) {
+        for (const id of orderIds) {
+          if (!terminalEmitted.has(id)) watched.add(id);
+        }
+        if (!timer && watched.size > 0) {
+          timer = setInterval(() => {
+            void tick();
+          }, 2_000);
+          void tick();
+        }
+      },
+    };
+  }
+
+  private readPaperBalance(): number {
+    if (this.paperBalances && this.accountId) {
+      return this.paperBalances.getBalance(this.accountId);
+    }
+    return this.memoryPaperBalanceUsd;
+  }
+
+  private debitPaper(amount: number): void {
+    if (this.paperBalances && this.accountId) {
+      this.paperBalances.debit(this.accountId, amount);
+      return;
+    }
+    if (this.memoryPaperBalanceUsd < amount) {
+      throw brokerError(
+        "BROKER_INSUFFICIENT_FUNDS",
+        `Insufficient paper balance: need $${amount.toFixed(2)}, have $${this.memoryPaperBalanceUsd.toFixed(2)}.`,
+        { need: amount, have: this.memoryPaperBalanceUsd },
+      );
+    }
+    this.memoryPaperBalanceUsd -= amount;
+  }
+
+  private creditPaper(amount: number): void {
+    if (this.paperBalances && this.accountId) {
+      this.paperBalances.credit(this.accountId, amount);
+      return;
+    }
+    this.memoryPaperBalanceUsd += amount;
+  }
+
+  private async resolveGhostQuote(
+    client: ClobClient,
+    tokenId: string,
+  ): Promise<GhostQuote> {
+    const last = await this.resolveReferencePrice(client, tokenId);
+    // Polymarket CLOB last-trade is the primary free quote; use a 1c band around mid.
+    const half = 0.005;
+    return {
+      bid: Math.max(0.01, last - half),
+      ask: Math.min(0.99, last + half),
+      last,
+    };
+  }
+
+  private async runParityCheck(
+    metadata: PredictionInstrumentMetadata,
+  ): Promise<void> {
+    try {
+      const url = `https://gamma-api.polymarket.com/markets?condition_ids=${encodeURIComponent(metadata.conditionId)}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const message = `Polymarket parity check failed: gamma-api HTTP ${res.status}`;
+        logger.warn(
+          { conditionId: metadata.conditionId, status: res.status },
+          message,
+        );
+        this.onParityWarning?.(message, {
+          conditionId: metadata.conditionId,
+          status: res.status,
+        });
+        return;
+      }
+      const rows = (await res.json()) as unknown;
+      const markets = Array.isArray(rows) ? rows : [];
+      const market = markets[0] as Record<string, unknown> | undefined;
+      if (!market) {
+        const message = `Polymarket parity check failed: market ${metadata.conditionId} not found on gamma-api`;
+        logger.warn({ conditionId: metadata.conditionId }, message);
+        this.onParityWarning?.(message, {
+          conditionId: metadata.conditionId,
+        });
+        return;
+      }
+      const closed = Boolean(market.closed);
+      const settlement = readResolutionSettlement(
+        market,
+        metadata.outcomeTokenId,
+      );
+      if (closed && settlement.resolved) {
+        const message = `Polymarket parity check: market ${metadata.conditionId} already resolved — ghost trade may be incoherent`;
+        logger.warn({ conditionId: metadata.conditionId }, message);
+        this.onParityWarning?.(message, {
+          conditionId: metadata.conditionId,
+          closed: true,
+        });
+      }
+    } catch (err) {
+      const message = `Polymarket parity check failed: gamma-api unreachable (${err instanceof Error ? err.message : String(err)})`;
+      logger.warn({ err, conditionId: metadata.conditionId }, message);
+      this.onParityWarning?.(message, {
+        conditionId: metadata.conditionId,
+      });
+    }
   }
 
   private getReadOnlyClient(): ClobClient {
@@ -864,4 +1160,54 @@ function readMarketResolutionTime(market: unknown): Date | null {
   if (typeof raw !== "string") return null;
   const date = new Date(raw);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * Read real resolution settlement for a ghost position's outcome token.
+ * Only settles when the market is closed (or a token is explicitly marked
+ * winner). Extreme prices alone on an open market are not enough.
+ */
+export function readResolutionSettlement(
+  market: unknown,
+  outcomeTokenId: string,
+): { resolved: boolean; settlementPrice: number | null } {
+  if (!market || typeof market !== "object") {
+    return { resolved: false, settlementPrice: null };
+  }
+  const m = market as {
+    closed?: unknown;
+    tokens?: Array<{
+      token_id?: unknown;
+      tokenId?: unknown;
+      outcome?: unknown;
+      winner?: unknown;
+      price?: unknown;
+    }>;
+  };
+  const tokens = Array.isArray(m.tokens) ? m.tokens : [];
+  const token = tokens.find((t) => {
+    const id = String(t.token_id ?? t.tokenId ?? "");
+    return id === outcomeTokenId;
+  });
+  const closed = m.closed === true;
+  // Winner flags are authoritative only once the market is closed.
+  if (closed && token?.winner === true) {
+    return { resolved: true, settlementPrice: 1 };
+  }
+  if (closed && token?.winner === false) {
+    return { resolved: true, settlementPrice: 0 };
+  }
+  if (closed && tokens.some((t) => t.winner === true) && token) {
+    return { resolved: true, settlementPrice: 0 };
+  }
+  if (closed && token?.price != null) {
+    const p = Number(token.price);
+    if (Number.isFinite(p) && p >= 0.99) {
+      return { resolved: true, settlementPrice: 1 };
+    }
+    if (Number.isFinite(p) && p <= 0.01) {
+      return { resolved: true, settlementPrice: 0 };
+    }
+  }
+  return { resolved: false, settlementPrice: null };
 }

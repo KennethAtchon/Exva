@@ -105,6 +105,10 @@ export interface SessionRiskConfig {
   maxAiSpendUsd: number;
   maxDataSpendUsd: number;
   humanApprovalRequired: boolean;
+  /** Hours around binary calendar events for entry blackout (default 24). */
+  calendarBlackoutHours?: number;
+  /** Skip calendar blackout when the experience is explicitly event-typed. */
+  eventTypedExperience?: boolean;
   updatedAt: string;
 }
 
@@ -183,6 +187,8 @@ export interface StrategySnapshot {
     maxAiSpendUsd: number;
     maxDataSpendUsd: number;
     humanApprovalRequired: boolean;
+    calendarBlackoutHours?: number;
+    eventTypedExperience?: boolean;
   };
   timeframe: {
     primaryTradingTimeframe: TradingTimeframe;
@@ -267,23 +273,6 @@ export interface TradeRulesPreset {
     scalingMode: StrategyScalingMode;
   };
   aiGuidance?: PresetAiGuidance;
-}
-
-export interface SessionConfig {
-  // TODO(phase-05/phase-07): Remove this compatibility bridge once renderer/main callers
-  // switch to the canonical SessionStrategy + per-role AI config model.
-  strategy: string;
-  max_position_usd: number;
-  stop_loss_pct: number;
-  take_profit_pct: number;
-  max_concurrent_trades: number;
-  max_consecutive_losers: number;
-  research_depth: ResearchDepth;
-  daily_loss_limit_usd: number;
-  profit_target_usd: number;
-  max_api_spend_usd: number;
-  human_approval_required: boolean;
-  off_hours_trading: OffHoursTrading;
 }
 
 /** Injected ahead of task-specific user prompts (Phase 7 orchestration). */
@@ -531,25 +520,6 @@ export function validateSessionStrategyContext(
       `AI worker instructions must stay under ${WORKER_GUIDANCE_MARKDOWN_MAX_CHARS} characters.`,
     );
   }
-}
-
-export function toLegacySessionConfig(
-  context: SessionStrategyContext,
-): SessionConfig {
-  return {
-    strategy: context.rules.setupType,
-    max_position_usd: context.riskConfig.maxPositionUsd,
-    stop_loss_pct: context.riskConfig.stopLossPct ?? 0,
-    take_profit_pct: context.riskConfig.takeProfitPct ?? 0,
-    max_concurrent_trades: context.riskConfig.maxConcurrentTrades,
-    max_consecutive_losers: context.riskConfig.maxConsecutiveLosers,
-    research_depth: "balanced",
-    daily_loss_limit_usd: context.riskConfig.dailyLossLimitUsd,
-    profit_target_usd: context.riskConfig.profitTargetUsd,
-    max_api_spend_usd: context.riskConfig.maxAiSpendUsd,
-    human_approval_required: context.riskConfig.humanApprovalRequired,
-    off_hours_trading: context.riskConfig.offHoursTrading,
-  };
 }
 
 function labelizeToken(token: string): string {

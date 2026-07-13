@@ -239,7 +239,7 @@ const executionProfileInputBuilder: EngineInputBuilder = {
       task: {
         signal: decision.output,
         instrumentClass: ctx.instrument.instrumentClass,
-        maxPositionUsd: ctx.sessionConfig.max_position_usd,
+        maxPositionUsd: ctx.strategyContext.riskConfig.maxPositionUsd,
         maxExposureUsd: ctx.strategyContext.riskConfig.maxExposureUsd ?? null,
         risk: {
           stopLossPct: ctx.strategyContext.riskConfig.stopLossPct,
@@ -295,7 +295,7 @@ export const riskGateInputBuilder: EngineInputBuilder = {
         .listAssignments(ctx.sessionId)
         .reduce((sum, assignment) => sum + assignment.allocatedUsd, 0),
       ctx.services.sessionRepo.uptimeMin(ctx.sessionId),
-      ctx.sessionConfig.max_api_spend_usd,
+      ctx.strategyContext.riskConfig.maxAiSpendUsd,
     );
 
     const sessionRow = ctx.services.sessionRepo.requireById(ctx.sessionId);
@@ -328,6 +328,14 @@ export const riskGateInputBuilder: EngineInputBuilder = {
     );
     const maxSameGroupExposureUsd =
       ctx.strategyContext.riskConfig.maxPositionUsd * 3;
+
+    const blackoutHours =
+      ctx.strategyContext.riskConfig.calendarBlackoutHours ?? 24;
+    const upcomingCalendarEvents =
+      ctx.services.calendarEventsRepo?.listForBlackout({
+        symbol: ctx.instrument.symbol,
+        blackoutHours,
+      }) ?? [];
 
     // P4/P5/P6: compute pre-trade edge, cost hurdle, and capital-allocator
     // size. Persist to the decision trace (observability), cap the order to the
@@ -398,7 +406,7 @@ export const riskGateInputBuilder: EngineInputBuilder = {
 
     return {
       task: {
-        config: ctx.sessionConfig,
+        riskConfig: ctx.strategyContext.riskConfig,
         stats,
         holdingStyle: ctx.strategyContext.timeframe.holdingStyle,
         order: {
@@ -417,6 +425,12 @@ export const riskGateInputBuilder: EngineInputBuilder = {
         assetGroup,
         openExposureByGroupUsd,
         maxSameGroupExposureUsd,
+        upcomingCalendarEvents: upcomingCalendarEvents.map((e) => ({
+          eventType: e.eventType,
+          scheduledAt: e.scheduledAt,
+          symbol: e.symbol ?? undefined,
+          title: e.title ?? undefined,
+        })),
         riskPolicy: {
           waitForOpenThreshold:
             ctx.strategyContext.riskConfig.waitForOpenThreshold,

@@ -49,7 +49,7 @@ function createService() {
   const service = new TradeAutopsyService({
     trades: { require: () => CLOSED_TRADE } as never,
     agentMessages: { listByTrade: () => [] } as never,
-    autopsies: { insert: insertAutopsy, listByTrade: () => [] } as never,
+    autopsies: { insertTrade: insertAutopsy, listByTrade: () => [] } as never,
     lessons: {
       insert: insertLesson,
       listByAutopsy: () => [],
@@ -129,7 +129,6 @@ describe("TradeAutopsyService", () => {
     expect(insertLesson).toHaveBeenCalledWith(
       expect.objectContaining({
         autopsyId: "autopsy-1",
-        periodAutopsyId: null,
         tradeId: CLOSED_TRADE.id,
         sessionId: CLOSED_TRADE.sessionId,
         source: "trade",
@@ -162,7 +161,6 @@ describe("TradeAutopsyService", () => {
     expect(insertLesson).toHaveBeenCalledWith(
       expect.objectContaining({
         autopsyId: "autopsy-1",
-        periodAutopsyId: null,
         tradeId: "trade-1",
         sessionId: "session-1",
         source: "trade",

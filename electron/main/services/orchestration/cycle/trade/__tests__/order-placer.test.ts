@@ -167,9 +167,12 @@ function createContext(options?: {
 
   return new TradingCycleContext("session-1", {
     sessionRepo: { getStatus: () => "active" },
-    strategyContextService: { get: () => ({}) },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
+    strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
+      get: () => ({}),
     },
     sessionExecutionStepsRepo: { upsert: vi.fn() },
     eventsRepo: { insert: vi.fn((event) => event) },

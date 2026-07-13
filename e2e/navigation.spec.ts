@@ -9,22 +9,15 @@ import {
 
 const PAGE_MARKERS: Record<(typeof NAV_ITEMS)[number]["id"], RegExp> = {
   dashboard: /Dashboard/,
-  assistant: /Assistant/,
   sessions: /Sessions/,
-  brokers: /Brokers/,
-  trades: /Trades/,
-  autopsy: /Autopsy/,
-  leaderboard: /Experience leaderboard/,
-  strategy: /No session focused|Strategy/,
-  signals: /Signal Sources/,
-  costs: /API Usage/,
-  devpanel: /Developer Workbench/,
-  accounts: /Accounts/,
+  signals: /Signals & Schedules|Signal/,
+  research: /Research|Scorecards|Experience leaderboard/,
+  settings: /Settings|Accounts/,
   docs: /Docs|Documentation/,
 };
 
 test.describe.serial("navigation", () => {
-  test("each main nav item loads its page without crashing", async () => {
+  test("each main nav item loads its hub without crashing", async () => {
     const launched = await launchExva();
     try {
       const { window } = launched;

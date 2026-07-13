@@ -102,7 +102,9 @@ describe("StrategyDefinitionRegistry", () => {
     it("fails with invalid params", () => {
       const registry = makeRegistry();
       registry.register(makeDefinition("v"));
-      const result = registry.validateParameters("v", { threshold: "not-a-number" });
+      const result = registry.validateParameters("v", {
+        threshold: "not-a-number",
+      });
       expect(result.success).toBe(false);
     });
 
@@ -135,7 +137,10 @@ describe("StrategyDefinitionRegistry", () => {
     it("breakout is available and creates a valid strategy", () => {
       const registry = getStrategyDefinitionRegistry();
       const def = registry.require("breakout");
-      const strategy = def.create({ lookback: 20, volumeMultiplierThreshold: 1.5 });
+      const strategy = def.create({
+        lookback: 20,
+        volumeMultiplierThreshold: 1.5,
+      });
       expect(strategy.id).toBe("breakout");
     });
 
@@ -146,33 +151,38 @@ describe("StrategyDefinitionRegistry", () => {
       expect(strategy.id).toBe("trend-following");
     });
 
-    it("options-flow is disabled and require() throws", () => {
+    it("options-flow is available (v2 verticals)", () => {
       const registry = getStrategyDefinitionRegistry();
-      expect(() => registry.require("options-flow")).toThrow(/disabled/i);
+      const def = registry.require("options-flow");
+      expect(def.implementationStatus).toBe("available");
+      const strategy = def.create({ useVerticalSpreads: true });
+      expect(strategy.id).toBe("options-flow");
     });
 
-    it("options-flow create() throws", () => {
+    it("unusual-volume is available", () => {
       const registry = getStrategyDefinitionRegistry();
-      const def = registry.get("options-flow")!;
-      expect(def.implementationStatus).toBe("disabled");
-      expect(() => def.create({})).toThrow(/disabled/i);
+      const def = registry.require("unusual-volume");
+      expect(def.implementationStatus).toBe("available");
     });
 
     it("mean-reversion accepts stock instrument class", () => {
       const registry = getStrategyDefinitionRegistry();
-      const def = registry.get("mean-reversion")!;
+      const def = registry.get("mean-reversion");
+      if (!def) throw new Error("expected mean-reversion definition");
       expect(def.acceptedInstrumentClasses).toContain("stock");
     });
 
     it("breakout accepts crypto instrument class", () => {
       const registry = getStrategyDefinitionRegistry();
-      const def = registry.get("breakout")!;
+      const def = registry.get("breakout");
+      if (!def) throw new Error("expected breakout definition");
       expect(def.acceptedInstrumentClasses).toContain("crypto");
     });
 
     it("trend-following accepts futures instrument class", () => {
       const registry = getStrategyDefinitionRegistry();
-      const def = registry.get("trend-following")!;
+      const def = registry.get("trend-following");
+      if (!def) throw new Error("expected trend-following definition");
       expect(def.acceptedInstrumentClasses).toContain("futures");
     });
 

@@ -7,13 +7,13 @@ import { createTestDb } from "../../../db/test-helpers";
 import { BrokerAccountsRepo } from "../../../db/repositories/brokers/broker-accounts-repo";
 import { BrokerRoutingRepo } from "../../../db/repositories/brokers/broker-routing-repo";
 import { ProviderAccountsRepo } from "../../../db/repositories/workspace/provider-accounts-repo";
-import { SessionAiPhasesRepo } from "../../../db/repositories/sessions/session-ai-phases-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/sessions/session-broker-assignments-repo";
 import { SessionRepo } from "../../../db/repositories/sessions/session-repo";
-import { SessionSelectorSettingsRepo } from "../../../db/repositories/sessions/session-selector-settings-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
 import { BrokerRoutingService } from "../../broker/broker-routing-service";
 import { SignalSourcesRepo } from "../../signals/repos/signal-sources-repo";
+import { SessionStrategyConfigService } from "../session-strategy-config-service";
+import { SessionStrategyContextService } from "../session-strategy-context-service";
 import { runPreflight } from "./index";
 
 describe("runPreflight", () => {
@@ -130,10 +130,15 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
   const brokers = new BrokerAccountsRepo(db);
   const assignments = new SessionBrokerAssignmentsRepo(db);
   const routingRepo = new BrokerRoutingRepo(db);
-  const selectorSettings = new SessionSelectorSettingsRepo(db);
   const providerAccounts = new ProviderAccountsRepo(db);
   const workspacePreferences = new WorkspacePreferencesRepo(db);
-  const sessionAiPhasesRepo = new SessionAiPhasesRepo(db);
+  const strategyConfig = new SessionStrategyConfigService(db);
+  const strategyContextService = new SessionStrategyContextService({
+    sessionRepo: sessions,
+    strategyConfig,
+    providerAccountsRepo: providerAccounts,
+    workspacePrefsRepo: workspacePreferences,
+  });
   const signalSourcesRepo = new SignalSourcesRepo(db);
 
   insertBrokerAccount(db, { id: "broker-stock" });
@@ -166,7 +171,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
 
   const deps = {
     sessionRepo: sessions,
-    sessionSelectorSettingsRepo: selectorSettings,
+    strategyContextService,
     sessionBrokerAssignmentsRepo: assignments,
     brokerAccountsRepo: brokers,
     brokerRouting: routing,
@@ -179,7 +184,6 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     },
     providerAccountsRepo: providerAccounts,
     workspacePreferencesRepo: workspacePreferences,
-    sessionAiPhasesRepo,
     signalSourcesRepo,
     tradesRepo: {
       checkInstrumentConflict: () => instrumentConflict,
@@ -204,7 +208,9 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
       routingRepo.upsertSessionOverrides(session.id, [
         { instrumentClass: "stock", brokerAccountId: "broker-stock" },
       ]);
-      selectorSettings.update(session.id, { aiPickerEnabled: false });
+      strategyContextService.saveSelectorSettings(session.id, {
+        aiPickerEnabled: false,
+      });
       configureAiProvider(session.id);
       const edgarSourceId = "edgar-source";
       if (!signalSourcesRepo.get(edgarSourceId)) {
@@ -217,13 +223,12 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
           configJson: "{}",
         });
       }
-      // V2: signal subscriptions managed via session-inputs API, not signal_sources
       return sessions.requireById(session.id);
     },
     clearAiProvider(sessionId: string) {
-      for (const phase of sessionAiPhasesRepo.listBySession(sessionId)) {
-        sessionAiPhasesRepo.upsertPhase(sessionId, {
-          ...phase,
+      for (const phase of strategyContextService.listAiPhases(sessionId)) {
+        strategyContextService.saveAiPhase(sessionId, {
+          phase: phase.phase,
           providerKey: "",
           modelId: "",
         });
@@ -241,7 +246,9 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     },
     enableAiPicker() {
       for (const session of sessions.list()) {
-        selectorSettings.update(session.id, { aiPickerEnabled: true });
+        strategyContextService.saveSelectorSettings(session.id, {
+          aiPickerEnabled: true,
+        });
       }
     },
     clearSearchProvider() {
@@ -270,9 +277,9 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
       ? [sessions.requireById(sessionId)]
       : sessions.list();
     for (const session of targets) {
-      for (const phase of sessionAiPhasesRepo.listBySession(session.id)) {
-        sessionAiPhasesRepo.upsertPhase(session.id, {
-          ...phase,
+      for (const phase of strategyContextService.listAiPhases(session.id)) {
+        strategyContextService.saveAiPhase(session.id, {
+          phase: phase.phase,
           providerKey: "provider-openrouter",
           modelId: "google/gemma-4-31b-it",
         });

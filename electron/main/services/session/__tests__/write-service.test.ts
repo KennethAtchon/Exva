@@ -4,16 +4,13 @@ import { createTestDb } from "../../../db/test-helpers";
 import { BrokerAccountsRepo } from "../../../db/repositories/brokers/broker-accounts-repo";
 import { BrokerRoutingRepo } from "../../../db/repositories/brokers/broker-routing-repo";
 import { EventsRepo } from "../../../db/repositories/system/events-repo";
-import { SessionAiPhasesRepo } from "../../../db/repositories/sessions/session-ai-phases-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/sessions/session-broker-assignments-repo";
 import { SessionRepo } from "../../../db/repositories/sessions/session-repo";
-import { SessionResearchPostureRepo } from "../../../db/repositories/sessions/session-research-posture-repo";
-import { SessionRiskConfigRepo } from "../../../db/repositories/sessions/session-risk-config-repo";
-import { SessionSelectorSettingsRepo } from "../../../db/repositories/sessions/session-selector-settings-repo";
-import { SessionTimeframeConfigRepo } from "../../../db/repositories/sessions/session-timeframe-config-repo";
-import { SessionTradeRulesRepo } from "../../../db/repositories/sessions/session-trade-rules-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
+import { ProviderAccountsRepo } from "../../../db/repositories/workspace/provider-accounts-repo";
 import { SessionWriteService } from "../write-service";
+import { SessionStrategyConfigService } from "../session-strategy-config-service";
+import { SessionStrategyContextService } from "../session-strategy-context-service";
 
 describe("SessionWriteService", () => {
   let db = createTestDb();
@@ -59,12 +56,19 @@ describe("SessionWriteService", () => {
     const sessions = new SessionRepo(db);
     const assignments = new SessionBrokerAssignmentsRepo(db);
     const routing = new BrokerRoutingRepo(db);
-    const selectorSettings = new SessionSelectorSettingsRepo(db);
-    const aiPhases = new SessionAiPhasesRepo(db).listBySession(result.id);
-    const researchPosture = new SessionResearchPostureRepo(db).get(result.id);
-    const tradeRules = new SessionTradeRulesRepo(db).get(result.id);
-    const riskConfig = new SessionRiskConfigRepo(db).get(result.id);
-    const timeframe = new SessionTimeframeConfigRepo(db).get(result.id);
+    const strategyConfig = new SessionStrategyConfigService(db);
+    const strategyContext = new SessionStrategyContextService({
+      sessionRepo: sessions,
+      strategyConfig,
+      providerAccountsRepo: new ProviderAccountsRepo(db),
+      workspacePrefsRepo: new WorkspacePreferencesRepo(db),
+    });
+    const selectorSettings = strategyContext.getSelectorSettings(result.id);
+    const aiPhases = strategyContext.listAiPhases(result.id);
+    const researchPosture = strategyContext.getResearchPosture(result.id);
+    const tradeRules = strategyContext.getRules(result.id);
+    const riskConfig = strategyContext.getRiskConfig(result.id);
+    const timeframe = strategyContext.getTimeframeConfig(result.id);
 
     expect(result.status).toBe("draft");
     expect(sessions.getFocusedSessionId()).toBe(result.id);
@@ -81,7 +85,7 @@ describe("SessionWriteService", () => {
         brokerAccountId: "broker-stock",
       },
     ]);
-    expect(selectorSettings.get(result.id).aiPickerEnabled).toBe(false);
+    expect(selectorSettings.aiPickerEnabled).toBe(false);
     expect(aiPhases).toHaveLength(5);
     expect(aiPhases.every((p) => p.providerKey === "provider-openrouter")).toBe(
       true,
@@ -117,7 +121,12 @@ describe("SessionWriteService", () => {
       ],
     });
 
-    const aiPhases = new SessionAiPhasesRepo(db).listBySession(result.id);
+    const aiPhases = new SessionStrategyContextService({
+      sessionRepo: new SessionRepo(db),
+      strategyConfig: new SessionStrategyConfigService(db),
+      providerAccountsRepo: new ProviderAccountsRepo(db),
+      workspacePrefsRepo: new WorkspacePreferencesRepo(db),
+    }).listAiPhases(result.id);
     expect(aiPhases).toHaveLength(5);
     expect(aiPhases.every((p) => p.providerKey === "")).toBe(true);
     expect(aiPhases.every((p) => p.modelId === "")).toBe(true);
@@ -347,10 +356,18 @@ describe("SessionWriteService", () => {
 function createService(
   db: ReturnType<typeof createTestDb>,
 ): SessionWriteService {
+  const sessions = new SessionRepo(db);
+  const strategyConfig = new SessionStrategyConfigService(db);
+  const strategyContext = new SessionStrategyContextService({
+    sessionRepo: sessions,
+    strategyConfig,
+    providerAccountsRepo: new ProviderAccountsRepo(db),
+    workspacePrefsRepo: new WorkspacePreferencesRepo(db),
+  });
   return new SessionWriteService({
-    sessions: new SessionRepo(db),
+    sessions,
     events: new EventsRepo(db),
-    selectorSettings: new SessionSelectorSettingsRepo(db),
+    strategyContext,
     assignments: new SessionBrokerAssignmentsRepo(db),
     brokerRouting: new BrokerRoutingRepo(db),
     brokerAccounts: new BrokerAccountsRepo(db),

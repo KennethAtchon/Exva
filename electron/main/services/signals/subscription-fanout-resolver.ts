@@ -35,10 +35,7 @@ export class SubscriptionFanoutResolver {
         and(
           eq(sessionInputSubscriptions.mode, "event_source"),
           eq(sessionInputSubscriptions.enabled, true),
-          eq(
-            sessionInputSubscriptions.sourceDefinitionId,
-            sourceDefinitionId,
-          ),
+          eq(sessionInputSubscriptions.sourceDefinitionId, sourceDefinitionId),
         ),
       )
       .all();

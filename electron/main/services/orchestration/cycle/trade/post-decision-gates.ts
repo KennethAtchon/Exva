@@ -29,9 +29,8 @@ export async function runPostDecisionGates(
     tradeId,
     session: ctx.deps.sessionRepo.requireById(ctx.sessionId),
     instrument,
-    sessionConfig: ctx.getSessionConfig(),
     instrumentClasses: [],
-    strategyContext: ctx.deps.strategyContextService.get(ctx.sessionId),
+    strategyContext: ctx.getStrategyContext(),
     services: ctx.deps as InstrumentAnalysisServices,
   };
   return runEngineChainStage(RISK_GATE_ENGINES, engineCtx, state);

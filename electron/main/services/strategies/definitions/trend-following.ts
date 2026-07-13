@@ -6,7 +6,11 @@ import {
 import type { StrategyDefinition } from "../strategy-definition-registry";
 
 const parameterSchema = z.object({
-  lookback: z.number().int().positive().default(TREND_FOLLOWING_DEFAULT_LOOKBACK),
+  lookback: z
+    .number()
+    .int()
+    .positive()
+    .default(TREND_FOLLOWING_DEFAULT_LOOKBACK),
 });
 
 type Parameters = z.infer<typeof parameterSchema>;

@@ -15,13 +15,8 @@ import type {
   EventRow,
   InstrumentClass,
   ProviderAccount,
-  SessionRiskConfig,
   SessionStatus,
-  SessionTradeRules,
   SessionTemplatePayload,
-  SessionTimeframeConfig,
-  SessionResearchPosture,
-  SessionAiSettings,
   Trade,
   TradeDetail,
   WorkspacePreferences,
@@ -37,7 +32,6 @@ import type {
   SessionExecutionProgressResponse,
   SessionSummary,
   StrategyGetResponse,
-  UserGlobalPresetRow,
   WorkspaceViewResponse,
 } from "@electron/shared/ipc/dto";
 import type {
@@ -83,6 +77,16 @@ export interface ExvaApi {
   dashboard: {
     getStats(): Promise<DashboardStats>;
     getCostBreakdown(dateRange?: string): Promise<CostBreakdown>;
+    getCalendarAttention(): Promise<{
+      items: Array<{
+        id: string;
+        severity: "info" | "warn";
+        message: string;
+        scheduledAt: string;
+        symbol: string | null;
+        sessionId: string | null;
+      }>;
+    }>;
   };
   approvals: {
     list(filters?: { status?: "pending" | "approved" | "rejected" }): Promise<{
@@ -212,7 +216,21 @@ export interface ExvaApi {
     testLiveBrokerConnection(
       sessionId: string,
     ): Promise<{ ok: boolean; message: string }>;
-    debugInjectSignal(sessionId: string): Promise<{ ok: boolean }>;
+    debugInjectSignal(
+      sessionId: string,
+      opts?: {
+        kind?:
+          | "filing"
+          | "market_dislocation"
+          | "flow_anomaly"
+          | "scan_hit"
+          | "news"
+          | "calendar_event"
+          | "manual";
+        payload?: Record<string, unknown>;
+        symbol?: string;
+      },
+    ): Promise<{ ok: boolean }>;
     debugForceTrade(sessionId: string): Promise<DebugForceTradeResult>;
   };
   workspace: {
@@ -232,6 +250,14 @@ export interface ExvaApi {
       allocationEnforcement?: "hard" | "warn";
       balanceRefreshIntervalMin?: number;
     }): Promise<{ ok: true }>;
+    resetPaperBalance(input: {
+      brokerAccountId: string;
+      startingBalanceUsd?: number;
+    }): Promise<{
+      balanceUsd: number;
+      startingBalanceUsd: number;
+      cachedAt: string;
+    }>;
   };
   templates: {
     list(filters?: {
@@ -262,67 +288,9 @@ export interface ExvaApi {
   };
   strategy: {
     get(sessionId: string): Promise<StrategyGetResponse>;
-    getResearchPosture(sessionId: string): Promise<SessionResearchPosture>;
-    saveResearchPosture(input: {
-      sessionId: string;
-      researchPosture: Partial<SessionResearchPosture>;
-    }): Promise<{ savedAt: string }>;
-    getRules(sessionId: string): Promise<SessionTradeRules>;
-    saveRules(input: {
-      sessionId: string;
-      rules: Partial<SessionTradeRules>;
-    }): Promise<{ savedAt: string }>;
-    getRiskConfig(sessionId: string): Promise<SessionRiskConfig>;
-    saveRiskConfig(input: {
-      sessionId: string;
-      riskConfig: Partial<SessionRiskConfig>;
-    }): Promise<{ savedAt: string }>;
-    getTimeframeConfig(sessionId: string): Promise<SessionTimeframeConfig>;
-    saveTimeframeConfig(input: {
-      sessionId: string;
-      timeframe: Partial<SessionTimeframeConfig>;
-    }): Promise<{ savedAt: string }>;
-    saveAiSettings(input: {
-      sessionId: string;
-      aiSettings: Partial<SessionAiSettings>;
-    }): Promise<{ savedAt: string }>;
-    saveAiPhase(input: {
-      sessionId: string;
-      phase: import("@electron/shared/ai/ai-phase").PipelinePhase;
-      providerKey?: string;
-      modelId?: string;
-      temperature?: number;
-      maxTokens?: number;
-      reasoningLevel?: "off" | "auto" | "low" | "medium" | "high" | "max";
-      promptSource?: "default" | "session_override";
-      promptMarkdown?: string;
-    }): Promise<{ savedAt: string }>;
-    saveAiPhaseWorker(input: {
-      sessionId: string;
-      phase: import("@electron/shared/ai/ai-phase").PipelinePhase;
-      workerId: string;
-      providerKey?: string | null;
-      modelId?: string | null;
-      maxSteps?: number | null;
-      spendLimitUsd?: number | null;
-      promptMarkdown?: string | null;
-    }): Promise<{ savedAt: string }>;
     getProviderModels(
       providerKey: string,
     ): Promise<{ models: ProviderModelEntry[] }>;
-    globalPresets: {
-      list(): Promise<{ presets: UserGlobalPresetRow[] }>;
-      create(input: {
-        name: string;
-        preset: Record<string, unknown>;
-      }): Promise<UserGlobalPresetRow>;
-      update(input: {
-        id: string;
-        name: string;
-        preset: Record<string, unknown>;
-      }): Promise<{ ok: true }>;
-      delete(input: { id: string }): Promise<{ ok: true }>;
-    };
     getWorkspaceDefaultModel(): Promise<{
       providerKey: string;
       modelId: string;
@@ -333,6 +301,78 @@ export interface ExvaApi {
       modelId: string;
       reasoningLevel?: import("@electron/shared/ai/ai-phase").ReasoningLevel;
     }): Promise<{ savedAt: string }>;
+  };
+  strategyConfig: {
+    get(sessionId: string): Promise<{
+      version: number;
+      schemaVersion: number;
+      doc: import("@electron/shared/domain/session-strategy-config").SessionStrategyConfigDoc;
+      updatedAt: string;
+    }>;
+    update(input: {
+      sessionId: string;
+      expectedVersion: number;
+      patch: Record<string, unknown>;
+    }): Promise<{
+      version: number;
+      schemaVersion: number;
+      doc: import("@electron/shared/domain/session-strategy-config").SessionStrategyConfigDoc;
+      updatedAt: string;
+    }>;
+    applyPreset(input: {
+      sessionId: string;
+      presetId: string;
+      expectedVersion: number;
+    }): Promise<{
+      version: number;
+      schemaVersion: number;
+      doc: import("@electron/shared/domain/session-strategy-config").SessionStrategyConfigDoc;
+      updatedAt: string;
+    }>;
+    listPresets(kind?: string): Promise<{
+      presets: Array<{
+        id: string;
+        name: string;
+        kind: string;
+        doc: unknown;
+        builtin: boolean;
+        updatedAt: string;
+      }>;
+    }>;
+    savePreset(input: {
+      id?: string;
+      name: string;
+      kind: string;
+      doc: Record<string, unknown>;
+      builtin?: boolean;
+    }): Promise<{
+      id: string;
+      name: string;
+      kind: string;
+      doc: unknown;
+      builtin: boolean;
+      updatedAt: string;
+    }>;
+    deletePreset(input: { id: string }): Promise<{ ok: true }>;
+    history(sessionId: string): Promise<{
+      history: Array<{
+        id: string;
+        sessionId: string;
+        version: number;
+        doc: unknown;
+        savedAt: string;
+      }>;
+    }>;
+    rollback(input: {
+      sessionId: string;
+      version: number;
+      expectedVersion: number;
+    }): Promise<{
+      version: number;
+      schemaVersion: number;
+      doc: import("@electron/shared/domain/session-strategy-config").SessionStrategyConfigDoc;
+      updatedAt: string;
+    }>;
   };
   signals: {
     listSources(): Promise<{
@@ -587,6 +627,68 @@ export interface ExvaApi {
       queryMs: number;
     }>;
   };
+  ops: {
+    getBackupStatus(): Promise<{
+      lastBackup: {
+        backedUpAt: string;
+        sourcePath: string;
+        backupPath: string;
+        trigger: string;
+      } | null;
+      dbPath: string;
+      headless: boolean;
+      instanceLock: { pid: number; mode: string; startedAt: string } | null;
+    }>;
+    runBackupNow(): Promise<{
+      ok: boolean;
+      sourcePath: string;
+      backupPath: string | null;
+      backedUpAt: string;
+      error?: string;
+      skipped?: boolean;
+    }>;
+    getNotificationRouting(): Promise<{
+      routing: {
+        immediateSeverities: Array<"kill" | "error" | "warn" | "info">;
+        digestHourLocal: number;
+        ntfyEnabled: boolean;
+        telegramEnabled: boolean;
+        smtpEnabled: boolean;
+      };
+      ntfyConfigured: boolean;
+      telegramConfigured: boolean;
+      smtpConfigured: boolean;
+    }>;
+    updateNotificationRouting(patch: {
+      immediateSeverities?: Array<"kill" | "error" | "warn" | "info">;
+      digestHourLocal?: number;
+      ntfyEnabled?: boolean;
+      telegramEnabled?: boolean;
+      smtpEnabled?: boolean;
+    }): Promise<{ routing: unknown }>;
+    testNotificationSink(input: {
+      sink: "ntfy" | "telegram" | "smtp";
+    }): Promise<{ ok: boolean; error?: string }>;
+    setTelegramSecret(input: {
+      botToken: string;
+      chatId: string;
+    }): Promise<{ ok: true }>;
+    clearTelegramSecret(): Promise<{ ok: true }>;
+    listAlarms(): Promise<{
+      alarms: Array<{
+        id: string;
+        sessionId: string | null;
+        kind: string;
+        severity: string;
+        message: string;
+        firedAt: string;
+      }>;
+    }>;
+    triggerTestAlarm(input: {
+      kind: string;
+      sessionId?: string | null;
+    }): Promise<{ alarm: unknown }>;
+  };
   events: {
     list(filters?: {
       minLevel?: string;
@@ -653,7 +755,9 @@ export interface ExvaApi {
     }>;
   };
   sessionInputs: {
-    get(input: { sessionId: string }): Promise<
+    get(input: {
+      sessionId: string;
+    }): Promise<
       import("@electron/shared/domain/experience-inputs/subscription").SessionInputConfiguration
     >;
     replace(input: {
@@ -663,5 +767,75 @@ export interface ExvaApi {
     }): Promise<
       import("@electron/shared/domain/experience-inputs/subscription").SessionInputConfiguration
     >;
+  };
+  palette: {
+    query(input: { q: string; limit?: number }): Promise<{
+      query: string;
+      hits: Array<{
+        id: string;
+        kind: string;
+        title: string;
+        subtitle?: string;
+        score: number;
+        payload: Record<string, string>;
+      }>;
+    }>;
+  };
+  backtest: {
+    listStrategies(): Promise<{
+      strategies: Array<{ id: string; status: string }>;
+    }>;
+    list(input?: {
+      experienceId?: string;
+      limit?: number;
+    }): Promise<{ runs: unknown[] }>;
+    get(input: { id: string }): Promise<{ run: unknown }>;
+    run(input: unknown): Promise<unknown>;
+    compare(input: { runIds: string[] }): Promise<unknown>;
+    sweep(input: unknown): Promise<unknown>;
+  };
+  dataDoctor: {
+    coverage(): Promise<{ cells: unknown[] }>;
+    gaps(input: {
+      symbol: string;
+      timeframe: string;
+    }): Promise<{ gaps: unknown[] }>;
+    backfill(input: unknown): Promise<unknown>;
+    providerHealth(): Promise<{ providers: unknown[] }>;
+    setProviderEnabled(input: {
+      provider: string;
+      enabled: boolean;
+    }): Promise<{ ok: true }>;
+    runNightlyGapCheck(): Promise<{ cellsWithGaps: number }>;
+  };
+  briefing: {
+    latest(): Promise<{ briefing: unknown }>;
+    list(input?: { limit?: number }): Promise<{ briefings: unknown[] }>;
+    get(input: { date: string }): Promise<{ briefing: unknown }>;
+    assemble(input?: { date?: string }): Promise<{ briefing: unknown }>;
+  };
+  equity: {
+    curve(input?: { range?: "1W" | "1M" | "3M" | "all" }): Promise<unknown>;
+    attribution(input?: {
+      range?: "1W" | "1M" | "3M" | "all";
+    }): Promise<unknown>;
+    snapshotNow(): Promise<{ snapshot: unknown }>;
+  };
+  whatIf: {
+    run(input: {
+      tradeId: string;
+      params?: Record<string, unknown>;
+      save?: boolean;
+      experienceId?: string;
+    }): Promise<unknown>;
+  };
+  killSwitch: {
+    pauseAll(): Promise<{ paused: string[]; skipped: string[] }>;
+    killSession(input: { sessionId: string }): Promise<{ status: string }>;
+    gauges(): Promise<{ gauges: unknown[] }>;
+    flattenAll(input: { confirmation: string }): Promise<{
+      closed: string[];
+      failed: Array<{ tradeId: string; error: string }>;
+    }>;
   };
 }

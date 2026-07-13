@@ -271,14 +271,21 @@ function createContext(options?: { humanApprovalRequired?: boolean }) {
       requireById: () => ({ id: "session-1", instrumentClasses: ["stock"] }),
     },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         researchPosture: {},
-        rules: { sideBias: "long_only" },
+        rules: { sideBias: "long_only", setupType: "momentum" },
         riskConfig: {
+          maxPositionUsd: 500,
+          maxAiSpendUsd: 5,
           stopLossPct: 5,
           takeProfitPct: 10,
           kellyFraction: 0.6,
           maxExposureUsd: null,
+          atrStopMultiplier: null,
         },
         timeframe: {
           holdingStyle: "intraday_flat",
@@ -288,9 +295,6 @@ function createContext(options?: { humanApprovalRequired?: boolean }) {
           timeframeNotes: "",
         },
       }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: { upsert: vi.fn((step) => step) },
     eventsRepo: { insert: vi.fn((event) => event) },
@@ -350,12 +354,15 @@ function createContext(options?: { humanApprovalRequired?: boolean }) {
     },
   } as never);
 
-  ctx.getSessionConfig = () =>
+  ctx.getStrategyContext = () =>
     ({
-      strategy: "momentum",
-      max_position_usd: 500,
-      max_api_spend_usd: 5,
-      human_approval_required: options?.humanApprovalRequired ?? false,
+      rules: { setupType: "momentum" },
+      riskConfig: {
+        maxPositionUsd: 500,
+        maxAiSpendUsd: 5,
+        humanApprovalRequired: options?.humanApprovalRequired ?? false,
+      },
+      timeframe: { holdingStyle: "multi_day_swing", maxHoldDays: 5 },
     }) as never;
   ctx.resolveBrokerAccountId = () => "broker-1";
   ctx.totalAllocatedUsd = () => 5000;

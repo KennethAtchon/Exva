@@ -50,7 +50,6 @@ import type {
   InstrumentAnalysisState,
   InstrumentAnalysisResult,
 } from "../analysis/types";
-import type { SessionConfig } from "@/lib/types";
 import type { InstrumentClass } from "@/lib/types";
 import { createLogger } from "../../infra/log";
 
@@ -128,7 +127,6 @@ export class PipelineRuntime {
       cycleId: string;
       tradeId?: string | null;
       instrument: TradeCycleInstrument;
-      sessionConfig: SessionConfig;
       instrumentClasses: InstrumentClass[];
       seedState?: Partial<InstrumentAnalysisState>;
       runStep?: AnalysisStepRunner;
@@ -168,7 +166,6 @@ export class PipelineRuntime {
           cycleId: opts.cycleId,
           tradeId: opts.tradeId ?? null,
           instrument: opts.instrument,
-          sessionConfig: opts.sessionConfig,
           instrumentClasses: opts.instrumentClasses,
           session,
           strategyContext,
@@ -198,7 +195,6 @@ export class PipelineRuntime {
       cycleId: string;
       tradeId?: string | null;
       instrument?: TradeCycleInstrument;
-      sessionConfig?: SessionConfig;
       instrumentClasses?: InstrumentClass[];
       input?: Record<string, unknown>;
       seedState?: Partial<InstrumentAnalysisState>;
@@ -225,9 +221,9 @@ export class PipelineRuntime {
       });
     }
 
-    if (!opts.instrument || !opts.sessionConfig || !opts.instrumentClasses) {
+    if (!opts.instrument || !opts.instrumentClasses) {
       throw new AppError(
-        `Cycle plan '${planId}' requires instrument, sessionConfig, and instrumentClasses.`,
+        `Cycle plan '${planId}' requires instrument and instrumentClasses.`,
         "VALIDATION_FAILED",
       );
     }
@@ -237,7 +233,6 @@ export class PipelineRuntime {
       cycleId: opts.cycleId,
       tradeId: opts.tradeId,
       instrument: opts.instrument,
-      sessionConfig: opts.sessionConfig,
       instrumentClasses: opts.instrumentClasses,
       seedState: opts.seedState,
       runStep: opts.runStep,

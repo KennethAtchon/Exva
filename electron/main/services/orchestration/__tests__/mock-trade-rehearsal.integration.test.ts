@@ -184,7 +184,7 @@ describe("mock trade rehearsal integration", () => {
         trades: harness.deps.tradesRepo as never,
         agentMessages: { listByTrade: () => [] } as never,
         autopsies: {
-          insert: insertAutopsy,
+          insertTrade: insertAutopsy,
           listByTrade: () => [],
         } as never,
         lessons: {
@@ -285,8 +285,11 @@ function createHarness(
       },
       uptimeMin: () => 0,
     },
-    sessionStrategiesRepo: {} as never,
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         researchPosture: {},
         rules: { sideBias: "long_only" },
@@ -416,10 +419,6 @@ function createHarness(
         unrealized_pnl: 0,
         session_uptime_min: 0,
       }),
-    },
-    sessionAiPhasesRepo: {} as never,
-    sessionSelectorSettingsRepo: {
-      get: () => ({ aiPickerEnabled: false, noInstrumentRetryMinutes: null }),
     },
     sessionExecutionStepsRepo: {
       upsert: vi.fn((step) => step),

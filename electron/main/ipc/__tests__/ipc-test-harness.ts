@@ -13,36 +13,24 @@ import { AgentMessagesRepo } from "../../db/repositories/agents/agent-messages-r
 import { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
 import { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import { BrokerRoutingRepo } from "../../db/repositories/brokers/broker-routing-repo";
+import { PaperBalancesRepo } from "../../db/repositories/brokers/paper-balances-repo";
 import { CapitalReservationsRepo } from "../../db/repositories/trades/capital-reservations-repo";
 import { EventsRepo } from "../../db/repositories/system/events-repo";
 import { ProviderAccountsRepo } from "../../db/repositories/workspace/provider-accounts-repo";
-import { SessionAiPhasesRepo } from "../../db/repositories/sessions/session-ai-phases-repo";
 import { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
-import { SessionRiskConfigRepo } from "../../db/repositories/sessions/session-risk-config-repo";
-import { SessionSelectorSettingsRepo } from "../../db/repositories/sessions/session-selector-settings-repo";
-import { SessionTradeRulesRepo } from "../../db/repositories/sessions/session-trade-rules-repo";
-import { SessionStrategiesRepo } from "../../db/repositories/sessions/session-strategies-repo";
 import { SessionTemplatesRepo } from "../../db/repositories/sessions/session-templates-repo";
-import { SessionTimeframeConfigRepo } from "../../db/repositories/sessions/session-timeframe-config-repo";
-import { SessionResearchPostureRepo } from "../../db/repositories/sessions/session-research-posture-repo";
-import { SessionAiSettingsRepo } from "../../db/repositories/sessions/session-ai-settings-repo";
 import { SqliteSessionExecutionStepsRepo } from "../../db/repositories/sessions/session-execution-steps-repo";
 import { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import { InstrumentCacheRepo } from "../../db/repositories/market/instrument-cache-repo";
-import { GlobalPresetsRepo } from "../../db/repositories/presets/global-presets-repo";
-import { RiskPresetsRepo } from "../../db/repositories/presets/risk-presets-repo";
-import { TimeframePresetsRepo } from "../../db/repositories/presets/timeframe-presets-repo";
-import { ResearchPosturePresetsRepo } from "../../db/repositories/presets/research-posture-presets-repo";
-import { TradeRulePresetsRepo } from "../../db/repositories/presets/trade-rule-presets-repo";
 import { StatsRepo } from "../../db/repositories/system/stats-repo";
 import { TradeApprovalsRepo } from "../../db/repositories/trades/trade-approvals-repo";
-import { PeriodAutopsiesRepo } from "../../db/repositories/trades/period-autopsies-repo";
-import { TradeAutopsiesRepo } from "../../db/repositories/trades/trade-autopsies-repo";
+import { AutopsiesRepo } from "../../db/repositories/trades/autopsies-repo";
 import { AutopsyLessonsRepo } from "../../db/repositories/trades/autopsy-lessons-repo";
 import { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import { DecisionTraceRepo } from "../../db/repositories/trades/decision-trace-repo";
 import { SignalObservationsRepo } from "../../db/repositories/research/signal-observations-repo";
 import { SignalLabelsRepo } from "../../db/repositories/research/signal-labels-repo";
+import { CalendarEventsRepo } from "../../db/repositories/signals/calendar-events-repo";
 import {
   BacktestRunsRepo,
   ModelVersionsRepo,
@@ -51,7 +39,16 @@ import {
 import { SignalObservationService } from "../../services/research/signal-observation-service";
 import { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
 import { ExperienceExperimentsRepo } from "../../db/repositories/experiences/experience-experiments-repo";
+import { BriefingsRepo } from "../../db/repositories/system/briefings-repo";
+import { EquitySnapshotsRepo } from "../../db/repositories/system/equity-snapshots-repo";
 import { MockBrokerAdapter } from "../../services/broker/adapters/mock-adapter";
+import { PaletteQueryService } from "../../services/operator/palette-query-service";
+import { BacktestLabService } from "../../services/operator/backtest-lab-service";
+import { DataDoctorService } from "../../services/operator/data-doctor-service";
+import { EquitySnapshotService } from "../../services/operator/equity-snapshot-service";
+import { WhatIfReplayService } from "../../services/operator/what-if-replay-service";
+import { KillSwitchService } from "../../services/operator/kill-switch-service";
+import { MarketDataService } from "../../services/marketdata/market-data-service";
 import { BrokerRoutingService } from "../../services/broker/broker-routing-service";
 import { BrokerService } from "../../services/broker/broker-service";
 import { EventBus } from "../../services/infra/event-bus";
@@ -65,6 +62,7 @@ import { runPreflight } from "../../services/session/preflight";
 import { SessionRuntimeManager } from "../../services/session/session-runtime-manager";
 import { SessionService } from "../../services/session/session-service";
 import { SessionStrategyContextService } from "../../services/session/session-strategy-context-service";
+import { SessionStrategyConfigService } from "../../services/session/session-strategy-config-service";
 import { SessionWriteService } from "../../services/session/write-service";
 import { SignalSourcesRepo } from "../../services/signals/repos/signal-sources-repo";
 import type { AppServices } from "../../services/app-services";
@@ -74,6 +72,7 @@ import { registerIpcHandlers } from "../register";
 import { registerSessionHandlers } from "../session/session";
 import { registerTradeHandlers } from "../trading/trades";
 import { registerStrategyHandlers } from "../workspace/strategy";
+import { registerStrategyConfigHandlers } from "../workspace/strategy-config";
 import "../../experiences/index";
 import { ipcHarness } from "./ipc-electron-mock";
 
@@ -115,25 +114,17 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     apiCallLog: new ApiCallLogRepo(db),
     brokerAccounts: new BrokerAccountsRepo(db),
     brokerRouting: new BrokerRoutingRepo(db),
+    paperBalances: new PaperBalancesRepo(db),
     capitalReservations: new CapitalReservationsRepo(db),
     events: new EventsRepo(db),
     providerAccounts: new ProviderAccountsRepo(db),
-    sessionAiPhases: new SessionAiPhasesRepo(db),
     sessionBrokerAssignments: new SessionBrokerAssignmentsRepo(db),
-    sessionRiskConfig: new SessionRiskConfigRepo(db),
-    sessionSelectorSettings: new SessionSelectorSettingsRepo(db),
     sessionExecutionSteps: new SqliteSessionExecutionStepsRepo(db),
     session: new SessionRepo(db),
-    sessionTradeRules: new SessionTradeRulesRepo(db),
-    sessionStrategies: new SessionStrategiesRepo(db),
     sessionTemplates: new SessionTemplatesRepo(db),
-    sessionTimeframeConfig: new SessionTimeframeConfigRepo(db),
-    sessionResearchPosture: new SessionResearchPostureRepo(db),
-    sessionAiSettings: new SessionAiSettingsRepo(db),
     stats: new StatsRepo(db),
     tradeApprovals: new TradeApprovalsRepo(db),
-    periodAutopsies: new PeriodAutopsiesRepo(db),
-    tradeAutopsies: new TradeAutopsiesRepo(db),
+    autopsies: new AutopsiesRepo(db),
     experienceExperiments: new ExperienceExperimentsRepo(db),
     autopsyLessons: new AutopsyLessonsRepo(db),
     trades: new TradesRepo(db),
@@ -145,24 +136,16 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     promotionDecisions: new PromotionDecisionsRepo(db),
     workspacePreferences: new WorkspacePreferencesRepo(db),
     instrumentCache: new InstrumentCacheRepo(db),
-    globalPresets: new GlobalPresetsRepo(db),
-    riskPresets: new RiskPresetsRepo(db),
-    timeframePresets: new TimeframePresetsRepo(db),
-    researchPosturePresets: new ResearchPosturePresetsRepo(db),
-    tradeRulePresets: new TradeRulePresetsRepo(db),
+    briefings: new BriefingsRepo(db),
+    equitySnapshots: new EquitySnapshotsRepo(db),
   };
 
+  const strategyConfig = new SessionStrategyConfigService(db);
   const strategyContext = new SessionStrategyContextService({
     sessionRepo: repos.session,
-    researchPostureRepo: repos.sessionResearchPosture,
-    rulesRepo: repos.sessionTradeRules,
-    riskRepo: repos.sessionRiskConfig,
-    timeframeRepo: repos.sessionTimeframeConfig,
-    aiSettingsRepo: repos.sessionAiSettings,
-    selectorSettingsRepo: repos.sessionSelectorSettings,
+    strategyConfig,
     providerAccountsRepo: repos.providerAccounts,
     workspacePrefsRepo: repos.workspacePreferences,
-    sessionAiPhasesRepo: repos.sessionAiPhases,
   });
 
   const mockAdapter = new MockBrokerAdapter();
@@ -194,7 +177,6 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
 
   const orchestratorDeps = {
     sessionRepo: repos.session,
-    sessionStrategiesRepo: repos.sessionStrategies,
     strategyContextService: strategyContext,
     tradesRepo: repos.trades,
     tradeApprovalsRepo: repos.tradeApprovals,
@@ -202,8 +184,6 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     agentMessagesRepo: repos.agentMessages,
     eventsRepo: repos.events,
     statsRepo: repos.stats,
-    sessionAiPhasesRepo: repos.sessionAiPhases,
-    sessionSelectorSettingsRepo: repos.sessionSelectorSettings,
     sessionExecutionStepsRepo: repos.sessionExecutionSteps,
     providerAccountsRepo: repos.providerAccounts,
     workspacePreferencesRepo: repos.workspacePreferences,
@@ -287,7 +267,7 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
   const sessionWrites = new SessionWriteService({
     sessions: repos.session,
     events: repos.events,
-    selectorSettings: repos.sessionSelectorSettings,
+    strategyContext,
     assignments: repos.sessionBrokerAssignments,
     brokerRouting: repos.brokerRouting,
     brokerAccounts: repos.brokerAccounts,
@@ -327,6 +307,7 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
       clear: () => undefined,
     } as unknown as AppServices["instrumentCacheService"],
     repos,
+    calendarEventsRepo: new CalendarEventsRepo(db),
     ai: {} as AppServices["ai"],
     providerRegistry: {
       listModels: async () => [],
@@ -355,6 +336,7 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     session,
     sessionListing,
     strategyContext,
+    strategyConfig,
     sessionTemplates: {} as AppServices["sessionTemplates"],
     sessionWrites,
     cycleReplay,
@@ -385,7 +367,9 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
       list: () => [],
       getActive: () => null,
       getRevision: () => null,
-      createRevision: () => { throw new Error("not implemented in test harness"); },
+      createRevision: () => {
+        throw new Error("not implemented in test harness");
+      },
     } as unknown as AppServices["instrumentSetService"],
     sourceDefinitionService: {
       list: () => [],
@@ -395,7 +379,9 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
       getConfiguration: () => null,
       getConfigurationOptions: () => ({ subscriptions: [] }),
       validateDraft: () => ({ valid: true, errors: [] }),
-      replaceInputs: () => { throw new Error("not implemented in test harness"); },
+      replaceInputs: () => {
+        throw new Error("not implemented in test harness");
+      },
       createFromProfile: () => undefined,
     } as unknown as AppServices["sessionInputConfiguration"],
     scheduleCoordinator: {
@@ -406,6 +392,60 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
       getTelemetry: () => null,
       fireNow: async () => null,
     } as unknown as AppServices["scheduleCoordinator"],
+    paletteQuery: new PaletteQueryService(db, {
+      list: () => [],
+    } as never),
+    backtestLab: new BacktestLabService({
+      marketData: new MarketDataService(db),
+      backtestRuns: repos.backtestRuns,
+      experienceExperiments: repos.experienceExperiments,
+      eventBus,
+    }),
+    dataDoctor: new DataDoctorService({
+      db,
+      marketData: new MarketDataService(db),
+      eventBus,
+    }),
+    morningBriefing: {
+      latest: () => null,
+      list: () => [],
+      get: () => null,
+      assemble: async () => {
+        throw new Error("not implemented in test harness");
+      },
+    } as unknown as AppServices["morningBriefing"],
+    equitySnapshots: new EquitySnapshotService({
+      snapshots: repos.equitySnapshots,
+      brokerAccounts: repos.brokerAccounts,
+      paperBalances: repos.paperBalances,
+      trades: repos.trades,
+      sessions: repos.session,
+      apiCallLog: repos.apiCallLog,
+      eventBus,
+    }),
+    whatIfReplay: new WhatIfReplayService({
+      trades: repos.trades,
+      decisionTraces: repos.decisionTraces,
+      agentMessages: repos.agentMessages,
+      cycleReplay,
+      experienceExperiments: repos.experienceExperiments,
+    }),
+    killSwitch: new KillSwitchService({
+      sessions: repos.session,
+      trades: repos.trades,
+      sessionService: {} as never,
+      liveReadiness: {
+        getAcknowledgedAt: () => null,
+      } as never,
+      supervisor: {
+        raiseDailyLoss: async () => undefined,
+        router: { deliver: async () => undefined },
+      } as never,
+      eventBus,
+      broker: new BrokerService(brokerRegistry as never),
+      capitalReservation: capitalReservation as never,
+      loadGauges: () => [],
+    }),
   };
 
   function configureAiProvider(sessionId?: string) {
@@ -426,9 +466,9 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
       ? [repos.session.requireById(sessionId)]
       : repos.session.list();
     for (const target of targets) {
-      for (const phase of repos.sessionAiPhases.listBySession(target.id)) {
-        repos.sessionAiPhases.upsertPhase(target.id, {
-          ...phase,
+      for (const phase of strategyContext.listAiPhases(target.id)) {
+        strategyContext.saveAiPhase(target.id, {
+          phase: phase.phase,
           providerKey: "provider-openrouter",
           modelId: "google/gemma-4-31b-it",
         });
@@ -497,6 +537,7 @@ export function registerPhase4IpcHandlers(services: AppServices): void {
   registerTradeHandlers(services);
   registerApprovalHandlers(services);
   registerStrategyHandlers(services);
+  registerStrategyConfigHandlers(services);
 }
 
 export function registerIpcTestHandlers(services: AppServices): void {

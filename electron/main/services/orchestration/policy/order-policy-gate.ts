@@ -163,7 +163,7 @@ export class OrderPolicyGate {
 
     // capital: three sub-checks
     evaluated.push("capital");
-    if (d.order.sizeUsd > d.config.max_position_usd) {
+    if (d.order.sizeUsd > d.riskConfig.maxPositionUsd) {
       gatesFailed.push("capital");
     } else if (d.totalBrokerExposureUsd != null && d.order.sizeUsd > 0) {
       // broker exposure cap not yet stored in config; skip sub-check 3 unless data available

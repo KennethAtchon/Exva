@@ -3,12 +3,13 @@ import type { EventsRepo } from "../../db/repositories/system/events-repo";
 import { requireExperience } from "../../experiences/index";
 import type { Logger } from "../infra/log";
 import type { ResearchExperimentService } from "./research-experiment-service";
+import type { SupervisorService } from "../supervisor/supervisor-service";
 
 /**
  * Periodically checks live/active experiences for edge drift (P7). When recent
  * realized calibration or risk-adjusted return deviates from the validation
- * distribution, it raises a WARN event so the operator can intervene — a
- * decayed edge is worse than no edge.
+ * distribution, it raises a WARN event + supervisor drift alarm so the
+ * operator can intervene — a decayed edge is worse than no edge.
  *
  * Conservative by design: it surfaces drift rather than silently killing a
  * session, leaving the stop decision to the operator / live policy.
@@ -24,6 +25,7 @@ export class DriftMonitorTicker {
     private readonly logger: Logger,
     private readonly recentWindow = 30,
     private readonly tickIntervalMs = 30 * 60 * 1000,
+    private readonly supervisor?: SupervisorService,
   ) {}
 
   start(): void {
@@ -78,6 +80,7 @@ export class DriftMonitorTicker {
           agent_type: "period_autopsy",
           message,
         });
+        await this.supervisor?.raiseDrift(session.id, message);
       }
     } catch (err) {
       this.logger.warn({ err }, "drift monitor tick failed");

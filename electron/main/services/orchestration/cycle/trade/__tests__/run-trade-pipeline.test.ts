@@ -212,6 +212,10 @@ function createContext() {
       setStatus: vi.fn(),
     },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         researchPosture: {},
         rules: { sideBias: "long_only", setupType: "momentum" },
@@ -225,9 +229,6 @@ function createContext() {
         },
         timeframe: { holdingStyle: "intraday_flat", maxHoldDays: 1 },
       }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: {
       upsert: vi.fn((step) => step),

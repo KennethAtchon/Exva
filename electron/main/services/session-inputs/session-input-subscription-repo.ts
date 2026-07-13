@@ -34,11 +34,15 @@ export class SessionInputSubscriptionRepo {
     return this.listBySession(sessionId).filter((s) => s.enabled);
   }
 
-  listBySourceDefinition(sourceDefinitionId: string): SessionInputSubscription[] {
+  listBySourceDefinition(
+    sourceDefinitionId: string,
+  ): SessionInputSubscription[] {
     return this.db.db
       .select()
       .from(sessionInputSubscriptions)
-      .where(eq(sessionInputSubscriptions.sourceDefinitionId, sourceDefinitionId))
+      .where(
+        eq(sessionInputSubscriptions.sourceDefinitionId, sourceDefinitionId),
+      )
       .all()
       .map(rowToSubscription);
   }
@@ -259,24 +263,40 @@ function rowToSubscription(row: SubRow): SessionInputSubscription {
   };
 
   if (row.mode === "event_source") {
+    if (!row.sourceDefinitionId || row.sourceRevision == null) {
+      throw new Error(
+        `SessionInputSubscriptionRepo: event_source row ${row.id} missing source fields`,
+      );
+    }
     return {
       ...base,
       mode: "event_source",
-      sourceDefinitionId: row.sourceDefinitionId!,
-      sourceRevision: row.sourceRevision!,
+      sourceDefinitionId: row.sourceDefinitionId,
+      sourceRevision: row.sourceRevision,
       filtersJson: row.filtersJson ?? "{}",
       analysisTimeframe: row.analysisTimeframe as TradingTimeframe,
     };
   }
 
+  if (
+    !row.instrumentSetId ||
+    row.instrumentSetRevision == null ||
+    !row.cadenceJson ||
+    !row.marketCalendarId
+  ) {
+    throw new Error(
+      `SessionInputSubscriptionRepo: scheduled_scan row ${row.id} missing scan fields`,
+    );
+  }
+
   return {
     ...base,
     mode: "scheduled_scan",
-    instrumentSetId: row.instrumentSetId!,
-    instrumentSetRevision: row.instrumentSetRevision!,
-    cadenceJson: row.cadenceJson!,
+    instrumentSetId: row.instrumentSetId,
+    instrumentSetRevision: row.instrumentSetRevision,
+    cadenceJson: row.cadenceJson,
     analysisTimeframe: row.analysisTimeframe as TradingTimeframe,
-    marketCalendarId: row.marketCalendarId!,
+    marketCalendarId: row.marketCalendarId,
     strategyParametersJson: row.strategyParametersJson ?? "{}",
   };
 }

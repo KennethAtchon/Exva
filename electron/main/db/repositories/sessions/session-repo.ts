@@ -1,27 +1,11 @@
 import type { DbClient } from "../../client";
-import type {
-  SessionConfig,
-  SessionStatus,
-  WorkspaceSession,
-} from "@/lib/types";
+import type { SessionStatus, WorkspaceSession } from "@/lib/types";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import {
-  globalPresets,
-  researchPosturePresets,
-  riskPresets,
-  sessionAiPhases,
-  sessionAiSettings,
   sessionBrokerAssignments,
   sessionBrokerRoutingOverrides,
-  sessionResearchPosture,
-  sessionRiskConfig,
-  sessionSelectorSettings,
-  sessionTradeRules,
-  sessionStrategies,
-  sessionTimeframeConfig,
+  sessionStrategyConfigs,
   sessions,
-  timeframePresets,
-  tradeRulePresets,
   workspacePreferences,
 } from "../../schema";
 import { AppError } from "@electron/shared/infra/errors";
@@ -37,14 +21,28 @@ import type {
   TimeframePreset,
   TradeRulesPreset,
 } from "@electron/shared/domain";
-import type { GlobalStrategyPreset } from "@electron/shared/presets";
+import { SESSION_STRATEGY_CONFIG_SCHEMA_VERSION } from "@electron/shared/domain/session-strategy-config";
+import {
+  builtInGlobalStrategyPresets,
+  findResearchPosturePresetById,
+  findRiskPresetById,
+  findTimeframePresetById,
+  findTradeRulePresetById,
+} from "@electron/shared/presets";
 import { loadExperiencePresetBundle } from "../../../experiences/session-bootstrap";
 import { buildSessionStrategyConfigJson } from "../../../services/session/session-strategy-config";
+import { assembleInitialSessionStrategyConfigDoc } from "../../session-strategy-config-backfill";
+import {
+  DEFAULT_RESEARCH_POSTURE_SECTION,
+  DEFAULT_RISK_SECTION,
+  DEFAULT_TIMEFRAME_SECTION,
+  DEFAULT_TRADE_RULES_SECTION,
+} from "@electron/shared/domain/session-strategy-config-defaults";
 import {
   DEFAULT_REASONING_LEVEL,
   PIPELINE_PHASES,
 } from "@electron/shared/ai/ai-phase";
-import { toSessionConfig, toWorkspaceSession } from "../system/mappers";
+import { toWorkspaceSession } from "../system/mappers";
 
 export interface SessionFilters {
   statuses?: SessionStatus[];
@@ -86,72 +84,55 @@ export class SessionRepo {
     if (experienceId) {
       return loadExperiencePresetBundle(this.client, experienceId);
     }
-    const globalRow = this.client.db
-      .select()
-      .from(globalPresets)
-      .where(eq(globalPresets.isBuiltIn, true))
-      .orderBy(globalPresets.createdAt)
-      .limit(1)
-      .get();
-    if (!globalRow) {
+    const globalPreset = builtInGlobalStrategyPresets()[0];
+    if (!globalPreset) {
       throw new AppError(
-        "No built-in global strategy preset found — run migrations and seed",
+        "No built-in global strategy preset found",
         "INTERNAL_ERROR",
       );
     }
-    const globalPreset = JSON.parse(
-      globalRow.presetJson,
-    ) as GlobalStrategyPreset;
 
-    const postureRow = this.client.db
-      .select()
-      .from(researchPosturePresets)
-      .where(eq(researchPosturePresets.id, globalPreset.posturePresetId))
-      .get();
-    if (!postureRow)
+    const posturePreset = findResearchPosturePresetById(
+      globalPreset.posturePresetId,
+    );
+    if (!posturePreset) {
       throw new AppError(
         `Research posture preset '${globalPreset.posturePresetId}' not found`,
         "INTERNAL_ERROR",
       );
+    }
 
-    const rulesRow = this.client.db
-      .select()
-      .from(tradeRulePresets)
-      .where(eq(tradeRulePresets.id, globalPreset.rulesPresetId))
-      .get();
-    if (!rulesRow)
+    const rulesPreset = findTradeRulePresetById(globalPreset.rulesPresetId);
+    if (!rulesPreset) {
       throw new AppError(
         `Trade rule preset '${globalPreset.rulesPresetId}' not found`,
         "INTERNAL_ERROR",
       );
+    }
 
-    const riskRow = this.client.db
-      .select()
-      .from(riskPresets)
-      .where(eq(riskPresets.id, globalPreset.riskPresetId))
-      .get();
-    if (!riskRow)
+    const riskPreset = findRiskPresetById(globalPreset.riskPresetId);
+    if (!riskPreset) {
       throw new AppError(
         `Risk preset '${globalPreset.riskPresetId}' not found`,
         "INTERNAL_ERROR",
       );
+    }
 
-    const timeframeRow = this.client.db
-      .select()
-      .from(timeframePresets)
-      .where(eq(timeframePresets.id, globalPreset.timeframePresetId))
-      .get();
-    if (!timeframeRow)
+    const timeframePreset = findTimeframePresetById(
+      globalPreset.timeframePresetId,
+    );
+    if (!timeframePreset) {
       throw new AppError(
         `Timeframe preset '${globalPreset.timeframePresetId}' not found`,
         "INTERNAL_ERROR",
       );
+    }
 
     return {
-      posturePreset: JSON.parse(postureRow.presetJson) as ResearchPosturePreset,
-      rulesPreset: JSON.parse(rulesRow.presetJson) as TradeRulesPreset,
-      riskPreset: JSON.parse(riskRow.presetJson) as RiskPreset,
-      timeframePreset: JSON.parse(timeframeRow.presetJson) as TimeframePreset,
+      posturePreset,
+      rulesPreset,
+      riskPreset,
+      timeframePreset,
     };
   }
 
@@ -223,17 +204,8 @@ export class SessionRepo {
         })
         .run();
 
-      tx.insert(sessionSelectorSettings)
-        .values({
-          sessionId,
-          aiPickerEnabled: true,
-          updatedAt: now,
-        })
-        .run();
-
-      tx.insert(sessionStrategies)
-        .values({
-          sessionId,
+      const initialDoc = assembleInitialSessionStrategyConfigDoc({
+        strategy: {
           strategyProfile: "passive_income",
           maxPositionUsd: 500,
           stopLossPct: 2,
@@ -249,68 +221,59 @@ export class SessionRepo {
           targetHoldDays: null,
           maxHoldDays: null,
           timeframeNotes: "",
-        })
-        .run();
-
-      tx.insert(sessionResearchPosture)
-        .values({
-          sessionId,
-          ...defaults.posturePreset.posture,
-          postureNotes: "",
-          updatedAt: now,
-        })
-        .run();
-
-      tx.insert(sessionTradeRules)
-        .values({
-          ...tradeRulesSeed,
-          tradeRulesMarkdown: buildTradeRulesMarkdown(tradeRulesSeed),
-        })
-        .run();
-
-      tx.insert(sessionRiskConfig)
-        .values({
-          sessionId,
+        },
+        risk: {
+          ...DEFAULT_RISK_SECTION,
           riskPresetId: defaults.riskPreset.id,
           ...defaults.riskPreset.values,
+          maxPositionUsd: defaults.riskPreset.values.maxPositionUsd ?? 500,
           maxDataSpendUsd: 5,
-          updatedAt: now,
-        })
-        .run();
-
-      tx.insert(sessionTimeframeConfig)
-        .values({
-          sessionId,
+        },
+        timeframe: {
+          ...DEFAULT_TIMEFRAME_SECTION,
           timeframePresetId: defaults.timeframePreset.id,
           ...defaults.timeframePreset.values,
-          updatedAt: now,
-        })
-        .run();
-
-      tx.insert(sessionAiSettings)
-        .values({
-          sessionId,
-          workerGuidanceMarkdown: "",
-          updatedAt: now,
-        })
-        .run();
-
-      for (const phase of PIPELINE_PHASES) {
-        tx.insert(sessionAiPhases)
-          .values({
-            sessionId,
+        },
+        tradeRules: {
+          ...DEFAULT_TRADE_RULES_SECTION,
+          ...defaults.rulesPreset.rules,
+          tradeRulesMarkdown: buildTradeRulesMarkdown(tradeRulesSeed),
+          ruleNotes: "",
+        },
+        researchPosture: {
+          ...DEFAULT_RESEARCH_POSTURE_SECTION,
+          ...defaults.posturePreset.posture,
+          postureNotes: "",
+        },
+        ai: {
+          settings: { workerGuidanceMarkdown: "" },
+          phases: PIPELINE_PHASES.map((phase) => ({
             phase,
             providerKey: roleSeed.providerKey,
             modelId: roleSeed.modelId,
             temperature: 0.7,
             maxTokens: 8192,
             reasoningLevel: roleSeed.reasoningLevel,
-            promptSource: "default",
+            promptSource: "default" as const,
             promptMarkdown: "",
-            updatedAt: now,
-          })
-          .run();
-      }
+            workers: [],
+          })),
+        },
+        selector: {
+          aiPickerEnabled: true,
+          noInstrumentRetryMinutes: null,
+        },
+      });
+
+      tx.insert(sessionStrategyConfigs)
+        .values({
+          sessionId,
+          version: 1,
+          schemaVersion: SESSION_STRATEGY_CONFIG_SCHEMA_VERSION,
+          doc: initialDoc,
+          updatedAt: now,
+        })
+        .run();
     });
 
     return this.requireById(sessionId);
@@ -509,120 +472,18 @@ export class SessionRepo {
         })
         .run();
 
-      const selectorSettings = tx
+      const strategyConfig = tx
         .select()
-        .from(sessionSelectorSettings)
-        .where(eq(sessionSelectorSettings.sessionId, sourceId))
+        .from(sessionStrategyConfigs)
+        .where(eq(sessionStrategyConfigs.sessionId, sourceId))
         .get();
-      if (selectorSettings) {
-        tx.insert(sessionSelectorSettings)
+      if (strategyConfig) {
+        tx.insert(sessionStrategyConfigs)
           .values({
             sessionId: newId,
-            aiPickerEnabled: selectorSettings.aiPickerEnabled,
-            updatedAt: now,
-          })
-          .run();
-      }
-
-      const strategy = tx
-        .select()
-        .from(sessionStrategies)
-        .where(eq(sessionStrategies.sessionId, sourceId))
-        .get();
-      if (strategy) {
-        tx.insert(sessionStrategies)
-          .values({
-            ...strategy,
-            sessionId: newId,
-          })
-          .run();
-      }
-
-      const researchPostureRow = tx
-        .select()
-        .from(sessionResearchPosture)
-        .where(eq(sessionResearchPosture.sessionId, sourceId))
-        .get();
-      if (researchPostureRow) {
-        tx.insert(sessionResearchPosture)
-          .values({
-            ...researchPostureRow,
-            sessionId: newId,
-            updatedAt: now,
-          })
-          .run();
-      }
-
-      const tradeRulesRow = tx
-        .select()
-        .from(sessionTradeRules)
-        .where(eq(sessionTradeRules.sessionId, sourceId))
-        .get();
-      if (tradeRulesRow) {
-        tx.insert(sessionTradeRules)
-          .values({
-            ...tradeRulesRow,
-            sessionId: newId,
-            updatedAt: now,
-          })
-          .run();
-      }
-
-      const risk = tx
-        .select()
-        .from(sessionRiskConfig)
-        .where(eq(sessionRiskConfig.sessionId, sourceId))
-        .get();
-      if (risk) {
-        tx.insert(sessionRiskConfig)
-          .values({
-            ...risk,
-            sessionId: newId,
-            updatedAt: now,
-          })
-          .run();
-      }
-
-      const timeframe = tx
-        .select()
-        .from(sessionTimeframeConfig)
-        .where(eq(sessionTimeframeConfig.sessionId, sourceId))
-        .get();
-      if (timeframe) {
-        tx.insert(sessionTimeframeConfig)
-          .values({
-            ...timeframe,
-            sessionId: newId,
-            updatedAt: now,
-          })
-          .run();
-      }
-
-      const aiSettings = tx
-        .select()
-        .from(sessionAiSettings)
-        .where(eq(sessionAiSettings.sessionId, sourceId))
-        .get();
-      if (aiSettings) {
-        tx.insert(sessionAiSettings)
-          .values({
-            ...aiSettings,
-            sessionId: newId,
-            updatedAt: now,
-          })
-          .run();
-      }
-
-      const sourcePhases = tx
-        .select()
-        .from(sessionAiPhases)
-        .where(eq(sessionAiPhases.sessionId, sourceId))
-        .all();
-      for (const row of sourcePhases) {
-        tx.insert(sessionAiPhases)
-          .values({
-            ...row,
-            sessionId: newId,
+            version: 1,
+            schemaVersion: strategyConfig.schemaVersion,
+            doc: strategyConfig.doc,
             updatedAt: now,
           })
           .run();
@@ -669,72 +530,6 @@ export class SessionRepo {
   uptimeMin(_sessionId = this.getFocusedSessionId()): number {
     void _sessionId;
     return 0;
-  }
-
-  getConfig(sessionId = this.getFocusedSessionId()): SessionConfig {
-    const row = this.client.db
-      .select()
-      .from(sessionStrategies)
-      .where(eq(sessionStrategies.sessionId, sessionId))
-      .get();
-
-    if (!row) {
-      throw new AppError(
-        `Strategy config for session ${sessionId} was not found`,
-        "NOT_FOUND",
-        { sessionId },
-      );
-    }
-
-    return toSessionConfig(row);
-  }
-
-  saveConfig(
-    config: SessionConfig,
-    sessionId = this.getFocusedSessionId(),
-  ): void {
-    const updatedAt = new Date().toISOString();
-    const existingRisk = this.client.db
-      .select({ maxDataSpendUsd: sessionRiskConfig.maxDataSpendUsd })
-      .from(sessionRiskConfig)
-      .where(eq(sessionRiskConfig.sessionId, sessionId))
-      .get();
-    const maxDataSpendUsd =
-      existingRisk?.maxDataSpendUsd ?? config.max_api_spend_usd;
-
-    this.client.db.transaction((tx) => {
-      tx.update(sessionStrategies)
-        .set({
-          strategyProfile: config.strategy,
-          maxPositionUsd: config.max_position_usd,
-          stopLossPct: config.stop_loss_pct,
-          takeProfitPct: config.take_profit_pct,
-          maxConcurrentTrades: config.max_concurrent_trades,
-          researchDepth: config.research_depth,
-          dailyLossLimitUsd: config.daily_loss_limit_usd,
-          profitTargetUsd: config.profit_target_usd,
-          maxAiSpendUsd: config.max_api_spend_usd,
-          humanApprovalRequired: config.human_approval_required,
-        })
-        .where(eq(sessionStrategies.sessionId, sessionId))
-        .run();
-
-      tx.update(sessionRiskConfig)
-        .set({
-          maxPositionUsd: config.max_position_usd,
-          stopLossPct: config.stop_loss_pct,
-          takeProfitPct: config.take_profit_pct,
-          maxConcurrentTrades: config.max_concurrent_trades,
-          dailyLossLimitUsd: config.daily_loss_limit_usd,
-          profitTargetUsd: config.profit_target_usd,
-          maxAiSpendUsd: config.max_api_spend_usd,
-          maxDataSpendUsd,
-          humanApprovalRequired: config.human_approval_required,
-          updatedAt,
-        })
-        .where(eq(sessionRiskConfig.sessionId, sessionId))
-        .run();
-    });
   }
 
   getStrategyConfigJson(sessionId: string): string | null {

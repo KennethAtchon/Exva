@@ -13,7 +13,6 @@ function toLesson(row: typeof autopsyLessons.$inferSelect): AutopsyLesson {
   return {
     id: row.id,
     autopsyId: row.autopsyId,
-    periodAutopsyId: row.periodAutopsyId,
     tradeId: row.tradeId,
     sessionId: row.sessionId,
     lesson: row.lesson,
@@ -37,25 +36,15 @@ export class AutopsyLessonsRepo {
     const rows = this.client.db
       .select()
       .from(autopsyLessons)
-      .where(
-        and(
-          eq(autopsyLessons.autopsyId, autopsyId),
-          eq(autopsyLessons.source, "trade"),
-        ),
-      )
+      .where(eq(autopsyLessons.autopsyId, autopsyId))
       .orderBy(desc(autopsyLessons.createdAt))
       .all();
     return rows.map(toLesson);
   }
 
+  /** @deprecated Prefer listByAutopsy — period runs share the same FK. */
   listByPeriodAutopsy(periodAutopsyId: string): AutopsyLesson[] {
-    const rows = this.client.db
-      .select()
-      .from(autopsyLessons)
-      .where(eq(autopsyLessons.periodAutopsyId, periodAutopsyId))
-      .orderBy(desc(autopsyLessons.createdAt))
-      .all();
-    return rows.map(toLesson);
+    return this.listByAutopsy(periodAutopsyId);
   }
 
   listBySession(sessionId: string, statuses?: LessonStatus[]): AutopsyLesson[] {
@@ -131,7 +120,6 @@ export class AutopsyLessonsRepo {
       .values({
         id,
         autopsyId: lesson.autopsyId,
-        periodAutopsyId: lesson.periodAutopsyId,
         tradeId: lesson.tradeId,
         sessionId: lesson.sessionId,
         lesson: lesson.lesson,

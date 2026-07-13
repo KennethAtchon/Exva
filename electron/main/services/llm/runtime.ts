@@ -2,7 +2,6 @@ import type { PipelinePhase } from "@electron/shared/ai/ai-phase";
 import { AppError } from "@electron/shared/infra/errors";
 import type { ProviderRegistry } from "./provider-registry";
 import type { SearchRegistry } from "../search";
-import type { SessionAiPhasesRepo } from "../../db/repositories/sessions/session-ai-phases-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
 import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
@@ -21,7 +20,7 @@ import type {
   InstrumentAnalysisState,
   InstrumentAnalysisResult,
 } from "../pipeline/analysis/types";
-import type { SessionConfig, InstrumentClass } from "@/lib/types";
+import type { InstrumentClass } from "@/lib/types";
 import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-ai-phase-config";
 
 export class LLMRuntime {
@@ -30,7 +29,7 @@ export class LLMRuntime {
   constructor(
     registry: ProviderRegistry,
     searchRegistry: SearchRegistry,
-    aiPhasesRepo: SessionAiPhasesRepo,
+    aiPhaseConfigSource: SessionStrategyContextService,
     sessionRepo: SessionRepo,
     workspacePrefsRepo: WorkspacePreferencesRepo,
     apiCallLogRepo: ApiCallLogRepo,
@@ -54,7 +53,7 @@ export class LLMRuntime {
   ) {
     this.pipelineRuntime = new PipelineRuntime({
       providerRegistry: registry,
-      phaseConfigResolver: new AIPhaseConfigResolver(aiPhasesRepo),
+      phaseConfigResolver: new AIPhaseConfigResolver(aiPhaseConfigSource),
       strategyContextService: strategyContextService ?? null,
       sessionRepo,
       workspacePrefsRepo,
@@ -145,7 +144,6 @@ export class LLMRuntime {
       cycleId: string;
       tradeId?: string | null;
       instrument: TradeCycleInstrument;
-      sessionConfig: SessionConfig;
       instrumentClasses: InstrumentClass[];
       seedState?: Partial<InstrumentAnalysisState>;
       runStep?: AnalysisStepRunner;
@@ -167,7 +165,6 @@ export class LLMRuntime {
       cycleId: string;
       tradeId?: string | null;
       instrument?: TradeCycleInstrument;
-      sessionConfig?: SessionConfig;
       instrumentClasses?: InstrumentClass[];
       input?: Record<string, unknown>;
       seedState?: Partial<InstrumentAnalysisState>;

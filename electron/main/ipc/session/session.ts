@@ -10,6 +10,7 @@ import {
   sessionExecutionStepActionSchema,
   sessionFocusSchema,
   sessionIdParamSchema,
+  debugInjectSignalSchema,
   sessionListFiltersSchema,
   sessionUpdateInputSchema,
 } from "@electron/shared/validation/schemas";
@@ -300,8 +301,12 @@ export function registerSessionHandlers(services: AppServices): void {
   );
 
   handle(ipcMain, channels.session.debugInjectSignal, async (payload) => {
-    const { sessionId } = sessionIdParamSchema.parse(payload);
-    services.signals.debugInjectSignal(sessionId);
+    const parsed = debugInjectSignalSchema.parse(payload);
+    services.signals.debugInjectSignal(parsed.sessionId, {
+      kind: parsed.kind,
+      payload: parsed.payload,
+      symbol: parsed.symbol,
+    });
     return { ok: true };
   });
 

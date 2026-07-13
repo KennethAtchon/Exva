@@ -13,7 +13,7 @@ import { AppError } from "@electron/shared/infra/errors";
 import { z } from "zod";
 import type { AgentMessagesRepo } from "../../db/repositories/agents/agent-messages-repo";
 import type { AutopsyLessonsRepo } from "../../db/repositories/trades/autopsy-lessons-repo";
-import type { TradeAutopsiesRepo } from "../../db/repositories/trades/trade-autopsies-repo";
+import type { AutopsiesRepo } from "../../db/repositories/trades/autopsies-repo";
 import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
 import type { ProviderRegistry } from "../llm/provider-registry";
@@ -83,7 +83,7 @@ const synthesisOutputSchema = z.object({
 export interface TradeAutopsyServiceDeps {
   trades: TradesRepo;
   agentMessages: AgentMessagesRepo;
-  autopsies: TradeAutopsiesRepo;
+  autopsies: AutopsiesRepo;
   lessons: AutopsyLessonsRepo;
   providerRegistry: ProviderRegistry;
   workspacePrefs: WorkspacePreferencesRepo;
@@ -179,7 +179,7 @@ export class TradeAutopsyService {
     const qualityScore = parsed?.qualityScore ?? null;
     const now = new Date().toISOString();
 
-    const record = this.deps.autopsies.insert({
+    const record = this.deps.autopsies.insertTrade({
       tradeId,
       sessionId,
       modelId,
@@ -196,7 +196,6 @@ export class TradeAutopsyService {
     for (const item of parsed?.lessons ?? []) {
       this.deps.lessons.insert({
         autopsyId: record.id,
-        periodAutopsyId: null,
         tradeId,
         sessionId,
         lesson: item.lesson,
@@ -245,7 +244,6 @@ export class TradeAutopsyService {
     const now = new Date().toISOString();
     return this.deps.lessons.insert({
       autopsyId: input.autopsyId,
-      periodAutopsyId: null,
       tradeId: input.tradeId,
       sessionId: input.sessionId,
       lesson: input.lesson,

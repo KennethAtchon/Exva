@@ -15,13 +15,8 @@ import type {
   EventRow,
   InstrumentClass,
   ProviderAccount,
-  SessionRiskConfig,
-  SessionTradeRules,
   SessionStatus,
   SessionTemplatePayload,
-  SessionTimeframeConfig,
-  SessionResearchPosture,
-  SessionAiSettings,
   Trade,
   TradeDetail,
   WorkspacePreferences,
@@ -39,7 +34,6 @@ import type {
   SessionExecutionProgressResponse,
   SessionSummary,
   StrategyGetResponse,
-  UserGlobalPresetRow,
   WorkspaceViewResponse,
 } from "@electron/shared/ipc/dto";
 import type {
@@ -86,6 +80,7 @@ export const api = {
     bridge().dashboard.getStats(),
   getCostBreakdown: (dateRange?: string): Promise<CostBreakdown> =>
     bridge().dashboard.getCostBreakdown(dateRange ?? "today"),
+  getCalendarAttention: () => bridge().dashboard.getCalendarAttention(),
 
   listApprovals: (filters?: {
     status?: "pending" | "approved" | "rejected";
@@ -173,8 +168,22 @@ export const api = {
     bridge().session.instrumentCacheGet(sessionId),
   clearSessionInstrumentCache: (sessionId: string) =>
     bridge().session.instrumentCacheClear(sessionId),
-  debugInjectSignal: (sessionId: string): Promise<{ ok: boolean }> =>
-    bridge().session.debugInjectSignal(sessionId),
+  debugInjectSignal: (
+    sessionId: string,
+    opts?: {
+      kind?:
+        | "filing"
+        | "market_dislocation"
+        | "flow_anomaly"
+        | "scan_hit"
+        | "news"
+        | "calendar_event"
+        | "manual";
+      payload?: Record<string, unknown>;
+      symbol?: string;
+    },
+  ): Promise<{ ok: boolean }> =>
+    bridge().session.debugInjectSignal(sessionId, opts),
   debugForceTrade: (sessionId: string) =>
     bridge().session.debugForceTrade(sessionId),
 
@@ -202,6 +211,14 @@ export const api = {
       | import("@electron/shared/domain/mock-scenario").MockExecutionTier
       | null;
   }) => bridge().brokerAccounts.updateSettings(input),
+  resetPaperBalance: (input: {
+    brokerAccountId: string;
+    startingBalanceUsd?: number;
+  }): Promise<{
+    balanceUsd: number;
+    startingBalanceUsd: number;
+    cachedAt: string;
+  }> => bridge().brokerAccounts.resetPaperBalance(input),
 
   listTemplates: (filters?: {
     search?: string;
@@ -222,78 +239,10 @@ export const api = {
 
   getStrategy: (sessionId: string): Promise<StrategyGetResponse> =>
     bridge().strategy.get(sessionId),
-  getStrategyResearchPosture: (
-    sessionId: string,
-  ): Promise<SessionResearchPosture> =>
-    bridge().strategy.getResearchPosture(sessionId),
-  saveStrategyResearchPosture: (input: {
-    sessionId: string;
-    researchPosture: Partial<SessionResearchPosture>;
-  }) => bridge().strategy.saveResearchPosture(input),
-  getTradeRules: (sessionId: string): Promise<SessionTradeRules> =>
-    bridge().strategy.getRules(sessionId),
-  saveTradeRules: (input: {
-    sessionId: string;
-    rules: Partial<SessionTradeRules>;
-  }) => bridge().strategy.saveRules(input),
-  getStrategyRiskConfig: (sessionId: string): Promise<SessionRiskConfig> =>
-    bridge().strategy.getRiskConfig(sessionId),
-  saveStrategyRiskConfig: (input: {
-    sessionId: string;
-    riskConfig: Partial<SessionRiskConfig>;
-  }) => bridge().strategy.saveRiskConfig(input),
-  getStrategyTimeframeConfig: (
-    sessionId: string,
-  ): Promise<SessionTimeframeConfig> =>
-    bridge().strategy.getTimeframeConfig(sessionId),
-  saveStrategyTimeframeConfig: (input: {
-    sessionId: string;
-    timeframe: Partial<SessionTimeframeConfig>;
-  }) => bridge().strategy.saveTimeframeConfig(input),
-  saveStrategyAiSettings: (input: {
-    sessionId: string;
-    aiSettings: Partial<SessionAiSettings>;
-  }) => bridge().strategy.saveAiSettings(input),
-  saveStrategyAiPhase: (input: {
-    sessionId: string;
-    phase: import("@electron/shared/ai/ai-phase").PipelinePhase;
-    providerKey?: string;
-    modelId?: string;
-    temperature?: number;
-    maxTokens?: number;
-    reasoningLevel?: "off" | "auto" | "low" | "medium" | "high" | "max";
-    promptSource?: "default" | "session_override";
-    promptMarkdown?: string;
-  }) => bridge().strategy.saveAiPhase(input),
-  saveStrategyAiPhaseWorker: (input: {
-    sessionId: string;
-    phase: import("@electron/shared/ai/ai-phase").PipelinePhase;
-    workerId: string;
-    providerKey?: string | null;
-    modelId?: string | null;
-    maxSteps?: number | null;
-    spendLimitUsd?: number | null;
-    promptMarkdown?: string | null;
-  }) => bridge().strategy.saveAiPhaseWorker(input),
   getStrategyProviderModels: (
     providerKey: string,
   ): Promise<{ models: ProviderModelEntry[] }> =>
     bridge().strategy.getProviderModels(providerKey),
-
-  listGlobalPresets: (): Promise<{ presets: UserGlobalPresetRow[] }> =>
-    bridge().strategy.globalPresets.list(),
-  createGlobalPreset: (input: {
-    name: string;
-    preset: Record<string, unknown>;
-  }): Promise<UserGlobalPresetRow> =>
-    bridge().strategy.globalPresets.create(input),
-  updateGlobalPreset: (input: {
-    id: string;
-    name: string;
-    preset: Record<string, unknown>;
-  }): Promise<{ ok: true }> => bridge().strategy.globalPresets.update(input),
-  deleteGlobalPreset: (input: { id: string }): Promise<{ ok: true }> =>
-    bridge().strategy.globalPresets.delete(input),
   getWorkspaceDefaultModel: (): Promise<{
     providerKey: string;
     modelId: string;
@@ -305,6 +254,37 @@ export const api = {
     reasoningLevel?: import("@electron/shared/ai/ai-phase").ReasoningLevel;
   }): Promise<{ savedAt: string }> =>
     bridge().strategy.saveWorkspaceDefaultModel(input),
+
+  getStrategyConfig: (sessionId: string) =>
+    bridge().strategyConfig.get(sessionId),
+  updateStrategyConfig: (input: {
+    sessionId: string;
+    expectedVersion: number;
+    patch: Record<string, unknown>;
+  }) => bridge().strategyConfig.update(input),
+  applyStrategyConfigPreset: (input: {
+    sessionId: string;
+    presetId: string;
+    expectedVersion: number;
+  }) => bridge().strategyConfig.applyPreset(input),
+  listStrategyConfigPresets: (kind?: string) =>
+    bridge().strategyConfig.listPresets(kind),
+  saveStrategyConfigPreset: (input: {
+    id?: string;
+    name: string;
+    kind: string;
+    doc: Record<string, unknown>;
+    builtin?: boolean;
+  }) => bridge().strategyConfig.savePreset(input),
+  deleteStrategyConfigPreset: (input: { id: string }) =>
+    bridge().strategyConfig.deletePreset(input),
+  getStrategyConfigHistory: (sessionId: string) =>
+    bridge().strategyConfig.history(sessionId),
+  rollbackStrategyConfig: (input: {
+    sessionId: string;
+    version: number;
+    expectedVersion: number;
+  }) => bridge().strategyConfig.rollback(input),
 
   listSignalSources: (): Promise<{
     sources: Array<
@@ -563,6 +543,45 @@ export const api = {
     cancel: (conversationId: string) => bridge().control.cancel(conversationId),
     getActivity: () => bridge().control.getActivity(),
   },
+
+  paletteQuery: (q: string, limit?: number) =>
+    bridge().palette.query({ q, limit }),
+  backtestListStrategies: () => bridge().backtest.listStrategies(),
+  backtestList: (input?: { experienceId?: string; limit?: number }) =>
+    bridge().backtest.list(input),
+  backtestGet: (id: string) => bridge().backtest.get({ id }),
+  backtestRun: (input: unknown) => bridge().backtest.run(input),
+  backtestCompare: (runIds: string[]) => bridge().backtest.compare({ runIds }),
+  backtestSweep: (input: unknown) => bridge().backtest.sweep(input),
+  dataDoctorCoverage: () => bridge().dataDoctor.coverage(),
+  dataDoctorGaps: (symbol: string, timeframe: string) =>
+    bridge().dataDoctor.gaps({ symbol, timeframe }),
+  dataDoctorBackfill: (input: unknown) => bridge().dataDoctor.backfill(input),
+  dataDoctorProviderHealth: () => bridge().dataDoctor.providerHealth(),
+  dataDoctorSetProviderEnabled: (provider: string, enabled: boolean) =>
+    bridge().dataDoctor.setProviderEnabled({ provider, enabled }),
+  dataDoctorRunNightlyGapCheck: () => bridge().dataDoctor.runNightlyGapCheck(),
+  briefingLatest: () => bridge().briefing.latest(),
+  briefingList: (limit?: number) => bridge().briefing.list({ limit }),
+  briefingGet: (date: string) => bridge().briefing.get({ date }),
+  briefingAssemble: (date?: string) => bridge().briefing.assemble({ date }),
+  equityCurve: (range?: "1W" | "1M" | "3M" | "all") =>
+    bridge().equity.curve({ range }),
+  equityAttribution: (range?: "1W" | "1M" | "3M" | "all") =>
+    bridge().equity.attribution({ range }),
+  equitySnapshotNow: () => bridge().equity.snapshotNow(),
+  whatIfRun: (input: {
+    tradeId: string;
+    params?: Record<string, unknown>;
+    save?: boolean;
+    experienceId?: string;
+  }) => bridge().whatIf.run(input),
+  killSwitchPauseAll: () => bridge().killSwitch.pauseAll(),
+  killSwitchKillSession: (sessionId: string) =>
+    bridge().killSwitch.killSession({ sessionId }),
+  killSwitchGauges: () => bridge().killSwitch.gauges(),
+  killSwitchFlattenAll: (confirmation: string) =>
+    bridge().killSwitch.flattenAll({ confirmation }),
 };
 
 export async function listenEvent<K extends ExvaEventName>(

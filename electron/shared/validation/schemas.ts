@@ -214,6 +214,8 @@ const sessionRiskConfigPayloadSchema = z.object({
   maxAiSpendUsd: z.number().nonnegative(),
   maxDataSpendUsd: z.number().nonnegative(),
   humanApprovalRequired: z.boolean(),
+  calendarBlackoutHours: z.number().nonnegative().optional().default(24),
+  eventTypedExperience: z.boolean().optional().default(false),
 });
 
 const sessionTimeframeConfigPayloadSchema = z.object({
@@ -228,75 +230,8 @@ const sessionTimeframeConfigPayloadSchema = z.object({
   timeframeNotes: z.string(),
 });
 
-export const strategyResearchPostureSaveSchema = z.object({
-  sessionId: z.string().min(1),
-  researchPosture: sessionResearchPosturePayloadSchema.partial(),
-});
-
-export const strategyRulesSaveSchema = z.object({
-  sessionId: z.string().min(1),
-  rules: sessionTradeRulesPayloadSchema.partial(),
-});
-
-export const strategyRiskConfigSaveSchema = z.object({
-  sessionId: z.string().min(1),
-  riskConfig: sessionRiskConfigPayloadSchema.partial(),
-});
-
 const sessionAiSettingsPayloadSchema = z.object({
   workerGuidanceMarkdown: z.string().max(1200),
-});
-
-export const strategyAiSettingsSaveSchema = z.object({
-  sessionId: z.string().min(1),
-  aiSettings: sessionAiSettingsPayloadSchema.partial(),
-});
-
-export const strategyTimeframeConfigSaveSchema = z.object({
-  sessionId: z.string().min(1),
-  timeframe: sessionTimeframeConfigPayloadSchema.partial(),
-});
-
-const pipelinePhaseSchema = z.enum([
-  "selector",
-  "technical",
-  "fundamental",
-  "review",
-  "decision",
-]);
-
-const REASONING_LEVELS = [
-  "off",
-  "auto",
-  "low",
-  "medium",
-  "high",
-  "max",
-] as const;
-
-const reasoningLevelSchema = z.enum(REASONING_LEVELS);
-
-export const strategyAiPhaseSaveSchema = z.object({
-  sessionId: z.string().min(1),
-  phase: pipelinePhaseSchema,
-  providerKey: z.string().min(1).optional(),
-  modelId: z.string().min(1).optional(),
-  temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().int().positive().optional(),
-  reasoningLevel: reasoningLevelSchema.optional(),
-  promptSource: z.enum(["default", "session_override"]).optional(),
-  promptMarkdown: z.string().optional(),
-});
-
-export const strategyAiPhaseWorkerSaveSchema = z.object({
-  sessionId: z.string().min(1),
-  phase: pipelinePhaseSchema,
-  workerId: z.string().min(1),
-  providerKey: z.string().min(1).nullable().optional(),
-  modelId: z.string().min(1).nullable().optional(),
-  maxSteps: z.number().int().positive().nullable().optional(),
-  spendLimitUsd: z.number().nonnegative().nullable().optional(),
-  promptMarkdown: z.string().nullable().optional(),
 });
 
 export const sessionTemplatePayloadSchema = z.object({
@@ -378,6 +313,23 @@ export const sessionDuplicateInputSchema = z.object({
 });
 
 export const sessionIdParamSchema = z.object({ sessionId: z.string().min(1) });
+
+export const debugInjectSignalSchema = z.object({
+  sessionId: z.string().min(1),
+  kind: z
+    .enum([
+      "filing",
+      "market_dislocation",
+      "flow_anomaly",
+      "scan_hit",
+      "news",
+      "calendar_event",
+      "manual",
+    ])
+    .optional(),
+  payload: z.record(z.unknown()).optional(),
+  symbol: z.string().optional(),
+});
 export const sessionExecutionProgressSchema = z.object({
   sessionId: z.string().min(1),
 });
@@ -404,6 +356,52 @@ export const workspacePrefsPatchSchema = z
 
 export const strategyGetProviderModelsSchema = z.object({
   providerKey: z.string().min(1),
+});
+
+const strategyConfigSessionIdSchema = z.object({
+  sessionId: z.string().min(1),
+});
+
+export const strategyConfigGetSchema = strategyConfigSessionIdSchema;
+
+export const strategyConfigUpdateSchema = z.object({
+  sessionId: z.string().min(1),
+  expectedVersion: z.number().int().positive(),
+  patch: z.record(z.string(), z.unknown()),
+});
+
+export const strategyConfigApplyPresetSchema = z.object({
+  sessionId: z.string().min(1),
+  presetId: z.string().min(1),
+  expectedVersion: z.number().int().positive(),
+});
+
+export const strategyConfigListPresetsSchema = z
+  .object({
+    kind: z
+      .enum(["full", "risk", "timeframe", "research", "rules", "ai"])
+      .optional(),
+  })
+  .optional();
+
+export const strategyConfigSavePresetSchema = z.object({
+  id: z.string().min(1).optional(),
+  name: z.string().min(1),
+  kind: z.enum(["full", "risk", "timeframe", "research", "rules", "ai"]),
+  doc: z.record(z.string(), z.unknown()),
+  builtin: z.boolean().optional(),
+});
+
+export const strategyConfigDeletePresetSchema = z.object({
+  id: z.string().min(1),
+});
+
+export const strategyConfigHistorySchema = strategyConfigSessionIdSchema;
+
+export const strategyConfigRollbackSchema = z.object({
+  sessionId: z.string().min(1),
+  version: z.number().int().positive(),
+  expectedVersion: z.number().int().positive(),
 });
 
 export const listSignalDeadLettersInputSchema = z.object({

@@ -15,8 +15,8 @@ describe("brokerReachabilityCheck", () => {
         sessionBrokerAssignmentsRepo: {
           listBrokerAccountIds: () => ["broker-1"],
         },
-        sessionSelectorSettingsRepo: {
-          get: () => ({ aiPickerEnabled: false }),
+        strategyContextService: {
+          getSelectorSettings: () => ({ aiPickerEnabled: false }),
         },
         brokerAccountsRepo: {
           find: () => ({
@@ -44,8 +44,8 @@ describe("brokerReachabilityCheck", () => {
       session as never,
       {
         sessionBrokerAssignmentsRepo: { listBrokerAccountIds: () => [] },
-        sessionSelectorSettingsRepo: {
-          get: () => ({ aiPickerEnabled: false }),
+        strategyContextService: {
+          getSelectorSettings: () => ({ aiPickerEnabled: false }),
         },
         brokerAccountsRepo: { find: () => null },
         brokerRouting: { resolveBrokerAccountId: vi.fn() },
@@ -68,8 +68,8 @@ describe("brokerReachabilityCheck", () => {
           sessionBrokerAssignmentsRepo: {
             listBrokerAccountIds: () => ["missing-broker"],
           },
-          sessionSelectorSettingsRepo: {
-            get: () => ({ aiPickerEnabled: false }),
+          strategyContextService: {
+            getSelectorSettings: () => ({ aiPickerEnabled: false }),
           },
           brokerAccountsRepo: { find: () => null },
           brokerRouting: { resolveBrokerAccountId: vi.fn() },
@@ -88,8 +88,8 @@ describe("brokerReachabilityCheck", () => {
           sessionBrokerAssignmentsRepo: {
             listBrokerAccountIds: () => ["broker-crypto"],
           },
-          sessionSelectorSettingsRepo: {
-            get: () => ({ aiPickerEnabled: false }),
+          strategyContextService: {
+            getSelectorSettings: () => ({ aiPickerEnabled: false }),
           },
           brokerAccountsRepo: {
             find: () => ({
@@ -114,8 +114,8 @@ describe("brokerReachabilityCheck", () => {
           sessionBrokerAssignmentsRepo: {
             listBrokerAccountIds: () => ["broker-1"],
           },
-          sessionSelectorSettingsRepo: {
-            get: () => ({ aiPickerEnabled: false }),
+          strategyContextService: {
+            getSelectorSettings: () => ({ aiPickerEnabled: false }),
           },
           brokerAccountsRepo: {
             find: () => ({
@@ -145,8 +145,8 @@ describe("brokerReachabilityCheck", () => {
           sessionBrokerAssignmentsRepo: {
             listBrokerAccountIds: () => ["broker-1"],
           },
-          sessionSelectorSettingsRepo: {
-            get: () => ({ aiPickerEnabled: false }),
+          strategyContextService: {
+            getSelectorSettings: () => ({ aiPickerEnabled: false }),
           },
           brokerAccountsRepo: {
             find: () => ({

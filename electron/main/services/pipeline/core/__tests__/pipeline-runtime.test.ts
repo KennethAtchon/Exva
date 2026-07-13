@@ -58,7 +58,6 @@ describe("PipelineRuntime", () => {
         sessionId: "s1",
         cycleId: "c1",
         instrument: { symbol: "AAPL", instrumentClass: "stock" },
-        sessionConfig: {} as never,
         instrumentClasses: ["stock"],
       }),
     ).rejects.toBeInstanceOf(AppError);

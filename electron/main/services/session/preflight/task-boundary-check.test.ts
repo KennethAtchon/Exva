@@ -12,26 +12,28 @@ describe("taskBoundaryCheck", () => {
     executionMode: "paper_only",
   } as const;
 
+  const baseDeps = {
+    signalSourcesRepo: {
+      subscribedSourceTypesForSession: () => ["edgar_8k"],
+    },
+    strategyContextService: {
+      getSelectorSettings: () => ({ aiPickerEnabled: false }),
+    },
+    sessionBrokerAssignmentsRepo: {
+      listBrokerAccountIds: () => ["broker-1"],
+    },
+    brokerAccountsRepo: {
+      find: () => ({
+        id: "broker-1",
+        supportedInstrumentClasses: ["stock"],
+      }),
+    },
+  };
+
   it("accepts a complete session boundary", async () => {
     const result = await taskBoundaryCheck(
       baseSession as never,
-      {
-        signalSourcesRepo: {
-          subscribedSourceTypesForSession: () => ["edgar_8k"],
-        },
-        sessionSelectorSettingsRepo: {
-          get: () => ({ aiPickerEnabled: false }),
-        },
-        sessionBrokerAssignmentsRepo: {
-          listBrokerAccountIds: () => ["broker-1"],
-        },
-        brokerAccountsRepo: {
-          find: () => ({
-            id: "broker-1",
-            supportedInstrumentClasses: ["stock"],
-          }),
-        },
-      } as never,
+      baseDeps as never,
     );
 
     expect(result).toEqual({ ok: true });
@@ -39,17 +41,8 @@ describe("taskBoundaryCheck", () => {
 
   it("requires name, objective, instrument classes, and execution mode", async () => {
     const deps = {
+      ...baseDeps,
       signalSourcesRepo: { subscribedSourceTypesForSession: () => [] },
-      sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: false }) },
-      sessionBrokerAssignmentsRepo: {
-        listBrokerAccountIds: () => ["broker-1"],
-      },
-      brokerAccountsRepo: {
-        find: () => ({
-          id: "broker-1",
-          supportedInstrumentClasses: ["stock"],
-        }),
-      },
     } as never;
 
     expect(
@@ -86,19 +79,16 @@ describe("taskBoundaryCheck", () => {
   });
 
   it("requires instrument scope for scan_hit experiences with no scope", async () => {
-    // rules-breakout uses scan_hit (no signal source types) so scope is required.
     const result = await taskBoundaryCheck(
-      { ...baseSession, instrumentScope: "", experienceId: "rules-breakout" } as never,
       {
-        sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
-        sessionBrokerAssignmentsRepo: {
-          listBrokerAccountIds: () => ["broker-1"],
-        },
-        brokerAccountsRepo: {
-          find: () => ({
-            id: "broker-1",
-            supportedInstrumentClasses: ["stock"],
-          }),
+        ...baseSession,
+        instrumentScope: "",
+        experienceId: "rules-breakout",
+      } as never,
+      {
+        ...baseDeps,
+        strategyContextService: {
+          getSelectorSettings: () => ({ aiPickerEnabled: true }),
         },
       } as never,
     );
@@ -111,19 +101,16 @@ describe("taskBoundaryCheck", () => {
   });
 
   it("does not require instrument scope for event-driven experience sessions", async () => {
-    // edgar-catalyst uses edgar_8k sources which are self-describing (no scope needed).
     const result = await taskBoundaryCheck(
-      { ...baseSession, instrumentScope: "", experienceId: "edgar-catalyst" } as never,
       {
-        sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
-        sessionBrokerAssignmentsRepo: {
-          listBrokerAccountIds: () => ["broker-1"],
-        },
-        brokerAccountsRepo: {
-          find: () => ({
-            id: "broker-1",
-            supportedInstrumentClasses: ["stock"],
-          }),
+        ...baseSession,
+        instrumentScope: "",
+        experienceId: "edgar-catalyst",
+      } as never,
+      {
+        ...baseDeps,
+        strategyContextService: {
+          getSelectorSettings: () => ({ aiPickerEnabled: true }),
         },
       } as never,
     );

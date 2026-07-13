@@ -86,6 +86,7 @@ describe("SignalService replayDeadLetter", () => {
     });
 
     const eventsRepo = new SignalEventsRepo(db);
+    const now = new Date().toISOString();
     const signal = {
       id: crypto.randomUUID(),
       sourceId: "mock-source",
@@ -100,8 +101,11 @@ describe("SignalService replayDeadLetter", () => {
         cadence: "15m",
       },
       kind: "scan_hit",
-      filedAt: new Date().toISOString(),
-      detectedAt: new Date().toISOString(),
+      filedAt: now,
+      detectedAt: now,
+      dedupeKey: `scan_hit:${crypto.randomUUID()}`,
+      ttl: "PT1H",
+      occurredAt: now,
     };
     eventsRepo.insert(signal);
 

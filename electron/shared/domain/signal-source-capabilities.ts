@@ -21,9 +21,11 @@ export const SIGNAL_SOURCE_CAPABILITIES: Record<
 > = {
   edgar_8k: { emittedInstrumentClasses: ["stock"] },
   mock: { emittedInstrumentClasses: "from_config" },
-  web_search: { emittedInstrumentClasses: "from_config" },
   manual: { emittedInstrumentClasses: "from_config" },
   prediction_event: { emittedInstrumentClasses: ["prediction_market"] },
+  kalshi_market: { emittedInstrumentClasses: ["prediction_market"] },
+  calendar: { emittedInstrumentClasses: ["stock"] },
+  news_rss: { emittedInstrumentClasses: ["stock"] },
 };
 
 function instrumentClassFromPayload(
@@ -46,7 +48,7 @@ export function extractSignalInstrumentClass(
   if (fromPayload) return fromPayload;
 
   // scan_hit schedules carry instrumentClass on the MarketSignal envelope,
-  // mirrored into payloadJson by marketSignalToLegacyEvent.
+  // mirrored into payloadJson by signalEventFromMarketSignal.
   if (signal.kind === "scan_hit") {
     return null;
   }
@@ -59,6 +61,12 @@ export function extractSignalInstrumentClass(
   }
   if (signal.sourceType === "prediction_event") {
     return "prediction_market";
+  }
+  if (signal.sourceType === "kalshi_market") {
+    return "prediction_market";
+  }
+  if (signal.sourceType === "calendar" || signal.sourceType === "news_rss") {
+    return "stock";
   }
   return null;
 }

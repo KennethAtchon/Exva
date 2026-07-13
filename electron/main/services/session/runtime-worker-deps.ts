@@ -17,7 +17,6 @@ export function createWorkerOrchestratorDeps(
 
   return {
     sessionRepo: createDepProxy(rpc, "sessionRepo"),
-    sessionStrategiesRepo: createDepProxy(rpc, "sessionStrategiesRepo"),
     strategyContextService: createDepProxy(rpc, "strategyContextService"),
     tradesRepo: createDepProxy(rpc, "tradesRepo"),
     decisionTracesRepo: createDepProxy(rpc, "decisionTracesRepo"),
@@ -26,11 +25,6 @@ export function createWorkerOrchestratorDeps(
     agentMessagesRepo: createDepProxy(rpc, "agentMessagesRepo"),
     eventsRepo: createDepProxy(rpc, "eventsRepo"),
     statsRepo: createDepProxy(rpc, "statsRepo"),
-    sessionAiPhasesRepo: createDepProxy(rpc, "sessionAiPhasesRepo"),
-    sessionSelectorSettingsRepo: createDepProxy(
-      rpc,
-      "sessionSelectorSettingsRepo",
-    ),
     sessionExecutionStepsRepo: createDepProxy(rpc, "sessionExecutionStepsRepo"),
     providerAccountsRepo: createDepProxy(rpc, "providerAccountsRepo"),
     workspacePreferencesRepo: createDepProxy(rpc, "workspacePreferencesRepo"),

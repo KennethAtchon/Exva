@@ -1,4 +1,4 @@
-import type { SessionConfig, Trade } from "@/lib/types";
+import type { Trade } from "@/lib/types";
 import type {
   ReviewSignal,
   TradeSignal,
@@ -35,7 +35,6 @@ function executionFieldsForSignal(
   ctx: TradingCycleContext,
   signal: TradeSignal,
   instrumentClass: InstrumentClass,
-  config: SessionConfig,
   reviewRecommendation?: ReviewSignal["recommendation"],
 ): {
   position_size_usd: number;
@@ -60,7 +59,7 @@ function executionFieldsForSignal(
   const profile = computeTradeTradeExecutionProfile({
     signal,
     instrumentClass,
-    maxPositionUsd: config.max_position_usd,
+    maxPositionUsd: strategyCtx.riskConfig.maxPositionUsd,
     maxExposureUsd: strategyCtx.riskConfig.maxExposureUsd ?? null,
     risk: {
       stopLossPct: strategyCtx.riskConfig.stopLossPct,
@@ -90,7 +89,6 @@ export function buildTradeFromDecision(
   ctx: TradingCycleContext,
   tradeId: string,
   instrument: ResolvedInstrument,
-  config: SessionConfig,
   signal: TradeSignal,
   aiCostUsd: number,
   reviewRecommendation?: ReviewSignal["recommendation"],
@@ -99,11 +97,11 @@ export function buildTradeFromDecision(
     instrument.instrumentClass,
   );
   const prediction = resolvePredictionTradeFields(instrument);
+  const strategyCtx = ctx.deps.strategyContextService.get(ctx.sessionId);
   const execution = executionFieldsForSignal(
     ctx,
     signal,
     instrument.instrumentClass,
-    config,
     reviewRecommendation,
   );
   return {
@@ -120,7 +118,7 @@ export function buildTradeFromDecision(
     position_size_usd: execution.position_size_usd,
     stop_loss_price: execution.stop_loss_price,
     take_profit_price: execution.take_profit_price,
-    strategy: config.strategy,
+    strategy: strategyCtx.rules.setupType,
     execution_strategy: execution.execution_strategy,
     status: "pending",
     opened_at: null,
@@ -139,7 +137,6 @@ export function buildTradeFromDecision(
 export function createTradeFromDecision(
   ctx: TradingCycleContext,
   instrument: ResolvedInstrument,
-  config: SessionConfig,
   signal: TradeSignal,
   aiCostUsd: number,
   reviewRecommendation?: ReviewSignal["recommendation"],
@@ -150,11 +147,11 @@ export function createTradeFromDecision(
   );
   const isTrade = signal.action !== "skip";
   const prediction = resolvePredictionTradeFields(instrument);
+  const strategyCtx = ctx.deps.strategyContextService.get(ctx.sessionId);
   const execution = executionFieldsForSignal(
     ctx,
     signal,
     instrument.instrumentClass,
-    config,
     isTrade ? reviewRecommendation : undefined,
   );
   return {
@@ -171,7 +168,7 @@ export function createTradeFromDecision(
     position_size_usd: execution.position_size_usd,
     stop_loss_price: execution.stop_loss_price,
     take_profit_price: execution.take_profit_price,
-    strategy: config.strategy,
+    strategy: strategyCtx.rules.setupType,
     execution_strategy: execution.execution_strategy,
     status: isTrade ? "pending" : "no_trade",
     opened_at: null,

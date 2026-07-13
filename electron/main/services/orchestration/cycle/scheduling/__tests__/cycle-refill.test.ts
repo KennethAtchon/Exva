@@ -122,6 +122,10 @@ function createContext(input: {
       }),
     },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         rules: { setupType: "momentum" },
         riskConfig: {
@@ -137,9 +141,6 @@ function createContext(input: {
           humanApprovalRequired: false,
         },
       }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: {
       upsert: vi.fn(),
@@ -166,9 +167,11 @@ function createContext(input: {
     },
   } as never);
 
-  ctx.getSessionConfig = () =>
+  ctx.getStrategyContext = () =>
     ({
-      max_concurrent_trades: input.maxConcurrentTrades,
+      riskConfig: {
+        maxConcurrentTrades: input.maxConcurrentTrades,
+      },
     }) as never;
 
   return ctx;

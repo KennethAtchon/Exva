@@ -78,7 +78,9 @@ describe("SignalService", () => {
   it("derives session readiness from subscriptions and manual scope", () => {
     const { service } = createService();
     // V2: readiness is based on instrumentScope only (legacy session_signal_sources removed).
-    expect(service.deriveReadiness("any-session", "AAPL,MSFT")).toBe("manual_only");
+    expect(service.deriveReadiness("any-session", "AAPL,MSFT")).toBe(
+      "manual_only",
+    );
     expect(service.deriveReadiness("any-session", "")).toBe("no_inputs");
   });
 
@@ -89,6 +91,7 @@ describe("SignalService", () => {
 
     const session = createMinimalSession(db);
     const eventId = crypto.randomUUID();
+    const now = new Date().toISOString();
     new SignalEventsRepo(db).insert({
       id: eventId,
       sourceId: "manual_source",
@@ -98,8 +101,12 @@ describe("SignalService", () => {
       documentUrl: null,
       accessionNumber: null,
       payloadJson: { instrumentClass: "stock" },
-      filedAt: new Date().toISOString(),
-      detectedAt: new Date().toISOString(),
+      filedAt: now,
+      detectedAt: now,
+      kind: "manual",
+      dedupeKey: `manual:${eventId}`,
+      ttl: "PT4H",
+      occurredAt: now,
     });
     const delivery = deliveriesRepo.enqueueWithStatus({
       sessionId: session.id,

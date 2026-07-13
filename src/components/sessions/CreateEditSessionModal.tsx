@@ -5,13 +5,12 @@ import {
   sessionInputsApi,
 } from "@/lib/experience-catalog-api";
 import type { ExperienceSummary } from "@electron/shared/ipc/dto";
+import type { ExperienceTemplateSummary } from "@electron/shared/domain/experience-inputs/catalog";
+import type { SessionInputSubscriptionDraft } from "@electron/shared/domain/experience-inputs/subscription";
 import type {
-  ExperienceTemplateSummary,
-} from "@electron/shared/domain/experience-inputs/catalog";
-import type {
-  SessionInputSubscriptionDraft,
-} from "@electron/shared/domain/experience-inputs/subscription";
-import type { FieldError, FieldWarning } from "@electron/shared/domain/experience-inputs/validation-result";
+  FieldError,
+  FieldWarning,
+} from "@electron/shared/domain/experience-inputs/validation-result";
 import { SessionInputEditor } from "@/components/sessions/SessionInputEditor";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import type {
@@ -163,7 +162,6 @@ export const CreateEditSessionModal = ({
     };
   }, [open, initialSession, templateInput, environmentMode]);
 
-
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -232,7 +230,9 @@ export const CreateEditSessionModal = ({
               cadence: JSON.parse(sub.cadenceJson),
               analysisTimeframe: sub.analysisTimeframe,
               marketCalendarId: sub.marketCalendarId,
-              strategyParameters: JSON.parse(sub.strategyParametersJson || "{}"),
+              strategyParameters: JSON.parse(
+                sub.strategyParametersJson || "{}",
+              ),
               createdFromProfileId: sub.createdFromProfileId,
             };
           }),
@@ -300,7 +300,6 @@ export const CreateEditSessionModal = ({
   const {
     form,
     brokerAccounts,
-    searchProviderState,
     experiences,
     experiencesLoaded,
     v2Templates,
@@ -345,11 +344,11 @@ export const CreateEditSessionModal = ({
   const selectedV2Template = useMemo(
     () =>
       v2TemplatesLoaded && form.experienceId
-        ? v2Templates.find(
+        ? (v2Templates.find(
             (t) =>
               t.templateId === form.experienceId ||
               t.templateId.startsWith(form.experienceId + "-"),
-          ) ?? null
+          ) ?? null)
         : null,
     [v2Templates, v2TemplatesLoaded, form.experienceId],
   );
@@ -410,8 +409,6 @@ export const CreateEditSessionModal = ({
     dispatchData({ form: { ...form, brokerAssignments: nextAssignments } });
   }, [brokerAccounts, form, form.brokerAssignments, visibleBrokers]);
 
-
-
   if (!open) return null;
 
   return (
@@ -468,7 +465,9 @@ export const CreateEditSessionModal = ({
                     {selectedExperience ? (
                       <div className={inlineHintClass}>
                         Signal sources:{" "}
-                        {selectedExperience.capabilities.signalSourceTypes.join(", ") || "—"}
+                        {selectedExperience.capabilities.signalSourceTypes.join(
+                          ", ",
+                        ) || "—"}
                         .
                         {EXPERIENCE_HELP_IDS[
                           selectedExperience.id as keyof typeof EXPERIENCE_HELP_IDS
@@ -741,35 +740,37 @@ export const CreateEditSessionModal = ({
                     // Validate subscriptions before submitting
                     if (selectedV2Template && v2Subscriptions.length > 0) {
                       try {
-                        const validation = await experienceCatalogApi.validateDraft({
-                          templateId: selectedV2Template.templateId,
-                          templateVersion: selectedV2Template.latestVersion,
-                          subscriptions: v2Subscriptions.map((s) => {
-                            if (s.mode === "event_source") {
+                        const validation =
+                          await experienceCatalogApi.validateDraft({
+                            templateId: selectedV2Template.templateId,
+                            templateVersion: selectedV2Template.latestVersion,
+                            subscriptions: v2Subscriptions.map((s) => {
+                              if (s.mode === "event_source") {
+                                return {
+                                  mode: "event_source" as const,
+                                  sourceDefinitionId: s.sourceDefinitionId,
+                                  sourceRevision: s.sourceRevision,
+                                  filters: s.filters,
+                                  analysisTimeframe: s.analysisTimeframe,
+                                };
+                              }
                               return {
-                                mode: "event_source" as const,
-                                sourceDefinitionId: s.sourceDefinitionId,
-                                sourceRevision: s.sourceRevision,
-                                filters: s.filters,
+                                mode: "scheduled_scan" as const,
+                                instrumentSetId: s.instrumentSetId,
+                                instrumentSetRevision: s.instrumentSetRevision,
+                                cadence: s.cadence,
                                 analysisTimeframe: s.analysisTimeframe,
+                                marketCalendarId: s.marketCalendarId,
+                                strategyParameters: s.strategyParameters,
                               };
-                            }
-                            return {
-                              mode: "scheduled_scan" as const,
-                              instrumentSetId: s.instrumentSetId,
-                              instrumentSetRevision: s.instrumentSetRevision,
-                              cadence: s.cadence,
-                              analysisTimeframe: s.analysisTimeframe,
-                              marketCalendarId: s.marketCalendarId,
-                              strategyParameters: s.strategyParameters,
-                            };
-                          }),
-                        });
+                            }),
+                          });
                         if (!validation.overall.valid) {
                           dispatchData({
                             v2FieldErrors: validation.overall.errors,
                             v2FieldWarnings: validation.overall.warnings,
-                            v2UnvalidatedUniverse: validation.usesUnvalidatedUniverse,
+                            v2UnvalidatedUniverse:
+                              validation.usesUnvalidatedUniverse,
                           });
                           dispatchReq({ saving: false });
                           return;
@@ -777,14 +778,15 @@ export const CreateEditSessionModal = ({
                         dispatchData({
                           v2FieldErrors: [],
                           v2FieldWarnings: validation.overall.warnings,
-                          v2UnvalidatedUniverse: validation.usesUnvalidatedUniverse,
+                          v2UnvalidatedUniverse:
+                            validation.usesUnvalidatedUniverse,
                         });
                       } catch {
                         // Backend not yet ready — proceed anyway
                       }
                     }
 
-                    const sessionId = await onSubmit(
+                    await onSubmit(
                       {
                         ...form,
                         instrumentScope: "",
@@ -797,14 +799,11 @@ export const CreateEditSessionModal = ({
                         brokerOverridesByInstrumentClass: {},
                       },
                       initialSession?.id,
-                    ) as unknown as string | void;
+                    );
 
                     // Persist subscriptions
                     if (v2Subscriptions.length > 0) {
-                      const resolvedId =
-                        typeof sessionId === "string"
-                          ? sessionId
-                          : initialSession?.id;
+                      const resolvedId = initialSession?.id;
                       if (resolvedId) {
                         try {
                           await sessionInputsApi.replace({
@@ -1012,7 +1011,6 @@ function formatInstrumentClass(value: InstrumentClass): string {
           : "Prediction Markets";
 }
 
-
 const panelClass =
   "max-h-[92vh] w-[900px] max-w-[96vw] overflow-auto rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-[22px] shadow-[0_26px_60px_rgba(2,6,23,0.28)]";
 const sectionClass =
@@ -1031,8 +1029,6 @@ const brokerRowClass =
 const allocationRowClass =
   "grid grid-cols-[1fr_auto] items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 py-2.5";
 const inlineHintClass = "text-[12px] text-[var(--text3)]";
-const kindChipClass =
-  "rounded-full border border-[var(--border)] bg-[var(--chip)] px-2 py-[1px] text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text3)]";
 const quickFillChipClass =
   "cursor-pointer rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-[3px] text-[11px] font-semibold text-[var(--text2)]";
 const selectAllButtonClass =

@@ -59,7 +59,9 @@ describe("runSelector", () => {
     const out = await runSelectorModule.runSelector(
       ctx as never,
       SESSION as never,
-      { max_concurrent_trades: 5 } as never,
+      {
+        riskConfig: { maxConcurrentTrades: 5, offHoursTrading: "disabled" },
+      } as never,
       { cycleId: "cycle-1" },
     );
 
@@ -101,7 +103,9 @@ describe("runSelector", () => {
       runSelectorModule.runSelector(
         ctx as never,
         SESSION as never,
-        { max_concurrent_trades: 5 } as never,
+        {
+          riskConfig: { maxConcurrentTrades: 5, offHoursTrading: "disabled" },
+        } as never,
         { cycleId: "cycle-1" },
       ),
     ).resolves.toEqual([]);
@@ -134,7 +138,9 @@ describe("runSelector", () => {
     await runSelectorModule.runSelector(
       ctx as never,
       SESSION as never,
-      { max_concurrent_trades: 5 } as never,
+      {
+        riskConfig: { maxConcurrentTrades: 5, offHoursTrading: "disabled" },
+      } as never,
       {
         cycleId: "cycle-1",
         signalTrigger: {

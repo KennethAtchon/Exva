@@ -4,7 +4,8 @@ import { listExperiences } from "../experiences/index";
 import { handle } from "./handle";
 import type { AppServices } from "../services/app-services";
 
-export function registerExperienceHandlers(_services: AppServices): void {
+export function registerExperienceHandlers(services: AppServices): void {
+  void services;
   handle(ipcMain, channels.experiences.list, async () => {
     return listExperiences().map((experience) => ({
       id: experience.id,

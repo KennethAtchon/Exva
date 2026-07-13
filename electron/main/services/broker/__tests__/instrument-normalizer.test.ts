@@ -61,11 +61,25 @@ describe("InstrumentNormalizer", () => {
     // Alpaca options use the OCC contract symbol verbatim (uppercased).
     expect(
       normalizer.toBrokerSymbol({
-        symbol: "aapl250117c00150000",
-        instrumentClass: "options",
-        brokerType: "alpaca",
+        symbol: "KXBTC-25JUL14-B105000",
+        instrumentClass: "prediction_market",
+        brokerType: "kalshi",
       }),
-    ).toBe("AAPL250117C00150000");
+    ).toBe("KXBTC-25JUL14-B105000");
+    expect(
+      normalizer.toBrokerSymbol({
+        symbol: "btc",
+        instrumentClass: "crypto",
+        brokerType: "kraken",
+      }),
+    ).toBe("BTCUSD");
+    expect(
+      normalizer.toBrokerSymbol({
+        symbol: "aapl",
+        instrumentClass: "stock",
+        brokerType: "tradier",
+      }),
+    ).toBe("AAPL");
   });
 
   it("rejects instrument class mismatches for specialized brokers", () => {

@@ -49,6 +49,8 @@ export class ExperienceTemplateService {
 // Factory
 // ---------------------------------------------------------------------------
 
-export function createExperienceTemplateService(db: DbClient): ExperienceTemplateService {
+export function createExperienceTemplateService(
+  db: DbClient,
+): ExperienceTemplateService {
   return new ExperienceTemplateService(new ExperienceTemplateRepo(db));
 }

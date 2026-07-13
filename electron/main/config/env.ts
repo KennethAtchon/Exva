@@ -74,6 +74,16 @@ const envSchema = z.object({
   EXVA_NTFY_TOPIC_URL: z.string().optional(),
   /** Optional SMTP sink for supervisor digests (mailto://user:pass@host:port). */
   EXVA_SMTP_URL: z.string().optional(),
+  /** Telegram bot token for supervisor push (alternate: Keychain notify:telegram). */
+  EXVA_TELEGRAM_BOT_TOKEN: z.string().optional(),
+  EXVA_TELEGRAM_CHAT_ID: z.string().optional(),
+  /** Backup directory override (default ~/.exva/backups). */
+  EXVA_DB_BACKUP_DIR: z.string().optional(),
+  /** Headless main-process mode (no BrowserWindow). */
+  EXVA_HEADLESS: z
+    .string()
+    .optional()
+    .transform((value) => value === "1" || value === "true"),
   /** Opt-in LLM period autopsy on nightly job (default preview-only). */
   EXVA_PERIOD_AUTOPSY_RUN: z
     .string()
@@ -119,6 +129,12 @@ function loadEnv(source: NodeJS.ProcessEnv = process.env) {
       normalizeOptionalSecret(parsed.data.EXVA_NTFY_URL) ??
       normalizeOptionalSecret(parsed.data.EXVA_NTFY_TOPIC_URL),
     smtpUrl: normalizeOptionalSecret(parsed.data.EXVA_SMTP_URL),
+    telegramBotToken: normalizeOptionalSecret(
+      parsed.data.EXVA_TELEGRAM_BOT_TOKEN,
+    ),
+    telegramChatId: normalizeOptionalSecret(parsed.data.EXVA_TELEGRAM_CHAT_ID),
+    dbBackupDir: parsed.data.EXVA_DB_BACKUP_DIR,
+    headless: parsed.data.EXVA_HEADLESS ?? false,
     periodAutopsyRun: parsed.data.EXVA_PERIOD_AUTOPSY_RUN ?? false,
     periodAutopsyAllowHighCost:
       parsed.data.EXVA_PERIOD_AUTOPSY_ALLOW_HIGH_COST ?? false,

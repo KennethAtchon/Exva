@@ -21,8 +21,9 @@ export interface InstrumentSetMemberRef {
  */
 export function canonicalizeInstrumentId(
   raw: string,
-  _instrumentClass: InstrumentClass,
+  instrumentClass: InstrumentClass,
 ): string {
+  void instrumentClass;
   const trimmed = raw.trim();
   if (trimmed.length === 0) {
     throw new Error(

@@ -3,6 +3,7 @@ import type {
   SignalEvent,
   SignalSourceRuntimeStatus,
 } from "@electron/shared/domain";
+import { DEFAULT_SIGNAL_TTL } from "@electron/shared/domain/market-signal";
 import type {
   ISignalSource,
   SignalSourceActivityEntry,
@@ -146,6 +147,8 @@ export class EdgarSignalSource implements ISignalSource {
           result.dropped += 1;
           continue;
         }
+        const accessionNumber = extractAccession(entry.id);
+        const detectedAt = new Date().toISOString();
         const event: SignalEvent = {
           id: crypto.randomUUID(),
           sourceId: this.id,
@@ -153,7 +156,7 @@ export class EdgarSignalSource implements ISignalSource {
           ticker,
           companyName: entry.title ?? null,
           documentUrl: entry.link ?? null,
-          accessionNumber: extractAccession(entry.id),
+          accessionNumber,
           payloadJson: {
             rawId: entry.id,
             summary: entry.summary,
@@ -161,7 +164,11 @@ export class EdgarSignalSource implements ISignalSource {
             instrumentClass: "stock",
           },
           filedAt: entry.updated,
-          detectedAt: new Date().toISOString(),
+          detectedAt,
+          kind: "filing",
+          dedupeKey: accessionNumber ?? `${this.id}:${ticker}:${detectedAt}`,
+          ttl: DEFAULT_SIGNAL_TTL.filing,
+          occurredAt: entry.updated,
         };
         this.lastSignalAt = event.detectedAt;
         this.lastSignalTicker = event.ticker;

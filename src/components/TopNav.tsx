@@ -117,6 +117,10 @@ interface NavShellProps {
   activePage: PageKey;
   onNavigate: (p: PageKey) => void;
   onNavigateToAttentionSessions?: () => void;
+  /** Show attention count on Dashboard (approvals / sessions needing tap). */
+  attentionCountOnDashboard?: boolean;
+  /** Alarm dot on Settings when a notification sink is missing/failing. */
+  settingsAlarm?: boolean;
   sessionStatus: SessionStatus;
   onSessionAction: (
     a: "start" | "pause" | "resume" | "stop" | "forceStop",
@@ -185,6 +189,7 @@ const NavPrimaryItem = ({
   onNavigateToAttentionSessions,
   attentionCount,
   needsStrategyConfig,
+  settingsAlarm,
   isGlobal,
   sessionName,
 }: {
@@ -194,30 +199,32 @@ const NavPrimaryItem = ({
   onNavigateToAttentionSessions?: () => void;
   attentionCount: number;
   needsStrategyConfig: boolean;
+  settingsAlarm: boolean;
   isGlobal: boolean;
   sessionName: string;
 }) => {
   const item = getNavItem(itemId);
   const active = activePage === item.id;
-  const isStrategy = item.id === "strategy";
+  const isDashboard = item.id === "dashboard";
   const isSessions = item.id === "sessions";
+  const isSettings = item.id === "settings";
   const navHelp =
-    isSessions && attentionCount > 0
+    isDashboard && attentionCount > 0
       ? {
-          topic: "Sessions needing attention",
-          body: "Shows how many sessions currently need intervention.",
+          topic: "Needs attention",
+          body: "Open Dashboard for approvals and alarms, or jump to sessions needing intervention.",
         }
-      : isStrategy && needsStrategyConfig
+      : isSessions && needsStrategyConfig
         ? {
             topic: "Strategy configuration",
             body: isGlobal
-              ? "Focus a session to configure its AI phases, risk limits, and strategy."
-              : `Configure AI phases, risk limits, and strategy for ${sessionName}. This session still has missing strategy configuration.`,
+              ? "Focus a session, then open Sessions → Config."
+              : `Configure strategy for ${sessionName} under Sessions → Config.`,
           }
-        : isStrategy && !isGlobal
+        : isSettings && settingsAlarm
           ? {
-              topic: "Strategy page",
-              body: `Configure AI phases, risk limits, and strategy for ${sessionName}.`,
+              topic: "Notification sinks",
+              body: "No push sink configured. Open Settings → Accounts → Ops & notifications.",
             }
           : null;
 
@@ -228,11 +235,11 @@ const NavPrimaryItem = ({
       className={cn(
         navClass.navItem,
         active && navClass.navItemActive,
-        isStrategy && needsStrategyConfig && navClass.navItemHint,
+        isSessions && needsStrategyConfig && navClass.navItemHint,
       )}
     >
       {item.label}
-      {isSessions && attentionCount > 0 && (
+      {isDashboard && attentionCount > 0 && (
         <span
           className={navClass.attentionBadge}
           role="button"
@@ -252,8 +259,11 @@ const NavPrimaryItem = ({
           {attentionCount}
         </span>
       )}
-      {isStrategy && needsStrategyConfig && (
+      {isSessions && needsStrategyConfig && (
         <span className={navClass.strategyDot} />
+      )}
+      {isSettings && settingsAlarm && (
+        <span className={navClass.strategyDot} title="Sink alarm" />
       )}
       {active && <div className={navClass.navUnderline} />}
     </Button>
@@ -331,6 +341,7 @@ const NavItems = ({
   onNavigateToAttentionSessions,
   attentionCount,
   needsStrategyConfig,
+  settingsAlarm,
   isGlobal,
   sessionName,
 }: {
@@ -339,6 +350,7 @@ const NavItems = ({
   onNavigateToAttentionSessions?: () => void;
   attentionCount: number;
   needsStrategyConfig: boolean;
+  settingsAlarm: boolean;
   isGlobal: boolean;
   sessionName: string;
 }) => (
@@ -352,6 +364,7 @@ const NavItems = ({
         onNavigateToAttentionSessions={onNavigateToAttentionSessions}
         attentionCount={attentionCount}
         needsStrategyConfig={needsStrategyConfig}
+        settingsAlarm={settingsAlarm}
         isGlobal={isGlobal}
         sessionName={sessionName}
       />
@@ -547,6 +560,8 @@ export const NavShell = ({
   activePage,
   onNavigate,
   onNavigateToAttentionSessions,
+  attentionCountOnDashboard = true,
+  settingsAlarm = false,
   sessionStatus,
   onSessionAction,
   sessionActionPending = false,
@@ -624,7 +639,7 @@ export const NavShell = ({
     (sessionStatus === "draft" ||
       sessionStatus === "idle" ||
       sessionStatus === "stopped") &&
-    activePage !== "strategy";
+    activePage !== "sessions";
   const statusView: SessionStatusView = {
     context: isGlobal ? "global" : "focused",
     lifecycle: isDraining ? "draining" : isRunning ? "active" : "inactive",
@@ -637,8 +652,9 @@ export const NavShell = ({
     onNavigateToAttentionSessions,
     collapsed: sidebarCollapsed,
     onToggleCollapse: toggleSidebar,
-    attentionCount,
+    attentionCount: attentionCountOnDashboard ? attentionCount : 0,
     needsStrategyConfig,
+    settingsAlarm,
     isGlobal,
     sessionName,
   };
@@ -685,8 +701,9 @@ export const NavShell = ({
                 activePage={activePage}
                 onNavigate={onNavigate}
                 onNavigateToAttentionSessions={onNavigateToAttentionSessions}
-                attentionCount={attentionCount}
+                attentionCount={attentionCountOnDashboard ? attentionCount : 0}
                 needsStrategyConfig={needsStrategyConfig}
+                settingsAlarm={settingsAlarm}
                 isGlobal={isGlobal}
                 sessionName={sessionName}
               />

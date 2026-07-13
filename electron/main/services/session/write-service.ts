@@ -7,10 +7,13 @@ import { AppError } from "@electron/shared/infra/errors";
 import { requireExperience } from "../../experiences/index";
 import type { EventsRepo } from "../../db/repositories/system/events-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
-import type { SessionSelectorSettingsRepo } from "../../db/repositories/sessions/session-selector-settings-repo";
+import type { SessionStrategyContextService } from "./session-strategy-context-service";
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
 import type { BrokerRoutingRepo } from "../../db/repositories/brokers/broker-routing-repo";
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
+import { createLogger } from "../infra/log";
+
+const logger = createLogger("session-write-service");
 
 export interface SessionWriteInput {
   name: string;
@@ -37,7 +40,7 @@ export class SessionWriteService {
     private readonly deps: {
       sessions: SessionRepo;
       events: EventsRepo;
-      selectorSettings: SessionSelectorSettingsRepo;
+      strategyContext: SessionStrategyContextService;
       assignments: SessionBrokerAssignmentsRepo;
       brokerRouting: BrokerRoutingRepo;
       brokerAccounts: BrokerAccountsRepo;
@@ -86,10 +89,19 @@ export class SessionWriteService {
       this.deps.provisionDefaultInputs?.(session.id, normalized.experienceId);
       this.deps.reconcileScheduleCoordinator?.();
     } catch (err) {
-      // Non-fatal: log and continue — session is still created.
-      console.warn(
-        `[SessionWriteService] Failed to provision V2 default inputs for session ${session.id}: ${String(err)}`,
+      // Non-fatal for session row creation, but must be visible — without
+      // default inputs the session won't receive signals.
+      logger.warn(
+        { sessionId: session.id, err },
+        "failed to provision V2 default inputs",
       );
+      this.deps.events.insert({
+        session_id: session.id,
+        trade_id: null,
+        level: "WARN",
+        agent_type: "session",
+        message: `Default input provisioning failed: ${err instanceof Error ? err.message : String(err)}`,
+      });
     }
 
     return { id: session.id, status: "draft" };
@@ -112,7 +124,10 @@ export class SessionWriteService {
   }
 
   private applySideTables(sessionId: string, input: SessionWriteInput): void {
-    this.deps.selectorSettings.update(sessionId, input.selectorSettings);
+    this.deps.strategyContext.saveSelectorSettings(
+      sessionId,
+      input.selectorSettings,
+    );
     this.deps.assignments.replaceAssignments(
       sessionId,
       input.brokerAssignments,

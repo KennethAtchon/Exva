@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PolymarketAdapter } from "../polymarket-adapter";
+import { DEFAULT_PAPER_STARTING_BALANCE_USD } from "../../../../db/repositories/brokers/paper-balances-repo";
 
 const clobClientMethods = vi.hoisted(() => ({
   getOk: vi.fn(),
@@ -8,6 +9,7 @@ const clobClientMethods = vi.hoisted(() => ({
   getLastTradePrice: vi.fn(),
   getTickSize: vi.fn(),
   createAndPostMarketOrder: vi.fn(),
+  createAndPostOrder: vi.fn(),
   cancelOrder: vi.fn(),
   getOrder: vi.fn(),
   createOrDeriveApiKey: vi.fn(),
@@ -15,7 +17,7 @@ const clobClientMethods = vi.hoisted(() => ({
 
 vi.mock("@polymarket/clob-client", () => ({
   AssetType: { COLLATERAL: "COLLATERAL" },
-  OrderType: { FOK: "FOK" },
+  OrderType: { FOK: "FOK", GTC: "GTC" },
   Side: { BUY: "BUY", SELL: "SELL" },
   ClobClient: vi.fn(function () {
     return clobClientMethods;
@@ -53,8 +55,12 @@ describe("PolymarketAdapter", () => {
     clobClientMethods.getBalanceAllowance.mockResolvedValue({ balance: "750" });
     clobClientMethods.getMarket.mockResolvedValue({
       question: "Will event X happen?",
-      tokens: [{ outcome: "YES", price: "0.62" }],
+      tokens: [
+        { token_id: "token-yes-1", outcome: "YES", price: "0.62" },
+        { token_id: "token-no-1", outcome: "NO", price: "0.38" },
+      ],
       endDate: "2026-12-31T00:00:00.000Z",
+      closed: false,
     });
     clobClientMethods.getLastTradePrice.mockResolvedValue(0.62);
     clobClientMethods.getTickSize.mockResolvedValue("0.01");
@@ -74,6 +80,20 @@ describe("PolymarketAdapter", () => {
       original_size: "10",
       market: "cond-1",
     });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([
+          {
+            conditionId: "cond-1",
+            closed: false,
+            tokens: [
+              { token_id: "token-yes-1", outcome: "YES", price: "0.62" },
+            ],
+          },
+        ]),
+      ),
+    );
   });
 
   it("connects and reads collateral balance", async () => {
@@ -173,8 +193,7 @@ describe("PolymarketAdapter", () => {
       const order = await adapter.placeOrder(buy);
 
       expect(order.brokerOrderId).toMatch(/^ghost-/);
-      expect(order.filledAvgPrice).toBe(0.62);
-      // never posts an order on-chain
+      expect(order.filledAvgPrice).toBeCloseTo(0.62, 2);
       expect(clobClientMethods.createAndPostMarketOrder).not.toHaveBeenCalled();
     });
 
@@ -182,14 +201,13 @@ describe("PolymarketAdapter", () => {
       const adapter = new PolymarketAdapter(credentials, "paper");
       const order = await adapter.placeOrder(buy);
 
-      // 10_000 starting - 100 spent
-      expect(await adapter.getAccountBalance()).toBe(9900);
+      const afterBuy = await adapter.getAccountBalance();
+      expect(afterBuy).toBeLessThan(DEFAULT_PAPER_STARTING_BALANCE_USD);
 
-      // price moves up -> profitable close. shares = 100/0.62, proceeds = shares*0.8
       clobClientMethods.getLastTradePrice.mockResolvedValue(0.8);
       const closed = await adapter.closeOrder(order.brokerOrderId);
       expect(closed.realizedPnlUsd).toBeGreaterThan(0);
-      expect(await adapter.getAccountBalance()).toBeGreaterThan(10_000);
+      expect(await adapter.getAccountBalance()).toBeGreaterThan(afterBuy);
     });
 
     it("reports a ghost order open until the real market resolves", async () => {
@@ -197,21 +215,127 @@ describe("PolymarketAdapter", () => {
       const order = await adapter.placeOrder(buy);
 
       const status = await adapter.getOrderStatus(order.brokerOrderId);
-      expect(status.status).toBe("open"); // endDate is 2026-12-31, unresolved
+      expect(status.status).toBe("open");
     });
 
     it("rejects a ghost buy that exceeds the paper balance", async () => {
       const adapter = new PolymarketAdapter(credentials, "paper");
       await expect(
         adapter.placeOrder({ ...buy, sizeUsd: 999_999 }),
-      ).rejects.toThrow(/insufficient paper balance/i);
+      ).rejects.toMatchObject({ code: "BROKER_INSUFFICIENT_FUNDS" });
     });
 
     it("testConnection reports ghost mode with the paper balance", async () => {
       const adapter = new PolymarketAdapter(credentials, "paper");
       const conn = await adapter.testConnection();
-      expect(conn).toMatchObject({ ok: true, account_balance: 10_000 });
+      expect(conn).toMatchObject({
+        ok: true,
+        account_balance: DEFAULT_PAPER_STARTING_BALANCE_USD,
+      });
       expect(conn.message).toMatch(/ghost|paper/i);
+    });
+
+    it("rests non-marketable limits then fills on quote cross", async () => {
+      const adapter = new PolymarketAdapter(credentials, "paper");
+      const placed = await adapter.placeOrderV2?.({
+        clientOrderId: "limit-rest-1",
+        instrument: {
+          symbol: "pm:cond-1",
+          instrumentClass: "prediction_market",
+          metadataJson: metadata,
+        },
+        side: "BUY",
+        quantity: { kind: "units", value: 10 },
+        orderType: "limit",
+        limitPrice: 0.4,
+        timeInForce: "gtc",
+      });
+      expect(placed).toBeDefined();
+      if (!placed) throw new Error("expected placed order");
+      expect(placed.brokerOrderId).toMatch(/^ghost-/);
+      const open = await adapter.getOpenOrders?.();
+      expect(open).toHaveLength(1);
+
+      clobClientMethods.getLastTradePrice.mockResolvedValue(0.35);
+      const status = await adapter.getOrderStatus(placed.brokerOrderId);
+      expect(status.status).toBe("open");
+      expect(await adapter.getOpenOrders?.()).toHaveLength(0);
+    });
+
+    it("cancels resting ghost limits", async () => {
+      const adapter = new PolymarketAdapter(credentials, "paper");
+      const placed = await adapter.placeOrderV2?.({
+        clientOrderId: "limit-cancel-1",
+        instrument: {
+          symbol: "pm:cond-1",
+          instrumentClass: "prediction_market",
+          metadataJson: metadata,
+        },
+        side: "BUY",
+        quantity: { kind: "units", value: 5 },
+        orderType: "limit",
+        limitPrice: 0.1,
+        timeInForce: "gtc",
+      });
+      expect(placed).toBeDefined();
+      if (!placed) throw new Error("expected placed order");
+      await adapter.cancelOrder(placed.brokerOrderId);
+      expect(await adapter.getOpenOrders?.()).toHaveLength(0);
+      const status = await adapter.getOrderStatus(placed.brokerOrderId);
+      expect(status.status).toBe("closed");
+    });
+
+    it("settles ghost positions at real resolution outcome prices", async () => {
+      const adapter = new PolymarketAdapter(credentials, "paper");
+      const order = await adapter.placeOrder(buy);
+      clobClientMethods.getMarket.mockResolvedValue({
+        question: "Will event X happen?",
+        tokens: [
+          {
+            token_id: "token-yes-1",
+            outcome: "YES",
+            price: "1",
+            winner: true,
+          },
+          {
+            token_id: "token-no-1",
+            outcome: "NO",
+            price: "0",
+            winner: false,
+          },
+        ],
+        endDate: "2020-01-01T00:00:00.000Z",
+        closed: true,
+      });
+      const status = await adapter.getOrderStatus(order.brokerOrderId);
+      expect(status.status).toBe("closed");
+      expect(status.realizedPnlUsd).not.toBeNull();
+      // Bought YES at ~0.62; settles at 1 → profit
+      expect(status.realizedPnlUsd).toBeGreaterThan(0);
+    });
+
+    it("exposes an OrderEventFeed for ghost fills", async () => {
+      const adapter = new PolymarketAdapter(credentials, "paper");
+      const feed = adapter.createOrderEventFeed?.();
+      expect(feed).toMatchObject({
+        start: expect.any(Function),
+        stop: expect.any(Function),
+        onEvent: expect.any(Function),
+      });
+      await feed?.stop();
+    });
+
+    it("calls onParityWarning when gamma market is missing", async () => {
+      const onParityWarning = vi.fn();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json([])),
+      );
+      const adapter = new PolymarketAdapter(credentials, "paper", undefined, {
+        onParityWarning,
+      });
+      await adapter.placeOrder(buy);
+      expect(onParityWarning).toHaveBeenCalled();
     });
   });
 });

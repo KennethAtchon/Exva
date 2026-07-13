@@ -176,7 +176,7 @@ const DOC_PAGES: DocPageDefinition[] = [
   {
     slug: "signal-source-types",
     title: "Signal source types",
-    description: "edgar_8k, timer, mock, manual, prediction_event.",
+    description: "edgar_8k, mock, manual, prediction_event.",
     category: "Signals",
     order: 65,
     related: [

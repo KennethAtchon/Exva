@@ -1,11 +1,4 @@
-import { eq } from "drizzle-orm";
 import type { DbClient } from "../db/client";
-import {
-  researchPosturePresets,
-  riskPresets,
-  timeframePresets,
-  tradeRulePresets,
-} from "../db/schema";
 import { AppError } from "@electron/shared/infra/errors";
 import type {
   ResearchPosturePreset,
@@ -13,10 +6,16 @@ import type {
   TimeframePreset,
   TradeRulesPreset,
 } from "@electron/shared/domain";
+import {
+  findResearchPosturePresetById,
+  findRiskPresetById,
+  findTimeframePresetById,
+  findTradeRulePresetById,
+} from "@electron/shared/presets";
 import { requireExperience } from "./index";
 
 export function loadExperiencePresetBundle(
-  client: DbClient,
+  _client: DbClient,
   experienceId: string,
 ): {
   posturePreset: ResearchPosturePreset;
@@ -27,48 +26,40 @@ export function loadExperiencePresetBundle(
   const experience = requireExperience(experienceId);
   const { defaultPresets } = experience;
 
-  const postureRow = client.db
-    .select()
-    .from(researchPosturePresets)
-    .where(eq(researchPosturePresets.id, defaultPresets.posturePresetId))
-    .get();
-  if (!postureRow) {
+  const posturePreset = findResearchPosturePresetById(
+    defaultPresets.posturePresetId as ResearchPosturePreset["id"],
+  );
+  if (!posturePreset) {
     throw new AppError(
       `Posture preset '${defaultPresets.posturePresetId}' not found for experience '${experienceId}'`,
       "INTERNAL_ERROR",
     );
   }
 
-  const rulesRow = client.db
-    .select()
-    .from(tradeRulePresets)
-    .where(eq(tradeRulePresets.id, defaultPresets.rulesPresetId))
-    .get();
-  if (!rulesRow) {
+  const rulesPreset = findTradeRulePresetById(
+    defaultPresets.rulesPresetId as TradeRulesPreset["id"],
+  );
+  if (!rulesPreset) {
     throw new AppError(
       `Rules preset '${defaultPresets.rulesPresetId}' not found for experience '${experienceId}'`,
       "INTERNAL_ERROR",
     );
   }
 
-  const riskRow = client.db
-    .select()
-    .from(riskPresets)
-    .where(eq(riskPresets.id, defaultPresets.riskPresetId))
-    .get();
-  if (!riskRow) {
+  const riskPreset = findRiskPresetById(
+    defaultPresets.riskPresetId as RiskPreset["id"],
+  );
+  if (!riskPreset) {
     throw new AppError(
       `Risk preset '${defaultPresets.riskPresetId}' not found for experience '${experienceId}'`,
       "INTERNAL_ERROR",
     );
   }
 
-  const timeframeRow = client.db
-    .select()
-    .from(timeframePresets)
-    .where(eq(timeframePresets.id, defaultPresets.timeframePresetId))
-    .get();
-  if (!timeframeRow) {
+  const timeframePreset = findTimeframePresetById(
+    defaultPresets.timeframePresetId as TimeframePreset["id"],
+  );
+  if (!timeframePreset) {
     throw new AppError(
       `Timeframe preset '${defaultPresets.timeframePresetId}' not found for experience '${experienceId}'`,
       "INTERNAL_ERROR",
@@ -76,9 +67,9 @@ export function loadExperiencePresetBundle(
   }
 
   return {
-    posturePreset: JSON.parse(postureRow.presetJson) as ResearchPosturePreset,
-    rulesPreset: JSON.parse(rulesRow.presetJson) as TradeRulesPreset,
-    riskPreset: JSON.parse(riskRow.presetJson) as RiskPreset,
-    timeframePreset: JSON.parse(timeframeRow.presetJson) as TimeframePreset,
+    posturePreset,
+    rulesPreset,
+    riskPreset,
+    timeframePreset,
   };
 }

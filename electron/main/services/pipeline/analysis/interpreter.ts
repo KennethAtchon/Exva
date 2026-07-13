@@ -19,7 +19,6 @@ export interface InstrumentAnalysisRunInput {
   cycleId: string;
   tradeId: string | null;
   instrument: InstrumentAnalysisContext["instrument"];
-  sessionConfig: InstrumentAnalysisContext["sessionConfig"];
   instrumentClasses: InstrumentAnalysisContext["instrumentClasses"];
   session: InstrumentAnalysisContext["session"];
   strategyContext: InstrumentAnalysisContext["strategyContext"];
@@ -57,7 +56,6 @@ export class InstrumentAnalysisRunner {
       tradeId: input.tradeId,
       session: input.session,
       instrument: input.instrument,
-      sessionConfig: input.sessionConfig,
       instrumentClasses: input.instrumentClasses,
       strategyContext: input.strategyContext,
       toolContext: input.toolContext,

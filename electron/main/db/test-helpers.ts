@@ -11,5 +11,6 @@ export function createTestDb(): DbClient {
   return {
     sqlite,
     db: drizzle(sqlite, { schema }),
+    dbPath: ":memory:",
   };
 }

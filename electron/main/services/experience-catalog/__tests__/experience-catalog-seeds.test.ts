@@ -11,6 +11,11 @@ import { INSTRUMENT_SET_IDS } from "../../instruments/instrument-set-seeds";
 import { SOURCE_DEFINITION_IDS } from "../../signals/source-definition-seeds";
 import { INPUT_PROFILE_IDS } from "../input-profile-seeds";
 
+function requireValue<T>(value: T | null | undefined, message: string): T {
+  if (value == null) throw new Error(message);
+  return value;
+}
+
 describe("seedExperienceCatalog", () => {
   let db: DbClient;
   let templateRepo: ExperienceTemplateRepo;
@@ -30,9 +35,11 @@ describe("seedExperienceCatalog", () => {
   it("seeds all 6 experience templates as active", () => {
     const ids = Object.values(TEMPLATE_IDS);
     for (const id of ids) {
-      const rev = templateRepo.getActiveRevision(id);
-      expect(rev, `template ${id} should be active`).not.toBeNull();
-      expect(rev!.status).toBe("active");
+      const rev = requireValue(
+        templateRepo.getActiveRevision(id),
+        `template ${id} should be active`,
+      );
+      expect(rev.status).toBe("active");
     }
   });
 
@@ -45,7 +52,10 @@ describe("seedExperienceCatalog", () => {
   });
 
   it("mean-reversion template has correct inputContract", () => {
-    const rev = templateRepo.getActiveRevision(TEMPLATE_IDS.MEAN_REVERSION)!;
+    const rev = requireValue(
+      templateRepo.getActiveRevision(TEMPLATE_IDS.MEAN_REVERSION),
+      "mean-reversion template should be active",
+    );
     expect(rev.inputContract.modes).toContain("scheduled_scan");
     expect(rev.inputContract.instrumentClasses).toContain("stock");
     expect(rev.strategyId).toBe("mean-reversion");
@@ -53,7 +63,10 @@ describe("seedExperienceCatalog", () => {
   });
 
   it("edgar template has correct inputContract", () => {
-    const rev = templateRepo.getActiveRevision(TEMPLATE_IDS.EDGAR_CATALYST)!;
+    const rev = requireValue(
+      templateRepo.getActiveRevision(TEMPLATE_IDS.EDGAR_CATALYST),
+      "edgar template should be active",
+    );
     expect(rev.inputContract.modes).toContain("event_source");
     expect(rev.inputContract.sourceKinds).toContain("edgar_8k");
     expect(rev.inputContract.signalKinds).toContain("filing");
@@ -62,7 +75,10 @@ describe("seedExperienceCatalog", () => {
   });
 
   it("prediction template has correct inputContract", () => {
-    const rev = templateRepo.getActiveRevision(TEMPLATE_IDS.PREDICTION_EVENT)!;
+    const rev = requireValue(
+      templateRepo.getActiveRevision(TEMPLATE_IDS.PREDICTION_EVENT),
+      "prediction template should be active",
+    );
     expect(rev.inputContract.modes).toContain("event_source");
     expect(rev.inputContract.sourceKinds).toContain("prediction_event");
     expect(rev.universePolicy).toBe("validated_only");
@@ -70,7 +86,10 @@ describe("seedExperienceCatalog", () => {
   });
 
   it("options-flow template is seeded as active despite disabled strategy", () => {
-    const rev = templateRepo.getActiveRevision(TEMPLATE_IDS.OPTIONS_FLOW)!;
+    const rev = requireValue(
+      templateRepo.getActiveRevision(TEMPLATE_IDS.OPTIONS_FLOW),
+      "options-flow template should be active",
+    );
     expect(rev.status).toBe("active");
     expect(rev.strategyId).toBe("options-flow");
   });
@@ -84,38 +103,57 @@ describe("seedExperienceCatalog", () => {
   });
 
   it("seeds all 4 instrument sets with correct members", () => {
-    const etfs = setRepo.getActiveRevision(INSTRUMENT_SET_IDS.LIQUID_US_ETFS)!;
+    const etfs = requireValue(
+      setRepo.getActiveRevision(INSTRUMENT_SET_IDS.LIQUID_US_ETFS),
+      "liquid US ETFs set should be active",
+    );
     expect(etfs.members.map((m) => m.canonicalId)).toEqual(
       expect.arrayContaining(["SPY", "QQQ"]),
     );
 
-    const crypto = setRepo.getActiveRevision(INSTRUMENT_SET_IDS.MAJOR_CRYPTO)!;
+    const crypto = requireValue(
+      setRepo.getActiveRevision(INSTRUMENT_SET_IDS.MAJOR_CRYPTO),
+      "major crypto set should be active",
+    );
     expect(crypto.members.map((m) => m.canonicalId)).toContain("BTC-USD");
     expect(crypto.instrumentClass).toBe("crypto");
 
-    const futures = setRepo.getActiveRevision(
-      INSTRUMENT_SET_IDS.COMMODITIES_FRONT_MONTH,
-    )!;
+    const futures = requireValue(
+      setRepo.getActiveRevision(INSTRUMENT_SET_IDS.COMMODITIES_FRONT_MONTH),
+      "commodities set should be active",
+    );
     expect(futures.instrumentClass).toBe("futures");
     expect(futures.members.map((m) => m.canonicalId)).toEqual(
       expect.arrayContaining(["GC", "CL"]),
     );
 
-    const flow = setRepo.getActiveRevision(INSTRUMENT_SET_IDS.OPTIONS_FLOW_STOCKS)!;
+    const flow = requireValue(
+      setRepo.getActiveRevision(INSTRUMENT_SET_IDS.OPTIONS_FLOW_STOCKS),
+      "options-flow stocks set should be active",
+    );
     expect(flow.members.map((m) => m.canonicalId)).toEqual(
       expect.arrayContaining(["AAPL", "NVDA"]),
     );
   });
 
   it("seeds source definitions", () => {
-    const edgar = sourceRepo.get(SOURCE_DEFINITION_IDS.EDGAR_8K_CATALYST)!;
+    const edgar = requireValue(
+      sourceRepo.get(SOURCE_DEFINITION_IDS.EDGAR_8K_CATALYST),
+      "edgar source should exist",
+    );
     expect(edgar.kind).toBe("edgar_8k");
     expect(edgar.outputContractId).toBe("signal/filing");
 
-    const pred = sourceRepo.get(SOURCE_DEFINITION_IDS.PREDICTION_EVENT_EDGE)!;
+    const pred = requireValue(
+      sourceRepo.get(SOURCE_DEFINITION_IDS.PREDICTION_EVENT_EDGE),
+      "prediction source should exist",
+    );
     expect(pred.kind).toBe("prediction_event");
 
-    const mock = sourceRepo.get(SOURCE_DEFINITION_IDS.MOCK_REHEARSAL)!;
+    const mock = requireValue(
+      sourceRepo.get(SOURCE_DEFINITION_IDS.MOCK_REHEARSAL),
+      "mock source should exist",
+    );
     expect(mock.kind).toBe("mock");
   });
 
@@ -127,7 +165,10 @@ describe("seedExperienceCatalog", () => {
   });
 
   it("mean-reversion profile references correct set and cadence", () => {
-    const profile = profileRepo.get(INPUT_PROFILE_IDS.MEAN_REVERSION_DEFAULT)!;
+    const profile = requireValue(
+      profileRepo.get(INPUT_PROFILE_IDS.MEAN_REVERSION_DEFAULT),
+      "mean-reversion profile should exist",
+    );
     expect(profile.mode).toBe("scheduled_scan");
     if (profile.mode === "scheduled_scan") {
       expect(profile.instrumentSetId).toBe(INSTRUMENT_SET_IDS.LIQUID_US_ETFS);
@@ -142,7 +183,10 @@ describe("seedExperienceCatalog", () => {
   });
 
   it("edgar profile references the edgar source definition", () => {
-    const profile = profileRepo.get(INPUT_PROFILE_IDS.EDGAR_DEFAULT)!;
+    const profile = requireValue(
+      profileRepo.get(INPUT_PROFILE_IDS.EDGAR_DEFAULT),
+      "edgar profile should exist",
+    );
     expect(profile.mode).toBe("event_source");
     if (profile.mode === "event_source") {
       expect(profile.sourceDefinitionId).toBe(
@@ -154,9 +198,10 @@ describe("seedExperienceCatalog", () => {
 
   it("can reproduce experience summaries without reading descriptor files", () => {
     const summaries = templateRepo.list();
-    const meanRev = summaries.find(
-      (s) => s.templateId === TEMPLATE_IDS.MEAN_REVERSION,
-    )!;
+    const meanRev = requireValue(
+      summaries.find((s) => s.templateId === TEMPLATE_IDS.MEAN_REVERSION),
+      "mean-reversion summary should exist",
+    );
     expect(meanRev.displayName).toBe("Rules: Mean Reversion");
     expect(meanRev.inputModes).toContain("scheduled_scan");
     expect(meanRev.instrumentClasses).toContain("stock");

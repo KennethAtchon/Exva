@@ -95,7 +95,9 @@ export const sourceDefinitionsApi = {
 
 export const sessionInputsApi = {
   get(input: { sessionId: string }): Promise<SessionInputConfiguration> {
-    return bridge().sessionInputs.get(input) as Promise<SessionInputConfiguration>;
+    return bridge().sessionInputs.get(
+      input,
+    ) as Promise<SessionInputConfiguration>;
   },
 
   replace(input: {
@@ -103,6 +105,8 @@ export const sessionInputsApi = {
     inputRevision: number;
     subscriptions: SessionInputSubscriptionDraft[];
   }): Promise<SessionInputConfiguration> {
-    return bridge().sessionInputs.replace(input) as Promise<SessionInputConfiguration>;
+    return bridge().sessionInputs.replace(
+      input,
+    ) as Promise<SessionInputConfiguration>;
   },
 };

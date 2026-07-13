@@ -101,12 +101,13 @@ function createContext() {
       setStatus: vi.fn(),
     },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         riskConfig: { waitForOpenThreshold: 0.8 },
       }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: {
       upsert: vi.fn(),

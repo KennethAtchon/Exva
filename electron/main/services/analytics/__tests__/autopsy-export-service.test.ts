@@ -95,7 +95,6 @@ const AUTOPSY: TradeAutopsyRecord = {
 const LESSON: AutopsyLesson = {
   id: "lesson-1",
   autopsyId: AUTOPSY.id,
-  periodAutopsyId: null,
   tradeId: TRADE.id,
   sessionId: "session-1",
   lesson: "Keep position size aligned with conviction.",

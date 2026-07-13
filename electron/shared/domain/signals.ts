@@ -2,37 +2,30 @@ export type LiveSignalSourceType =
   | "edgar_8k"
   | "manual"
   | "mock"
-  | "prediction_event";
+  | "prediction_event"
+  | "kalshi_market"
+  | "calendar"
+  | "news_rss";
 
-/** Persisted identity / dual-read only — not creatable or startable. */
-export type DeprecatedSignalSourceType = "web_search";
-
-/** Persisted + dual-read; includes deprecated DB values. */
-export type SignalSourceType =
-  | LiveSignalSourceType
-  | DeprecatedSignalSourceType;
+/** Canonical signal source type — live types only. */
+export type SignalSourceType = LiveSignalSourceType;
 
 const LIVE_SIGNAL_SOURCE_TYPES = new Set<string>([
   "edgar_8k",
   "manual",
   "mock",
   "prediction_event",
+  "kalshi_market",
+  "calendar",
+  "news_rss",
 ]);
-
-const DEPRECATED_SIGNAL_SOURCE_TYPES = new Set<string>(["web_search"]);
 
 export function isLiveSignalSourceType(t: string): t is LiveSignalSourceType {
   return LIVE_SIGNAL_SOURCE_TYPES.has(t);
 }
 
-export function isDeprecatedSignalSourceType(
-  t: string,
-): t is DeprecatedSignalSourceType {
-  return DEPRECATED_SIGNAL_SOURCE_TYPES.has(t);
-}
-
 /**
- * Formerly true for `web_search`. Deprecated sources are never search-style.
+ * Formerly true for `web_search` (removed). No live source is search-style.
  */
 export function isSearchStyleSignalSourceType(type: SignalSourceType): boolean {
   void type;
@@ -42,7 +35,6 @@ export function isSearchStyleSignalSourceType(type: SignalSourceType): boolean {
 export function isSelfDescribingSignalSourceType(
   type: SignalSourceType,
 ): boolean {
-  if (isDeprecatedSignalSourceType(type)) return false;
   return type !== "manual" && type !== "prediction_event";
 }
 
@@ -74,14 +66,19 @@ export interface SignalEvent {
   payloadJson: Record<string, unknown>;
   filedAt: string;
   detectedAt: string;
-  /** MarketSignal kind (dual-write during envelope migration). */
-  kind?: string | null;
-  /** Typed payload JSON string or parsed object (dual-write). */
+  /** MarketSignal kind — required at emit time. */
+  kind: string;
+  /**
+   * Legacy typed-payload column. Optional; payloadJson is canonical.
+   * Kept for rows written during the dual-write period.
+   */
   payloadV2?: Record<string, unknown> | null;
-  dedupeKey?: string | null;
-  /** ISO-8601 duration; replaces hardcoded 4h pause expiry. */
-  ttl?: string | null;
-  occurredAt?: string | null;
+  /** Source-computed dedupe key — required at emit time. */
+  dedupeKey: string;
+  /** ISO-8601 duration TTL for delivery expiry — required at emit time. */
+  ttl: string;
+  /** When the information came into being — required at emit time. */
+  occurredAt: string;
 }
 
 export interface PollResult {

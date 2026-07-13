@@ -1,87 +1,30 @@
 import type { DbClient } from "../../db/client";
 import type {
-  PollResult,
-  SignalEvent,
   SignalSourceRecord,
   SignalSourceRuntimeStatus,
 } from "@electron/shared/domain";
-import type { InstrumentClass } from "@/lib/types";
 import type { ISignalSource, SignalSourceSnapshot } from "./ISignalSource";
 import { CikTickerCache } from "./cache/cik-ticker-cache";
 import { EdgarSignalSource } from "./sources/edgar-signal-source";
 import { MockSignalSource } from "./sources/mock-signal-source";
 import { PredictionEventSignalSource } from "./sources/prediction-event-signal-source";
+import { KalshiMarketSource } from "./sources/kalshi-market-source";
+import { CalendarSource } from "./sources/calendar-source";
+import { NewsSource } from "./sources/news-source";
+import { CalendarEventsRepo } from "../../db/repositories/signals/calendar-events-repo";
 import { SignalBus } from "./signal-bus";
-
-/**
- * DB-compat stub for deprecated `web_search` rows. Never emits; start() marks
- * the source as error so operators delete it. New creates are blocked in
- * SignalService.createSource.
- */
-class DeprecatedWebSearchStub implements ISignalSource {
-  readonly type = "web_search" as const;
-  status: SignalSourceRuntimeStatus = "idle";
-  lastError: string | null =
-    "web_search signal source is deprecated and no longer runs";
-
-  constructor(public readonly id: string) {}
-
-  async start(): Promise<void> {
-    this.status = "error";
-    this.lastError =
-      "web_search signal source is deprecated; delete this source and use edgar_8k, mock, or prediction_event";
-  }
-
-  async stop(): Promise<void> {
-    this.status = "paused";
-  }
-
-  async restart(_config: Record<string, unknown>): Promise<void> {
-    void _config;
-    await this.start();
-  }
-
-  async test(): Promise<PollResult> {
-    return {
-      detected: 0,
-      passed: 0,
-      dropped: 0,
-      errors: [this.lastError ?? "web_search deprecated"],
-    };
-  }
-
-  snapshot(): SignalSourceSnapshot {
-    return {
-      lastPollAt: null,
-      lastPollResult: null,
-      lastSignalAt: null,
-      lastSignalTicker: null,
-      recentActivity: [],
-    };
-  }
-
-  onSignal(handler: (event: SignalEvent) => void): void {
-    void handler;
-  }
-  offSignal(handler: (event: SignalEvent) => void): void {
-    void handler;
-  }
-
-  configuredInstrumentClasses(): InstrumentClass[] {
-    return ["stock"];
-  }
-}
-
 
 export class SignalSourceRegistry {
   private readonly sources = new Map<string, ISignalSource>();
   private readonly cikCache: CikTickerCache;
+  private readonly calendarEventsRepo: CalendarEventsRepo;
 
   constructor(
     private readonly db: DbClient,
     private readonly bus: SignalBus,
   ) {
     this.cikCache = new CikTickerCache(db);
+    this.calendarEventsRepo = new CalendarEventsRepo(db);
   }
 
   create(record: SignalSourceRecord): ISignalSource {
@@ -149,14 +92,24 @@ export class SignalSourceRegistry {
     if (record.type === "edgar_8k") {
       return new EdgarSignalSource(record.id, record.configJson, this.cikCache);
     }
-    if (record.type === "web_search") {
-      return new DeprecatedWebSearchStub(record.id);
-    }
     if (record.type === "mock") {
       return new MockSignalSource(record.id, record.configJson);
     }
     if (record.type === "prediction_event") {
       return new PredictionEventSignalSource(record.id, record.configJson);
+    }
+    if (record.type === "kalshi_market") {
+      return new KalshiMarketSource(record.id, record.configJson);
+    }
+    if (record.type === "calendar") {
+      return new CalendarSource(
+        record.id,
+        record.configJson,
+        this.calendarEventsRepo,
+      );
+    }
+    if (record.type === "news_rss") {
+      return new NewsSource(record.id, record.configJson);
     }
     if (record.type === "manual") {
       throw new Error(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatEventsForClipboard } from "@/pages/DevPanel";
+import { formatEventsForClipboard } from "@/hubs/panels/dev-panel";
 
 describe("Developer Workbench", () => {
   it("formats filtered events for copying", () => {

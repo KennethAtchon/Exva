@@ -1,16 +1,15 @@
 import { describe, expect, it } from "vitest";
-import type { SessionConfig } from "@/lib/types";
+import type { SessionRiskConfig } from "@electron/shared/domain";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { buildOrderPolicyTask } from "../order-policy-task";
 
 describe("buildOrderPolicyTask", () => {
   it("maps session, order, and strategy fields into PolicyGateInput", () => {
-    const config = {
-      strategy: "momentum",
-      max_position_usd: 500,
-      max_api_spend_usd: 5,
-      human_approval_required: false,
-    } as SessionConfig;
+    const riskConfig = {
+      maxPositionUsd: 500,
+      maxAiSpendUsd: 5,
+      humanApprovalRequired: false,
+    } as SessionRiskConfig;
     const strategy = {
       timeframe: {
         holdingStyle: "multi_day_swing",
@@ -35,7 +34,7 @@ describe("buildOrderPolicyTask", () => {
       cycleId: "cycle-1",
       tradeId: "trade-1",
       brokerAccountId: "broker-1",
-      config,
+      riskConfig,
       stats: { daily_api_spend: 1 } as never,
       order,
       confidence: 0.82,
@@ -59,7 +58,7 @@ describe("buildOrderPolicyTask", () => {
       tradeId: "trade-1",
       brokerAccountId: "broker-1",
       decisionRiskInput: {
-        config,
+        riskConfig,
         order,
         confidence: 0.82,
         side: "BUY",

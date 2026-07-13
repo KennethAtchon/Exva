@@ -242,6 +242,10 @@ function createHarness(
       uptimeMin: () => 0,
     },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         researchPosture: {},
         rules: { sideBias: "long_only", setupType: "momentum" },
@@ -331,10 +335,6 @@ function createHarness(
         api_budget: 10,
         portfolio_value: 5000,
       }),
-    },
-    sessionAiPhasesRepo: {} as never,
-    sessionSelectorSettingsRepo: {
-      get: () => ({ aiPickerEnabled: false, noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: {
       upsert: vi.fn((step) => step),

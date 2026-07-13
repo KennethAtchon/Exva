@@ -19,7 +19,11 @@ export interface InstrumentSetCreateInput {
   instrumentClass: InstrumentClass;
   mode: InstrumentSetMode;
   status: InstrumentSetStatus;
-  members: Array<{ canonicalId: string; displaySymbol: string; venue?: string | null }>;
+  members: Array<{
+    canonicalId: string;
+    displaySymbol: string;
+    venue?: string | null;
+  }>;
 }
 
 export class InstrumentSetRepo {
@@ -46,7 +50,10 @@ export class InstrumentSetRepo {
       )
       .get();
     if (!row) return null;
-    return { ...rowToRevision(row), members: this.listMembers(setId, revision) };
+    return {
+      ...rowToRevision(row),
+      members: this.listMembers(setId, revision),
+    };
   }
 
   getActiveRevision(setId: string): InstrumentSetRevision | null {
@@ -61,7 +68,10 @@ export class InstrumentSetRepo {
       )
       .get();
     if (!row) return null;
-    return { ...rowToRevision(row), members: this.listMembers(setId, row.revision) };
+    return {
+      ...rowToRevision(row),
+      members: this.listMembers(setId, row.revision),
+    };
   }
 
   listMembers(setId: string, revision: number): InstrumentSetMember[] {
@@ -94,7 +104,9 @@ export class InstrumentSetRepo {
    * Create a new revision for the given set. Active revisions are immutable —
    * always create a new revision to make changes.
    */
-  createRevision(input: InstrumentSetCreateInput & { revision: number }): InstrumentSetRevision {
+  createRevision(
+    input: InstrumentSetCreateInput & { revision: number },
+  ): InstrumentSetRevision {
     const now = new Date().toISOString();
     this.db.db
       .insert(instrumentSetRevisions)
@@ -132,7 +144,9 @@ export class InstrumentSetRepo {
   }
 
   /** Idempotent seed helper: insert revision 1 if absent. */
-  createRevisionIfAbsent(input: InstrumentSetCreateInput): InstrumentSetRevision {
+  createRevisionIfAbsent(
+    input: InstrumentSetCreateInput,
+  ): InstrumentSetRevision {
     const existing = this.getRevision(input.setId, 1);
     if (existing) return existing;
     this.ensureSet(input.setId);
@@ -146,7 +160,9 @@ export class InstrumentSetRepo {
 
 type RevisionRow = typeof instrumentSetRevisions.$inferSelect;
 
-function rowToRevision(row: RevisionRow): Omit<InstrumentSetRevision, "members"> {
+function rowToRevision(
+  row: RevisionRow,
+): Omit<InstrumentSetRevision, "members"> {
   return {
     setId: row.setId,
     revision: row.revision,

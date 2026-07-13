@@ -19,7 +19,7 @@ const EXAMPLES = [
 export function AssistantSlideOver({
   onOpenFullView,
 }: {
-  onOpenFullView: () => void;
+  onOpenFullView?: () => void;
 }) {
   const open = useControlStore((s) => s.slideOverOpen);
   const close = useControlStore((s) => s.closeSlideOver);
@@ -86,18 +86,20 @@ export function AssistantSlideOver({
             >
               <Plus className="h-4 w-4" />
             </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              title="Open full view"
-              onClick={() => {
-                onOpenFullView();
-                close();
-              }}
-            >
-              <SquareArrowOutUpRight className="h-4 w-4" />
-            </Button>
+            {onOpenFullView ? (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                title="Open full view"
+                onClick={() => {
+                  onOpenFullView();
+                  close();
+                }}
+              >
+                <SquareArrowOutUpRight className="h-4 w-4" />
+              </Button>
+            ) : null}
             <Button
               size="icon"
               variant="ghost"

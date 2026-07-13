@@ -1,16 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import type { SessionAiPhasesRepo } from "../../../db/repositories/sessions/session-ai-phases-repo";
+import type { AiPhaseConfigSource } from "../ai-phase-config-resolver";
 import { AIPhaseConfigResolver } from "../ai-phase-config-resolver";
 
 describe("AIPhaseConfigResolver", () => {
-  const repo = {
-    getByPhase: vi.fn(),
-    getWorker: vi.fn(),
-  } as unknown as SessionAiPhasesRepo;
+  const getByPhase = vi.fn();
+  const getWorker = vi.fn();
+  const repo: AiPhaseConfigSource = { getByPhase, getWorker };
   const resolver = new AIPhaseConfigResolver(repo);
 
   it("falls back to defaults when session phase config is missing", () => {
-    vi.mocked(repo.getByPhase).mockReturnValue(null);
+    getByPhase.mockReturnValue(null);
 
     expect(resolver.resolvePhaseConfig("s1", "technical")).toEqual({
       providerKey: "",
@@ -24,7 +23,7 @@ describe("AIPhaseConfigResolver", () => {
   });
 
   it("merges worker overrides onto phase config", () => {
-    vi.mocked(repo.getByPhase).mockReturnValue({
+    getByPhase.mockReturnValue({
       providerKey: "anthropic",
       modelId: "claude-sonnet",
       temperature: 0.5,
@@ -33,7 +32,7 @@ describe("AIPhaseConfigResolver", () => {
       promptSource: "default",
       promptMarkdown: "phase prompt",
     } as never);
-    vi.mocked(repo.getWorker).mockReturnValue({
+    getWorker.mockReturnValue({
       providerKey: "openai",
       modelId: "gpt-4.1",
       promptMarkdown: "worker prompt",

@@ -12,7 +12,7 @@ export function LeaderboardDocPage() {
   return (
     <>
       <DocParagraph>
-        The <DocStrong>Leaderboard</DocStrong> scores{" "}
+        The <DocStrong>Scorecards</DocStrong> tab in Research scores{" "}
         <DocLink to="experiences">experiences</DocLink> against each other and
         tracks how far each has earned its way up the promotion ladder. It turns
         scattered session results into a per-experience scorecard so you can see

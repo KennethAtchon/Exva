@@ -23,17 +23,13 @@ import {
 import { AppError } from "@electron/shared/infra/errors";
 import type { ProviderAccountsRepo } from "../../db/repositories/workspace/provider-accounts-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
-import type { SessionResearchPostureRepo } from "../../db/repositories/sessions/session-research-posture-repo";
-import type { SessionRiskConfigRepo } from "../../db/repositories/sessions/session-risk-config-repo";
-import type { SessionSelectorSettingsRepo } from "../../db/repositories/sessions/session-selector-settings-repo";
-import type { SessionTradeRulesRepo } from "../../db/repositories/sessions/session-trade-rules-repo";
-import type { SessionTimeframeConfigRepo } from "../../db/repositories/sessions/session-timeframe-config-repo";
-import type { SessionAiSettingsRepo } from "../../db/repositories/sessions/session-ai-settings-repo";
-import {
-  parseSessionStrategyConfigJson,
-  buildSessionStrategyConfigJson,
-} from "./session-strategy-config";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
+import {
+  docToAiPhaseWorkers,
+  docToAiPhases,
+  docToSelectorSettings,
+  type SessionStrategyConfigService,
+} from "./session-strategy-config-service";
 
 export interface StrategyPageData {
   researchPosture: SessionResearchPosture;
@@ -56,43 +52,15 @@ export class SessionStrategyContextService {
   constructor(
     private readonly deps: {
       sessionRepo: SessionRepo;
-      researchPostureRepo: SessionResearchPostureRepo;
-      rulesRepo: SessionTradeRulesRepo;
-      riskRepo: SessionRiskConfigRepo;
-      timeframeRepo: SessionTimeframeConfigRepo;
-      aiSettingsRepo: SessionAiSettingsRepo;
-      selectorSettingsRepo: SessionSelectorSettingsRepo;
+      strategyConfig: SessionStrategyConfigService;
       providerAccountsRepo: ProviderAccountsRepo;
       workspacePrefsRepo: WorkspacePreferencesRepo;
-      sessionAiPhasesRepo: import("../../db/repositories/sessions/session-ai-phases-repo").SessionAiPhasesRepo;
     },
   ) {}
 
   get(sessionId: string): SessionStrategyContext {
-    const session = this.deps.sessionRepo.requireById(sessionId);
-    const fromJson = parseSessionStrategyConfigJson(
-      sessionId,
-      this.deps.sessionRepo.getStrategyConfigJson(sessionId),
-      session.updatedAt,
-    );
-    if (fromJson) return fromJson;
-    return {
-      researchPosture: this.deps.researchPostureRepo.get(sessionId),
-      rules: this.deps.rulesRepo.get(sessionId),
-      riskConfig: this.deps.riskRepo.get(sessionId),
-      timeframe: this.deps.timeframeRepo.get(sessionId),
-      aiSettings: this.deps.aiSettingsRepo.get(sessionId),
-    };
-  }
-
-  private persistStrategyJson(
-    sessionId: string,
-    context: SessionStrategyContext,
-  ): void {
-    this.deps.sessionRepo.updateStrategyConfigJson(
-      sessionId,
-      JSON.stringify(buildSessionStrategyConfigJson(context)),
-    );
+    this.deps.sessionRepo.requireById(sessionId);
+    return this.deps.strategyConfig.getContext(sessionId);
   }
 
   getAiSettings(sessionId: string): SessionAiSettings {
@@ -115,14 +83,58 @@ export class SessionStrategyContextService {
     return this.get(sessionId).timeframe;
   }
 
+  getSelectorSettings(sessionId: string): SessionSelectorSettings {
+    this.deps.sessionRepo.requireById(sessionId);
+    return this.deps.strategyConfig.getSelectorSettings(sessionId);
+  }
+
+  listAiPhases(sessionId: string): SessionAiPhase[] {
+    this.deps.sessionRepo.requireById(sessionId);
+    return this.deps.strategyConfig.listAiPhases(sessionId);
+  }
+
+  getAiPhase(sessionId: string, phase: PipelinePhase): SessionAiPhase | null {
+    this.deps.sessionRepo.requireById(sessionId);
+    return this.deps.strategyConfig.getAiPhase(sessionId, phase);
+  }
+
+  listAiPhaseWorkers(sessionId: string): SessionAiPhaseWorker[] {
+    this.deps.sessionRepo.requireById(sessionId);
+    return this.deps.strategyConfig.listAiPhaseWorkers(sessionId);
+  }
+
+  getAiPhaseWorker(
+    sessionId: string,
+    phase: PipelinePhase,
+    workerId: string,
+  ): SessionAiPhaseWorker | null {
+    this.deps.sessionRepo.requireById(sessionId);
+    return this.deps.strategyConfig.getAiPhaseWorker(
+      sessionId,
+      phase,
+      workerId,
+    );
+  }
+
   getPageData(sessionId: string): StrategyPageData {
     const session = this.deps.sessionRepo.requireById(sessionId);
+    const record = this.deps.strategyConfig.get(sessionId);
     const ctx = this.get(sessionId);
     const workspacePrefs = this.deps.workspacePrefsRepo.get();
+    const phases = docToAiPhases(sessionId, record.doc, record.updatedAt);
+    const workers = docToAiPhaseWorkers(
+      sessionId,
+      record.doc,
+      record.updatedAt,
+    );
 
     return {
       ...ctx,
-      selectorSettings: this.deps.selectorSettingsRepo.get(sessionId),
+      selectorSettings: docToSelectorSettings(
+        sessionId,
+        record.doc,
+        record.updatedAt,
+      ),
       providers: this.deps.providerAccountsRepo
         .list()
         .filter((provider) => provider.category === "ai"),
@@ -132,14 +144,12 @@ export class SessionStrategyContextService {
       workspaceDefaultSearchProviderId: workspacePrefs.defaultSearchProviderId,
       workspaceDefaultModelProviderKey: workspacePrefs.defaultModelProviderKey,
       workspaceDefaultModelModelId: workspacePrefs.defaultModelModelId,
-      aiPhases: this.deps.sessionAiPhasesRepo
-        .listBySession(sessionId)
-        .map((phase) => ({
-          ...phase,
-          workerOverrides: this.deps.sessionAiPhasesRepo
-            .listWorkersBySession(sessionId)
-            .filter((worker) => worker.phase === phase.phase),
-        })),
+      aiPhases: phases.map((phase) => ({
+        ...phase,
+        workerOverrides: workers.filter(
+          (worker) => worker.phase === phase.phase,
+        ),
+      })),
     };
   }
 
@@ -148,18 +158,16 @@ export class SessionStrategyContextService {
     patch: Partial<SessionResearchPosture>,
   ): SessionResearchPosture {
     this.assertEditable(sessionId);
-    const current = this.get(sessionId);
     const next = {
-      ...current,
-      researchPosture: { ...current.researchPosture, ...patch, sessionId },
+      ...this.get(sessionId),
+      researchPosture: {
+        ...this.get(sessionId).researchPosture,
+        ...patch,
+        sessionId,
+      },
     };
     this.validate(next);
-    const saved = this.deps.researchPostureRepo.upsert(
-      sessionId,
-      next.researchPosture,
-    );
-    this.persistStrategyJson(sessionId, { ...next, researchPosture: saved });
-    return saved;
+    return this.deps.strategyConfig.patchResearchPosture(sessionId, patch);
   }
 
   saveRules(
@@ -173,9 +181,7 @@ export class SessionStrategyContextService {
       rules: { ...current.rules, ...patch, sessionId },
     };
     this.validate(next);
-    const saved = this.deps.rulesRepo.upsert(sessionId, next.rules);
-    this.persistStrategyJson(sessionId, { ...next, rules: saved });
-    return saved;
+    return this.deps.strategyConfig.patchRules(sessionId, patch);
   }
 
   saveRiskConfig(
@@ -189,9 +195,7 @@ export class SessionStrategyContextService {
       riskConfig: { ...current.riskConfig, ...patch, sessionId },
     };
     this.validate(next);
-    const saved = this.deps.riskRepo.upsert(sessionId, next.riskConfig);
-    this.persistStrategyJson(sessionId, { ...next, riskConfig: saved });
-    return saved;
+    return this.deps.strategyConfig.patchRiskConfig(sessionId, patch);
   }
 
   saveTimeframeConfig(
@@ -205,9 +209,7 @@ export class SessionStrategyContextService {
       timeframe: { ...current.timeframe, ...patch, sessionId },
     };
     this.validate(next);
-    const saved = this.deps.timeframeRepo.upsert(sessionId, next.timeframe);
-    this.persistStrategyJson(sessionId, { ...next, timeframe: saved });
-    return saved;
+    return this.deps.strategyConfig.patchTimeframe(sessionId, patch);
   }
 
   saveAiSettings(
@@ -221,9 +223,15 @@ export class SessionStrategyContextService {
       aiSettings: { ...current.aiSettings, ...patch, sessionId },
     };
     this.validate(next);
-    const saved = this.deps.aiSettingsRepo.upsert(sessionId, next.aiSettings);
-    this.persistStrategyJson(sessionId, { ...next, aiSettings: saved });
-    return saved;
+    return this.deps.strategyConfig.patchAiSettings(sessionId, patch);
+  }
+
+  saveSelectorSettings(
+    sessionId: string,
+    patch: Partial<SessionSelectorSettings>,
+  ): SessionSelectorSettings {
+    this.assertEditable(sessionId);
+    return this.deps.strategyConfig.patchSelectorSettings(sessionId, patch);
   }
 
   saveAiPhase(
@@ -231,17 +239,6 @@ export class SessionStrategyContextService {
     patch: Partial<SessionAiPhase> & { phase: PipelinePhase },
   ): SessionAiPhase {
     this.assertEditable(sessionId);
-    const current = this.deps.sessionAiPhasesRepo.getByPhase(
-      sessionId,
-      patch.phase,
-    );
-    if (!current) {
-      throw new AppError(
-        `AI phase ${patch.phase} is not configured for this session.`,
-        "NOT_FOUND",
-        { sessionId, phase: patch.phase },
-      );
-    }
     if (patch.providerKey?.trim()) {
       const provider = this.deps.providerAccountsRepo.find(patch.providerKey);
       if (!provider || provider.category !== "ai" || !provider.isConfigured) {
@@ -255,14 +252,7 @@ export class SessionStrategyContextService {
         );
       }
     }
-    const next: SessionAiPhase = {
-      ...current,
-      ...patch,
-      sessionId,
-      phase: patch.phase,
-    };
-    this.deps.sessionAiPhasesRepo.upsertPhase(sessionId, next);
-    return next;
+    return this.deps.strategyConfig.patchAiPhase(sessionId, patch);
   }
 
   saveAiPhaseWorker(
@@ -270,7 +260,7 @@ export class SessionStrategyContextService {
     patch: SessionAiPhaseWorker,
   ): SessionAiPhaseWorker {
     this.assertEditable(sessionId);
-    if (!this.deps.sessionAiPhasesRepo.getByPhase(sessionId, patch.phase)) {
+    if (!this.deps.strategyConfig.getAiPhase(sessionId, patch.phase)) {
       throw new AppError(
         `AI phase ${patch.phase} is not configured for this session.`,
         "NOT_FOUND",
@@ -290,9 +280,7 @@ export class SessionStrategyContextService {
         );
       }
     }
-    const next: SessionAiPhaseWorker = { ...patch, sessionId };
-    this.deps.sessionAiPhasesRepo.upsertWorker(sessionId, next);
-    return next;
+    return this.deps.strategyConfig.patchAiPhaseWorker(sessionId, patch);
   }
 
   private validate(context: SessionStrategyContext): void {
@@ -347,7 +335,7 @@ export function postureRequiresEdgarCatalyst(
 /**
  * True when a research posture can be satisfied by the session's subscribed
  * signal sources. A catalyst-required posture needs the EDGAR 8-K signal; any
- * other signal (e.g. web_search) can never deliver an 8-K, so the combination
+ * other signal (e.g. mock) can never deliver an 8-K, so the combination
  * is incompatible. Non-catalyst postures are always compatible.
  */
 export function postureSignalCompatible(

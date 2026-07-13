@@ -490,22 +490,13 @@ export class CycleReplayRunner {
     let replayPolicyGate: PolicyGateResult | null = null;
     if (decision.action === "trade" && decision.symbol && decision.side) {
       const md = marketData.find((d) => d.symbol === decision.symbol);
-      const config = {
-        strategy: strategySnapshot.rules.setupType,
-        max_position_usd: strategySnapshot.riskConfig.maxPositionUsd,
-        stop_loss_pct: strategySnapshot.riskConfig.stopLossPct ?? 0,
-        take_profit_pct: strategySnapshot.riskConfig.takeProfitPct ?? 0,
-        max_concurrent_trades: strategySnapshot.riskConfig.maxConcurrentTrades,
-        max_consecutive_losers:
-          strategySnapshot.riskConfig.maxConsecutiveLosers,
-        research_depth: "balanced" as const,
-        daily_loss_limit_usd: strategySnapshot.riskConfig.dailyLossLimitUsd,
-        profit_target_usd: strategySnapshot.riskConfig.profitTargetUsd,
-        max_api_spend_usd: strategySnapshot.riskConfig.maxAiSpendUsd,
-        human_approval_required:
-          strategySnapshot.riskConfig.humanApprovalRequired,
-        // Snapshots predate off-hours policy; replays use regular-hours rules.
-        off_hours_trading: "disabled" as const,
+      // Snapshots predate off-hours policy; replays use regular-hours rules.
+      const riskConfig = {
+        ...strategySnapshot.riskConfig,
+        sessionId: fixture.sessionId,
+        riskPresetId: "custom" as const,
+        offHoursTrading: "disabled" as const,
+        updatedAt: "",
       };
       replayPolicyGate = this.policyGate.evaluate({
         sessionId: fixture.sessionId,
@@ -513,7 +504,7 @@ export class CycleReplayRunner {
         tradeId: trade?.id ?? `${cycleId}:replay`,
         brokerAccountId: "",
         decisionRiskInput: {
-          config,
+          riskConfig,
           stats: {
             session_status: "active" as const,
             daily_pnl_usd: 0,

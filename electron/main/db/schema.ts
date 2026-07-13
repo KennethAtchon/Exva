@@ -44,6 +44,20 @@ export const brokerAccounts = sqliteTable("broker_accounts", {
   updatedAt: text("updated_at").notNull(),
 });
 
+/**
+ * Persisted paper/ghost balance for venues without a sandbox (Polymarket,
+ * Kraken validate-only). One row per broker account.
+ */
+export const paperBalances = sqliteTable("paper_balances", {
+  accountId: text("account_id")
+    .primaryKey()
+    .references(() => brokerAccounts.id, { onDelete: "cascade" }),
+  currency: text("currency").notNull().default("USD"),
+  balance: real("balance").notNull(),
+  startingBalance: real("starting_balance").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const sessions = sqliteTable(
   "sessions",
   {
@@ -108,11 +122,14 @@ export const signalEvents = sqliteTable(
     dispatchStatus: text("dispatch_status").notNull(),
     dispatchCompletedAt: text("dispatch_completed_at"),
     sourceDroppedReason: text("source_dropped_reason"),
-    /** MarketSignal kind; null on legacy rows until backfill. */
+    /** MarketSignal kind. */
     kind: text("kind"),
-    /** Typed payload JSON (v2); dual-read with payloadJson during migration. */
+    /**
+     * Legacy typed-payload column from dual-write era.
+     * payload_json is canonical; kept for historical rows.
+     */
     payloadV2: text("payload_v2"),
-    /** Mandatory dedupe key once sources cut over. */
+    /** Mandatory dedupe key (backfilled for legacy rows). */
     dedupeKey: text("dedupe_key"),
     /** ISO-8601 duration TTL for delivery expiry. */
     ttl: text("ttl"),
@@ -197,7 +214,6 @@ export const signalDeadLetters = sqliteTable(
   }),
 );
 
-
 export const cikTickerCache = sqliteTable("cik_ticker_cache", {
   cik: text("cik").primaryKey(),
   ticker: text("ticker"),
@@ -267,172 +283,42 @@ export const decisionTraces = sqliteTable(
   }),
 );
 
-export const sessionSelectorSettings = sqliteTable(
-  "session_selector_settings",
+/** Versioned SessionStrategyConfigDoc per session (config diet). */
+export const sessionStrategyConfigs = sqliteTable("session_strategy_configs", {
+  sessionId: text("session_id")
+    .primaryKey()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  version: integer("version").notNull(),
+  schemaVersion: integer("schema_version").notNull(),
+  doc: text("doc", { mode: "json" }).notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/**
+ * Unified presets replacing global/risk/timeframe/research/trade_rule presets.
+ * `kind`: 'full' | 'risk' | 'timeframe' | 'research' | 'rules' | 'ai'
+ * `doc`: partial SessionStrategyConfigDoc matching kind.
+ */
+export const configPresets = sqliteTable("config_presets", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  kind: text("kind").notNull(),
+  doc: text("doc", { mode: "json" }).notNull(),
+  builtin: integer("builtin", { mode: "boolean" }).notNull().default(false),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Prior docs appended on every write — audit trail + rollback. */
+export const sessionStrategyConfigHistory = sqliteTable(
+  "session_strategy_config_history",
   {
-    sessionId: text("session_id")
-      .primaryKey()
-      .references(() => sessions.id, { onDelete: "cascade" }),
-    aiPickerEnabled: integer("ai_picker_enabled", { mode: "boolean" })
-      .notNull()
-      .default(true),
-    noInstrumentRetryMinutes: integer("no_instrument_retry_minutes"),
-    updatedAt: text("updated_at").notNull(),
+    id: text("id").primaryKey(),
+    sessionId: text("session_id").notNull(),
+    version: integer("version").notNull(),
+    doc: text("doc", { mode: "json" }).notNull(),
+    savedAt: text("saved_at").notNull(),
   },
 );
-
-export const sessionStrategies = sqliteTable("session_strategies", {
-  sessionId: text("session_id")
-    .primaryKey()
-    .references(() => sessions.id, { onDelete: "cascade" }),
-  strategyProfile: text("strategy_profile").notNull().default("passive_income"),
-  maxPositionUsd: real("max_position_usd").notNull().default(500),
-  stopLossPct: real("stop_loss_pct").notNull().default(2),
-  takeProfitPct: real("take_profit_pct").notNull().default(4),
-  maxConcurrentTrades: integer("max_concurrent_trades").notNull().default(3),
-  researchDepth: text("research_depth").notNull().default("balanced"),
-  dailyLossLimitUsd: real("daily_loss_limit_usd").notNull().default(200),
-  profitTargetUsd: real("profit_target_usd").notNull().default(1000),
-  maxAiSpendUsd: real("max_ai_spend_usd").notNull().default(5),
-  humanApprovalRequired: integer("human_approval_required", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  primaryTradingTimeframe: text("primary_trading_timeframe")
-    .notNull()
-    .default("1d"),
-  holdingStyle: text("holding_style").notNull().default("multi_day_swing"),
-  targetHoldDays: real("target_hold_days"),
-  maxHoldDays: real("max_hold_days"),
-  timeframeNotes: text("timeframe_notes").notNull().default(""),
-});
-
-/** How the session weights discovery vs evidence vs fundamentals (edge / screening posture). */
-export const sessionResearchPosture = sqliteTable("session_research_posture", {
-  sessionId: text("session_id")
-    .primaryKey()
-    .references(() => sessions.id, { onDelete: "cascade" }),
-  posturePresetId: text("posture_preset_id").notNull().default("custom"),
-  processingMode: text("processing_mode").notNull().default("manual"),
-  evidenceMode: text("evidence_mode").notNull().default("balanced"),
-  catalystMode: text("catalyst_mode").notNull().default("preferred"),
-  fundamentalStrictness: text("fundamental_strictness")
-    .notNull()
-    .default("balanced"),
-  postureNotes: text("posture_notes").notNull().default(""),
-  updatedAt: text("updated_at").notNull(),
-});
-
-export const sessionAiSettings = sqliteTable("session_ai_settings", {
-  sessionId: text("session_id")
-    .primaryKey()
-    .references(() => sessions.id, { onDelete: "cascade" }),
-  workerGuidanceMarkdown: text("worker_guidance_markdown")
-    .notNull()
-    .default(""),
-  updatedAt: text("updated_at").notNull(),
-});
-
-export const sessionAiPhases = sqliteTable(
-  "session_ai_phases",
-  {
-    sessionId: text("session_id")
-      .notNull()
-      .references(() => sessions.id, { onDelete: "cascade" }),
-    phase: text("phase").notNull(),
-    providerKey: text("provider_key").notNull().default(""),
-    modelId: text("model_id").notNull().default(""),
-    temperature: real("temperature").notNull().default(0.7),
-    maxTokens: integer("max_tokens").notNull().default(8192),
-    reasoningLevel: text("reasoning_level").notNull().default("off"),
-    promptSource: text("prompt_source").notNull().default("default"),
-    promptMarkdown: text("prompt_markdown").notNull().default(""),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.sessionId, table.phase] }),
-    sessionIdx: index("idx_session_ai_phases_session").on(table.sessionId),
-  }),
-);
-
-export const sessionAiPhaseWorkers = sqliteTable(
-  "session_ai_phase_workers",
-  {
-    sessionId: text("session_id")
-      .notNull()
-      .references(() => sessions.id, { onDelete: "cascade" }),
-    phase: text("phase").notNull(),
-    workerId: text("worker_id").notNull(),
-    providerKey: text("provider_key"),
-    modelId: text("model_id"),
-    maxSteps: integer("max_steps"),
-    spendLimitUsd: real("spend_limit_usd"),
-    promptMarkdown: text("prompt_markdown"),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.sessionId, table.phase, table.workerId] }),
-  }),
-);
-
-export const sessionTradeRules = sqliteTable("session_trade_rules", {
-  sessionId: text("session_id")
-    .primaryKey()
-    .references(() => sessions.id, { onDelete: "cascade" }),
-  rulesPresetId: text("rules_preset_id").notNull().default("custom"),
-  setupType: text("setup_type").notNull().default("custom"),
-  sideBias: text("side_bias").notNull().default("both"),
-  entryStyle: text("entry_style").notNull().default("breakout"),
-  exitStyle: text("exit_style").notNull().default("fixed_pct"),
-  scalingMode: text("scaling_mode").notNull().default("single_entry"),
-  tradeRulesMarkdown: text("trade_rules_markdown").notNull().default(""),
-  ruleNotes: text("rule_notes").notNull().default(""),
-  updatedAt: text("updated_at").notNull(),
-});
-
-export const sessionRiskConfig = sqliteTable("session_risk_config", {
-  sessionId: text("session_id")
-    .primaryKey()
-    .references(() => sessions.id, { onDelete: "cascade" }),
-  riskPresetId: text("risk_preset_id").notNull().default("custom"),
-  offHoursTrading: text("off_hours_trading").notNull().default("disabled"),
-  maxPositionUsd: real("max_position_usd").notNull().default(500),
-  stopLossPct: real("stop_loss_pct"),
-  takeProfitPct: real("take_profit_pct"),
-  stopLossType: text("stop_loss_type").notNull().default("fixed_pct"),
-  atrStopMultiplier: real("atr_stop_multiplier"),
-  kellyFraction: real("kelly_fraction").notNull().default(0.25),
-  predictionEdgeThreshold: real("prediction_edge_threshold")
-    .notNull()
-    .default(0.08),
-  maxExposureUsd: real("max_exposure_usd"),
-  waitForOpenThreshold: real("wait_for_open_threshold").notNull().default(0.8),
-  maxConcurrentTrades: integer("max_concurrent_trades").notNull().default(3),
-  maxConsecutiveLosers: integer("max_consecutive_losers").notNull().default(5),
-  volatilityHaltMaxSpreadPct: real("volatility_halt_max_spread_pct"),
-  dailyLossLimitUsd: real("daily_loss_limit_usd").notNull().default(200),
-  profitTargetUsd: real("profit_target_usd").notNull().default(1000),
-  maxAiSpendUsd: real("max_ai_spend_usd").notNull().default(5),
-  maxDataSpendUsd: real("max_data_spend_usd").notNull().default(5),
-  humanApprovalRequired: integer("human_approval_required", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  updatedAt: text("updated_at").notNull(),
-});
-
-export const sessionTimeframeConfig = sqliteTable("session_timeframe_config", {
-  sessionId: text("session_id")
-    .primaryKey()
-    .references(() => sessions.id, { onDelete: "cascade" }),
-  timeframePresetId: text("timeframe_preset_id").notNull().default("custom"),
-  primaryTradingTimeframe: text("primary_trading_timeframe")
-    .notNull()
-    .default("1d"),
-  holdingStyle: text("holding_style").notNull().default("multi_day_swing"),
-  targetHoldDays: real("target_hold_days"),
-  maxHoldDays: real("max_hold_days"),
-  timeframeNotes: text("timeframe_notes").notNull().default(""),
-  updatedAt: text("updated_at").notNull(),
-});
 
 export const brokerRoutingDefaults = sqliteTable("broker_routing", {
   instrumentClass: text("instrument_class").primaryKey(),
@@ -502,52 +388,6 @@ export const workspacePreferences = sqliteTable("workspace_preferences", {
   updatedAt: text("updated_at").notNull(),
 });
 
-export const globalPresets = sqliteTable("global_presets", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  isBuiltIn: integer("is_built_in", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  createdAt: integer("created_at").notNull(),
-  presetJson: text("preset_json").notNull(),
-});
-
-export const riskPresets = sqliteTable("risk_presets", {
-  id: text("id").primaryKey(),
-  label: text("label").notNull(),
-  isBuiltIn: integer("is_built_in", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  presetJson: text("preset_json").notNull(),
-});
-
-export const timeframePresets = sqliteTable("timeframe_presets", {
-  id: text("id").primaryKey(),
-  label: text("label").notNull(),
-  isBuiltIn: integer("is_built_in", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  presetJson: text("preset_json").notNull(),
-});
-
-export const researchPosturePresets = sqliteTable("research_posture_presets", {
-  id: text("id").primaryKey(),
-  label: text("label").notNull(),
-  isBuiltIn: integer("is_built_in", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  presetJson: text("preset_json").notNull(),
-});
-
-export const tradeRulePresets = sqliteTable("trade_rule_presets", {
-  id: text("id").primaryKey(),
-  label: text("label").notNull(),
-  isBuiltIn: integer("is_built_in", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  presetJson: text("preset_json").notNull(),
-});
-
 export const sessionTemplates = sqliteTable("session_templates", {
   id: text("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -611,6 +451,13 @@ export const trades = sqliteTable(
       table.instrumentSymbol,
       table.brokerAccountId,
       table.status,
+    ),
+    // Hub trades list / autopsy filters order by opened_at / closed_at.
+    openedAtIdx: index("idx_trades_opened_at").on(table.openedAt),
+    closedAtIdx: index("idx_trades_closed_at").on(table.closedAt),
+    statusOpenedIdx: index("idx_trades_status_opened").on(
+      table.status,
+      table.openedAt,
     ),
   }),
 );
@@ -720,49 +567,28 @@ export const apiCallLog = sqliteTable(
   }),
 );
 
-export const tradeAutopsies = sqliteTable(
-  "trade_autopsies",
-  {
-    id: text("id").primaryKey(),
-    tradeId: text("trade_id")
-      .notNull()
-      .references(() => trades.id, { onDelete: "cascade" }),
-    sessionId: text("session_id")
-      .notNull()
-      .references(() => sessions.id, { onDelete: "cascade" }),
-    modelId: text("model_id").notNull(),
-    summary: text("summary").notNull(),
-    summaryStructuredJson: text("summary_structured_json")
-      .notNull()
-      .default("{}"),
-    phaseTracesJson: text("phase_traces_json").notNull().default("[]"),
-    qualityGrade: text("quality_grade"),
-    qualityScore: real("quality_score"),
-    isFallback: integer("is_fallback", { mode: "boolean" })
-      .notNull()
-      .default(false),
-    createdAt: text("created_at").notNull(),
-    createdBy: text("created_by").notNull().default("user"),
-  },
-  (table) => ({
-    tradeIdIdx: index("idx_trade_autopsies_trade").on(table.tradeId),
-  }),
-);
-
-export const periodAutopsies = sqliteTable(
-  "period_autopsies",
+/** Discriminator: trade | period autopsy kind (not global|session). */
+export const autopsies = sqliteTable(
+  "autopsies",
   {
     id: text("id").primaryKey(),
     scope: text("scope").notNull(),
+    tradeId: text("trade_id").references(() => trades.id, {
+      onDelete: "cascade",
+    }),
+    summary: text("summary"),
+    /** Former period row audience: global | session. */
+    periodScope: text("period_scope"),
+    windowStart: text("window_start"),
+    windowEnd: text("window_end"),
+    filtersJson: text("filters_json"),
+    tradeCount: integer("trade_count"),
+    tradeIdsJson: text("trade_ids_json"),
+    totalCostUsd: real("total_cost_usd"),
     sessionId: text("session_id").references(() => sessions.id, {
       onDelete: "set null",
     }),
-    windowStart: text("window_start").notNull(),
-    windowEnd: text("window_end").notNull(),
     modelId: text("model_id").notNull(),
-    filtersJson: text("filters_json").notNull().default("{}"),
-    tradeCount: integer("trade_count").notNull().default(0),
-    tradeIdsJson: text("trade_ids_json").notNull().default("[]"),
     summaryStructuredJson: text("summary_structured_json")
       .notNull()
       .default("{}"),
@@ -772,14 +598,15 @@ export const periodAutopsies = sqliteTable(
     isFallback: integer("is_fallback", { mode: "boolean" })
       .notNull()
       .default(false),
-    totalCostUsd: real("total_cost_usd").notNull().default(0),
     createdAt: text("created_at").notNull(),
     createdBy: text("created_by").notNull().default("user"),
   },
   (table) => ({
-    scopeIdx: index("idx_period_autopsies_scope").on(table.scope),
-    sessionIdx: index("idx_period_autopsies_session").on(table.sessionId),
-    createdIdx: index("idx_period_autopsies_created").on(table.createdAt),
+    scopeIdx: index("idx_autopsies_scope").on(table.scope),
+    tradeIdIdx: index("idx_autopsies_trade").on(table.tradeId),
+    periodScopeIdx: index("idx_autopsies_period_scope").on(table.periodScope),
+    sessionIdx: index("idx_autopsies_session").on(table.sessionId),
+    createdIdx: index("idx_autopsies_created").on(table.createdAt),
   }),
 );
 
@@ -787,15 +614,9 @@ export const autopsyLessons = sqliteTable(
   "autopsy_lessons",
   {
     id: text("id").primaryKey(),
-    autopsyId: text("autopsy_id").references(() => tradeAutopsies.id, {
+    autopsyId: text("autopsy_id").references(() => autopsies.id, {
       onDelete: "cascade",
     }),
-    periodAutopsyId: text("period_autopsy_id").references(
-      () => periodAutopsies.id,
-      {
-        onDelete: "cascade",
-      },
-    ),
     tradeId: text("trade_id").references(() => trades.id, {
       onDelete: "cascade",
     }),
@@ -816,7 +637,6 @@ export const autopsyLessons = sqliteTable(
   },
   (table) => ({
     autopsyIdx: index("idx_autopsy_lessons_autopsy").on(table.autopsyId),
-    periodIdx: index("idx_autopsy_lessons_period").on(table.periodAutopsyId),
     sessionIdx: index("idx_autopsy_lessons_session").on(table.sessionId),
     statusIdx: index("idx_autopsy_lessons_status").on(table.status),
     scopeIdx: index("idx_autopsy_lessons_scope").on(table.scope),
@@ -842,6 +662,12 @@ export const events = sqliteTable(
   (table) => ({
     sessionIdIdx: index("idx_events_session_id").on(table.sessionId),
     cycleIdIdx: index("idx_events_cycle_id").on(table.cycleId),
+    // Dashboard / hub event feeds: ORDER BY created_at DESC LIMIT N
+    createdAtIdx: index("idx_events_created_at").on(table.createdAt),
+    sessionCreatedIdx: index("idx_events_session_created").on(
+      table.sessionId,
+      table.createdAt,
+    ),
   }),
 );
 
@@ -1446,3 +1272,139 @@ export const migrationQuarantine = sqliteTable("migration_quarantine", {
   detailJson: text("detail_json").notNull().default("{}"),
   createdAt: text("created_at").notNull(),
 });
+
+/** Human-reviewable Polymarket↔Kalshi market matches for cross-venue dislocation. */
+export const crossVenueMarketLinks = sqliteTable(
+  "cross_venue_market_links",
+  {
+    id: text("id").primaryKey(),
+    polymarketId: text("polymarket_id").notNull(),
+    kalshiTicker: text("kalshi_ticker").notNull(),
+    confidence: real("confidence").notNull(),
+    approved: integer("approved", { mode: "boolean" }).notNull().default(false),
+    questionPolymarket: text("question_polymarket"),
+    questionKalshi: text("question_kalshi"),
+    resolutionDate: text("resolution_date"),
+    matchMethod: text("match_method").notNull().default("manual"),
+    notes: text("notes"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => ({
+    pairUnique: uniqueIndex("idx_cross_venue_pair").on(
+      table.polymarketId,
+      table.kalshiTicker,
+    ),
+    approvedIdx: index("idx_cross_venue_approved").on(table.approved),
+  }),
+);
+
+/** Perp funding-rate history for crypto funding/basis scans + backtests. */
+export const fundingRates = sqliteTable(
+  "funding_rates",
+  {
+    id: text("id").primaryKey(),
+    venue: text("venue").notNull(),
+    symbol: text("symbol").notNull(),
+    ts: text("ts").notNull(),
+    rate: real("rate").notNull(),
+    ingestedAt: text("ingested_at").notNull(),
+  },
+  (table) => ({
+    venueSymbolTsUnique: uniqueIndex("idx_funding_rates_venue_symbol_ts").on(
+      table.venue,
+      table.symbol,
+      table.ts,
+    ),
+    symbolTsIdx: index("idx_funding_rates_symbol_ts").on(
+      table.symbol,
+      table.ts,
+    ),
+  }),
+);
+
+/** Macro + earnings calendar events (FOMC/CPI seeds + earnings ingest). */
+export const calendarEvents = sqliteTable(
+  "calendar_events",
+  {
+    id: text("id").primaryKey(),
+    eventType: text("event_type").notNull(),
+    scheduledAt: text("scheduled_at").notNull(),
+    symbol: text("symbol"),
+    title: text("title"),
+    source: text("source").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => ({
+    scheduledIdx: index("idx_calendar_events_scheduled").on(table.scheduledAt),
+    symbolScheduledIdx: index("idx_calendar_events_symbol_scheduled").on(
+      table.symbol,
+      table.scheduledAt,
+    ),
+  }),
+);
+
+/** Ingested Form 4 transactions for insider-cluster detection + backtest. */
+export const form4Transactions = sqliteTable(
+  "form4_transactions",
+  {
+    id: text("id").primaryKey(),
+    accessionNumber: text("accession_number").notNull(),
+    cik: text("cik").notNull(),
+    ticker: text("ticker"),
+    companyName: text("company_name"),
+    insiderName: text("insider_name").notNull(),
+    role: text("role").notNull(),
+    transactionCode: text("transaction_code").notNull(),
+    shares: real("shares").notNull(),
+    pricePerShare: real("price_per_share"),
+    totalValueUsd: real("total_value_usd"),
+    isOpenMarketBuy: integer("is_open_market_buy", {
+      mode: "boolean",
+    }).notNull(),
+    filedAt: text("filed_at").notNull(),
+    transactionDate: text("transaction_date").notNull(),
+    documentUrl: text("document_url"),
+    ingestedAt: text("ingested_at").notNull(),
+  },
+  (table) => ({
+    accessionUnique: uniqueIndex("idx_form4_accession_insider").on(
+      table.accessionNumber,
+      table.insiderName,
+      table.transactionCode,
+      table.transactionDate,
+    ),
+    tickerFiledIdx: index("idx_form4_ticker_filed").on(
+      table.ticker,
+      table.filedAt,
+    ),
+  }),
+);
+
+/** Nightly operator digest (finish-line 08 T4). */
+export const briefings = sqliteTable("briefings", {
+  date: text("date").primaryKey(),
+  docJson: text("doc_json").notNull(),
+  narrative: text("narrative").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+/** Hourly + on-trade-close portfolio equity marks (finish-line 08 T5). */
+export const equitySnapshots = sqliteTable(
+  "equity_snapshots",
+  {
+    id: text("id").primaryKey(),
+    ts: text("ts").notNull(),
+    total: real("total").notNull(),
+    perAccountJson: text("per_account_json").notNull().default("{}"),
+    perExperienceJson: text("per_experience_json").notNull().default("{}"),
+    aiSpendUsd: real("ai_spend_usd").notNull().default(0),
+    marksStale: integer("marks_stale", { mode: "boolean" })
+      .notNull()
+      .default(false),
+  },
+  (table) => ({
+    tsIdx: index("idx_equity_snapshots_ts").on(table.ts),
+  }),
+);

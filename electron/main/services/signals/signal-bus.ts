@@ -5,11 +5,7 @@ import type {
   SignalEvent,
   SignalSourceType,
 } from "@electron/shared/domain";
-import {
-  enrichSignalEvent,
-  marketSignalToLegacyEvent,
-  signalExpiresAt,
-} from "@electron/shared/domain";
+import { signalExpiresAt } from "@electron/shared/domain";
 import { extractSignalInstrumentClass } from "@electron/shared/domain/signal-source-capabilities";
 import { AppError } from "@electron/shared/infra/errors";
 import type { InstrumentNormalizer } from "../broker/instrument-normalizer";
@@ -18,7 +14,11 @@ import { SignalDeadLettersRepo } from "./repos/signal-dead-letters-repo";
 import { SignalDeliveriesRepo } from "./repos/signal-deliveries-repo";
 import { SignalEventsRepo } from "./repos/signal-events-repo";
 import { evaluateSignalDeliveryGate } from "./signal-delivery-gate";
-import { mapLegacySourceToDefinitionId } from "./legacy-source-definition-map";
+import { resolveSourceDefinitionId } from "./resolve-source-definition-id";
+import {
+  assertCompleteSignalEvent,
+  signalEventFromMarketSignal,
+} from "./signal-event-from-market-signal";
 import type { SubscriptionFanoutResolver } from "./subscription-fanout-resolver";
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
@@ -117,28 +117,17 @@ export class SignalBus {
   }
 
   private async handleSignal(event: SignalEvent): Promise<void> {
-    const enriched = enrichSignalEvent(event);
+    assertCompleteSignalEvent(event);
     if (
-      enriched.dedupeKey &&
       this.eventsRepo.existsBySourceAndDedupeKey(
-        enriched.sourceId,
-        enriched.dedupeKey,
-      )
-    ) {
-      return;
-    }
-    // Always check accession too — legacy rows may lack dedupe_key.
-    if (
-      enriched.accessionNumber &&
-      this.eventsRepo.existsBySourceAndAccession(
-        enriched.sourceId,
-        enriched.accessionNumber,
+        event.sourceId,
+        event.dedupeKey,
       )
     ) {
       return;
     }
     try {
-      this.eventsRepo.insert(enriched);
+      this.eventsRepo.insert(event);
     } catch (error) {
       if (isUniqueConstraintError(error)) return;
       throw error;
@@ -153,9 +142,9 @@ export class SignalBus {
     const deliveredSessionIds = new Set<string>();
 
     // V2 event fanout via subscription-aware resolver.
-    const sourceDefId = mapLegacySourceToDefinitionId(
-      enriched.sourceId,
-      enriched.sourceType,
+    const sourceDefId = resolveSourceDefinitionId(
+      event.sourceId,
+      event.sourceType,
     );
     if (sourceDefId) {
       const v2Targets = this.fanoutResolver.resolveEventFanout(sourceDefId);
@@ -163,7 +152,7 @@ export class SignalBus {
         deliveredSessionIds.add(target.sessionId);
         await this.deliverOrDeadLetter(
           target.sessionId,
-          enriched,
+          event,
           target.subscriptionId,
         );
       }
@@ -171,21 +160,21 @@ export class SignalBus {
 
     if (deliveredSessionIds.size === 0) {
       this.eventsRepo.markDispatchStatus(
-        enriched.id,
+        event.id,
         "dropped_pre_fanout",
         "no_subscribers",
       );
       return;
     }
 
-    this.eventsRepo.markDispatchStatus(enriched.id, "fanned_out");
+    this.eventsRepo.markDispatchStatus(event.id, "fanned_out");
     this.eventBus.emit("signal_received", {
-      signalId: enriched.id,
-      sourceId: enriched.sourceId,
-      sourceType: enriched.sourceType,
-      ticker: enriched.ticker,
-      companyName: enriched.companyName,
-      detectedAt: enriched.detectedAt,
+      signalId: event.id,
+      sourceId: event.sourceId,
+      sourceType: event.sourceType,
+      ticker: event.ticker,
+      companyName: event.companyName,
+      detectedAt: event.detectedAt,
     });
   }
 
@@ -197,6 +186,7 @@ export class SignalBus {
     | { kind: "delivery"; deliveryId: string }
     | { kind: "dead_letter"; deadLetterId: string }
   > {
+    assertCompleteSignalEvent(event);
     const session = this.sessionRepo.get(sessionId);
     if (!session) {
       throw new Error(`Session ${sessionId} was not found.`);
@@ -234,7 +224,6 @@ export class SignalBus {
     }
 
     const isPaused = this.sessionRepo.getStatus(sessionId) === "paused";
-    const ttl = event.ttl ?? "PT4H";
     const delivery = this.deliveriesRepo.enqueueWithStatus({
       sessionId,
       signalEventId: event.id,
@@ -242,7 +231,7 @@ export class SignalBus {
       queuePositionAtEnqueue: this.deliveriesRepo.nextQueuePosition(sessionId),
       status: isPaused ? "waiting_for_resume" : "queued",
       statusBucket: "pending",
-      expiresAt: isPaused ? signalExpiresAt(event.detectedAt, ttl) : null,
+      expiresAt: isPaused ? signalExpiresAt(event.detectedAt, event.ttl) : null,
       subscriptionId: subscriptionId ?? null,
     });
     this.eventBus.emit("signal_delivery_updated", {
@@ -346,26 +335,26 @@ export class SignalBus {
   }
 
   injectManual(event: SignalEvent, sessionId: string): void {
-    const enriched = enrichSignalEvent(event);
-    this.eventsRepo.insert(enriched);
-    void this.deliverOrDeadLetter(sessionId, enriched);
-    this.eventsRepo.markDispatchStatus(enriched.id, "fanned_out");
+    assertCompleteSignalEvent(event);
+    this.eventsRepo.insert(event);
+    void this.deliverOrDeadLetter(sessionId, event);
+    this.eventsRepo.markDispatchStatus(event.id, "fanned_out");
     this.eventBus.emit("signal_received", {
-      signalId: enriched.id,
-      sourceId: enriched.sourceId,
-      sourceType: enriched.sourceType,
-      ticker: enriched.ticker,
-      companyName: enriched.companyName,
-      detectedAt: enriched.detectedAt,
+      signalId: event.id,
+      sourceId: event.sourceId,
+      sourceType: event.sourceType,
+      ticker: event.ticker,
+      companyName: event.companyName,
+      detectedAt: event.detectedAt,
     });
   }
 
-  /** Accept a typed MarketSignal (scheduler / new sources) via legacy bridge. */
+  /** Accept a typed MarketSignal (scheduler / new sources). */
   async ingestMarketSignal(
     signal: MarketSignal,
     sourceType: SignalSourceType,
   ): Promise<void> {
-    await this.handleSignal(marketSignalToLegacyEvent(signal, sourceType));
+    await this.handleSignal(signalEventFromMarketSignal(signal, sourceType));
   }
 
   /**
@@ -381,19 +370,18 @@ export class SignalBus {
     subscriptions: Array<{ sessionId: string; subscriptionId: string }>,
   ): Promise<void> {
     for (const signal of signals) {
-      const legacyEvent = marketSignalToLegacyEvent(signal, "mock");
-      const enriched = enrichSignalEvent(legacyEvent);
+      const event = signalEventFromMarketSignal(signal, "mock");
+      assertCompleteSignalEvent(event);
 
       // Dedupe check by groupKey + dedupeKey (sourceId is null for scheduled events).
       if (
-        enriched.dedupeKey &&
-        this.eventsRepo.existsByGroupAndDedupeKey(groupKey, enriched.dedupeKey)
+        this.eventsRepo.existsByGroupAndDedupeKey(groupKey, event.dedupeKey)
       ) {
         continue;
       }
 
       try {
-        this.eventsRepo.insertScheduledEvent(enriched, {
+        this.eventsRepo.insertScheduledEvent(event, {
           originKind: "scheduled_scan",
           originId: groupKey,
           scheduleGroupKey: groupKey,
@@ -405,7 +393,7 @@ export class SignalBus {
 
       if (subscriptions.length === 0) {
         this.eventsRepo.markDispatchStatus(
-          enriched.id,
+          event.id,
           "dropped_pre_fanout",
           "no_subscribers",
         );
@@ -413,17 +401,17 @@ export class SignalBus {
       }
 
       for (const { sessionId, subscriptionId } of subscriptions) {
-        await this.deliverOrDeadLetter(sessionId, enriched, subscriptionId);
+        await this.deliverOrDeadLetter(sessionId, event, subscriptionId);
       }
 
-      this.eventsRepo.markDispatchStatus(enriched.id, "fanned_out");
+      this.eventsRepo.markDispatchStatus(event.id, "fanned_out");
       this.eventBus.emit("signal_received", {
-        signalId: enriched.id,
-        sourceId: enriched.sourceId,
-        sourceType: enriched.sourceType,
-        ticker: enriched.ticker,
-        companyName: enriched.companyName,
-        detectedAt: enriched.detectedAt,
+        signalId: event.id,
+        sourceId: event.sourceId,
+        sourceType: event.sourceType,
+        ticker: event.ticker,
+        companyName: event.companyName,
+        detectedAt: event.detectedAt,
       });
     }
   }
@@ -445,30 +433,20 @@ export class SignalBus {
       templateVersion: number;
     }>,
   ): Promise<void> {
-    const legacyEvent = marketSignalToLegacyEvent(signal, sourceType);
-    const enriched = enrichSignalEvent(legacyEvent);
+    const event = signalEventFromMarketSignal(signal, sourceType);
+    assertCompleteSignalEvent(event);
 
     if (
-      enriched.dedupeKey &&
       this.eventsRepo.existsBySourceAndDedupeKey(
-        enriched.sourceId,
-        enriched.dedupeKey,
-      )
-    ) {
-      return;
-    }
-    if (
-      enriched.accessionNumber &&
-      this.eventsRepo.existsBySourceAndAccession(
-        enriched.sourceId,
-        enriched.accessionNumber,
+        event.sourceId,
+        event.dedupeKey,
       )
     ) {
       return;
     }
 
     try {
-      this.eventsRepo.insert(enriched);
+      this.eventsRepo.insert(event);
     } catch (error) {
       if (isUniqueConstraintError(error)) return;
       throw error;
@@ -476,7 +454,7 @@ export class SignalBus {
 
     if (subscriptions.length === 0) {
       this.eventsRepo.markDispatchStatus(
-        enriched.id,
+        event.id,
         "dropped_pre_fanout",
         "no_subscribers",
       );
@@ -484,17 +462,17 @@ export class SignalBus {
     }
 
     for (const { sessionId, subscriptionId } of subscriptions) {
-      await this.deliverOrDeadLetter(sessionId, enriched, subscriptionId);
+      await this.deliverOrDeadLetter(sessionId, event, subscriptionId);
     }
 
-    this.eventsRepo.markDispatchStatus(enriched.id, "fanned_out");
+    this.eventsRepo.markDispatchStatus(event.id, "fanned_out");
     this.eventBus.emit("signal_received", {
-      signalId: enriched.id,
-      sourceId: enriched.sourceId,
-      sourceType: enriched.sourceType,
-      ticker: enriched.ticker,
-      companyName: enriched.companyName,
-      detectedAt: enriched.detectedAt,
+      signalId: event.id,
+      sourceId: event.sourceId,
+      sourceType: event.sourceType,
+      ticker: event.ticker,
+      companyName: event.companyName,
+      detectedAt: event.detectedAt,
     });
   }
 

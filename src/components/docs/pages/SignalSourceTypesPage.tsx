@@ -1,14 +1,28 @@
-import { DocLink, DocParagraph, DocTable } from "../primitives";
+import {
+  DocCallout,
+  DocInlineCode,
+  DocLink,
+  DocParagraph,
+  DocTable,
+} from "../primitives";
 
 export function SignalSourceTypesPage() {
   return (
     <>
       <DocParagraph>
-        Signal sources are global resources. Create them on the Signal Sources
-        page and configure sessions to use them via the Experience Inputs editor.
-        Disabling a source keeps subscriptions intact but moves subscribed
-        sessions to a waiting state.
+        Signal sources are global resources. Create them on Signals & Schedules
+        → Feeds and configure sessions to use them via the Experience Inputs
+        editor. Disabling a source keeps subscriptions intact but moves
+        subscribed sessions to a waiting state.
       </DocParagraph>
+      <DocCallout variant="info" title="Removed types">
+        The former <DocInlineCode>timer</DocInlineCode> and{" "}
+        <DocInlineCode>web_search</DocInlineCode> source types are gone.
+        Schedules live in the Experience Inputs editor; search remains an
+        evidence-engine tool, not a signal source. Migration{" "}
+        <DocInlineCode>0006_purge_deprecated_signal_sources</DocInlineCode>{" "}
+        deletes leftover DB rows.
+      </DocCallout>
       <DocTable
         headers={["Type", "Description", "Typical use"]}
         rows={[
@@ -48,12 +62,41 @@ export function SignalSourceTypesPage() {
             </>,
           ],
           [
-            "web_search",
-            "Deleted as a source — kept for DB compatibility only. Cannot be created or started.",
-            "Removed from the product surface.",
+            "kalshi_market",
+            <>
+              Polls Kalshi markets for dislocations with Kalshi fee costs.
+              Cross-venue divergence vs Polymarket uses the approved match
+              table.
+            </>,
+            "Prediction Event Edge (venue=kalshi) + cross-venue scan.",
+          ],
+          [
+            "calendar",
+            <>
+              Earnings + seeded FOMC/CPI calendar events. Primary consumer is
+              the risk-gate blackout; secondary is Dashboard attention.
+            </>,
+            "Risk hygiene for all equity sessions.",
+          ],
+          [
+            "news_rss",
+            <>
+              PR Newswire / GlobeNewswire / Business Wire RSS. Context
+              enrichment only — does not create trade candidates.
+            </>,
+            "Evidence freshness cross-check.",
           ],
         ]}
       />
+      <DocCallout variant="info" title="Scheduled scans (not source types)">
+        Form 4 insider clusters, unusual volume, funding/basis, and cross-venue
+        dislocation are <DocInlineCode>scheduled_scan</DocInlineCode> strategies
+        registered <DocInlineCode>available</DocInlineCode> in the strategy
+        catalog — they emit <DocInlineCode>scan_hit</DocInlineCode> or{" "}
+        <DocInlineCode>market_dislocation</DocInlineCode> /
+        <DocInlineCode>filing</DocInlineCode> signals via the schedule
+        coordinator.
+      </DocCallout>
     </>
   );
 }

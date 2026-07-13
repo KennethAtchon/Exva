@@ -1,9 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import type { DbClient } from "../../db/client";
-import {
-  sourceDefinitions,
-  sourceDefinitionRevisions,
-} from "../../db/schema";
+import { sourceDefinitions, sourceDefinitionRevisions } from "../../db/schema";
 import type { SourceDefinition } from "@electron/shared/domain/experience-inputs/catalog";
 import type { LiveSignalSourceType } from "@electron/shared/domain/signals";
 
@@ -83,7 +80,9 @@ export class SourceDefinitionRepo {
       )
       .all();
     if (rows.length === 0) return null;
-    const latest = rows.reduce((max, r) => (r.revision > max.revision ? r : max));
+    const latest = rows.reduce((max, r) =>
+      r.revision > max.revision ? r : max,
+    );
     return { revision: latest.revision, config: JSON.parse(latest.configJson) };
   }
 

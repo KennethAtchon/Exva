@@ -28,7 +28,9 @@ describe("signal timing labels", () => {
         pollCadence: "30m",
         analysisTimeframe: "15m",
       }),
-    ).toBe("SPY · on dislocation, polls every 30m · 15m context (odds, not OHLCV)");
+    ).toBe(
+      "SPY · on dislocation, polls every 30m · 15m context (odds, not OHLCV)",
+    );
   });
 
   it("formats event-driven sources with accurate poll and trading labels", () => {

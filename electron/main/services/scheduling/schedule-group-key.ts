@@ -26,9 +26,7 @@ export interface ScheduleGroupKeyInput {
  * The key is deterministic: keys are sorted and cadences are normalized before
  * hashing so that semantically equivalent configurations produce the same key.
  */
-export function computeScheduleGroupKey(
-  input: ScheduleGroupKeyInput,
-): string {
+export function computeScheduleGroupKey(input: ScheduleGroupKeyInput): string {
   const canonical = {
     analysisTimeframe: input.analysisTimeframe,
     cadence: serializeCadenceCanonical(input.cadence),

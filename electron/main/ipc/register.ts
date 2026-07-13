@@ -4,11 +4,12 @@ import { registerApprovalHandlers } from "./trading/approvals";
 import { registerBrokerAccountHandlers } from "./trading/broker-accounts";
 import { registerDashboardHandlers } from "./system/dashboard";
 import { registerDeveloperHandlers } from "./system/developer";
+import { registerOpsHandlers } from "./system/ops";
 import { registerEventHandlers } from "./system/events";
-import { registerReplayHandlers } from "./session/replay";
 import { registerSessionHandlers } from "./session/session";
 import { registerSignalHandlers } from "./signals";
 import { registerStrategyHandlers } from "./workspace/strategy";
+import { registerStrategyConfigHandlers } from "./workspace/strategy-config";
 import { registerTemplateHandlers } from "./session/templates";
 import { registerTradeHandlers } from "./trading/trades";
 import { registerAutopsyHandlers } from "./trading/autopsy";
@@ -18,6 +19,7 @@ import { registerExperienceHandlers } from "./experiences";
 import { registerAnalyticsHandlers } from "./analytics";
 import { registerControlHandlers } from "./control";
 import { registerExperienceCatalogHandlers } from "./experience-catalog";
+import { registerOperatorHandlers } from "./operator";
 
 export function registerIpcHandlers(services: AppServices): void {
   registerExperienceCatalogHandlers(services);
@@ -30,13 +32,15 @@ export function registerIpcHandlers(services: AppServices): void {
   registerApprovalHandlers(services);
   registerSessionHandlers(services);
   registerStrategyHandlers(services);
+  registerStrategyConfigHandlers(services);
   registerWorkspaceHandlers(services);
   registerTemplateHandlers(services);
   registerAccountHandlers(services);
   registerBrokerAccountHandlers(services);
   registerEventHandlers(services);
-  registerReplayHandlers(services);
   registerSignalHandlers(services);
   registerDeveloperHandlers(services);
+  registerOpsHandlers(services);
   registerControlHandlers(services);
+  registerOperatorHandlers(services);
 }

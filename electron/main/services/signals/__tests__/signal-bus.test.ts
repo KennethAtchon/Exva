@@ -25,8 +25,10 @@ function stockSignal(
   sourceId: string,
   overrides?: Partial<SignalEvent>,
 ): SignalEvent {
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
   return {
-    id: crypto.randomUUID(),
+    id,
     sourceId,
     sourceType: "mock",
     ticker: "AAPL",
@@ -34,8 +36,12 @@ function stockSignal(
     documentUrl: null,
     accessionNumber: null,
     payloadJson: { instrumentClass: "stock" },
-    filedAt: new Date().toISOString(),
-    detectedAt: new Date().toISOString(),
+    filedAt: now,
+    detectedAt: now,
+    kind: "manual",
+    dedupeKey: `manual:${id}`,
+    ttl: "PT4H",
+    occurredAt: now,
     ...overrides,
   };
 }
@@ -141,7 +147,9 @@ describe("SignalBus", () => {
     bus.register(source);
     await source.test();
 
-    expect(eventsRepo.listByDispatchStatus("dropped_pre_fanout")).toHaveLength(1);
+    expect(eventsRepo.listByDispatchStatus("dropped_pre_fanout")).toHaveLength(
+      1,
+    );
     const pending = deliveriesRepo.listBySessionFiltered({
       sessionId: createMinimalSession(db).id,
       statusBucket: "pending",
@@ -149,7 +157,7 @@ describe("SignalBus", () => {
     expect(pending).toHaveLength(0);
   });
 
-  it("dedupes events by source and accession number", async () => {
+  it("dedupes events by source and dedupeKey", async () => {
     const { bus, eventsRepo, sourcesRepo } = createHarness(db);
     const sourceRecord = sourcesRepo.create({
       id: "source-edgar",
@@ -162,6 +170,9 @@ describe("SignalBus", () => {
 
     const duplicateEvent = stockSignal(sourceRecord.id, {
       accessionNumber: "0000320193-24-000001",
+      dedupeKey: "0000320193-24-000001",
+      kind: "filing",
+      ttl: "PT6H",
     });
     eventsRepo.insert(duplicateEvent);
 

@@ -11,12 +11,11 @@ function makeInput(overrides: Partial<PolicyGateInput> = {}): PolicyGateInput {
     existingOrderCheck: () => false,
     sessionIsPaused: () => false,
     decisionRiskInput: {
-      config: {
-        strategy: "momentum",
-        max_concurrent_trades: 3,
-        max_position_usd: 500,
-        max_api_spend_usd: 5,
-        human_approval_required: false,
+      riskConfig: {
+        maxConcurrentTrades: 3,
+        maxPositionUsd: 500,
+        maxAiSpendUsd: 5,
+        humanApprovalRequired: false,
       } as never,
       stats: {} as never,
       order: {

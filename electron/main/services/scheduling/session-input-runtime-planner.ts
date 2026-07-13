@@ -5,11 +5,15 @@ import {
   sessionInputSubscriptions,
 } from "../../db/schema";
 import type { TradingTimeframe } from "@electron/shared/domain/enums";
-import { parseCadence, type CadenceSpec } from "@electron/shared/domain/experience-inputs/cadence";
-import type { StrategyDefinitionRegistry } from "../strategies/strategy-definition-registry";
 import {
-  computeScheduleGroupKey,
-} from "./schedule-group-key";
+  parseCadence,
+  type CadenceSpec,
+} from "@electron/shared/domain/experience-inputs/cadence";
+import type { StrategyDefinitionRegistry } from "../strategies/strategy-definition-registry";
+import { computeScheduleGroupKey } from "./schedule-group-key";
+import { createLogger } from "../infra/log";
+
+const logger = createLogger("session-input-runtime-planner");
 
 // ---------------------------------------------------------------------------
 // Runtime plan shape
@@ -105,8 +109,9 @@ export class SessionInputRuntimePlanner {
         !marketCalendarId ||
         !strategyParametersJson
       ) {
-        console.warn(
-          `[SessionInputRuntimePlanner] Subscription ${subscriptionId} is missing required scheduled_scan fields — skipped.`,
+        logger.warn(
+          { subscriptionId },
+          "subscription is missing required scheduled_scan fields — skipped",
         );
         continue;
       }
@@ -124,8 +129,9 @@ export class SessionInputRuntimePlanner {
         .get();
 
       if (!templateRev) {
-        console.warn(
-          `[SessionInputRuntimePlanner] Template revision ${templateId}@v${templateVersion} not found for subscription ${subscriptionId} — skipped.`,
+        logger.warn(
+          { subscriptionId, templateId, templateVersion },
+          "template revision not found — skipped",
         );
         continue;
       }
@@ -133,8 +139,9 @@ export class SessionInputRuntimePlanner {
       const { pipelineId, strategyId } = templateRev;
 
       if (!strategyId) {
-        console.warn(
-          `[SessionInputRuntimePlanner] Template ${templateId}@v${templateVersion} has no strategyId — subscription ${subscriptionId} skipped.`,
+        logger.warn(
+          { subscriptionId, templateId, templateVersion },
+          "template has no strategyId — skipped",
         );
         continue;
       }
@@ -142,14 +149,16 @@ export class SessionInputRuntimePlanner {
       // Resolve implementation version from registry.
       const strategyDef = strategyRegistry.get(strategyId);
       if (!strategyDef) {
-        console.warn(
-          `[SessionInputRuntimePlanner] Strategy "${strategyId}" not registered — subscription ${subscriptionId} skipped.`,
+        logger.warn(
+          { subscriptionId, strategyId },
+          "strategy not registered — skipped",
         );
         continue;
       }
       if (strategyDef.implementationStatus === "disabled") {
-        console.warn(
-          `[SessionInputRuntimePlanner] Strategy "${strategyId}" is disabled — subscription ${subscriptionId} skipped.`,
+        logger.warn(
+          { subscriptionId, strategyId },
+          "strategy is disabled — skipped",
         );
         continue;
       }
@@ -159,9 +168,7 @@ export class SessionInputRuntimePlanner {
       try {
         cadence = parseCadence(JSON.parse(cadenceJson));
       } catch (err) {
-        console.warn(
-          `[SessionInputRuntimePlanner] Invalid cadenceJson for subscription ${subscriptionId}: ${String(err)} — skipped.`,
-        );
+        logger.warn({ subscriptionId, err }, "invalid cadenceJson — skipped");
         continue;
       }
 

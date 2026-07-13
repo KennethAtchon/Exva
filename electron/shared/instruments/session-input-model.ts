@@ -34,8 +34,6 @@ export function formatSignalSourceTypeLabel(type: SignalSourceType): string {
   switch (type) {
     case "edgar_8k":
       return "EDGAR 8-K";
-    case "web_search":
-      return "Web Search (deprecated)";
     case "manual":
       return "Manual";
     case "mock":
@@ -47,10 +45,11 @@ export function formatSignalSourceTypeLabel(type: SignalSourceType): string {
   }
 }
 
-export function formatApproximateTradeHoldLabel(_source: {
+export function formatApproximateTradeHoldLabel(source: {
   id: string;
   type: SignalSourceType;
 }): string | null {
+  void source;
   return null;
 }
 

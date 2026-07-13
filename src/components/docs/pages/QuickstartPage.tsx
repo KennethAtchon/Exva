@@ -18,8 +18,8 @@ export function QuickstartPage() {
         items={[
           <>
             <DocStrong>Accounts</DocStrong> — Add AI provider keys (Anthropic,
-            OpenAI, or OpenRouter) and broker credentials on the Accounts page.
-            Test connections before trading.
+            OpenAI, or OpenRouter) and broker credentials under Settings →
+            Accounts. Test connections before trading.
           </>,
           <>
             <DocStrong>Brokers</DocStrong> — Review broker health, supported{" "}

@@ -9,7 +9,10 @@ import type {
   ExperienceTemplateSummary,
   TemplateStatus,
 } from "@electron/shared/domain/experience-inputs/catalog";
-import type { InputMode, UniversePolicy, TemplateInputContract } from "@electron/shared/domain/experience-inputs/catalog";
+import type {
+  UniversePolicy,
+  TemplateInputContract,
+} from "@electron/shared/domain/experience-inputs/catalog";
 import type { ExperiencePresetIds } from "@electron/shared/domain/signal-descriptor";
 import type { ExperienceResearchContract } from "@electron/shared/domain/research-contract";
 import type { ProcessingMode } from "@electron/shared/domain/enums";
@@ -123,7 +126,9 @@ export class ExperienceTemplateRepo {
   }
 
   /** Idempotent upsert-or-skip for seeding. */
-  createRevisionIfAbsent(input: Parameters<typeof this.createRevision>[0]): ExperienceTemplateRevision {
+  createRevisionIfAbsent(
+    input: Parameters<typeof this.createRevision>[0],
+  ): ExperienceTemplateRevision {
     const existing = this.getRevision(input.templateId, input.version);
     if (existing) return existing;
     this.ensureTemplate(input.templateId);
@@ -175,8 +180,12 @@ function rowToRevision(
     promptVariantKey: row.promptVariantKey as ProcessingMode,
     brokerRequirement: row.brokerRequirement as BrokerRequirement,
     inputContract: JSON.parse(row.inputContractJson) as TemplateInputContract,
-    defaultPresetIds: JSON.parse(row.defaultPresetIdsJson) as ExperiencePresetIds,
-    researchContract: JSON.parse(row.researchContractJson) as ExperienceResearchContract,
+    defaultPresetIds: JSON.parse(
+      row.defaultPresetIdsJson,
+    ) as ExperiencePresetIds,
+    researchContract: JSON.parse(
+      row.researchContractJson,
+    ) as ExperienceResearchContract,
     universePolicy: row.universePolicy as UniversePolicy,
   };
 }

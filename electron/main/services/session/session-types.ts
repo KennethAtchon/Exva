@@ -13,11 +13,8 @@ import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { DecisionTraceRepo } from "../../db/repositories/trades/decision-trace-repo";
 import type { EventsRepo } from "../../db/repositories/system/events-repo";
 import type { ProviderAccountsRepo } from "../../db/repositories/workspace/provider-accounts-repo";
-import type { SessionAiPhasesRepo } from "../../db/repositories/sessions/session-ai-phases-repo";
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
-import type { SessionStrategiesRepo } from "../../db/repositories/sessions/session-strategies-repo";
-import type { SessionSelectorSettingsRepo } from "../../db/repositories/sessions/session-selector-settings-repo";
 import type { SessionExecutionStepsRepo } from "../../db/repositories/sessions/session-execution-steps-repo";
 import type { StatsRepo } from "../../db/repositories/system/stats-repo";
 import type { TradeApprovalsRepo } from "../../db/repositories/trades/trade-approvals-repo";
@@ -64,7 +61,6 @@ export interface RuntimeTradeMonitor {
 
 export interface OrchestratorDeps {
   sessionRepo: SessionRepo;
-  sessionStrategiesRepo: SessionStrategiesRepo;
   strategyContextService: SessionStrategyContextService;
   tradesRepo: TradesRepo;
   decisionTracesRepo: DecisionTraceRepo;
@@ -73,8 +69,6 @@ export interface OrchestratorDeps {
   agentMessagesRepo: AgentMessagesRepo;
   eventsRepo: EventsRepo;
   statsRepo: StatsRepo;
-  sessionAiPhasesRepo: SessionAiPhasesRepo;
-  sessionSelectorSettingsRepo: SessionSelectorSettingsRepo;
   sessionExecutionStepsRepo: SessionExecutionStepsRepo;
   providerAccountsRepo: ProviderAccountsRepo;
   workspacePreferencesRepo: WorkspacePreferencesRepo;
@@ -99,6 +93,8 @@ export interface OrchestratorDeps {
   signalDeliveryLifecycle?: import("../signals/signal-delivery-lifecycle").SignalDeliveryLifecycle;
   signalSourcesRepo: SignalSourcesRepo;
   signalObservationsRepo: SignalObservationsRepo;
+  /** Optional — risk-gate calendar blackout lookups. */
+  calendarEventsRepo?: import("../../db/repositories/signals/calendar-events-repo").CalendarEventsRepo;
   /** Optional supervisor for consecutive-skip / drawdown / drift alarms. */
   supervisor?: import("../supervisor/supervisor-service").SupervisorService;
 }

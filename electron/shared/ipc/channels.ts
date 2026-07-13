@@ -2,6 +2,7 @@ export const channels = {
   dashboard: {
     getStats: "dashboard:get-stats",
     getCostBreakdown: "dashboard:get-cost-breakdown",
+    getCalendarAttention: "dashboard:get-calendar-attention",
   },
   trades: {
     listActive: "trades:list-active",
@@ -36,11 +37,6 @@ export const channels = {
     list: "experiences:list",
     getScorecard: "experiences:getScorecard",
     listScorecards: "experiences:listScorecards",
-    listExperiments: "experiences:listExperiments",
-    recordExperiment: "experiences:recordExperiment",
-    compareExperiments: "experiences:compareExperiments",
-    getResearchSummary: "experiences:getResearchSummary",
-    approveLadderUpgrade: "experiences:approveLadderUpgrade",
   },
   session: {
     start: "session:start",
@@ -62,11 +58,8 @@ export const channels = {
     duplicate: "session:duplicate",
     instrumentCacheGet: "session:instrument-cache:get",
     instrumentCacheClear: "session:instrument-cache:clear",
-    buildCycleFixture: "session:buildCycleFixture",
-    saveCycleFixture: "session:saveCycleFixture",
     debugInjectSignal: "session:debug-inject-signal",
     debugForceTrade: "session:debug-force-trade",
-    getPaperScorecard: "session:getPaperScorecard",
     getLiveReadiness: "session:getLiveReadiness",
     acknowledgeLiveReadiness: "session:acknowledgeLiveReadiness",
     testLiveBrokerConnection: "session:testLiveBrokerConnection",
@@ -84,26 +77,19 @@ export const channels = {
   },
   strategy: {
     get: "strategy:get",
-    getResearchPosture: "strategy:get-research-posture",
-    saveResearchPosture: "strategy:save-research-posture",
-    getRules: "strategy:get-rules",
-    saveRules: "strategy:save-rules",
-    getRiskConfig: "strategy:get-risk-config",
-    saveRiskConfig: "strategy:save-risk-config",
-    getTimeframeConfig: "strategy:get-timeframe-config",
-    saveTimeframeConfig: "strategy:save-timeframe-config",
-    saveAiSettings: "strategy:save-ai-settings",
-    saveAiPhase: "strategy:save-ai-phase",
-    saveAiPhaseWorker: "strategy:save-ai-phase-worker",
     getProviderModels: "strategy:get-provider-models",
-    globalPresets: {
-      list: "strategy:global-presets:list",
-      create: "strategy:global-presets:create",
-      update: "strategy:global-presets:update",
-      delete: "strategy:global-presets:delete",
-    },
     getWorkspaceDefaultModel: "strategy:workspace-default-model:get",
     saveWorkspaceDefaultModel: "strategy:workspace-default-model:save",
+  },
+  strategyConfig: {
+    get: "strategyConfig:get",
+    update: "strategyConfig:update",
+    applyPreset: "strategyConfig:applyPreset",
+    listPresets: "strategyConfig:listPresets",
+    savePreset: "strategyConfig:savePreset",
+    deletePreset: "strategyConfig:deletePreset",
+    history: "strategyConfig:history",
+    rollback: "strategyConfig:rollback",
   },
   signals: {
     sources: {
@@ -144,6 +130,7 @@ export const channels = {
     list: "broker-accounts:list",
     refreshBalance: "broker-accounts:refresh-balance",
     updateSettings: "broker-accounts:update-settings",
+    resetPaperBalance: "broker-accounts:reset-paper-balance",
   },
   events: {
     list: "events:list",
@@ -178,6 +165,56 @@ export const channels = {
     exportDebugBundle: "developer:export-debug-bundle",
     openPath: "developer:open-path",
     listEventsV2: "events:list-v2",
+  },
+  ops: {
+    getBackupStatus: "ops:get-backup-status",
+    runBackupNow: "ops:run-backup-now",
+    getNotificationRouting: "ops:get-notification-routing",
+    updateNotificationRouting: "ops:update-notification-routing",
+    testNotificationSink: "ops:test-notification-sink",
+    setTelegramSecret: "ops:set-telegram-secret",
+    clearTelegramSecret: "ops:clear-telegram-secret",
+    listAlarms: "ops:list-alarms",
+    triggerTestAlarm: "ops:trigger-test-alarm",
+  },
+  palette: {
+    query: "palette:query",
+  },
+  backtest: {
+    run: "backtest:run",
+    list: "backtest:list",
+    get: "backtest:get",
+    compare: "backtest:compare",
+    sweep: "backtest:sweep",
+    listStrategies: "backtest:list-strategies",
+  },
+  dataDoctor: {
+    coverage: "data-doctor:coverage",
+    gaps: "data-doctor:gaps",
+    backfill: "data-doctor:backfill",
+    providerHealth: "data-doctor:provider-health",
+    setProviderEnabled: "data-doctor:set-provider-enabled",
+    runNightlyGapCheck: "data-doctor:run-nightly-gap-check",
+  },
+  briefing: {
+    latest: "briefing:latest",
+    list: "briefing:list",
+    get: "briefing:get",
+    assemble: "briefing:assemble",
+  },
+  equity: {
+    curve: "equity:curve",
+    attribution: "equity:attribution",
+    snapshotNow: "equity:snapshot-now",
+  },
+  whatIf: {
+    run: "what-if:run",
+  },
+  killSwitch: {
+    pauseAll: "kill-switch:pause-all",
+    killSession: "kill-switch:kill-session",
+    gauges: "kill-switch:gauges",
+    flattenAll: "kill-switch:flatten-all",
   },
   experienceCatalog: {
     templates: {
@@ -234,6 +271,8 @@ export const mainToRendererEvents = [
   "control_confirmation_required",
   "control_turn_complete",
   "control_error",
+  "backtest_progress",
+  "equity_snapshot",
 ] as const;
 
 export type ExvaEventName = (typeof mainToRendererEvents)[number];

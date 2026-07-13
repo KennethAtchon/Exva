@@ -62,8 +62,6 @@ function sourceTypeSymbol(
       return "EDGAR 8-K";
     case "prediction_event":
       return "Prediction Event";
-    case "web_search":
-      return "Web Search";
     case "mock":
       return "Mock";
     case "manual":
@@ -112,11 +110,6 @@ export function summarizeSignalTiming(input: {
         pollLabel: pollCadence
           ? `on dislocation, polls every ${pollCadence}`
           : "on dislocation, polls every 15m",
-        tradingTimeframeLabel,
-      };
-    case "web_search":
-      return {
-        pollLabel: "on search refresh",
         tradingTimeframeLabel,
       };
     case "mock":

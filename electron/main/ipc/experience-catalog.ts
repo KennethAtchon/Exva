@@ -28,22 +28,25 @@ export function registerExperienceCatalogHandlers(services: AppServices): void {
         templateId: string;
         templateVersion: number;
       };
-      return services.sessionInputConfiguration.getConfigurationOptions(templateId, templateVersion);
+      return services.sessionInputConfiguration.getConfigurationOptions(
+        templateId,
+        templateVersion,
+      );
     },
   );
 
-  handle(
-    ipcMain,
-    channels.experienceCatalog.validateDraft,
-    async (payload) => {
-      const { templateId, templateVersion, subscriptions } = payload as {
-        templateId: string;
-        templateVersion: number;
-        subscriptions: SessionInputSubscriptionDraft[];
-      };
-      return services.sessionInputConfiguration.validateDraft({ templateId, templateVersion, subscriptions });
-    },
-  );
+  handle(ipcMain, channels.experienceCatalog.validateDraft, async (payload) => {
+    const { templateId, templateVersion, subscriptions } = payload as {
+      templateId: string;
+      templateVersion: number;
+      subscriptions: SessionInputSubscriptionDraft[];
+    };
+    return services.sessionInputConfiguration.validateDraft({
+      templateId,
+      templateVersion,
+      subscriptions,
+    });
+  });
 
   // ------------------------------------------------------------------
   // Instrument sets
@@ -55,9 +58,10 @@ export function registerExperienceCatalogHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.instrumentSets.get, async (payload) => {
     const { setId, revision } = payload as { setId: string; revision?: number };
-    const result = revision != null
-      ? services.instrumentSetService.getRevision(setId, revision)
-      : services.instrumentSetService.getActive(setId);
+    const result =
+      revision != null
+        ? services.instrumentSetService.getRevision(setId, revision)
+        : services.instrumentSetService.getActive(setId);
     return { set: result };
   });
 
@@ -97,24 +101,35 @@ export function registerExperienceCatalogHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.sessionInputs.get, async (payload) => {
     const { sessionId } = payload as { sessionId: string };
-    return { configuration: services.sessionInputConfiguration.getConfiguration(sessionId) };
+    return {
+      configuration:
+        services.sessionInputConfiguration.getConfiguration(sessionId),
+    };
   });
 
   handle(ipcMain, channels.sessionInputs.replace, async (payload) => {
-    const { sessionId, templateId, templateVersion, subscriptions, expectedRevision } =
-      payload as {
-        sessionId: string;
-        templateId: string;
-        templateVersion: number;
-        subscriptions: SessionInputSubscriptionDraft[];
-        expectedRevision: number;
-      };
-    const configuration = services.sessionInputConfiguration.replaceInputs(sessionId, {
+    const {
+      sessionId,
       templateId,
       templateVersion,
       subscriptions,
       expectedRevision,
-    });
+    } = payload as {
+      sessionId: string;
+      templateId: string;
+      templateVersion: number;
+      subscriptions: SessionInputSubscriptionDraft[];
+      expectedRevision: number;
+    };
+    const configuration = services.sessionInputConfiguration.replaceInputs(
+      sessionId,
+      {
+        templateId,
+        templateVersion,
+        subscriptions,
+        expectedRevision,
+      },
+    );
     const planner = new SessionInputRuntimePlanner({
       db: services.db,
       strategyRegistry: getStrategyDefinitionRegistry(),

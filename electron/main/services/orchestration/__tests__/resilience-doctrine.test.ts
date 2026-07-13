@@ -394,12 +394,13 @@ function createDoctrineContext() {
       }),
     },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         riskConfig: { waitForOpenThreshold: 0.8 },
       }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: {
       upsert: vi.fn((step) => step),
@@ -435,12 +436,13 @@ function createOrchestratorHarness() {
       getStatus: () => "active",
     },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         riskConfig: { waitForOpenThreshold: 0.8 },
       }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: {
       upsert: vi.fn(),
@@ -509,6 +511,10 @@ function createTradeHarness(sessionId: string) {
       uptimeMin: () => 0,
     },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         researchPosture: {},
         rules: { sideBias: "long_only" },
@@ -587,9 +593,6 @@ function createTradeHarness(sessionId: string) {
         unrealized_pnl: 0,
         session_uptime_min: 0,
       }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: {
       upsert: vi.fn((step) => step),

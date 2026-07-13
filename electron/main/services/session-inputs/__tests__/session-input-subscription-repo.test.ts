@@ -110,7 +110,12 @@ describe("SessionInputSubscriptionRepo", () => {
           templateVersion: 1,
           instrumentSetId: "liquid-us-etfs",
           instrumentSetRevision: 1,
-          cadence: { kind: "interval", every: 1, unit: "hour", jitterPct: 0.05 },
+          cadence: {
+            kind: "interval",
+            every: 1,
+            unit: "hour",
+            jitterPct: 0.05,
+          },
           analysisTimeframe: "1h",
           marketCalendarId: "nyse-regular",
           strategyParameters: {},
@@ -124,9 +129,9 @@ describe("SessionInputSubscriptionRepo", () => {
 
   it("replaceSessionSubscriptions throws on revision conflict", () => {
     insertSession(db, "session-4");
-    expect(() =>
-      repo.replaceSessionSubscriptions("session-4", [], 99),
-    ).toThrow(/concurrency/i);
+    expect(() => repo.replaceSessionSubscriptions("session-4", [], 99)).toThrow(
+      /concurrency/i,
+    );
   });
 
   it("getConfiguration returns current subscriptions and revision", () => {

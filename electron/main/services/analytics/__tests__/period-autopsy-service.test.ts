@@ -57,8 +57,7 @@ const SAMPLE_TRADE = {
 function makeLesson(overrides: Partial<AutopsyLesson> = {}): AutopsyLesson {
   return {
     id: "lesson-1",
-    autopsyId: null,
-    periodAutopsyId: "period-0",
+    autopsyId: "period-0",
     tradeId: null,
     sessionId: "session-1",
     lesson: "Stop moving stops in drawdown.",
@@ -149,15 +148,15 @@ function createService(options?: {
     trades: {
       listClosedInWindow: () => [SAMPLE_TRADE],
     } as never,
-    tradeAutopsies: { findLatest: () => null } as never,
     agentMessages: {
       listByTrades: () => [],
     } as never,
     autopsies: {
       findLatestByScope: vi.fn(() => options?.latestAutopsy ?? null),
-      insert: recordInsert,
+      findLatestByTrade: () => null,
+      insertPeriod: recordInsert,
       listByScope: vi.fn(),
-      require: vi.fn(),
+      requirePeriod: vi.fn(),
     } as never,
     lessons: {
       listByScope: () => options?.priorLessons ?? [],
@@ -220,7 +219,7 @@ describe("PeriodAutopsyService", () => {
     expect(recordInsert).toHaveBeenCalledTimes(1);
     expect(lessonInsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        periodAutopsyId: "period-new",
+        autopsyId: "period-new",
         source: "period",
         scope: "session",
       }),

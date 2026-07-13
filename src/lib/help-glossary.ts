@@ -64,6 +64,39 @@ export const HELP_GLOSSARY = {
     title: "Prediction event",
     body: "Events from prediction-market platforms for prediction-market experiences.",
   },
+  "signal-type-kalshi-market": {
+    title: "Kalshi market",
+    body: "Polls Kalshi for odds dislocations with venue fee costs; feeds the prediction-event pipeline.",
+  },
+  "signal-type-calendar": {
+    title: "Calendar events",
+    body: "Earnings and macro (FOMC/CPI) dates used for risk-gate blackouts and Dashboard attention.",
+  },
+  "signal-type-news-rss": {
+    title: "News wire (RSS)",
+    body: "Wire RSS headlines for evidence enrichment and freshness cross-checks — not standalone news trading.",
+  },
+  "alpha-form4-cluster": {
+    title: "Form 4 insider cluster",
+    body: "Scheduled scan: multiple officers/directors open-market buying within a window → filing signal.",
+  },
+  "alpha-unusual-volume": {
+    title: "Unusual volume",
+    body: "Scheduled scan: relative volume vs 20-day baseline plus price break → scan_hit.",
+  },
+  "alpha-cross-venue": {
+    title: "Cross-venue dislocation",
+    body: "Approved Polymarket↔Kalshi matches with mid divergence net of fees; trades the cheap side only.",
+  },
+  "alpha-funding-basis": {
+    title: "Funding / basis",
+    body: "Crypto funding-rate extremes vs trailing window; context enrichment plus spot mean-reversion contract.",
+  },
+  "calendar-blackout": {
+    title: "Calendar blackout",
+    body: "Calendar blackout risk gate that blocks new entries within ±N hours of a binary calendar event unless the experience is event-typed.",
+  },
+
   "experience-edgar-catalyst": {
     title: "EDGAR catalyst",
     body: "Trades post-8-K drift on US equities using filing-driven signals and a catalyst-focused pipeline.",
@@ -423,6 +456,62 @@ export const HELP_GLOSSARY = {
   "strategy-ai-phases": {
     title: "AI phases",
     body: "Per-phase model, prompt, and tool configuration for the research pipeline.",
+  },
+  "strategy-config-history": {
+    title: "Config history",
+    body: "Prior versions of this session's strategy document. Open a version to compare sections, then roll back if a change went wrong.",
+  },
+  supervisor: {
+    title: "Supervisor",
+    body: "Background health monitor: session heartbeats, consecutive-skip alarms, data freshness, daily-loss and drawdown kill switches, drift, AI-spend, feed degradation, and backup failures. Kill/attention alarms push immediately; digests batch until the configured local hour.",
+  },
+  "notification-sink": {
+    title: "Notification sink",
+    body: "Where supervisor alarms go: in-app, optional ntfy topic, and optional Telegram bot (token + chat id in Keychain as notify:telegram). Test buttons live on Settings → Accounts → Ops & notifications.",
+  },
+  "db-backup": {
+    title: "DB backup",
+    body: "Online snapshot of the SQLite daily DB (sqlite3 .backup, prune 30). Runs automatically before migrations at boot and on the nightly job; also via bun run db:backup or Settings → Accounts → Backup now.",
+  },
+  hub: {
+    title: "Hub",
+    body: "One of five primary operator surfaces: Dashboard, Sessions, Signals & Schedules, Research, Settings. Docs is standalone; TradeDetail stays a drill-in.",
+  },
+  "command-palette": {
+    title: "Command palette",
+    body: "⌘K opens fuzzy actions + entity search (sessions, trades, instruments, docs, settings). Destructive actions require a second Enter to confirm. Assistant is available as an action; it no longer owns ⌘K.",
+  },
+  "backtest-lab": {
+    title: "Backtest Lab",
+    body: "Research hub surface to run, compare, and threshold-sweep deterministic strategies. Sweeps always write experience_experiments rows so false-discovery accounting sees every trial.",
+  },
+  "data-doctor": {
+    title: "Data Doctor",
+    body: "Signals hub coverage matrix: freshness, gap detection inside claimed ranges, one-click backfill, and provider health. Nightly gap check notifies on holes.",
+  },
+  "morning-briefing": {
+    title: "Morning briefing",
+    body: "Nightly-assembled operator digest (P&L, trades, alarms, calendar, AI spend, coverage) persisted in briefings and delivered via sinks. Dashboard shows the latest narrative.",
+  },
+  "equity-curve": {
+    title: "Equity curve",
+    body: "Hourly + on-trade-close snapshots of portfolio equity (broker/paper balances + open marks). Stale marks are labeled, not faked. Research attribution overlays net-of-AI-spend.",
+  },
+  "what-if-replay": {
+    title: "What-if replay",
+    body: "On TradeDetail for closed trades: re-run deterministic gates with different thresholds while freezing LLM stage outputs. Clearly labeled counterfactual; Save writes an experience_experiments row.",
+  },
+  "kill-switch-panel": {
+    title: "Kill switch",
+    body: "Dashboard emergency panel: pause-all, per-session kill, drawdown/loss gauges, live-readiness ack state, and flatten-everything (type FLATTEN). Same actions exist in the ⌘K palette.",
+  },
+  headless: {
+    title: "Headless mode",
+    body: "Runs main-process services (sessions, supervisor, nightly jobs) without a window. Start with bun run headless or install the launchd agent. Opening the GUI signals headless to exit and takes over.",
+  },
+  "prove-harness": {
+    title: "Prove harness",
+    body: "bun run prove asserts trade loops. Modes: mock (CI golden path), alpaca (loud fail without keys/real paper fill), polymarket (gamma-api + ghost place→fill→close; fails loud if gamma unreachable).",
   },
   "session-templates": {
     title: "Session templates",

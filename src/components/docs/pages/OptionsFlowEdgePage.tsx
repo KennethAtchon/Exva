@@ -16,8 +16,13 @@ export function OptionsFlowEdgePage() {
         (UOA) into a directional trading signal. Each cycle it pulls the option
         chain for a liquid underlying, screens for{" "}
         <DocInlineCode>volume &gt;&gt; open interest</DocInlineCode> with a
-        directional call/put skew, and trades on the resulting read. The screen
-        is fully deterministic — no LLM calls in v1.
+        directional call/put skew, then selects a{" "}
+        <DocStrong>defined-risk debit vertical</DocStrong> (max loss = net
+        debit) and places it via Tradier{" "}
+        <DocInlineCode>placeSpread</DocInlineCode>. Evidence class is{" "}
+        <DocStrong>forward-paper</DocStrong> — historical option-chain
+        backtesting is out of reach. The UOA screen is deterministic; no LLM
+        calls in the detector.
       </DocParagraph>
 
       <DocHeading id="how-it-works">How it works</DocHeading>

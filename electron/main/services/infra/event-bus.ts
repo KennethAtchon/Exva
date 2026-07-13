@@ -162,6 +162,17 @@ export interface ExvaEventMap {
     message: string;
     code: string | null;
   };
+  backtest_progress: {
+    runId: string;
+    phase: "loading" | "running" | "persisting" | "done" | "error";
+    message: string;
+    pct: number;
+  };
+  equity_snapshot: {
+    ts: string;
+    total: number;
+    marksStale: boolean;
+  };
 }
 
 export class EventBus {

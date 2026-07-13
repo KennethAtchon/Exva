@@ -63,6 +63,10 @@ function createContext() {
       uptimeMin: () => 0,
     },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         researchPosture: {},
         rules: { sideBias: "long_only", setupType: "momentum" },
@@ -79,9 +83,6 @@ function createContext() {
           maxHoldDays: 1,
         },
       }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: { upsert: vi.fn() },
     eventsRepo: { insert: vi.fn((event) => event) },

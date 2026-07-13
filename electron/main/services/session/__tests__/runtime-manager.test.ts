@@ -6,8 +6,6 @@ import { AgentMessagesRepo } from "../../../db/repositories/agents/agent-message
 import { AgentRunsRepo } from "../../../db/repositories/agents/agent-runs-repo";
 import { EventsRepo } from "../../../db/repositories/system/events-repo";
 import { SessionRepo } from "../../../db/repositories/sessions/session-repo";
-import { SessionRiskConfigRepo } from "../../../db/repositories/sessions/session-risk-config-repo";
-import { SessionTradeRulesRepo } from "../../../db/repositories/sessions/session-trade-rules-repo";
 import { StatsRepo } from "../../../db/repositories/system/stats-repo";
 import { TradeApprovalsRepo } from "../../../db/repositories/trades/trade-approvals-repo";
 import { TradesRepo } from "../../../db/repositories/trades/trades-repo";
@@ -16,19 +14,14 @@ import { BrokerAccountsRepo } from "../../../db/repositories/brokers/broker-acco
 import { BrokerRoutingRepo } from "../../../db/repositories/brokers/broker-routing-repo";
 import { CapitalReservationsRepo } from "../../../db/repositories/trades/capital-reservations-repo";
 import { ProviderAccountsRepo } from "../../../db/repositories/workspace/provider-accounts-repo";
-import { SessionAiPhasesRepo } from "../../../db/repositories/sessions/session-ai-phases-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/sessions/session-broker-assignments-repo";
 import { SqliteSessionExecutionStepsRepo } from "../../../db/repositories/sessions/session-execution-steps-repo";
-import { SessionSelectorSettingsRepo } from "../../../db/repositories/sessions/session-selector-settings-repo";
-import { SessionStrategiesRepo } from "../../../db/repositories/sessions/session-strategies-repo";
-import { SessionTimeframeConfigRepo } from "../../../db/repositories/sessions/session-timeframe-config-repo";
-import { SessionResearchPostureRepo } from "../../../db/repositories/sessions/session-research-posture-repo";
-import { SessionAiSettingsRepo } from "../../../db/repositories/sessions/session-ai-settings-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
 import { InstrumentCacheRepo } from "../../../db/repositories/market/instrument-cache-repo";
 import { EventBus } from "../../infra/event-bus";
 import { createLogger } from "../../infra/log";
 import { SessionStrategyContextService } from "../session-strategy-context-service";
+import { SessionStrategyConfigService } from "../session-strategy-config-service";
 import { SessionRuntimeManager } from "../session-runtime-manager";
 import { SignalSourcesRepo } from "../../signals/repos/signal-sources-repo";
 import { SignalObservationsRepo } from "../../../db/repositories/research/signal-observations-repo";
@@ -118,27 +111,18 @@ function createManager(
   const eventsRepo = new EventsRepo(db);
   const statsRepo = new StatsRepo(db);
   const eventBus = new EventBus();
-  const sessionAiPhasesRepo = new SessionAiPhasesRepo(db);
-  const sessionSelectorSettingsRepo = new SessionSelectorSettingsRepo(db);
   const sessionExecutionStepsRepo = new SqliteSessionExecutionStepsRepo(db);
   const providerAccountsRepo = new ProviderAccountsRepo(db);
   const workspacePreferencesRepo = new WorkspacePreferencesRepo(db);
+  const strategyConfig = new SessionStrategyConfigService(db);
   const strategyContextService = new SessionStrategyContextService({
     sessionRepo,
-    researchPostureRepo: new SessionResearchPostureRepo(db),
-    rulesRepo: new SessionTradeRulesRepo(db),
-    riskRepo: new SessionRiskConfigRepo(db),
-    timeframeRepo: new SessionTimeframeConfigRepo(db),
-    aiSettingsRepo: new SessionAiSettingsRepo(db),
-    selectorSettingsRepo: sessionSelectorSettingsRepo,
+    strategyConfig,
     providerAccountsRepo,
     workspacePrefsRepo: workspacePreferencesRepo,
-    sessionAiPhasesRepo,
   });
-
   return new SessionRuntimeManager({
     sessionRepo,
-    sessionStrategiesRepo: new SessionStrategiesRepo(db),
     strategyContextService,
     tradesRepo,
     decisionTracesRepo: new DecisionTraceRepo(db),
@@ -147,8 +131,6 @@ function createManager(
     agentRunsRepo,
     eventsRepo,
     statsRepo,
-    sessionAiPhasesRepo,
-    sessionSelectorSettingsRepo,
     sessionExecutionStepsRepo,
     providerAccountsRepo,
     workspacePreferencesRepo,

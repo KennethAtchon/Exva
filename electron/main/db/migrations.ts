@@ -4,6 +4,8 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import * as schema from "./schema";
 import { resolveMigrationsFolder } from "./migrations-folder";
 import { runSeed } from "./seed";
+import { backfillSessionStrategyConfigs } from "./session-strategy-config-backfill";
+import { dropLegacySessionConfigTables } from "./drop-legacy-session-config-tables";
 
 export interface RunMigrationsOptions {
   rebuildFromScratch?: boolean;
@@ -38,5 +40,11 @@ export function runMigrations(
 
   const db = drizzle(sqlite, { schema });
   migrate(db, { migrationsFolder: resolveMigrationsFolder() });
-  runSeed(db, { sqlite, db });
+  runSeed(db, { sqlite, db, dbPath: ":memory:" });
+  // 0009: Zod-validated assembly of session_strategy_configs + config_presets.
+  // Reads legacy tables when still present (upgrade path). Seed already
+  // populates config_presets for fresh DBs.
+  backfillSessionStrategyConfigs(sqlite);
+  // 0010: drop fourteen legacy config/preset tables after backfill.
+  dropLegacySessionConfigTables(sqlite);
 }

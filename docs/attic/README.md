@@ -4,9 +4,13 @@ Archived plans and reviews kept for historical reference. **Excluded from agent 
 
 ## Contents
 
-| Path              | Origin                                                        |
-| ----------------- | ------------------------------------------------------------- |
-| `plans-archieve/` | Former `docs/plans/archieve/` (typo preserved in folder name) |
-| `archive/`        | Former `docs/archive/`                                        |
+| Path                                                      | Origin                                                          |
+| --------------------------------------------------------- | --------------------------------------------------------------- |
+| `plans-archieve/`                                         | Former `docs/plans/archieve/` (typo preserved in folder name)   |
+| `archive/`                                                | Former `docs/archive/`                                          |
+| `legacy-ipc-inventory.md`                                 | Former `docs/plans/legacy-ipc-inventory.md` (finish-line/01 T4) |
+| `configurable-experience-input-architecture-deep-plan.md` | Former `docs/plans/…` (finish-line/01 T6; Status: Complete)     |
+| `phase-6-config-diet.md`                                  | Former `docs/plans/phase-6-config-diet.md` (finish-line/02)     |
+| `polymarket-paper-mode.md`                                | Former `docs/plans/polymarket-paper-mode.md` (finish-line/05)   |
 
 Active plans live under `docs/plans/`. Architecture and specs live under `docs/architecture/` and `docs/specs/`.

@@ -20,6 +20,20 @@ export interface InstrumentRef {
   metadataJson?: string | null;
 }
 
+/**
+ * One leg of a multi-leg (spread) order. Used by Tradier verticals and similar.
+ * When `legs` is present on BrokerOrderV2, adapters that advertise
+ * `supportsMultileg` route through the venue's multileg API; others refuse.
+ */
+export interface OrderLeg {
+  symbol: string;
+  side: "BUY" | "SELL";
+  /** Absolute contract/share quantity for this leg. */
+  quantity: number;
+  /** Optional open/close hint for options venues. */
+  positionEffect?: "open" | "close";
+}
+
 export interface BrokerOrderV2 {
   clientOrderId: string;
   instrument: InstrumentRef;
@@ -30,6 +44,11 @@ export interface BrokerOrderV2 {
   stopPrice?: number;
   timeInForce: TimeInForce;
   bracket?: { stopLossPrice?: number; takeProfitPrice?: number };
+  /**
+   * Multi-leg spread definition. When set, `instrument.symbol` is the
+   * underlying and `limitPrice` is the net debit/credit (Tradier debit/credit).
+   */
+  legs?: OrderLeg[];
 }
 
 export interface AdapterCapabilities {
@@ -38,6 +57,8 @@ export interface AdapterCapabilities {
   supportsStopLimit: boolean;
   supportsBracket: boolean;
   supportsStreaming: boolean;
+  /** Vertical / multi-leg spreads via OrderLeg[]. Default false. */
+  supportsMultileg?: boolean;
   quantityKinds: ReadonlyArray<OrderQuantity["kind"]>;
   timeInForce: ReadonlyArray<TimeInForce>;
   orderTypes: ReadonlyArray<OrderType>;
@@ -59,8 +80,7 @@ export const ALPACA_CAPABILITIES: AdapterCapabilities = {
   supportsStop: true,
   supportsStopLimit: true,
   supportsBracket: true,
-  // Poll-based OrderEventFeed only for now; flip true when trade_updates WS ships.
-  supportsStreaming: false,
+  supportsStreaming: true,
   quantityKinds: ["notional_usd", "units"],
   timeInForce: ["day", "gtc", "ioc", "fok"],
   orderTypes: ["market", "limit", "stop", "stop_limit"],
@@ -182,8 +202,48 @@ export function adapterSupportsOrder(
   if (order.bracket && !caps.supportsBracket) {
     return { ok: false, reason: "bracket orders unsupported" };
   }
+  if (order.legs && order.legs.length > 0 && !caps.supportsMultileg) {
+    return { ok: false, reason: "multileg / spread orders unsupported" };
+  }
   return { ok: true };
 }
+
+export const KALSHI_CAPABILITIES: AdapterCapabilities = {
+  supportsLimit: true,
+  supportsStop: false,
+  supportsStopLimit: false,
+  supportsBracket: false,
+  supportsStreaming: true,
+  supportsMultileg: false,
+  quantityKinds: ["units"],
+  timeInForce: ["gtc", "ioc", "fok"],
+  orderTypes: ["market", "limit"],
+};
+
+export const TRADIER_CAPABILITIES: AdapterCapabilities = {
+  supportsLimit: true,
+  supportsStop: true,
+  supportsStopLimit: true,
+  // OTO/OCO exist on Tradier but TradeMonitor owns exits today.
+  supportsBracket: false,
+  supportsStreaming: true,
+  supportsMultileg: true,
+  quantityKinds: ["units", "notional_usd"],
+  timeInForce: ["day", "gtc", "ioc", "fok"],
+  orderTypes: ["market", "limit", "stop", "stop_limit"],
+};
+
+export const KRAKEN_CAPABILITIES: AdapterCapabilities = {
+  supportsLimit: true,
+  supportsStop: true,
+  supportsStopLimit: false,
+  supportsBracket: false,
+  supportsStreaming: true,
+  supportsMultileg: false,
+  quantityKinds: ["units", "notional_usd"],
+  timeInForce: ["gtc", "ioc"],
+  orderTypes: ["market", "limit", "stop"],
+};
 
 /** Order lifecycle events for TradeMonitor (stream or poll). */
 export type OrderEventKind =

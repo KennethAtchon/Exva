@@ -8,10 +8,7 @@ import type { SignalSourceRecord } from "@electron/shared/domain";
 import { resolveMockRehearsalTicker } from "@electron/shared/instruments/mock-rehearsal";
 import { env } from "../config/env";
 import type { SignalSourcesRepo } from "../services/signals/repos/signal-sources-repo";
-import {
-  ensureMockRehearsalSignalSource,
-  syncMockRehearsalSignalSourceTicker,
-} from "./ensure-mock-rehearsal-signal-source";
+import { ensureMockRehearsalSignalSource } from "./ensure-mock-rehearsal-signal-source";
 import { migrateEligibleSessionsToMockRehearsal } from "./migrate-mock-rehearsal-subscriptions";
 
 export {
@@ -69,22 +66,6 @@ export function bootstrapMockRehearsalSignalSource(
   return source;
 }
 
-/** Sync ticker on the mock-rehearsal source and restart runtime if present. */
-export function syncMockRehearsalRuntimeTicker(
-  sourcesRepo: SignalSourcesRepo,
-  registry: MockRehearsalRegistry,
-  ticker: string,
-): SignalSourceRecord {
-  const source = syncMockRehearsalSignalSourceTicker(sourcesRepo, ticker);
-  const runtime = registry.get(source.id);
-  if (runtime) {
-    void runtime.restart(
-      JSON.parse(source.configJson) as Record<string, unknown>,
-    );
-  }
-  return source;
-}
-
 export function bootstrapMockRehearsal(deps: {
   sourcesRepo: SignalSourcesRepo;
   registry: MockRehearsalRegistry;
@@ -103,12 +84,6 @@ export function bootstrapMockRehearsal(deps: {
   bootstrapMockRehearsalSignalSource(deps.sourcesRepo, deps.registry);
   // V2: session subscriptions are managed via session_input_subscriptions.
   // migrateEligibleSessionsToMockRehearsal is a no-op stub that always returns [].
-  return migrateEligibleSessionsToMockRehearsal({
-    sessions: deps.sessions,
-    listAssignments: deps.listAssignments,
-    brokerAccounts: deps.brokerAccounts,
-    syncTicker: (ticker) => {
-      syncMockRehearsalRuntimeTicker(deps.sourcesRepo, deps.registry, ticker);
-    },
-  });
+  void deps;
+  return migrateEligibleSessionsToMockRehearsal();
 }

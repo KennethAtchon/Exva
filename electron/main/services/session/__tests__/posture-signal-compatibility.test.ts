@@ -46,7 +46,7 @@ describe("posture / signal compatibility", () => {
       catalystMode: "required" as const,
       processingMode: "catalyst" as const,
     };
-    expect(postureSignalCompatible(posture, ["web_search"])).toBe(false);
+    expect(postureSignalCompatible(posture, ["mock"])).toBe(false);
     expect(postureSignalCompatible(posture, [])).toBe(false);
   });
 
@@ -63,7 +63,7 @@ describe("posture / signal compatibility", () => {
     expect(
       postureSignalCompatible(
         { catalystMode: "preferred", processingMode: "manual" },
-        ["web_search"],
+        ["mock"],
       ),
     ).toBe(true);
   });

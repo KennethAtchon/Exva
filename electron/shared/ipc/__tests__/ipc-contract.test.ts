@@ -30,6 +30,10 @@ const preloadSrc = readFileSync(
   path.join(repoRoot, "electron/preload/index.ts"),
   "utf8",
 );
+const endpointsSrc = readFileSync(
+  path.join(repoRoot, "electron/shared/ipc/endpoints.ts"),
+  "utf8",
+);
 
 const EXPECTED_HANDLER_REGISTRARS = [
   "registerExperienceHandlers",
@@ -46,9 +50,10 @@ const EXPECTED_HANDLER_REGISTRARS = [
   "registerAccountHandlers",
   "registerBrokerAccountHandlers",
   "registerEventHandlers",
-  "registerReplayHandlers",
   "registerSignalHandlers",
   "registerDeveloperHandlers",
+  "registerOpsHandlers",
+  "registerOperatorHandlers",
 ] as const;
 
 describe("ipc channel contract", () => {
@@ -83,12 +88,28 @@ describe("ipc channel contract", () => {
     }
   });
 
-  it("reports orphan channel paths not wired through preload", () => {
+  it("reports orphan channel paths not wired through preload or endpoints", () => {
     const paths = flattenChannelPaths(channels);
-    const orphans = paths.filter((ref) => !preloadSrc.includes(ref));
-    expect(orphans).toContain("channels.session.buildCycleFixture");
-    expect(orphans).toContain("channels.experiences.listExperiments");
-    expect(orphans).toContain("channels.workspace.viewGet");
+    const orphans = paths.filter(
+      (ref) => !preloadSrc.includes(ref) && !endpointsSrc.includes(ref),
+    );
+
+    // Dead T4 inventory channels deleted end-to-end — must not reappear.
+    expect(paths).not.toContain("channels.session.buildCycleFixture");
+    expect(paths).not.toContain("channels.session.saveCycleFixture");
+    expect(paths).not.toContain("channels.session.getPaperScorecard");
+    expect(paths).not.toContain("channels.experiences.listExperiments");
+    expect(paths).not.toContain("channels.experiences.recordExperiment");
+    expect(paths).not.toContain("channels.experiences.compareExperiments");
+    expect(paths).not.toContain("channels.experiences.getResearchSummary");
+    expect(paths).not.toContain("channels.experiences.approveLadderUpgrade");
+
+    // Alive via workspaceEndpoints (not string-orphans once endpoints scanned).
+    expect(orphans).not.toContain("channels.workspace.viewGet");
+    expect(orphans).not.toContain("channels.workspace.prefsPatch");
+
+    // Remaining orphans are false positives: preload uses raw channel string
+    // literals for experience-catalog / instrument-sets / etc.
     expect(orphans.length).toBeGreaterThan(0);
   });
 });

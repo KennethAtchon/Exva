@@ -11,15 +11,10 @@ import {
 const APP_SWITCH_PAGES: PageKey[] = [
   "dashboard",
   "sessions",
-  "brokers",
-  "trades",
-  "autopsy",
-  "leaderboard",
-  "strategy",
-  "costs",
   "signals",
-  "devpanel",
-  "accounts",
+  "research",
+  "settings",
+  "docs",
 ];
 
 describe("nav contract", () => {
@@ -53,5 +48,15 @@ describe("nav contract", () => {
     expect(new Set(wideNavIds)).toEqual(
       new Set(NAV_ITEMS.map((item) => item.id)),
     );
+  });
+
+  it("primary nav is exactly the five hubs", () => {
+    expect(NAV_PRIMARY_IDS).toEqual([
+      "dashboard",
+      "sessions",
+      "signals",
+      "research",
+      "settings",
+    ]);
   });
 });

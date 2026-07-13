@@ -36,6 +36,76 @@
       "when": 1783914892925,
       "tag": "0004_brave_turbo",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1783920000000,
+      "tag": "0005_signal_events_envelope_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1783930000000,
+      "tag": "0006_purge_deprecated_signal_sources",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1783940000000,
+      "tag": "0007_merge_autopsies",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1783950000000,
+      "tag": "0008_session_strategy_config_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1783960000000,
+      "tag": "0009_session_strategy_config_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1783970000000,
+      "tag": "0010_drop_legacy_session_config_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1783980000000,
+      "tag": "0011_paper_balances",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1783990000000,
+      "tag": "0012_alpha_sources",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1784000000000,
+      "tag": "0013_operator_power_tools",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1784010000000,
+      "tag": "0014_hub_query_indexes",
+      "breakpoints": true
     }
   ]
 }

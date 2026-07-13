@@ -299,6 +299,10 @@ function createHarness(options: {
       })),
     },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: vi.fn(() => ({
         riskConfig: {
           stopLossType: "fixed_pct",

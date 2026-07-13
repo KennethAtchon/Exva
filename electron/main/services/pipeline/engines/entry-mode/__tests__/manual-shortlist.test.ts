@@ -29,8 +29,8 @@ function buildCtx(
     } as AIPhaseContext["strategyContext"],
     toolContext: {} as AIPhaseContext["toolContext"],
     services: {
-      sessionSelectorSettingsRepo: {
-        get: () => ({
+      strategyContextService: {
+        getSelectorSettings: () => ({
           aiPickerEnabled: overrides.aiPickerEnabled ?? false,
         }),
       },

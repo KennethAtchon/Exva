@@ -1,7 +1,7 @@
 # Exva 50 → 100: Full-System Rearchitecture & Brainstorm — Deep Plan
 
 > **Date:** 2026-07-11  
-> **Status:** Phases 0–5 code + leftover-debt cleanup (2026-07-12). Debt cleared: timer→`schedules[]` + deprecated `timer`/`web_search` stubs only; registry facade under `pipeline/engines`; period-autopsy nightly (preview-default); Alpaca `OrderEventFeed` (poll); dead legacy IPC deleted. **Still operator actions:** live paper proof (G1), Kalshi/Tradier/Kraken HTTP spikes, Alpaca websocket (poll feed ships). **Phase 6 deferred** (`phase-6-config-diet.md`). **Residual:** schedule identity DB rows still typed `timer` for subscription fan-out; SessionConfig dual-write; §9.7 alpha sources.  
+> **Status:** Executed in full via finish-line/ — 2026-07-13 (**code complete**; acceptance pending Ken litmus / 7-day soak / real-broker keys). Phases 0–5 + finish-line docs 01–09 implemented in tree. See `docs/plans/finish-line/00-INDEX.md` for per-doc status.  
 > **Owner:** Kenneth Atchon
 > **Audience:** Ken + implementing engineers/agents
 > **Scope:** The entire Exva codebase — signal architecture (primary), pipeline, brokers, risk, research loop, autonomy, UI, and the delete list. This is the "what would it take to make this an actual hands-free money-printing tool" document.
@@ -14,8 +14,8 @@
 Self-snitch list — every guess and corner cut in this document:
 
 1. **I did not re-run the app end-to-end.** The claim "the system has still never opened a position" is from the live DB (`trades`: 64 rows, 100% `no_trade`, zero `opened_at`), which matches the pre-fix numbers from 06-26. It's possible the app simply hasn't been launched since the bars fix — either way, zero live evidence exists that any strategy works.
-2. **Broker recommendations (Kalshi, Tradier, IBKR, Kraken) are from API-landscape research, not hands-on integration spikes.** Each needs a 1-day spike before committing (auth model, paper env, rate limits).
-3. **Effort estimates (S/M/L/XL) are judgment calls**, not measured. XL items (backtester, IBKR) could easily double.
+2. **Broker recommendations (Kalshi, Tradier, Kraken) are from API-landscape research.** Finish-line doc 03 implements them fully; **IBKR and Schwab are permanently dropped** (no strategy needs their coverage).
+3. **Effort estimates (S/M/L/XL) are judgment calls**, not measured.
 4. **I assumed the 5-phase pipeline runtime (selector→technical→fundamental→review→decision) is worth keeping as the AI execution substrate.** I read its structure and tests but did not trace every engine binding. If a deeper read finds the dual-registry problem (§4.4) is load-bearing in more places, Phase 2 grows.
 5. **The proposed `MarketSignal` union covers the six current source types plus eight proposed ones.** I have not enumerated every field every future source will need — the payload union is designed to be extended, and the first new source added will stress-test it.
 6. **Alpha-source ideas in §9.7 are hypotheses, not validated edges.** Every one must pass the research-contract gate before real capital. This doc deliberately does not promise profitability; it builds the machine that can find and verify edge.
@@ -37,7 +37,7 @@ The end-state journey this plan builds toward (hands-free operator, in Ken's wor
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------- |
 | 1   | **Kill the "timer is a signal" model.** Scheduled scans become a Scheduler concern; `SignalEvent` becomes a typed `MarketSignal` union carrying real information. | Yes — this is the root of the signal-handling pain | Breaks the current mental model and touches every experience descriptor |
 | 2   | **Build the backtester before adding any new alpha source.** No new experience ships without replayable historical validation.                                    | Yes — evidence before features                     | Delays fun new features by ~3-4 weeks                                   |
-| 3   | **Broker order contract v2** (limit orders, order types, quantity, streaming) before new brokers; then Kalshi → Tradier → Kraken → IBKR in that order.            | Yes                                                | Order of broker work; IBKR is XL and could be dropped                   |
+| 3   | **Broker order contract v2** (limit orders, order types, quantity, streaming) before new brokers; then Kalshi → Tradier → Kraken. **IBKR permanently dropped.**   | Yes                                                | Order of broker work; IBKR/Schwab closed in finish-line 03              |
 | 4   | **Merge `services/signal/` + `services/signals/` into one `signals/` domain** and collapse the dual engine registries into the pipeline engine registry.          | Yes                                                | Large mechanical refactor; conflicts with any in-flight work            |
 | 5   | **Delete list** (§6.5): mock-rehearsal migration shims, `web_search` signal source, legacy scoring duplicates, archived plan folders out of the repo.             | Yes                                                | Deleting is irreversible-ish; confirm nothing is loved                  |
 
@@ -96,7 +96,7 @@ Three reasons. First, the bars fix landed but was never validated — the single
 | G4  | Evidence before capital          | Every experience has a runnable backtest against cached historical data; promotion gates read backtest + paper results automatically                                     |
 | G5  | Calibrated decisions             | Every trade/skip decision persists `EdgeEstimate` (signal strength, forecast probability, expected net value, uncertainty); confidence heuristics no longer drive sizing |
 | G6  | Execution contract v2            | Limit orders, order type, TIF, qty-or-notional, and order-event polling contract shipped; ≥1 adapter (Alpaca) fully implements it                                        |
-| G7  | Broaden brokers deliberately     | Kalshi + Tradier adapters shipped behind the same contract; IBKR/Kraken decided by spike results                                                                         |
+| G7  | Broaden brokers deliberately     | Kalshi + Tradier + Kraken adapters shipped behind the same contract; IBKR/Schwab permanently dropped                                                                     |
 | G8  | Hands-free operation             | Promotion ladder + kill switches + notifications mean the system runs multi-day unattended and pages Ken only on defined conditions                                      |
 | G9  | Net-cost honesty                 | AI spend + data spend + execution costs are subtracted in every scorecard and every pre-trade edge gate                                                                  |
 | G10 | Smaller, sharper codebase        | Delete list executed; file count and table count go down or hold flat even as capability grows                                                                           |
@@ -287,7 +287,7 @@ Adapters advertise capabilities (`supportsLimit`, `supportsBracket`, `supportsSt
 
 ### 5.5 Brokers
 
-Adapter roster: Alpaca (stocks/crypto/options), Polymarket (paper + live), **Kalshi** (regulated US event contracts — the legal twin of the Polymarket experience, with a real demo environment), **Tradier** (cheap, simple options execution — where options-flow-edge graduates from trading the underlying to trading contracts), Coinbase, Tradovate (futures), **Kraken** (crypto depth + real websockets), Mock. IBKR remains a spike-gated maybe (widest asset coverage, heaviest integration: gateway process, session keepalive).
+Adapter roster: Alpaca (stocks/crypto/options), Polymarket (paper + live), **Kalshi** (regulated US event contracts — the legal twin of the Polymarket experience, with a real demo environment), **Tradier** (cheap, simple options execution — where options-flow-edge graduates from trading the underlying to trading contracts), Coinbase, Tradovate (futures), **Kraken** (crypto depth + real websockets), Mock. **IBKR and Schwab are permanently dropped** (finish-line 03) — no strategy needs their coverage.
 
 ### 5.6 Hands-free autonomy
 
@@ -313,7 +313,7 @@ A `SupervisorService` (new, small) runs continuously: session heartbeats, consec
 | Backtesting      | EDGAR-only                                                 | General bar-replay engine over shared strategy interface | New engine + data store                                    |
 | Market data      | Fetched ad hoc via broker adapters per cycle               | Point-in-time store, shared by live + backtest           | `services/marketdata/` + ingest jobs                       |
 | Order contract   | Market-only, USD notional                                  | v2: limit/stop/TIF/qty + capabilities                    | Contract change, adapter migration, gate updates           |
-| Brokers          | 4 + mock                                                   | +Kalshi, +Tradier, (+Kraken, ?IBKR)                      | New adapters behind v2                                     |
+| Brokers          | 4 + mock                                                   | +Kalshi, +Tradier, +Kraken (IBKR/Schwab dropped)         | New adapters behind v2                                     |
 | Monitoring       | Poll-only                                                  | `OrderEventFeed` (stream or poll)                        | Interface + Alpaca/Kraken websocket impls                  |
 | Autonomy         | Manual start/stop; approval prompts                        | Supervisor + notifications + auto-ladder                 | New service + config                                       |
 | Config           | 9 session tables + 5 preset tables                         | Consolidated strategy config document                    | Schema consolidation (measured, later phase)               |
@@ -551,7 +551,7 @@ Every item below enters as: research contract first → historical/backtest or f
 5. **Options-flow-edge v2** — graduate from trading the underlying to defined-risk verticals via Tradier; the UOA detector, contract selector, and research contract already exist.
 6. **Crypto funding-rate / basis dislocations** — Kraken/Coinbase perp funding extremes as mean-reversion context signals; 24/7 market keeps the loop exercised.
 7. **News wire (RSS: PR Newswire/GlobeNewswire/Business Wire)** — `news` signals feeding the existing evidence engine; strictly as _context enrichment_ for other signals first (freshness cross-check), standalone news-trading only after the freshness gate proves itself.
-8. **Congressional/insider-adjacent alt-data (Quiver-style)** — later; API cost + murky edge; contract-first.
+8. ~~Congressional/insider-adjacent alt-data (Quiver-style)~~ — **permanently dropped** (finish-line 06). Murky edge + API cost; roster closed at items 1–7.
 
 Explicitly **not** doing: social-sentiment firehoses (X/Reddit) as primary signals (noise, API cost, crowding), sub-minute anything (N3), and any source that can't state a falsifiable hypothesis.
 
@@ -561,13 +561,13 @@ Explicitly **not** doing: social-sentiment firehoses (X/Reddit) as primary signa
 
 **New adapters, ordered:**
 
-| Broker  | Why                                                                             | Effort | Notes                                                                          |
-| ------- | ------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------ |
-| Kalshi  | Regulated event contracts; demo env; pairs with existing prediction pipeline    | M      | REST + websocket; per-contract fees must enter the cost model                  |
-| Tradier | Options execution with a sane REST API + paper sandbox; unlocks options-flow v2 | M      | Also a usable equities data source                                             |
-| Kraken  | Crypto depth, real websockets, solid docs                                       | M      | Public OHLC helps the data store even pre-trading                              |
-| IBKR    | Everything (global equities/options/futures/fx)                                 | XL     | Gateway process management; spike first; only if a strategy needs its coverage |
-| Schwab  | Retail-familiar                                                                 | L      | OAuth churn; low marginal value over Alpaca+Tradier — parked                   |
+| Broker     | Why                                                                             | Effort | Notes                                                                       |
+| ---------- | ------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------- |
+| Kalshi     | Regulated event contracts; demo env; pairs with existing prediction pipeline    | M      | REST + websocket; per-contract fees must enter the cost model               |
+| Tradier    | Options execution with a sane REST API + paper sandbox; unlocks options-flow v2 | M      | Also a usable equities data source                                          |
+| Kraken     | Crypto depth, real websockets, solid docs                                       | M      | Public OHLC helps the data store even pre-trading; paper = validate + ghost |
+| ~~IBKR~~   | **Permanently dropped** (finish-line 03)                                        | —      | No strategy needs gateway coverage                                          |
+| ~~Schwab~~ | **Permanently dropped** (finish-line 03)                                        | —      | Low marginal value over Alpaca+Tradier                                      |
 
 **Data-vs-execution decoupling:** broker assignment stays about _execution_; `MarketDataService` chooses data providers independently (e.g., Tradier data + Alpaca execution is legal). This removes today's implicit "your broker is your data feed" coupling that caused the bars catastrophe to be a _trading_ outage.
 

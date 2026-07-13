@@ -47,14 +47,12 @@ function isManualSelectorMode(ctx: AIPhaseContext): boolean {
   if (
     signalTrigger &&
     typeof signalTrigger === "object" &&
-    "sourceType" in signalTrigger &&
-    signalTrigger.sourceType !== "web_search"
+    "sourceType" in signalTrigger
   ) {
     return false;
   }
-  const selectorSettings = ctx.services.sessionSelectorSettingsRepo.get(
-    ctx.sessionId,
-  );
+  const selectorSettings =
+    ctx.services.strategyContextService.getSelectorSettings(ctx.sessionId);
   return (
     ctx.session.selectionMode === "manual_shortlist" ||
     !selectorSettings.aiPickerEnabled

@@ -26,6 +26,41 @@ describe("broker-account-helpers", () => {
       "options",
       "prediction_market",
     ]);
+    expect(supportedInstrumentClassesFor("kalshi")).toEqual([
+      "prediction_market",
+    ]);
+    expect(supportedInstrumentClassesFor("tradier")).toEqual([
+      "stock",
+      "options",
+    ]);
+    expect(supportedInstrumentClassesFor("kraken")).toEqual(["crypto"]);
+  });
+
+  it("serializes kalshi/tradier/kraken credentials", () => {
+    expect(
+      JSON.parse(
+        serializeBrokerCredentials("kalshi", "paper", {
+          keyId: "kid",
+          privateKeyPem: "PEM",
+        }),
+      ),
+    ).toEqual({ keyId: "kid", privateKeyPem: "PEM" });
+    expect(
+      JSON.parse(
+        serializeBrokerCredentials("tradier", "paper", {
+          accessToken: "tok",
+          accountId: "VA123",
+        }),
+      ),
+    ).toEqual({ accessToken: "tok", accountId: "VA123" });
+    expect(
+      JSON.parse(
+        serializeBrokerCredentials("kraken", "paper", {
+          apiKey: "k",
+          apiSecret: "s",
+        }),
+      ),
+    ).toEqual({ apiKey: "k", apiSecret: "s" });
   });
 
   it("preserves paper/live mode when serializing Alpaca credentials", () => {

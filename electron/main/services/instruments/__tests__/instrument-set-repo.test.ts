@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createTestDb } from "../../../db/test-helpers";
 import type { DbClient } from "../../../db/client";
 import { InstrumentSetRepo } from "../instrument-set-repo";
-import { seedInstrumentSets, INSTRUMENT_SET_IDS } from "../instrument-set-seeds";
+import {
+  seedInstrumentSets,
+  INSTRUMENT_SET_IDS,
+} from "../instrument-set-seeds";
 
 describe("InstrumentSetRepo", () => {
   let db: DbClient;
@@ -44,21 +47,26 @@ describe("InstrumentSetRepo", () => {
       name: "Test",
       instrumentClass: "crypto",
       mode: "static",
-      members: [{ canonicalId: "ETH-USD", displaySymbol: "ETH-USD", venue: null }],
+      members: [
+        { canonicalId: "ETH-USD", displaySymbol: "ETH-USD", venue: null },
+      ],
     });
 
     const active = repo.getActiveRevision("test-set");
-    expect(active).not.toBeNull();
-    expect(active!.instrumentClass).toBe("crypto");
+    if (!active) throw new Error("expected active revision for test-set");
+    expect(active.instrumentClass).toBe("crypto");
   });
 
   it("createRevisionIfAbsent is idempotent", () => {
     seedInstrumentSets(repo);
     seedInstrumentSets(repo); // second call should not throw or duplicate
 
-    const etfs = repo.getActiveRevision(INSTRUMENT_SET_IDS.LIQUID_US_ETFS)!;
+    const etfs = repo.getActiveRevision(INSTRUMENT_SET_IDS.LIQUID_US_ETFS);
+    if (!etfs) throw new Error("expected liquid US ETFs set");
     expect(etfs.members).toHaveLength(2);
-    expect(repo.getRevision(INSTRUMENT_SET_IDS.LIQUID_US_ETFS, 1)).not.toBeNull();
+    expect(
+      repo.getRevision(INSTRUMENT_SET_IDS.LIQUID_US_ETFS, 1),
+    ).not.toBeNull();
     expect(repo.getRevision(INSTRUMENT_SET_IDS.LIQUID_US_ETFS, 2)).toBeNull();
   });
 

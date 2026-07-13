@@ -1,5 +1,5 @@
 import {
-  enrichSignalEvent,
+  isLiveSignalSourceType,
   isSignalExpired,
   type SignalSourceRecord,
 } from "@electron/shared/domain";
@@ -11,6 +11,13 @@ import { SignalEventsRepo } from "./repos/signal-events-repo";
 import { SignalSourcesRepo } from "./repos/signal-sources-repo";
 import { SignalSourceRegistry } from "./signal-source-registry";
 import { SignalBus } from "./signal-bus";
+import {
+  computeDedupeKey,
+  DEFAULT_SIGNAL_TTL,
+  payloadSchemaForKind,
+  type MarketSignalKind,
+} from "@electron/shared/domain/market-signal";
+import type { InstrumentClass } from "@electron/shared/domain/enums";
 
 const MANUAL_SOURCE_ID = "manual_source";
 type SessionReadiness =
@@ -19,6 +26,76 @@ type SessionReadiness =
   | "waiting_for_source_enable"
   | "no_inputs";
 
+function instrumentClassForKind(kind: MarketSignalKind): InstrumentClass {
+  if (kind === "market_dislocation") return "prediction_market";
+  if (kind === "flow_anomaly") return "options";
+  return "stock";
+}
+
+function defaultPayloadForKind(
+  kind: MarketSignalKind,
+  symbol: string,
+  now: string,
+): Record<string, unknown> {
+  switch (kind) {
+    case "manual":
+      return { note: "Dev Panel inject" };
+    case "filing":
+      return {
+        filingType: "8-K",
+        accessionNumber: `debug-${now}`,
+        itemCodes: ["8.01"],
+        companyName: symbol,
+        documentUrl: "https://www.sec.gov",
+        filedAt: now,
+      };
+    case "market_dislocation":
+      return {
+        marketId: `debug-${symbol}`,
+        question: `Debug dislocation for ${symbol}`,
+        outcome: "Yes",
+        marketMid: 0.42,
+        spreadBps: 100,
+        liquidityUsd: 10_000,
+        resolutionAt: now,
+        resolutionCriteria: "debug",
+        venue: "kalshi",
+        feeBps: 175,
+      };
+    case "flow_anomaly":
+      return {
+        underlying: symbol,
+        anomalyType: "volume_oi",
+        metric: 4,
+        baseline: 1,
+        direction: "bullish",
+      };
+    case "scan_hit":
+      return {
+        strategyId: "unusual-volume",
+        evidence: { rvol: 3, baselineVol: 1e6, priceBreakPct: 0.01 },
+        barWindowHash: "debug",
+        proposedAction: "buy",
+      };
+    case "news":
+      return {
+        headline: `Debug news for ${symbol}`,
+        url: "https://example.com/debug-news",
+        publishedAt: now,
+        sourceQuality: "wire",
+        tickersMentioned: [symbol],
+        polarityHint: "unclear",
+      };
+    case "calendar_event":
+      return {
+        eventType: "earnings",
+        scheduledAt: new Date(Date.now() + 36 * 3_600_000).toISOString(),
+        symbol,
+        title: `${symbol} earnings (debug)`,
+        source: "debug",
+      };
+  }
+}
 export class SignalService {
   constructor(
     private readonly sourcesRepo: SignalSourcesRepo,
@@ -65,9 +142,9 @@ export class SignalService {
     description?: string | null;
     config?: Record<string, unknown>;
   }): Promise<SignalSourceRecord> {
-    if (input.type === "web_search") {
+    if (!isLiveSignalSourceType(input.type)) {
       throw new AppError(
-        "Cannot create deprecated signal sources; use edgar_8k, mock, manual, or prediction_event.",
+        `Unknown signal source type: ${String(input.type)}; use edgar_8k, mock, manual, or prediction_event.`,
         "VALIDATION_FAILED",
       );
     }
@@ -115,10 +192,7 @@ export class SignalService {
     return next;
   }
 
-  async deleteSource(
-    sourceId: string,
-    _options?: { forceDetach?: boolean },
-  ): Promise<void> {
+  async deleteSource(sourceId: string): Promise<void> {
     await this.registry.remove(sourceId);
     this.sourcesRepo.delete(sourceId);
   }
@@ -223,19 +297,49 @@ export class SignalService {
     }
   }
 
-  debugInjectSignal(sessionId: string): void {
+  /**
+   * Dev Panel typed injection. When kind/payload omitted, injects a manual SPY
+   * signal (legacy). Otherwise validates the payload against the kind schema.
+   */
+  debugInjectSignal(
+    sessionId: string,
+    opts?: {
+      kind?: MarketSignalKind;
+      payload?: Record<string, unknown>;
+      symbol?: string;
+    },
+  ): void {
+    const now = new Date().toISOString();
+    const id = crypto.randomUUID();
+    const kind = opts?.kind ?? "manual";
+    const symbol = opts?.symbol ?? (kind === "manual" ? "SPY" : "TEST");
+    const parsedPayload =
+      opts?.payload != null
+        ? payloadSchemaForKind(kind).parse(opts.payload)
+        : defaultPayloadForKind(kind, symbol, now);
+    const dedupeKey = computeDedupeKey(kind, {
+      debug: id,
+      symbol,
+    });
     this.signalBus.injectManual(
       {
-        id: crypto.randomUUID(),
+        id,
         sourceId: MANUAL_SOURCE_ID,
         sourceType: "manual",
-        ticker: "SPY",
+        ticker: symbol,
         companyName: null,
         documentUrl: null,
         accessionNumber: null,
-        payloadJson: { instrumentClass: "stock" },
-        filedAt: new Date().toISOString(),
-        detectedAt: new Date().toISOString(),
+        payloadJson: {
+          instrumentClass: instrumentClassForKind(kind),
+          ...parsedPayload,
+        },
+        filedAt: now,
+        detectedAt: now,
+        kind,
+        dedupeKey,
+        ttl: DEFAULT_SIGNAL_TTL[kind],
+        occurredAt: now,
       },
       sessionId,
     );
@@ -325,14 +429,10 @@ export class SignalService {
     for (const row of this.eventsRepo.listByDispatchStatus("new")) {
       const event = this.eventsRepo.getById(row.id);
       if (!event) continue;
-      const enriched = enrichSignalEvent(event);
-      const ttl = enriched.ttl ?? "PT4H";
       this.eventsRepo.markDispatchStatus(
         event.id,
-        isSignalExpired(enriched.detectedAt, ttl)
-          ? "dropped_pre_fanout"
-          : "dropped_pre_fanout",
-        isSignalExpired(enriched.detectedAt, ttl)
+        "dropped_pre_fanout",
+        isSignalExpired(event.detectedAt, event.ttl)
           ? "ttl_expired_at_startup"
           : "no_subscribers_at_startup",
       );
@@ -349,5 +449,4 @@ export class SignalService {
       .filter(Boolean).length;
     return manualTickers > 0 ? "manual_only" : "no_inputs";
   }
-
 }

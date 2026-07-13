@@ -25,13 +25,14 @@ import {
   providerAccountTestSchema,
   apiCallLogFiltersSchema,
   cycleIdSchema,
-  strategyRiskConfigSaveSchema,
-  strategyRulesSaveSchema,
-  strategyResearchPostureSaveSchema,
-  strategyAiSettingsSaveSchema,
-  strategyTimeframeConfigSaveSchema,
-  strategyAiPhaseSaveSchema,
-  strategyAiPhaseWorkerSaveSchema,
+  strategyConfigApplyPresetSchema,
+  strategyConfigDeletePresetSchema,
+  strategyConfigGetSchema,
+  strategyConfigHistorySchema,
+  strategyConfigListPresetsSchema,
+  strategyConfigRollbackSchema,
+  strategyConfigSavePresetSchema,
+  strategyConfigUpdateSchema,
   tradeIdSchema,
 } from "@/lib/schemas";
 import type { ExvaEventMap } from "@electron/shared/ipc/dto";
@@ -48,6 +49,7 @@ const exva: ExvaApi = {
     getStats: () => invoke(channels.dashboard.getStats),
     getCostBreakdown: (dateRange) =>
       invoke(channels.dashboard.getCostBreakdown, { dateRange }),
+    getCalendarAttention: () => invoke(channels.dashboard.getCalendarAttention),
   },
   trades: {
     listActive: (filters) =>
@@ -154,11 +156,11 @@ const exva: ExvaApi = {
         channels.session.testLiveBrokerConnection,
         sessionIdParamSchema.parse({ sessionId }),
       ),
-    debugInjectSignal: (sessionId) =>
-      invoke(
-        channels.session.debugInjectSignal,
-        sessionIdParamSchema.parse({ sessionId }),
-      ),
+    debugInjectSignal: (sessionId, opts) =>
+      invoke(channels.session.debugInjectSignal, {
+        sessionId,
+        ...opts,
+      }),
     debugForceTrade: (sessionId) =>
       invoke(
         channels.session.debugForceTrade,
@@ -167,57 +169,54 @@ const exva: ExvaApi = {
   },
   strategy: {
     get: (sessionId) => invoke(channels.strategy.get, { sessionId }),
-    getResearchPosture: (sessionId) =>
-      invoke(channels.strategy.getResearchPosture, { sessionId }),
-    saveResearchPosture: (input) =>
-      invoke(
-        channels.strategy.saveResearchPosture,
-        strategyResearchPostureSaveSchema.parse(input),
-      ),
-    getRules: (sessionId) => invoke(channels.strategy.getRules, { sessionId }),
-    saveRules: (input) =>
-      invoke(channels.strategy.saveRules, strategyRulesSaveSchema.parse(input)),
-    getRiskConfig: (sessionId) =>
-      invoke(channels.strategy.getRiskConfig, { sessionId }),
-    saveRiskConfig: (input) =>
-      invoke(
-        channels.strategy.saveRiskConfig,
-        strategyRiskConfigSaveSchema.parse(input),
-      ),
-    getTimeframeConfig: (sessionId) =>
-      invoke(channels.strategy.getTimeframeConfig, { sessionId }),
-    saveTimeframeConfig: (input) =>
-      invoke(
-        channels.strategy.saveTimeframeConfig,
-        strategyTimeframeConfigSaveSchema.parse(input),
-      ),
-    saveAiSettings: (input) =>
-      invoke(
-        channels.strategy.saveAiSettings,
-        strategyAiSettingsSaveSchema.parse(input),
-      ),
-    saveAiPhase: (input) =>
-      invoke(
-        channels.strategy.saveAiPhase,
-        strategyAiPhaseSaveSchema.parse(input),
-      ),
-    saveAiPhaseWorker: (input) =>
-      invoke(
-        channels.strategy.saveAiPhaseWorker,
-        strategyAiPhaseWorkerSaveSchema.parse(input),
-      ),
     getProviderModels: (providerKey) =>
       invoke(channels.strategy.getProviderModels, { providerKey }),
-    globalPresets: {
-      list: () => invoke(channels.strategy.globalPresets.list),
-      create: (input) => invoke(channels.strategy.globalPresets.create, input),
-      update: (input) => invoke(channels.strategy.globalPresets.update, input),
-      delete: (input) => invoke(channels.strategy.globalPresets.delete, input),
-    },
     getWorkspaceDefaultModel: () =>
       invoke(channels.strategy.getWorkspaceDefaultModel),
     saveWorkspaceDefaultModel: (input) =>
       invoke(channels.strategy.saveWorkspaceDefaultModel, input),
+  },
+  strategyConfig: {
+    get: (sessionId) =>
+      invoke(
+        channels.strategyConfig.get,
+        strategyConfigGetSchema.parse({ sessionId }),
+      ),
+    update: (input) =>
+      invoke(
+        channels.strategyConfig.update,
+        strategyConfigUpdateSchema.parse(input),
+      ),
+    applyPreset: (input) =>
+      invoke(
+        channels.strategyConfig.applyPreset,
+        strategyConfigApplyPresetSchema.parse(input),
+      ),
+    listPresets: (kind) =>
+      invoke(
+        channels.strategyConfig.listPresets,
+        strategyConfigListPresetsSchema.parse(kind ? { kind } : {}),
+      ),
+    savePreset: (input) =>
+      invoke(
+        channels.strategyConfig.savePreset,
+        strategyConfigSavePresetSchema.parse(input),
+      ),
+    deletePreset: (input) =>
+      invoke(
+        channels.strategyConfig.deletePreset,
+        strategyConfigDeletePresetSchema.parse(input),
+      ),
+    history: (sessionId) =>
+      invoke(
+        channels.strategyConfig.history,
+        strategyConfigHistorySchema.parse({ sessionId }),
+      ),
+    rollback: (input) =>
+      invoke(
+        channels.strategyConfig.rollback,
+        strategyConfigRollbackSchema.parse(input),
+      ),
   },
   signals: {
     listSources: () => invoke(channels.signals.sources.list),
@@ -253,6 +252,8 @@ const exva: ExvaApi = {
       invoke(channels.brokerAccounts.refreshBalance, { brokerAccountId }),
     updateSettings: (input) =>
       invoke(channels.brokerAccounts.updateSettings, input),
+    resetPaperBalance: (input) =>
+      invoke(channels.brokerAccounts.resetPaperBalance, input),
   },
   templates: {
     list: (filters) => invoke(channels.templates.list, filters),
@@ -355,8 +356,7 @@ const exva: ExvaApi = {
     get: (input: { id: string }) => invoke("source-definitions:get", input),
   },
   sessionInputs: {
-    get: (input: { sessionId: string }) =>
-      invoke("session-inputs:get", input),
+    get: (input: { sessionId: string }) => invoke("session-inputs:get", input),
     replace: (input: unknown) => invoke("session-inputs:replace", input),
   },
   developer: {
@@ -375,6 +375,76 @@ const exva: ExvaApi = {
       invoke(channels.developer.openPath, input),
     listEventsV2: (input: unknown) =>
       invoke(channels.developer.listEventsV2, input),
+  },
+  ops: {
+    getBackupStatus: () => invoke(channels.ops.getBackupStatus),
+    runBackupNow: () => invoke(channels.ops.runBackupNow),
+    getNotificationRouting: () => invoke(channels.ops.getNotificationRouting),
+    updateNotificationRouting: (patch: unknown) =>
+      invoke(channels.ops.updateNotificationRouting, patch),
+    testNotificationSink: (input: { sink: "ntfy" | "telegram" | "smtp" }) =>
+      invoke(channels.ops.testNotificationSink, input),
+    setTelegramSecret: (input: { botToken: string; chatId: string }) =>
+      invoke(channels.ops.setTelegramSecret, input),
+    clearTelegramSecret: () => invoke(channels.ops.clearTelegramSecret),
+    listAlarms: () => invoke(channels.ops.listAlarms),
+    triggerTestAlarm: (input: { kind: string; sessionId?: string | null }) =>
+      invoke(channels.ops.triggerTestAlarm, input),
+  },
+  palette: {
+    query: (input: { q: string; limit?: number }) =>
+      invoke(channels.palette.query, input),
+  },
+  backtest: {
+    listStrategies: () => invoke(channels.backtest.listStrategies),
+    list: (input?: { experienceId?: string; limit?: number }) =>
+      invoke(channels.backtest.list, input ?? {}),
+    get: (input: { id: string }) => invoke(channels.backtest.get, input),
+    run: (input: unknown) => invoke(channels.backtest.run, input),
+    compare: (input: { runIds: string[] }) =>
+      invoke(channels.backtest.compare, input),
+    sweep: (input: unknown) => invoke(channels.backtest.sweep, input),
+  },
+  dataDoctor: {
+    coverage: () => invoke(channels.dataDoctor.coverage),
+    gaps: (input: { symbol: string; timeframe: string }) =>
+      invoke(channels.dataDoctor.gaps, input),
+    backfill: (input: unknown) => invoke(channels.dataDoctor.backfill, input),
+    providerHealth: () => invoke(channels.dataDoctor.providerHealth),
+    setProviderEnabled: (input: { provider: string; enabled: boolean }) =>
+      invoke(channels.dataDoctor.setProviderEnabled, input),
+    runNightlyGapCheck: () => invoke(channels.dataDoctor.runNightlyGapCheck),
+  },
+  briefing: {
+    latest: () => invoke(channels.briefing.latest),
+    list: (input?: { limit?: number }) =>
+      invoke(channels.briefing.list, input ?? {}),
+    get: (input: { date: string }) => invoke(channels.briefing.get, input),
+    assemble: (input?: { date?: string }) =>
+      invoke(channels.briefing.assemble, input ?? {}),
+  },
+  equity: {
+    curve: (input?: { range?: "1W" | "1M" | "3M" | "all" }) =>
+      invoke(channels.equity.curve, input ?? {}),
+    attribution: (input?: { range?: "1W" | "1M" | "3M" | "all" }) =>
+      invoke(channels.equity.attribution, input ?? {}),
+    snapshotNow: () => invoke(channels.equity.snapshotNow),
+  },
+  whatIf: {
+    run: (input: {
+      tradeId: string;
+      params?: Record<string, unknown>;
+      save?: boolean;
+      experienceId?: string;
+    }) => invoke(channels.whatIf.run, input),
+  },
+  killSwitch: {
+    pauseAll: () => invoke(channels.killSwitch.pauseAll),
+    killSession: (input: { sessionId: string }) =>
+      invoke(channels.killSwitch.killSession, input),
+    gauges: () => invoke(channels.killSwitch.gauges),
+    flattenAll: (input: { confirmation: string }) =>
+      invoke(channels.killSwitch.flattenAll, input),
   },
   events: {
     list: (filters) =>

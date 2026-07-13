@@ -7,7 +7,9 @@ export async function selectorConfigCheck(
   session: WorkspaceSession,
   deps: OrchestratorDeps,
 ): Promise<StepResult> {
-  const selectorSettings = deps.sessionSelectorSettingsRepo.get(session.id);
+  const selectorSettings = deps.strategyContextService.getSelectorSettings(
+    session.id,
+  );
   if (
     session.selectionMode !== "ai_selected_universe" ||
     !selectorSettings.aiPickerEnabled
@@ -43,7 +45,7 @@ export async function selectorConfigCheck(
     };
   }
 
-  const selectorPhase = deps.sessionAiPhasesRepo.getByPhase(
+  const selectorPhase = deps.strategyContextService.getAiPhase(
     session.id,
     "selector",
   );

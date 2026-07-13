@@ -12,36 +12,24 @@ import { AgentMessagesRepo } from "../db/repositories/agents/agent-messages-repo
 import { ApiCallLogRepo } from "../db/repositories/system/api-call-log-repo";
 import { BrokerAccountsRepo } from "../db/repositories/brokers/broker-accounts-repo";
 import { BrokerRoutingRepo } from "../db/repositories/brokers/broker-routing-repo";
+import { PaperBalancesRepo } from "../db/repositories/brokers/paper-balances-repo";
 import { CapitalReservationsRepo } from "../db/repositories/trades/capital-reservations-repo";
 import { EventsRepo } from "../db/repositories/system/events-repo";
 import { ProviderAccountsRepo } from "../db/repositories/workspace/provider-accounts-repo";
-import { SessionAiPhasesRepo } from "../db/repositories/sessions/session-ai-phases-repo";
 import { SessionBrokerAssignmentsRepo } from "../db/repositories/sessions/session-broker-assignments-repo";
-import { SessionRiskConfigRepo } from "../db/repositories/sessions/session-risk-config-repo";
-import { SessionSelectorSettingsRepo } from "../db/repositories/sessions/session-selector-settings-repo";
-import { SessionTradeRulesRepo } from "../db/repositories/sessions/session-trade-rules-repo";
-import { SessionStrategiesRepo } from "../db/repositories/sessions/session-strategies-repo";
 import { SessionTemplatesRepo } from "../db/repositories/sessions/session-templates-repo";
-import { SessionTimeframeConfigRepo } from "../db/repositories/sessions/session-timeframe-config-repo";
-import { SessionResearchPostureRepo } from "../db/repositories/sessions/session-research-posture-repo";
-import { SessionAiSettingsRepo } from "../db/repositories/sessions/session-ai-settings-repo";
 import { SqliteSessionExecutionStepsRepo } from "../db/repositories/sessions/session-execution-steps-repo";
 import { SessionRepo } from "../db/repositories/sessions/session-repo";
 import { InstrumentCacheRepo } from "../db/repositories/market/instrument-cache-repo";
-import { GlobalPresetsRepo } from "../db/repositories/presets/global-presets-repo";
-import { RiskPresetsRepo } from "../db/repositories/presets/risk-presets-repo";
-import { TimeframePresetsRepo } from "../db/repositories/presets/timeframe-presets-repo";
-import { ResearchPosturePresetsRepo } from "../db/repositories/presets/research-posture-presets-repo";
-import { TradeRulePresetsRepo } from "../db/repositories/presets/trade-rule-presets-repo";
 import { StatsRepo } from "../db/repositories/system/stats-repo";
 import { TradeApprovalsRepo } from "../db/repositories/trades/trade-approvals-repo";
-import { PeriodAutopsiesRepo } from "../db/repositories/trades/period-autopsies-repo";
-import { TradeAutopsiesRepo } from "../db/repositories/trades/trade-autopsies-repo";
+import { AutopsiesRepo } from "../db/repositories/trades/autopsies-repo";
 import { AutopsyLessonsRepo } from "../db/repositories/trades/autopsy-lessons-repo";
 import { TradesRepo } from "../db/repositories/trades/trades-repo";
 import { DecisionTraceRepo } from "../db/repositories/trades/decision-trace-repo";
 import { SignalObservationsRepo } from "../db/repositories/research/signal-observations-repo";
 import { SignalLabelsRepo } from "../db/repositories/research/signal-labels-repo";
+import { CalendarEventsRepo } from "../db/repositories/signals/calendar-events-repo";
 import {
   BacktestRunsRepo,
   ModelVersionsRepo,
@@ -72,6 +60,11 @@ import { MarketDataService } from "./marketdata/market-data-service";
 import { CalibrationService } from "./signals/forecast/calibration-service";
 import type { LabelObservation } from "./signals/forecast/calibration-service";
 import { SupervisorService } from "./supervisor/supervisor-service";
+import {
+  parseTelegramSecretJson,
+  telegramCredsFromEnv,
+} from "./supervisor/notification-sinks";
+import { backupSqliteDb } from "./infra/db-backup";
 import type { NightlyResearchJobDeps } from "./research/nightly-jobs";
 import {
   periodAutopsyNightlyFlagsFromEnv,
@@ -85,7 +78,10 @@ import {
 } from "./research/ladder-automation";
 import { evaluatePromotion } from "./research/promotion-gate";
 import { listExperiences, requireExperience } from "../experiences/index";
-import type { InstrumentClass, TradingTimeframe } from "@electron/shared/domain/enums";
+import type {
+  InstrumentClass,
+  TradingTimeframe,
+} from "@electron/shared/domain/enums";
 import { AgentOrchestrator } from "./orchestration/cycle/agent-orchestrator";
 import { registerDefaultEngines } from "./pipeline/engines/signal-registry/register-default-engines";
 import { assertValidPipelineDefinitionCatalog } from "./pipeline/effective-ai-phase-config";
@@ -99,6 +95,7 @@ import { InProcessSessionRuntimeHost } from "./session/session-runtime-host";
 import { UtilityProcessSessionRuntimeHost } from "./session/utility-process-runtime-host";
 import type { OrchestratorDeps, SessionRuntimeManagerDeps } from "./session";
 import { SessionStrategyContextService } from "./session/session-strategy-context-service";
+import { SessionStrategyConfigService } from "./session/session-strategy-config-service";
 import { CandidateValidationService } from "./orchestration/policy/candidate-validation-service";
 import { OrderPolicyGate } from "./orchestration/policy/order-policy-gate";
 import { ExitPolicyEvaluator } from "./risk/exit-policy-evaluator";
@@ -121,10 +118,20 @@ import { ExperienceScorecardService } from "./analytics/experience-scorecard-ser
 import { ResearchSummaryService } from "./analytics/research-summary-service";
 import { ExperienceCapitalAllocator } from "./risk/experience-capital-allocator";
 import { ExperienceExperimentsRepo } from "../db/repositories/experiences/experience-experiments-repo";
+import { BriefingsRepo } from "../db/repositories/system/briefings-repo";
+import { EquitySnapshotsRepo } from "../db/repositories/system/equity-snapshots-repo";
 import { PeriodAutopsyService } from "./analytics/period-autopsy-service";
 import { TradeAutopsyService } from "./analytics/trade-autopsy-service";
 import { AutopsyExportService } from "./analytics/autopsy-export-service";
 import { LiveReadinessService } from "./risk/live-readiness-service";
+import { PaletteQueryService } from "./operator/palette-query-service";
+import { BacktestLabService } from "./operator/backtest-lab-service";
+import { DataDoctorService } from "./operator/data-doctor-service";
+import { MorningBriefingService } from "./operator/morning-briefing-service";
+import { EquitySnapshotService } from "./operator/equity-snapshot-service";
+import { WhatIfReplayService } from "./operator/what-if-replay-service";
+import { KillSwitchService } from "./operator/kill-switch-service";
+import type { KillSwitchGauge } from "./operator/kill-switch-service";
 import { SignalSourcesRepo } from "./signals/repos/signal-sources-repo";
 import { SignalEventsRepo } from "./signals/repos/signal-events-repo";
 import { SignalDeadLettersRepo } from "./signals/repos/signal-dead-letters-repo";
@@ -166,25 +173,17 @@ export interface AppServices {
     apiCallLog: ApiCallLogRepo;
     brokerAccounts: BrokerAccountsRepo;
     brokerRouting: BrokerRoutingRepo;
+    paperBalances: PaperBalancesRepo;
     capitalReservations: CapitalReservationsRepo;
     events: EventsRepo;
     providerAccounts: ProviderAccountsRepo;
-    sessionAiPhases: SessionAiPhasesRepo;
     sessionBrokerAssignments: SessionBrokerAssignmentsRepo;
-    sessionRiskConfig: SessionRiskConfigRepo;
-    sessionSelectorSettings: SessionSelectorSettingsRepo;
     sessionExecutionSteps: SqliteSessionExecutionStepsRepo;
     session: SessionRepo;
-    sessionTradeRules: SessionTradeRulesRepo;
-    sessionStrategies: SessionStrategiesRepo;
     sessionTemplates: SessionTemplatesRepo;
-    sessionTimeframeConfig: SessionTimeframeConfigRepo;
-    sessionResearchPosture: SessionResearchPostureRepo;
-    sessionAiSettings: SessionAiSettingsRepo;
     stats: StatsRepo;
     tradeApprovals: TradeApprovalsRepo;
-    periodAutopsies: PeriodAutopsiesRepo;
-    tradeAutopsies: TradeAutopsiesRepo;
+    autopsies: AutopsiesRepo;
     experienceExperiments: ExperienceExperimentsRepo;
     autopsyLessons: AutopsyLessonsRepo;
     trades: TradesRepo;
@@ -196,12 +195,10 @@ export interface AppServices {
     promotionDecisions: PromotionDecisionsRepo;
     workspacePreferences: WorkspacePreferencesRepo;
     instrumentCache: InstrumentCacheRepo;
-    globalPresets: GlobalPresetsRepo;
-    riskPresets: RiskPresetsRepo;
-    timeframePresets: TimeframePresetsRepo;
-    researchPosturePresets: ResearchPosturePresetsRepo;
-    tradeRulePresets: TradeRulePresetsRepo;
+    briefings: BriefingsRepo;
+    equitySnapshots: EquitySnapshotsRepo;
   };
+  calendarEventsRepo: CalendarEventsRepo;
   ai: LLMRuntime;
   providerRegistry: ProviderRegistry;
   searchRegistry: SearchRegistry;
@@ -222,6 +219,7 @@ export interface AppServices {
   session: SessionService;
   sessionListing: SessionListingService;
   strategyContext: SessionStrategyContextService;
+  strategyConfig: SessionStrategyConfigService;
   sessionTemplates: SessionTemplateService;
   sessionWrites: SessionWriteService;
   cycleReplay: CycleReplayService;
@@ -251,6 +249,14 @@ export interface AppServices {
   sourceDefinitionService: SourceDefinitionService;
   sessionInputConfiguration: SessionInputConfigurationService;
   scheduleCoordinator: ScheduleCoordinator;
+  // Finish-line 08 operator power tools
+  paletteQuery: PaletteQueryService;
+  backtestLab: BacktestLabService;
+  dataDoctor: DataDoctorService;
+  morningBriefing: MorningBriefingService;
+  equitySnapshots: EquitySnapshotService;
+  whatIfReplay: WhatIfReplayService;
+  killSwitch: KillSwitchService;
 }
 
 export async function createAppServices(app: App): Promise<AppServices> {
@@ -262,25 +268,17 @@ export async function createAppServices(app: App): Promise<AppServices> {
     apiCallLog: new ApiCallLogRepo(db),
     brokerAccounts: new BrokerAccountsRepo(db),
     brokerRouting: new BrokerRoutingRepo(db),
+    paperBalances: new PaperBalancesRepo(db),
     capitalReservations: new CapitalReservationsRepo(db),
     events: new EventsRepo(db),
     providerAccounts: new ProviderAccountsRepo(db),
-    sessionAiPhases: new SessionAiPhasesRepo(db),
     sessionBrokerAssignments: new SessionBrokerAssignmentsRepo(db),
-    sessionRiskConfig: new SessionRiskConfigRepo(db),
-    sessionSelectorSettings: new SessionSelectorSettingsRepo(db),
     sessionExecutionSteps: new SqliteSessionExecutionStepsRepo(db),
     session: new SessionRepo(db),
-    sessionTradeRules: new SessionTradeRulesRepo(db),
-    sessionStrategies: new SessionStrategiesRepo(db),
     sessionTemplates: new SessionTemplatesRepo(db),
-    sessionTimeframeConfig: new SessionTimeframeConfigRepo(db),
-    sessionResearchPosture: new SessionResearchPostureRepo(db),
-    sessionAiSettings: new SessionAiSettingsRepo(db),
     stats: new StatsRepo(db),
     tradeApprovals: new TradeApprovalsRepo(db),
-    periodAutopsies: new PeriodAutopsiesRepo(db),
-    tradeAutopsies: new TradeAutopsiesRepo(db),
+    autopsies: new AutopsiesRepo(db),
     experienceExperiments: new ExperienceExperimentsRepo(db),
     autopsyLessons: new AutopsyLessonsRepo(db),
     trades: new TradesRepo(db),
@@ -292,22 +290,21 @@ export async function createAppServices(app: App): Promise<AppServices> {
     promotionDecisions: new PromotionDecisionsRepo(db),
     workspacePreferences: new WorkspacePreferencesRepo(db),
     instrumentCache: new InstrumentCacheRepo(db),
-    globalPresets: new GlobalPresetsRepo(db),
-    riskPresets: new RiskPresetsRepo(db),
-    timeframePresets: new TimeframePresetsRepo(db),
-    researchPosturePresets: new ResearchPosturePresetsRepo(db),
-    tradeRulePresets: new TradeRulePresetsRepo(db),
+    briefings: new BriefingsRepo(db),
+    equitySnapshots: new EquitySnapshotsRepo(db),
   };
   const signalSourcesRepo = new SignalSourcesRepo(db);
   const signalEventsRepo = new SignalEventsRepo(db);
   const signalDeliveriesRepo = new SignalDeliveriesRepo(db);
   const signalDeadLettersRepo = new SignalDeadLettersRepo(db);
+  const calendarEventsRepo = new CalendarEventsRepo(db);
   const secrets = new SecretsService();
   await seedEnvBackedAccountSecrets(repos, secrets);
   const brokerRegistry = new BrokerRegistry(
     repos.brokerAccounts,
     secrets,
     repos.apiCallLog,
+    repos.paperBalances,
   );
   const instrumentNormalizer = new InstrumentNormalizer();
   const logger = createLogger("app-services");
@@ -378,21 +375,104 @@ export async function createAppServices(app: App): Promise<AppServices> {
             ? input.timeframe
             : "1d";
       return adapter.getOhlcv(input.symbol, timeframe, input.barCount);
-    } catch {
+    } catch (err) {
+      // Returning [] is correct for market-data coalesce; log so bars outages aren't silent.
+      logger.warn(
+        { err, symbol: input.symbol, broker: "alpaca" },
+        "ohlcv fetch failed; returning empty bars",
+      );
+      return [];
+    }
+  });
+  marketData.registerFetcher("tradier", async (input) => {
+    const account = repos.brokerAccounts
+      .list()
+      .find((a) => a.brokerType === "tradier");
+    if (!account) return [];
+    try {
+      const adapter = await brokerRegistry.get(account.id);
+      if (!adapter.getOhlcv) return [];
+      const timeframe =
+        input.timeframe === "1w"
+          ? "1d"
+          : input.timeframe === "15m" ||
+              input.timeframe === "30m" ||
+              input.timeframe === "1h" ||
+              input.timeframe === "4h" ||
+              input.timeframe === "1d"
+            ? input.timeframe
+            : "1d";
+      return adapter.getOhlcv(input.symbol, timeframe, input.barCount);
+    } catch (err) {
+      logger.warn(
+        { err, symbol: input.symbol, broker: "tradier" },
+        "ohlcv fetch failed; returning empty bars",
+      );
+      return [];
+    }
+  });
+  marketData.registerFetcher("kraken", async (input) => {
+    const { fetchKrakenOhlcv } =
+      await import("./broker/adapters/kraken-adapter");
+    try {
+      const timeframe =
+        input.timeframe === "1w"
+          ? "1d"
+          : input.timeframe === "15m" ||
+              input.timeframe === "30m" ||
+              input.timeframe === "1h" ||
+              input.timeframe === "4h" ||
+              input.timeframe === "1d"
+            ? input.timeframe
+            : "1d";
+      return await fetchKrakenOhlcv(input.symbol, timeframe, input.barCount);
+    } catch (err) {
+      logger.warn(
+        { err, symbol: input.symbol, broker: "kraken" },
+        "ohlcv fetch failed; returning empty bars",
+      );
       return [];
     }
   });
   const calibration = new CalibrationService();
   const nightlyResearch: NightlyResearchJobDeps = { calibration };
+  // Wired after SessionService / strategyContext exist (forward refs).
+  let pauseSessionForSupervisor:
+    | ((sessionId: string, reason: string) => Promise<void>)
+    | null = null;
+  let loadRiskSnapshotsForSupervisor:
+    | (() => ReturnType<typeof loadSessionRiskSnapshots>)
+    | null = null;
+  let telegramCredsCache: ReturnType<typeof telegramCredsFromEnv> = null;
   const supervisor = new SupervisorService({
     eventBus,
     notifications,
     marketData,
     ntfyTopicUrl: env.ntfyTopicUrl,
     smtpUrl: env.smtpUrl,
+    resolveTelegram: () => telegramCredsFromEnv() ?? telegramCredsCache,
     nightlyResearch,
+    pauseSession: (sessionId, reason) =>
+      pauseSessionForSupervisor?.(sessionId, reason),
+    loadRiskSnapshots: () => loadRiskSnapshotsForSupervisor?.() ?? [],
+    loadAiSpendBySession: () => {
+      const sessions = repos.session.listByStatuses([
+        "active",
+        "attention_required",
+        "monitoring_only",
+        "paused",
+      ]);
+      return sessions.map((session) => ({
+        sessionId: session.id,
+        spendUsd: repos.apiCallLog.dailyDataSpendUsd(session.id),
+      }));
+    },
   });
   supervisor.start();
+  brokerRegistry.setSupervisor(supervisor);
+  void secrets.get("notify:telegram").then((raw) => {
+    telegramCredsCache = parseTelegramSecretJson(raw);
+  });
   const ladderStates = new Map<string, LadderState>();
   const makeLadderDeps = (): LadderAutomationDeps => ({
     getState: (experienceId) => ladderStates.get(experienceId) ?? null,
@@ -421,21 +501,15 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const candidateValidation = new CandidateValidationService();
   const orderPolicyGate = new OrderPolicyGate();
   const exitPolicyEvaluator = new ExitPolicyEvaluator();
+  const strategyConfig = new SessionStrategyConfigService(db);
   const strategyContext = new SessionStrategyContextService({
     sessionRepo: repos.session,
-    researchPostureRepo: repos.sessionResearchPosture,
-    rulesRepo: repos.sessionTradeRules,
-    riskRepo: repos.sessionRiskConfig,
-    timeframeRepo: repos.sessionTimeframeConfig,
-    aiSettingsRepo: repos.sessionAiSettings,
-    selectorSettingsRepo: repos.sessionSelectorSettings,
+    strategyConfig,
     providerAccountsRepo: repos.providerAccounts,
     workspacePrefsRepo: repos.workspacePreferences,
-    sessionAiPhasesRepo: repos.sessionAiPhases,
   });
   const cyclePlanServicesDeps = {
-    sessionSelectorSettingsRepo: repos.sessionSelectorSettings,
-    sessionAiPhasesRepo: repos.sessionAiPhases,
+    strategyContextService: strategyContext,
     workspacePreferencesRepo: repos.workspacePreferences,
     instrumentCacheRepo: repos.instrumentCache,
     agentRunsRepo: repos.agentRuns,
@@ -452,7 +526,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const ai = new LLMRuntime(
     providerRegistry,
     searchRegistry,
-    repos.sessionAiPhases,
+    strategyContext,
     repos.session,
     repos.workspacePreferences,
     repos.apiCallLog,
@@ -480,7 +554,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
   let runtimeManager: SessionRuntimeManager;
   const orchestratorDepsBase: OrchestratorDeps = {
     sessionRepo: repos.session,
-    sessionStrategiesRepo: repos.sessionStrategies,
     strategyContextService: strategyContext,
     tradesRepo: repos.trades,
     decisionTracesRepo: repos.decisionTraces,
@@ -489,8 +562,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     agentMessagesRepo: repos.agentMessages,
     eventsRepo: repos.events,
     statsRepo: repos.stats,
-    sessionAiPhasesRepo: repos.sessionAiPhases,
-    sessionSelectorSettingsRepo: repos.sessionSelectorSettings,
     sessionExecutionStepsRepo: repos.sessionExecutionSteps,
     providerAccountsRepo: repos.providerAccounts,
     workspacePreferencesRepo: repos.workspacePreferences,
@@ -514,6 +585,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     signalDeliveriesRepo,
     signalDeliveryLifecycle,
     signalSourcesRepo,
+    calendarEventsRepo,
     supervisor,
   };
 
@@ -527,7 +599,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
       const isMockSession = assignments.some((a) =>
         brokerRegistry.isMockAccount(a.brokerAccountId),
       );
-      return new TradeMonitor(
+      const monitor = new TradeMonitor(
         sessionId,
         repos.trades,
         repos.stats,
@@ -542,6 +614,19 @@ export async function createAppServices(app: App): Promise<AppServices> {
         instrumentNormalizer,
         isMockSession ? MOCK_POLL_INTERVAL_MS : undefined,
       );
+      monitor.setFeedDegradedHandler((reason) => {
+        void supervisor.raiseWebsocketFeedDegraded(
+          sessionId,
+          `Order event feed fell back to poll: ${reason}`,
+        );
+        supervisor.recordFeedHealth({
+          feedId: `order-events:${sessionId}`,
+          healthy: false,
+          detail: reason,
+          sessionId,
+        });
+      });
+      return monitor;
     },
   };
   runtimeManager = new SessionRuntimeManager(
@@ -604,6 +689,25 @@ export async function createAppServices(app: App): Promise<AppServices> {
   nightlyResearch.runLadderAutomation = tickAllLadders;
   nightlyResearch.sendDigest = (summary) => {
     notifications.notify("Exva: nightly digest", summary, "INFO");
+    void supervisor.router.deliver({
+      title: "Exva: nightly digest",
+      body: summary,
+      severity: "info",
+    });
+  };
+  nightlyResearch.runDbBackup = async () => {
+    const result = backupSqliteDb({
+      sourcePath: db.dbPath,
+      trigger: "nightly",
+    });
+    if (!result.ok) {
+      await supervisor.raiseBackupFailed(
+        result.error ?? "nightly database backup failed",
+      );
+      return "db-backup: failed";
+    }
+    if (result.skipped) return "db-backup: skipped (no source)";
+    return `db-backup: ${result.backupPath}`;
   };
   nightlyResearch.loadCalibrationLabels = () =>
     loadCalibrationLabelsFromRepos(
@@ -623,6 +727,9 @@ export async function createAppServices(app: App): Promise<AppServices> {
     repos.session,
     repos.events,
     logger,
+    30,
+    30 * 60 * 1000,
+    supervisor,
   );
   driftMonitorTicker.start();
 
@@ -651,12 +758,25 @@ export async function createAppServices(app: App): Promise<AppServices> {
     orchestratorDeps: orchestratorDepsBase,
     liveReadiness,
   });
+  pauseSessionForSupervisor = async (sessionId, reason) => {
+    const status = repos.session.getStatus(sessionId);
+    if (status !== "active" && status !== "attention_required") return;
+    await session.pause(sessionId);
+    repos.events.insert({
+      session_id: sessionId,
+      trade_id: null,
+      level: "ERROR",
+      agent_type: "session",
+      message: `Supervisor auto-paused session: ${reason}`,
+    });
+  };
+  loadRiskSnapshotsForSupervisor = () =>
+    loadSessionRiskSnapshots(repos, strategyContext);
 
   const sessionTemplates = new SessionTemplateService({
     templates: repos.sessionTemplates,
     sessions: repos.session,
     strategyContext,
-    selectorSettings: repos.sessionSelectorSettings,
     brokerAssignments: repos.sessionBrokerAssignments,
     brokerRouting: repos.brokerRouting,
     providerAccounts: repos.providerAccounts,
@@ -674,7 +794,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const tradeAutopsy = new TradeAutopsyService({
     trades: repos.trades,
     agentMessages: repos.agentMessages,
-    autopsies: repos.tradeAutopsies,
+    autopsies: repos.autopsies,
     lessons: repos.autopsyLessons,
     providerRegistry,
     workspacePrefs: repos.workspacePreferences,
@@ -682,9 +802,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const periodAutopsy = new PeriodAutopsyService({
     sessions: repos.session,
     trades: repos.trades,
-    tradeAutopsies: repos.tradeAutopsies,
     agentMessages: repos.agentMessages,
-    autopsies: repos.periodAutopsies,
+    autopsies: repos.autopsies,
     lessons: repos.autopsyLessons,
     events: repos.events,
     providerRegistry,
@@ -725,12 +844,19 @@ export async function createAppServices(app: App): Promise<AppServices> {
 
   // Build V2 services.
   const experienceTemplateService = createExperienceTemplateService(db);
-  const instrumentSetService = new InstrumentSetService(new InstrumentSetRepo(db));
-  const sourceDefinitionService = new SourceDefinitionService(new SourceDefinitionRepo(db));
+  const instrumentSetService = new InstrumentSetService(
+    new InstrumentSetRepo(db),
+  );
+  const sourceDefinitionService = new SourceDefinitionService(
+    new SourceDefinitionRepo(db),
+  );
 
   const strategyRegistry = getStrategyDefinitionRegistry();
   const cikCache = new CikTickerCache(db);
-  const adapterRegistry = createSourceAdapterRegistry({ cikCache });
+  const adapterRegistry = createSourceAdapterRegistry({
+    cikCache,
+    calendarEventsRepo,
+  });
 
   const sessionInputConfiguration = new SessionInputConfigurationService(
     db,
@@ -759,8 +885,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     calendarRegistry,
     emitSignals: (signals, groupKey, subscriptions) =>
       signalBus.ingestScheduledGroupHit(signals, groupKey, subscriptions),
-    resolveScheduledFanout: (ids) =>
-      fanoutResolver.resolveScheduledFanout(ids),
+    resolveScheduledFanout: (ids) => fanoutResolver.resolveScheduledFanout(ids),
   });
 
   const planner = new SessionInputRuntimePlanner({ db, strategyRegistry });
@@ -791,7 +916,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const sessionWrites = new SessionWriteService({
     sessions: repos.session,
     events: repos.events,
-    selectorSettings: repos.sessionSelectorSettings,
+    strategyContext,
     assignments: repos.sessionBrokerAssignments,
     brokerRouting: repos.brokerRouting,
     brokerAccounts: repos.brokerAccounts,
@@ -844,11 +969,111 @@ export async function createAppServices(app: App): Promise<AppServices> {
     getServices: () => appServices,
   });
 
+  // ── Finish-line 08 operator power tools ─────────────────────────────────
+  const paletteQuery = new PaletteQueryService(db, instrumentSetService);
+  const backtestLab = new BacktestLabService({
+    marketData,
+    backtestRuns: repos.backtestRuns,
+    experienceExperiments: repos.experienceExperiments,
+    eventBus,
+  });
+  const dataDoctor = new DataDoctorService({
+    db,
+    marketData,
+    eventBus,
+    notifications,
+    supervisor,
+  });
+  const equitySnapshotService = new EquitySnapshotService({
+    snapshots: repos.equitySnapshots,
+    brokerAccounts: repos.brokerAccounts,
+    paperBalances: repos.paperBalances,
+    trades: repos.trades,
+    sessions: repos.session,
+    apiCallLog: repos.apiCallLog,
+    eventBus,
+  });
+  const morningBriefing = new MorningBriefingService({
+    briefings: repos.briefings,
+    trades: repos.trades,
+    sessions: repos.session,
+    apiCallLog: repos.apiCallLog,
+    db,
+    supervisor,
+    notifications,
+    dataDoctor,
+    deliverSink: async (title, body) => {
+      await supervisor.router.deliver({
+        title,
+        body,
+        severity: "info",
+        forceImmediate: true,
+      });
+    },
+    getAiBudgetUsd: () => 25,
+  });
+  const whatIfReplay = new WhatIfReplayService({
+    trades: repos.trades,
+    decisionTraces: repos.decisionTraces,
+    agentMessages: repos.agentMessages,
+    cycleReplay,
+    experienceExperiments: repos.experienceExperiments,
+    marketData,
+  });
+  const killSwitch = new KillSwitchService({
+    sessions: repos.session,
+    trades: repos.trades,
+    sessionService: session,
+    liveReadiness,
+    supervisor,
+    eventBus,
+    broker,
+    capitalReservation,
+    loadGauges: (): KillSwitchGauge[] => {
+      const snaps = loadSessionRiskSnapshots(repos, strategyContext);
+      const byId = new Map(snaps.map((s) => [s.sessionId, s]));
+      const listed = repos.session.list({ includeArchived: false });
+      return listed.map((s) => {
+        const snap = byId.get(s.id);
+        let liveReadinessState: KillSwitchGauge["liveReadiness"] = null;
+        if (s.executionMode === "live_allowed") {
+          const ack = liveReadiness.getAcknowledgedAt(s.id);
+          liveReadinessState = {
+            readyToStart: Boolean(ack),
+            acknowledgedAt: ack,
+          };
+        }
+        return {
+          sessionId: s.id,
+          sessionName: s.name,
+          status: s.status,
+          dailyPnlUsd: snap?.dailyPnlUsd ?? 0,
+          dailyLossLimitUsd: snap?.dailyLossLimitUsd ?? 0,
+          drawdownFraction: snap?.drawdownFraction ?? 0,
+          maxDrawdownFraction: snap?.maxDrawdownFraction ?? 0.15,
+          liveReadiness: liveReadinessState,
+        };
+      });
+    },
+  });
+
+  const prevSendDigest = nightlyResearch.sendDigest;
+  nightlyResearch.sendDigest = (summary) => {
+    prevSendDigest?.(summary);
+    void morningBriefing.assemble().catch(() => undefined);
+    void dataDoctor.runNightlyGapCheck().catch(() => undefined);
+    equitySnapshotService.maybeSnapshot(true);
+  };
+  eventBus.on("trade_closed", () => {
+    equitySnapshotService.maybeSnapshot(true);
+  });
+
   appServices = {
     db,
     orchestratorDeps: orchestratorDepsBase,
     instrumentCacheService,
     repos,
+    calendarEventsRepo,
     ai,
     providerRegistry,
     searchRegistry,
@@ -869,6 +1094,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     session,
     sessionListing,
     strategyContext,
+    strategyConfig,
     sessionTemplates,
     sessionWrites,
     cycleReplay,
@@ -895,6 +1121,13 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sourceDefinitionService,
     sessionInputConfiguration,
     scheduleCoordinator,
+    paletteQuery,
+    backtestLab,
+    dataDoctor,
+    morningBriefing,
+    equitySnapshots: equitySnapshotService,
+    whatIfReplay,
+    killSwitch,
   };
   return appServices;
 }
@@ -952,7 +1185,6 @@ function extractPredictedProbability(
   }
 }
 
-
 async function seedEnvBackedAccountSecrets(
   repos: AppServices["repos"],
   secrets: SecretsService,
@@ -980,4 +1212,65 @@ async function seedEnvBackedAccountSecrets(
       }),
     );
   }
+}
+
+function loadSessionRiskSnapshots(
+  repos: AppServices["repos"],
+  strategyContext: SessionStrategyContextService,
+): import("./supervisor/supervisor-service").SessionRiskSnapshot[] {
+  const sessions = repos.session.listByStatuses([
+    "active",
+    "attention_required",
+    "monitoring_only",
+  ]);
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const dayStartIso = startOfDay.toISOString();
+  const nowIso = new Date().toISOString();
+
+  return sessions.map((session) => {
+    const risk = strategyContext.getRiskConfig(session.id);
+    const closedToday = repos.trades.listClosedInWindow({
+      sessionId: session.id,
+      windowStart: dayStartIso,
+      windowEnd: nowIso,
+    });
+    const dailyPnlUsd = closedToday.reduce(
+      (sum, trade) => sum + (trade.final_pnl_usd ?? 0),
+      0,
+    );
+    const allClosed = repos.trades.listClosed(session.id);
+    let peak = 0;
+    let equity = 0;
+    let maxDd = 0;
+    for (const trade of allClosed) {
+      equity += trade.final_pnl_usd ?? 0;
+      peak = Math.max(peak, equity);
+      if (peak > 0) {
+        maxDd = Math.max(maxDd, (peak - equity) / peak);
+      }
+    }
+    let maxDrawdownFraction = 0.15;
+    if (session.experienceId) {
+      try {
+        const contract = requireExperience(
+          session.experienceId,
+        ).researchContract;
+        if (contract.validation.maxDrawdownPct > 0) {
+          maxDrawdownFraction = contract.validation.maxDrawdownPct;
+          // Contracts store either fraction (0.2) or percent (20); normalize.
+          if (maxDrawdownFraction > 1) maxDrawdownFraction /= 100;
+        }
+      } catch {
+        // Keep default.
+      }
+    }
+    return {
+      sessionId: session.id,
+      dailyPnlUsd,
+      drawdownFraction: maxDd,
+      dailyLossLimitUsd: risk.dailyLossLimitUsd,
+      maxDrawdownFraction,
+    };
+  });
 }

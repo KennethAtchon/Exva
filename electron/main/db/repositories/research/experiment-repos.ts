@@ -54,6 +54,26 @@ export class BacktestRunsRepo {
     this.client.db.insert(backtestRuns).values(run).run();
   }
 
+  getById(id: string): BacktestRun | null {
+    const row = this.client.db
+      .select()
+      .from(backtestRuns)
+      .where(eq(backtestRuns.id, id))
+      .get();
+    if (!row) return null;
+    return { ...row, verdict: row.verdict as BacktestVerdict };
+  }
+
+  listRecent(limit = 50): BacktestRun[] {
+    return this.client.db
+      .select()
+      .from(backtestRuns)
+      .orderBy(desc(backtestRuns.createdAt))
+      .limit(limit)
+      .all()
+      .map((row) => ({ ...row, verdict: row.verdict as BacktestVerdict }));
+  }
+
   listByExperience(experienceId: string): BacktestRun[] {
     return this.client.db
       .select()

@@ -39,7 +39,6 @@ describe("SignalSourceRegistry", () => {
     return new SignalSourceRegistry(db, bus);
   }
 
-
   it("restarts sources with updated config", async () => {
     const registry = createRegistry();
     const record = new SignalSourcesRepo(db).create({
@@ -74,20 +73,19 @@ describe("SignalSourceRegistry", () => {
     expect(registry.get(record.id)).toBeNull();
   });
 
-  it("loads deprecated web_search as a non-emitting stub", async () => {
+  it("rejects unknown source types at instantiate time", () => {
     const registry = createRegistry();
-    const record = new SignalSourcesRepo(db).create({
-      id: "legacy-web",
-      type: "web_search",
-      name: "Web",
-      description: null,
-      enabled: true,
-      configJson: "{}",
-    });
-
-    registry.create(record);
-    await registry.start(record.id);
-    expect(registry.status(record.id)?.status).toBe("error");
-    expect(registry.status(record.id)?.lastError).toMatch(/deprecated/i);
+    expect(() =>
+      registry.create({
+        id: "legacy-web",
+        type: "web_search" as never,
+        name: "Web",
+        description: null,
+        enabled: true,
+        configJson: "{}",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    ).toThrow(/Unknown signal source type/);
   });
 });

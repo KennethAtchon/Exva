@@ -11,18 +11,10 @@ import { CapitalReservationsRepo } from "../../../db/repositories/trades/capital
 import { EventsRepo } from "../../../db/repositories/system/events-repo";
 import { InstrumentCacheRepo } from "../../../db/repositories/market/instrument-cache-repo";
 import { ProviderAccountsRepo } from "../../../db/repositories/workspace/provider-accounts-repo";
-import { SessionAiPhasesRepo } from "../../../db/repositories/sessions/session-ai-phases-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/sessions/session-broker-assignments-repo";
 import { SqliteSessionExecutionStepsRepo } from "../../../db/repositories/sessions/session-execution-steps-repo";
 import { SessionRepo } from "../../../db/repositories/sessions/session-repo";
-import { SessionRiskConfigRepo } from "../../../db/repositories/sessions/session-risk-config-repo";
-import { SessionSelectorSettingsRepo } from "../../../db/repositories/sessions/session-selector-settings-repo";
-import { SessionStrategiesRepo } from "../../../db/repositories/sessions/session-strategies-repo";
-import { SessionTradeRulesRepo } from "../../../db/repositories/sessions/session-trade-rules-repo";
-import { SessionTimeframeConfigRepo } from "../../../db/repositories/sessions/session-timeframe-config-repo";
-import { SessionResearchPostureRepo } from "../../../db/repositories/sessions/session-research-posture-repo";
 import { SessionTemplatesRepo } from "../../../db/repositories/sessions/session-templates-repo";
-import { SessionAiSettingsRepo } from "../../../db/repositories/sessions/session-ai-settings-repo";
 import { StatsRepo } from "../../../db/repositories/system/stats-repo";
 import { TradeApprovalsRepo } from "../../../db/repositories/trades/trade-approvals-repo";
 import { TradesRepo } from "../../../db/repositories/trades/trades-repo";
@@ -36,6 +28,7 @@ import { runPreflight } from "../preflight";
 import { SessionRuntimeManager } from "../session-runtime-manager";
 import { SessionService } from "../session-service";
 import { SessionStrategyContextService } from "../session-strategy-context-service";
+import { SessionStrategyConfigService } from "../session-strategy-config-service";
 import { SessionWriteService } from "../write-service";
 import { SessionListingService } from "../listing-service";
 import { SessionTemplateService } from "../template-service";
@@ -126,7 +119,7 @@ describe("session onboarding integration", () => {
       brokerOverridesByInstrumentClass: { stock: "paper-broker" },
     });
 
-    const phases = harness.sessionAiPhasesRepo.listBySession(sessionId);
+    const phases = harness.strategyContext.listAiPhases(sessionId);
     expect(phases).toHaveLength(5);
     expect(phases.every((p) => p.providerKey === "provider-openrouter")).toBe(
       true,
@@ -371,30 +364,22 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
   const sessionBrokerAssignments = new SessionBrokerAssignmentsRepo(db);
   const brokerRoutingRepo = new BrokerRoutingRepo(db);
   const providerAccounts = new ProviderAccountsRepo(db);
-  const sessionAiPhasesRepo = new SessionAiPhasesRepo(db);
-  const sessionSelectorSettings = new SessionSelectorSettingsRepo(db);
   const workspacePreferences = new WorkspacePreferencesRepo(db);
   const startedSessions: string[] = [];
   const eventBus = new EventBus();
   const signalSourcesRepo = new SignalSourcesRepo(db);
   const signalObservationsRepo = new SignalObservationsRepo(db);
+  const strategyConfig = new SessionStrategyConfigService(db);
   const strategyContextService = new SessionStrategyContextService({
     sessionRepo: sessions,
-    researchPostureRepo: new SessionResearchPostureRepo(db),
-    rulesRepo: new SessionTradeRulesRepo(db),
-    riskRepo: new SessionRiskConfigRepo(db),
-    timeframeRepo: new SessionTimeframeConfigRepo(db),
-    aiSettingsRepo: new SessionAiSettingsRepo(db),
-    selectorSettingsRepo: sessionSelectorSettings,
+    strategyConfig,
     providerAccountsRepo: providerAccounts,
     workspacePrefsRepo: workspacePreferences,
-    sessionAiPhasesRepo,
   });
   const templateService = new SessionTemplateService({
     templates: new SessionTemplatesRepo(db),
     sessions,
     strategyContext: strategyContextService,
-    selectorSettings: sessionSelectorSettings,
     brokerAssignments: sessionBrokerAssignments,
     brokerRouting: brokerRoutingRepo,
     providerAccounts,
@@ -426,7 +411,6 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
 
   const orchestratorDeps = {
     sessionRepo: sessions,
-    sessionStrategiesRepo: new SessionStrategiesRepo(db),
     strategyContextService,
     tradesRepo: new TradesRepo(db),
     decisionTracesRepo: new DecisionTraceRepo(db),
@@ -435,8 +419,6 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     agentMessagesRepo: new AgentMessagesRepo(db),
     eventsRepo: events,
     statsRepo: new StatsRepo(db),
-    sessionAiPhasesRepo,
-    sessionSelectorSettingsRepo: sessionSelectorSettings,
     sessionExecutionStepsRepo: new SqliteSessionExecutionStepsRepo(db),
     providerAccountsRepo: providerAccounts,
     workspacePreferencesRepo: workspacePreferences,
@@ -497,7 +479,6 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     events,
     routing,
     runtimeManager,
-    sessionAiPhasesRepo,
     session: new SessionService({
       sessionRepo: sessions,
       tradesRepo: orchestratorDeps.tradesRepo,
@@ -518,7 +499,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     sessionWrites: new SessionWriteService({
       sessions,
       events,
-      selectorSettings: sessionSelectorSettings,
+      strategyContext: strategyContextService,
       assignments: sessionBrokerAssignments,
       brokerRouting: brokerRoutingRepo,
       brokerAccounts: brokers,
@@ -541,9 +522,9 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
         defaultModelModelId: "google/gemma-4-31b-it",
       });
       for (const session of sessions.list()) {
-        for (const phase of sessionAiPhasesRepo.listBySession(session.id)) {
-          sessionAiPhasesRepo.upsertPhase(session.id, {
-            ...phase,
+        for (const phase of strategyContextService.listAiPhases(session.id)) {
+          strategyContextService.saveAiPhase(session.id, {
+            phase: phase.phase,
             providerKey: "provider-openrouter",
             modelId: "google/gemma-4-31b-it",
           });

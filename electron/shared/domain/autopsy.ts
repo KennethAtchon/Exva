@@ -11,6 +11,7 @@ export type PhaseKind =
   | "lesson_validation"
   | "synthesis";
 
+/** global | session — audience for period autopsies / lessons (DB: period_scope). */
 export type AutopsyScope = "global" | "session";
 
 export type AutopsyLessonSource = "trade" | "period" | "manual";
@@ -180,8 +181,8 @@ export interface PeriodAutopsyRecord {
 
 export interface AutopsyLesson {
   id: string;
+  /** FK → autopsies.id (trade or period run). Null for manual ledger lessons. */
   autopsyId: string | null;
-  periodAutopsyId: string | null;
   tradeId: string | null;
   sessionId: string | null;
   lesson: string;

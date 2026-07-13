@@ -2,7 +2,9 @@ import type { BrokerAccount } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
 import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
+import type { PaperBalancesRepo } from "../../db/repositories/brokers/paper-balances-repo";
 import type { SecretsService } from "../infra/secrets-service";
+import type { SupervisorService } from "../supervisor/supervisor-service";
 import { createInstrumentedBrokerAdapter } from "./instrumented-broker-adapter";
 import { createBrokerInteractionLogger } from "./broker-interaction-logger";
 import { AlpacaAdapter } from "./adapters/alpaca-adapter";
@@ -30,12 +32,19 @@ import type { BrokerCredentials } from "@/lib/types";
 
 export class BrokerRegistry {
   private readonly adapters = new Map<string, BrokerAdapter>();
+  private supervisor: SupervisorService | undefined;
 
   constructor(
     private readonly brokerAccountsRepo: BrokerAccountsRepo,
     private readonly secrets: SecretsService,
     private readonly apiCallLogRepo?: ApiCallLogRepo,
+    private readonly paperBalancesRepo?: PaperBalancesRepo,
   ) {}
+
+  /** Wire after SupervisorService is constructed (avoids circular boot order). */
+  setSupervisor(supervisor: SupervisorService): void {
+    this.supervisor = supervisor;
+  }
 
   async get(brokerAccountId: string): Promise<BrokerAdapter> {
     const existing = this.adapters.get(brokerAccountId);
@@ -157,14 +166,26 @@ export class BrokerRegistry {
           host?: string;
           chainId?: number;
         };
-        return new PolymarketAdapter(parsed, account.mode, interactionLogger);
+        return new PolymarketAdapter(parsed, account.mode, interactionLogger, {
+          accountId: account.id,
+          paperBalances: this.paperBalancesRepo,
+          onParityWarning: (message, details) => {
+            void this.supervisor?.raiseParityCheckFailed(
+              null,
+              `${message}${details.conditionId ? ` (${details.conditionId})` : ""}`,
+            );
+          },
+        });
       }
       case "kalshi":
-        return new KalshiAdapter(credsJson, account.mode);
+        return new KalshiAdapter(credsJson, account.mode, interactionLogger);
       case "tradier":
-        return new TradierAdapter(credsJson, account.mode);
+        return new TradierAdapter(credsJson, account.mode, interactionLogger);
       case "kraken":
-        return new KrakenAdapter(credsJson, account.mode);
+        return new KrakenAdapter(credsJson, account.mode, interactionLogger, {
+          accountId: account.id,
+          paperBalances: this.paperBalancesRepo,
+        });
       case "mock": {
         const kind = resolveMockScenarioKind(account);
         const tier = account.mockExecutionTier ?? DEFAULT_MOCK_EXECUTION_TIER;

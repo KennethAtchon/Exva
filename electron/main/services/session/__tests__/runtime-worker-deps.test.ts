@@ -4,7 +4,6 @@ import { createWorkerOrchestratorDeps } from "../runtime-worker-deps";
 
 const ORCHESTRATOR_DEP_KEYS: Array<keyof OrchestratorDeps> = [
   "sessionRepo",
-  "sessionStrategiesRepo",
   "strategyContextService",
   "tradesRepo",
   "decisionTracesRepo",
@@ -13,8 +12,6 @@ const ORCHESTRATOR_DEP_KEYS: Array<keyof OrchestratorDeps> = [
   "agentMessagesRepo",
   "eventsRepo",
   "statsRepo",
-  "sessionAiPhasesRepo",
-  "sessionSelectorSettingsRepo",
   "sessionExecutionStepsRepo",
   "providerAccountsRepo",
   "workspacePreferencesRepo",

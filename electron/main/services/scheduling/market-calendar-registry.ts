@@ -45,9 +45,7 @@ export class MarketCalendarRegistry {
 
   register(calendar: MarketCalendar): void {
     if (this.calendars.has(calendar.id)) {
-      throw new Error(
-        `Market calendar already registered: "${calendar.id}"`,
-      );
+      throw new Error(`Market calendar already registered: "${calendar.id}"`);
     }
     this.calendars.set(calendar.id, calendar);
   }
@@ -94,7 +92,9 @@ let defaultRegistry: MarketCalendarRegistry | null = null;
 export function getMarketCalendarRegistry(): MarketCalendarRegistry {
   if (!defaultRegistry) {
     defaultRegistry = new MarketCalendarRegistry();
-    defaultRegistry.register(makeIsMarketOpenCalendar("nyse-regular", "regular"));
+    defaultRegistry.register(
+      makeIsMarketOpenCalendar("nyse-regular", "regular"),
+    );
     defaultRegistry.register(
       makeIsMarketOpenCalendar("nyse-extended", "extended"),
     );

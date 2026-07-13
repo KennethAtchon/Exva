@@ -43,8 +43,11 @@ function cacheCtx(overrides: {
     strategyContext: {} as never,
     toolContext: {} as never,
     services: {
-      sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
-      sessionAiPhasesRepo: { getByPhase: () => null },
+      strategyContextService: {
+        getSelectorSettings: () => ({ aiPickerEnabled: true }),
+        getAiPhase: () => null,
+        get: () => ({ timeframe: { holdingStyle: "multi_day_swing" } }),
+      },
       workspacePreferencesRepo: {
         get: () => ({ defaultSearchProviderId: null }),
       },
@@ -72,9 +75,6 @@ function cacheCtx(overrides: {
         save: (row: unknown) => {
           saved.push(row);
         },
-      },
-      strategyContextService: {
-        get: () => ({ timeframe: { holdingStyle: "multi_day_swing" } }),
       },
       _cleared: cleared,
       _saved: saved,

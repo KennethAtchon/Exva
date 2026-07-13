@@ -26,7 +26,6 @@ export async function runApprovalRecheck(
     "approval recheck start",
   );
 
-  const config = ctx.getSessionConfig();
   const cycleId = crypto.randomUUID();
   const instrument: TradeCycleInstrument = {
     symbol: trade.instrumentSymbol,
@@ -43,7 +42,6 @@ export async function runApprovalRecheck(
     cycleId,
     tradeId: trade.id,
     instrument,
-    sessionConfig: config,
     instrumentClasses: ctx.getEffectiveInstrumentClasses(session),
     lastStageId: "decision",
   })) as InstrumentAnalysisResult;
@@ -143,7 +141,6 @@ export async function runApprovalRecheck(
     ctx,
     trade.id,
     instrument,
-    config,
     fresh,
     pipeline.totalAiCostUsd,
     review.output.recommendation,
@@ -173,7 +170,7 @@ export async function runApprovalRecheck(
     );
   }
 
-  const strategy = ctx.deps.strategyContextService.get(ctx.sessionId);
+  const strategy = ctx.getStrategyContext();
   const recheckClientOrderId = `${cycleId}:${trade.id}`;
   const recheckBrokerAccountId =
     gateState.brokerAccountId ??
@@ -210,13 +207,13 @@ export async function runApprovalRecheck(
       existingOrderCheck: (orderId: string, accountId: string) =>
         ctx.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
       sessionIsPaused: () => !ctx.runtimeIsActive(),
-      config,
+      riskConfig: strategy.riskConfig,
       stats: ctx.deps.statsRepo.dashboardStats(
         ctx.sessionId,
         ctx.deps.sessionRepo.getStatus(ctx.sessionId),
         ctx.totalAllocatedUsd(),
         ctx.deps.sessionRepo.uptimeMin(ctx.sessionId),
-        config.max_api_spend_usd,
+        strategy.riskConfig.maxAiSpendUsd,
       ),
       order: riskOrder,
       confidence: fresh.confidence,

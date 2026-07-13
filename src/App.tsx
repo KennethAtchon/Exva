@@ -1,26 +1,21 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { RuntimeEventToast } from "./components/RuntimeEventToast";
 import { NavShell, type PageKey } from "./components/TopNav";
 import { LiveReadinessModal } from "./components/sessions/LiveReadinessModal";
-import { Dashboard } from "./pages/Dashboard";
-import { BrokersPage } from "./pages/BrokersPage";
-import { SessionsPage } from "./pages/SessionsPage";
-import { TradesPage } from "./pages/TradesPage";
+import { DashboardHub } from "./hubs/DashboardHub";
+import { SessionsHub } from "./hubs/SessionsHub";
+import { SignalsHub } from "./hubs/SignalsHub";
+import { ResearchHub } from "./hubs/ResearchHub";
+import { SettingsHub } from "./hubs/SettingsHub";
 import { TradeDetail } from "./pages/TradeDetail";
-import { AutopsyPage } from "./pages/AutopsyPage";
-import { PeriodAutopsyPage } from "./pages/PeriodAutopsyPage";
-import { LeaderboardPage } from "./pages/LeaderboardPage";
-import { StrategyConfig } from "./pages/StrategyConfig";
-import { SignalSourcesPage } from "./pages/SignalSourcesPage";
-import { InstrumentSetsPage } from "./pages/InstrumentSetsPage";
-import { EventSourcesPage } from "./pages/EventSourcesPage";
-import { CostBreakdownPage } from "./pages/CostBreakdown";
-import { DevPanel, type DevPanelFocus } from "./pages/DevPanel";
-import { AccountsPage } from "./pages/AccountsPage";
+import { AutopsyPage } from "./hubs/panels/trade-autopsy-panel";
 import { DocsPage } from "./pages/DocsPage";
-import { ControlCenterPage } from "./pages/ControlCenterPage";
 import { AssistantSlideOver } from "./components/control/AssistantSlideOver";
+import {
+  CommandPalette,
+  type PaletteAction,
+} from "./components/CommandPalette";
 import { useControlStore } from "./store/controlStore";
 import { useSessionStore } from "./store/sessionStore";
 import { useTradeStore } from "./store/tradeStore";
@@ -30,6 +25,7 @@ import { executionModeForEnvironment } from "./lib/environment-mode";
 import { useExvaEvent } from "./hooks/useExvaEvent";
 import { usePolling } from "./hooks/usePolling";
 import type { SessionStatus } from "@/lib/types";
+import type { DevPanelFocus } from "./hubs/panels/dev-panel";
 
 interface LiveReadinessReport {
   readyToStart: boolean;
@@ -48,6 +44,11 @@ const mergeReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
 type AppUiState = {
   page: PageKey;
   sessionsStatusFilter: SessionStatus | "all";
+  sessionsTab: "run" | "trades" | "config";
+  researchTab: "scorecards" | "autopsies" | "costs" | "lab" | "attribution";
+  settingsTab: "accounts" | "brokers" | "developer";
+  signalsTab: "overview" | "instruments" | "doctor";
+  docsSlug: string | null;
   devPanelFocus: DevPanelFocus | null;
   loadError: string | null;
   sessionActionPending: boolean;
@@ -63,6 +64,11 @@ export default function App() {
   const [ui, dispatchUi] = useReducer(mergeReducer<AppUiState>, {
     page: "dashboard",
     sessionsStatusFilter: "all",
+    sessionsTab: "run",
+    researchTab: "scorecards",
+    settingsTab: "accounts",
+    signalsTab: "overview",
+    docsSlug: null,
     devPanelFocus: null,
     loadError: null,
     sessionActionPending: false,
@@ -73,6 +79,8 @@ export default function App() {
     periodAutopsySessionId: null,
     periodAutopsyId: null,
   });
+  const [sinkAlarm, setSinkAlarm] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const loadErrorRef = useRef<string | null>(null);
   loadErrorRef.current = ui.loadError;
   const status = useSessionStore((s) => s.status);
@@ -132,14 +140,36 @@ export default function App() {
 
   useEffect(() => {
     void reloadStats();
-    if (ui.page === "trades") return;
+    if (ui.page === "sessions" && ui.sessionsTab === "trades") return;
     void reloadTrades();
-  }, [focusedSessionId, ui.page, reloadStats, reloadTrades, viewMode]);
+  }, [
+    focusedSessionId,
+    ui.page,
+    ui.sessionsTab,
+    reloadStats,
+    reloadTrades,
+    viewMode,
+  ]);
 
   useEffect(() => {
     void reloadStats();
     void reloadTrades();
   }, [environmentMode, reloadStats, reloadTrades]);
+
+  useEffect(() => {
+    const ops = window.exva?.ops;
+    if (!ops) return;
+    void ops
+      .getNotificationRouting()
+      .then((routing) => {
+        setSinkAlarm(
+          !routing.ntfyConfigured &&
+            !routing.telegramConfigured &&
+            !routing.smtpConfigured,
+        );
+      })
+      .catch(() => setSinkAlarm(false));
+  }, [ui.page]);
 
   useEffect(() => {
     const listener = (event: Event) => {
@@ -152,7 +182,8 @@ export default function App() {
       ).detail;
       if (!detail) return;
       dispatchUi({
-        page: "autopsy",
+        page: "research",
+        researchTab: "autopsies",
         periodAutopsyScope: detail.scope,
         periodAutopsySessionId: detail.sessionId,
         periodAutopsyId: detail.periodAutopsyId,
@@ -172,7 +203,7 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        useControlStore.getState().toggleSlideOver();
+        setPaletteOpen((open) => !open);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -255,167 +286,274 @@ export default function App() {
     }
   };
 
+  const paletteActions: PaletteAction[] = [
+    {
+      id: "session.start",
+      title: "Start focused session",
+      keywords: "start resume run",
+      scope: "session",
+      run: () => void handleSession("start"),
+    },
+    {
+      id: "session.pause",
+      title: "Pause focused session",
+      keywords: "pause",
+      scope: "session",
+      run: () => void handleSession("pause"),
+    },
+    {
+      id: "session.stop",
+      title: "Stop focused session",
+      keywords: "stop",
+      scope: "session",
+      destructive: true,
+      run: () => void handleSession("stop"),
+    },
+    {
+      id: "kill.pause-all",
+      title: "Pause all sessions",
+      keywords: "pause all kill emergency",
+      scope: "global",
+      destructive: true,
+      run: async () => {
+        await api.killSwitchPauseAll();
+      },
+    },
+    {
+      id: "kill.flatten",
+      title: "Flatten everything…",
+      keywords: "flatten close all emergency",
+      scope: "global",
+      destructive: true,
+      run: async () => {
+        const confirmation = window.prompt(
+          "Type FLATTEN to market-close every open position:",
+        );
+        if (confirmation) await api.killSwitchFlattenAll(confirmation);
+      },
+    },
+    {
+      id: "research.backtest",
+      title: "Open Backtest Lab",
+      keywords: "backtest lab research",
+      scope: "global",
+      run: () => dispatchUi({ page: "research", researchTab: "lab" }),
+    },
+    {
+      id: "signals.doctor",
+      title: "Open Data Doctor",
+      keywords: "data doctor gaps coverage",
+      scope: "global",
+      run: () => dispatchUi({ page: "signals", signalsTab: "doctor" }),
+    },
+    {
+      id: "briefing.assemble",
+      title: "Assemble morning briefing",
+      keywords: "briefing digest morning",
+      scope: "global",
+      run: async () => {
+        await api.briefingAssemble();
+        dispatchUi({ page: "dashboard" });
+      },
+    },
+    {
+      id: "equity.snapshot",
+      title: "Take equity snapshot now",
+      keywords: "equity snapshot curve",
+      scope: "global",
+      run: async () => {
+        await api.equitySnapshotNow();
+      },
+    },
+    {
+      id: "ops.test-alarm",
+      title: "Trigger test alarm",
+      keywords: "alarm test supervisor",
+      scope: "dev",
+      run: async () => {
+        await window.exva?.ops?.triggerTestAlarm({ kind: "heartbeat_stale" });
+      },
+    },
+    {
+      id: "ops.backup",
+      title: "Run database backup now",
+      keywords: "backup folder database",
+      scope: "global",
+      run: async () => {
+        await window.exva?.ops?.runBackupNow();
+      },
+    },
+    {
+      id: "settings.accounts",
+      title: "Open accounts & notifications",
+      keywords: "settings accounts notifications sinks",
+      scope: "global",
+      run: () => dispatchUi({ page: "settings", settingsTab: "accounts" }),
+    },
+    {
+      id: "assistant.open",
+      title: "Open assistant",
+      keywords: "assistant chat control",
+      scope: "global",
+      run: () => useControlStore.getState().toggleSlideOver(),
+    },
+    {
+      id: "session.create-template",
+      title: "Create session from template…",
+      keywords: "create session preset template",
+      scope: "global",
+      run: () => dispatchUi({ page: "sessions", sessionsTab: "run" }),
+    },
+    {
+      id: "dev.inject-signal",
+      title: "Inject debug signal (dev)",
+      keywords: "debug inject signal",
+      scope: "dev",
+      run: async () => {
+        if (!focusedSessionId) return;
+        await api.debugInjectSignal(focusedSessionId);
+      },
+    },
+  ];
+
   const pageEl = () => {
     switch (ui.page) {
-      case "assistant":
-        return <ControlCenterPage />;
       case "dashboard":
-        return <Dashboard />;
+        return <DashboardHub />;
       case "sessions":
         return (
-          <SessionsPage
+          <SessionsHub
+            initialTab={ui.sessionsTab}
             initialStatusFilter={ui.sessionsStatusFilter}
             onInitialStatusFilterApplied={() =>
               dispatchUi({ sessionsStatusFilter: "all" })
             }
-            onGoToStrategy={() => dispatchUi({ page: "strategy" })}
-            onGoToAccounts={() => dispatchUi({ page: "accounts" })}
+            onGoToAccounts={() =>
+              dispatchUi({ page: "settings", settingsTab: "accounts" })
+            }
             onViewTrace={(sessionId, cycleId, stage) => {
               dispatchUi({
                 devPanelFocus: { sessionId, cycleId, stage },
-                page: "devpanel",
+                page: "settings",
+                settingsTab: "developer",
               });
             }}
-          />
-        );
-      case "brokers":
-        return (
-          <BrokersPage
-            onJumpToSession={async (sessionId) => {
-              await api.focusSession(sessionId);
-              await loadWorkspaceView();
-              dispatchUi({ page: "sessions" });
-            }}
-          />
-        );
-      case "trades":
-        return (
-          <TradesPage
             onViewAutopsy={(tradeId) => dispatchUi({ autopsyTradeId: tradeId })}
           />
         );
-      case "autopsy":
+      case "signals":
+        return <SignalsHub initialTab={ui.signalsTab} />;
+      case "research":
         return (
-          <PeriodAutopsyPage
-            initialScope={ui.periodAutopsyScope}
-            initialSessionId={ui.periodAutopsySessionId}
-            initialPeriodAutopsyId={ui.periodAutopsyId}
+          <ResearchHub
+            initialTab={ui.researchTab}
+            periodAutopsyScope={ui.periodAutopsyScope}
+            periodAutopsySessionId={ui.periodAutopsySessionId}
+            periodAutopsyId={ui.periodAutopsyId}
             onReviewTrade={(tradeId) => dispatchUi({ autopsyTradeId: tradeId })}
           />
         );
-      case "leaderboard":
-        return <LeaderboardPage />;
-      case "strategy":
+      case "settings":
         return (
-          <StrategyConfig
-            onGoToSessions={() => dispatchUi({ page: "sessions" })}
+          <SettingsHub
+            initialTab={ui.settingsTab}
+            sinkAlarm={sinkAlarm}
+            devPanelFocus={ui.devPanelFocus}
+            onDevFocusConsumed={() => dispatchUi({ devPanelFocus: null })}
+            onJumpToSession={async (sessionId) => {
+              await api.focusSession(sessionId);
+              await loadWorkspaceView();
+              dispatchUi({ page: "sessions", sessionsTab: "run" });
+            }}
           />
         );
-      case "costs":
-        return <CostBreakdownPage />;
-      case "signals":
-        return <SignalSourcesPage />;
-      case "instrument-sets":
-        return <InstrumentSetsPage />;
-      case "event-sources":
-        return <EventSourcesPage />;
-      case "devpanel":
-        return (
-          <DevPanel
-            focus={ui.devPanelFocus}
-            onFocusConsumed={() => dispatchUi({ devPanelFocus: null })}
-          />
-        );
-      case "accounts":
-        return <AccountsPage />;
       case "docs":
         return <DocsPage />;
     }
   };
 
-  return renderAppShell({
-    ui,
-    dispatchUi,
-    setSelected,
-    status,
-    handleSession,
-    stats,
-    selectedId,
-    pageEl,
-    setStatus,
-  });
-}
-
-const renderAppShell = ({
-  ui,
-  dispatchUi,
-  setSelected,
-  status,
-  handleSession,
-  stats,
-  selectedId,
-  pageEl,
-  setStatus,
-}: {
-  ui: AppUiState;
-  dispatchUi: (patch: Partial<AppUiState>) => void;
-  setSelected: (id: string | null) => void;
-  status: SessionStatus;
-  handleSession: (
-    action: "start" | "pause" | "resume" | "stop" | "forceStop",
-  ) => Promise<void>;
-  stats: ReturnType<typeof useSessionStore.getState>["stats"];
-  selectedId: string | null;
-  pageEl: () => JSX.Element;
-  setStatus: ReturnType<typeof useSessionStore.getState>["setStatus"];
-}) => (
-  <NavShell
-    activePage={ui.page}
-    onNavigate={(p) => {
-      dispatchUi({
-        page: p,
-        sessionsStatusFilter:
-          p !== "sessions" ? "all" : ui.sessionsStatusFilter,
-      });
-      setSelected(null);
-    }}
-    onNavigateToAttentionSessions={() => {
-      dispatchUi({
-        sessionsStatusFilter: "attention_required",
-        page: "sessions",
-      });
-      setSelected(null);
-    }}
-    sessionStatus={status}
-    onSessionAction={handleSession}
-    sessionActionPending={ui.sessionActionPending}
-    stats={stats}
-  >
-    {ui.loadError && (
-      <div className="border-b border-error-border bg-error-dim px-7 py-2.5 font-mono text-[12px] text-error">
-        {ui.loadError}
-      </div>
-    )}
-    <div className="flex flex-1 flex-col overflow-hidden">{pageEl()}</div>
-    <RuntimeEventToast />
-    {selectedId && (
-      <TradeDetail
-        tradeId={selectedId}
-        onClose={() => setSelected(null)}
-        onViewAutopsy={(tradeId) => {
-          dispatchUi({ autopsyTradeId: tradeId });
-          setSelected(null);
+  return (
+    <NavShell
+      activePage={ui.page}
+      onNavigate={(p) => {
+        dispatchUi({
+          page: p,
+          sessionsStatusFilter:
+            p !== "sessions" ? "all" : ui.sessionsStatusFilter,
+          sessionsTab: p === "sessions" ? ui.sessionsTab : "run",
+          researchTab: p === "research" ? ui.researchTab : "scorecards",
+          settingsTab: p === "settings" ? ui.settingsTab : "accounts",
+        });
+        setSelected(null);
+      }}
+      onNavigateToAttentionSessions={() => {
+        dispatchUi({
+          sessionsStatusFilter: "attention_required",
+          page: "sessions",
+          sessionsTab: "run",
+        });
+        setSelected(null);
+      }}
+      attentionCountOnDashboard
+      settingsAlarm={sinkAlarm}
+      sessionStatus={status}
+      onSessionAction={handleSession}
+      sessionActionPending={ui.sessionActionPending}
+      stats={stats}
+    >
+      {ui.loadError && (
+        <div className="border-b border-error-border bg-error-dim px-7 py-2.5 font-mono text-[12px] text-error">
+          {ui.loadError}
+        </div>
+      )}
+      <div className="flex flex-1 flex-col overflow-hidden">{pageEl()}</div>
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        actions={paletteActions}
+        navigate={(target) => {
+          if (target.tradeId) {
+            setSelected(target.tradeId);
+            dispatchUi({ page: target.page ?? "dashboard" });
+            return;
+          }
+          if (target.sessionId) {
+            void api
+              .focusSession(target.sessionId)
+              .then(() => loadWorkspaceView());
+          }
+          dispatchUi({
+            page: target.page ?? ui.page,
+            settingsTab:
+              (target.settingsTab as AppUiState["settingsTab"]) ??
+              ui.settingsTab,
+            researchTab:
+              (target.researchTab as AppUiState["researchTab"]) ??
+              ui.researchTab,
+            signalsTab:
+              (target.signalsTab as AppUiState["signalsTab"]) ?? ui.signalsTab,
+            docsSlug: target.docsSlug ?? ui.docsSlug,
+          });
         }}
       />
-    )}
-    {ui.autopsyTradeId && (
-      <AutopsyPage
-        tradeId={ui.autopsyTradeId}
-        trade={null}
-        onClose={() => dispatchUi({ autopsyTradeId: null })}
-      />
-    )}
-    {ui.page !== "assistant" ? (
+      <RuntimeEventToast />
+      {selectedId && (
+        <TradeDetail
+          tradeId={selectedId}
+          onClose={() => setSelected(null)}
+          onViewAutopsy={(tradeId) => {
+            dispatchUi({ autopsyTradeId: tradeId });
+            setSelected(null);
+          }}
+        />
+      )}
+      {ui.autopsyTradeId && (
+        <AutopsyPage
+          tradeId={ui.autopsyTradeId}
+          trade={null}
+          onClose={() => dispatchUi({ autopsyTradeId: null })}
+        />
+      )}
       <button
         type="button"
         title="Assistant (⌘K)"
@@ -424,37 +562,35 @@ const renderAppShell = ({
       >
         <Sparkles className="h-5 w-5" />
       </button>
-    ) : null}
-    <AssistantSlideOver
-      onOpenFullView={() => dispatchUi({ page: "assistant" })}
-    />
-    {ui.liveReadinessSession && ui.liveReadinessReport ? (
-      <LiveReadinessModal
-        sessionId={ui.liveReadinessSession.id}
-        report={ui.liveReadinessReport}
-        onAcknowledged={async () => {
-          dispatchUi({
-            liveReadinessReport: null,
-            liveReadinessSession: null,
-          });
-          try {
-            setStatus(await api.startSession());
-          } catch (error) {
+      <AssistantSlideOver />
+      {ui.liveReadinessSession && ui.liveReadinessReport ? (
+        <LiveReadinessModal
+          sessionId={ui.liveReadinessSession.id}
+          report={ui.liveReadinessReport}
+          onAcknowledged={async () => {
             dispatchUi({
-              loadError:
-                error instanceof Error
-                  ? error.message
-                  : "Failed to start session.",
+              liveReadinessReport: null,
+              liveReadinessSession: null,
             });
-          }
-        }}
-        onCancel={() => {
-          dispatchUi({
-            liveReadinessReport: null,
-            liveReadinessSession: null,
-          });
-        }}
-      />
-    ) : null}
-  </NavShell>
-);
+            try {
+              setStatus(await api.startSession());
+            } catch (error) {
+              dispatchUi({
+                loadError:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to start session.",
+              });
+            }
+          }}
+          onCancel={() => {
+            dispatchUi({
+              liveReadinessReport: null,
+              liveReadinessSession: null,
+            });
+          }}
+        />
+      ) : null}
+    </NavShell>
+  );
+}

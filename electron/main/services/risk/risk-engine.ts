@@ -1,4 +1,5 @@
-import type { DashboardStats, SessionConfig } from "@/lib/types";
+import type { DashboardStats } from "@/lib/types";
+import type { SessionRiskConfig } from "@electron/shared/domain";
 import type { OrderRequest } from "../broker/adapters/broker-adapter";
 import type {
   DecisionCheck,
@@ -28,7 +29,8 @@ export type RiskGateType =
   | "position_size"
   | "confidence"
   | "broker_disconnected"
-  | "ai_key_missing";
+  | "ai_key_missing"
+  | "calendar_blackout";
 
 export interface RiskResult<T = undefined> {
   allowed: boolean;
@@ -40,14 +42,14 @@ export interface RiskResult<T = undefined> {
 }
 
 export interface SessionPreflight {
-  config: SessionConfig;
+  riskConfig: SessionRiskConfig;
   stats: DashboardStats;
   brokerConnected: boolean;
   aiKeyAvailable: boolean;
 }
 
 export interface DecisionRiskInput {
-  config: SessionConfig;
+  riskConfig: SessionRiskConfig;
   stats: DashboardStats;
   /** Includes `instrumentType` for broker routing (Phase 8). */
   order: OrderRequest;
@@ -97,6 +99,18 @@ export interface DecisionRiskInput {
   >;
   maxSameGroupExposureUsd?: number | null;
   volatilityHaltMaxSpreadPct?: number | null;
+  /**
+   * Upcoming binary calendar events near the order symbol. Used by the
+   * calendar_blackout gate unless riskConfig.eventTypedExperience is true.
+   */
+  upcomingCalendarEvents?: Array<{
+    eventType: string;
+    scheduledAt: string;
+    symbol?: string;
+    title?: string;
+  }>;
+  /** Wall-clock for blackout evaluation (tests). Defaults to Date.now(). */
+  nowMs?: number;
 }
 
 export class RiskEngine {
@@ -117,7 +131,7 @@ export class RiskEngine {
         gateType: "ai_key_missing",
       };
     }
-    const result = this.checkStats(input.config, input.stats);
+    const result = this.checkStats(input.riskConfig, input.stats);
     logger.info(
       { allowed: result.allowed, reason: result.reason ?? null },
       "risk preflight evaluated",
@@ -142,7 +156,7 @@ export class RiskEngine {
       finalSizeUsd,
     });
 
-    const statsResult = this.checkStats(input.config, input.stats);
+    const statsResult = this.checkStats(input.riskConfig, input.stats);
     checks.push({
       id: "session_limits",
       label: "Session limits",
@@ -192,20 +206,20 @@ export class RiskEngine {
       };
     }
     const underConcurrentCap =
-      input.stats.open_trades < input.config.max_concurrent_trades;
+      input.stats.open_trades < input.riskConfig.maxConcurrentTrades;
     checks.push({
       id: "concurrent_cap",
       label: "Concurrent cap",
       pass: underConcurrentCap,
       detail: underConcurrentCap ? null : "Maximum concurrent trades reached",
       value: input.stats.open_trades,
-      threshold: input.config.max_concurrent_trades,
+      threshold: input.riskConfig.maxConcurrentTrades,
     });
     if (!underConcurrentCap) {
       logger.warn(
         {
           openTrades: input.stats.open_trades,
-          maxConcurrentTrades: input.config.max_concurrent_trades,
+          maxConcurrentTrades: input.riskConfig.maxConcurrentTrades,
         },
         "risk decision denied due to concurrent trade cap",
       );
@@ -232,7 +246,7 @@ export class RiskEngine {
       const equityUsd =
         input.stats.portfolio_value > 0
           ? input.stats.portfolio_value
-          : input.config.max_position_usd * 10;
+          : input.riskConfig.maxPositionUsd * 10;
       const riskBudgetUsd = equityUsd * input.riskPerTradePct;
       const atrSizedUsd = riskBudgetUsd / input.atrUsd;
       if (atrSizedUsd > 0 && atrSizedUsd < order.sizeUsd) {
@@ -294,22 +308,22 @@ export class RiskEngine {
       }
     }
 
-    if (order.sizeUsd > input.config.max_position_usd) {
+    if (order.sizeUsd > input.riskConfig.maxPositionUsd) {
       sizeAdjustments.push({
         reason: "Reduced to configured max position",
         fromUsd: order.sizeUsd,
-        toUsd: input.config.max_position_usd,
+        toUsd: input.riskConfig.maxPositionUsd,
       });
       const reduced = {
         allowed: true,
-        value: { ...order, sizeUsd: input.config.max_position_usd },
+        value: { ...order, sizeUsd: input.riskConfig.maxPositionUsd },
         reason: "Position size reduced to configured maximum",
-        trace: buildTrace(true, null, null, input.config.max_position_usd),
+        trace: buildTrace(true, null, null, input.riskConfig.maxPositionUsd),
       };
       logger.info(
         {
           originalSizeUsd: input.order.sizeUsd,
-          reducedToUsd: input.config.max_position_usd,
+          reducedToUsd: input.riskConfig.maxPositionUsd,
         },
         "risk decision size reduced",
       );
@@ -369,6 +383,32 @@ export class RiskEngine {
         };
       }
     }
+
+    const blackout = evaluateCalendarBlackout(input);
+    checks.push({
+      id: "calendar_blackout",
+      label: "Calendar blackout",
+      pass: blackout.allowed,
+      detail: blackout.allowed ? null : (blackout.reason ?? null),
+    });
+    if (!blackout.allowed) {
+      logger.warn(
+        { reason: blackout.reason ?? null },
+        "risk decision denied by calendar blackout",
+      );
+      return {
+        allowed: false,
+        reason: blackout.reason,
+        gateType: "calendar_blackout",
+        trace: buildTrace(
+          false,
+          blackout.reason ?? null,
+          "calendar_blackout",
+          null,
+        ),
+      };
+    }
+
     // Confidence gating is owned by trade-signal-aggregator; risk engine does not re-check.
     logger.debug(
       {
@@ -386,29 +426,32 @@ export class RiskEngine {
   }
 
   checkSessionLimits(
-    config: SessionConfig,
+    riskConfig: SessionRiskConfig,
     stats: DashboardStats,
   ): string | null {
-    const result = this.checkStats(config, stats);
+    const result = this.checkStats(riskConfig, stats);
     return result.allowed ? null : (result.reason ?? "Risk limit reached");
   }
 
-  private checkStats(config: SessionConfig, stats: DashboardStats): RiskResult {
-    if (stats.daily_api_spend >= config.max_api_spend_usd) {
+  private checkStats(
+    riskConfig: SessionRiskConfig,
+    stats: DashboardStats,
+  ): RiskResult {
+    if (stats.daily_api_spend >= riskConfig.maxAiSpendUsd) {
       return {
         allowed: false,
         reason: "Daily API budget reached",
         gateType: "api_budget",
       };
     }
-    if (stats.daily_pnl_usd <= -Math.abs(config.daily_loss_limit_usd)) {
+    if (stats.daily_pnl_usd <= -Math.abs(riskConfig.dailyLossLimitUsd)) {
       return {
         allowed: false,
         reason: "Daily loss limit reached",
         gateType: "daily_loss",
       };
     }
-    if (stats.daily_pnl_usd >= config.profit_target_usd) {
+    if (stats.daily_pnl_usd >= riskConfig.profitTargetUsd) {
       return {
         allowed: false,
         reason: "Profit target reached",
@@ -416,8 +459,8 @@ export class RiskEngine {
       };
     }
     if (
-      stats.consecutive_losers >= config.max_consecutive_losers &&
-      config.max_consecutive_losers > 0
+      stats.consecutive_losers >= riskConfig.maxConsecutiveLosers &&
+      riskConfig.maxConsecutiveLosers > 0
     ) {
       return {
         allowed: false,
@@ -431,4 +474,49 @@ export class RiskEngine {
   private maxExposureUsd(input: DecisionRiskInput): number | null | undefined {
     return input.riskPolicy?.maxExposureUsd ?? input.maxExposureUsd;
   }
+}
+
+/**
+ * Block entries when a binary calendar event for the symbol (or a global macro
+ * event) falls within ±calendarBlackoutHours, unless the experience is
+ * explicitly event-typed.
+ */
+export function evaluateCalendarBlackout(input: DecisionRiskInput): RiskResult {
+  if (input.riskConfig.eventTypedExperience === true) {
+    return { allowed: true };
+  }
+  const events = input.upcomingCalendarEvents ?? [];
+  if (events.length === 0) return { allowed: true };
+
+  const blackoutHours = input.riskConfig.calendarBlackoutHours ?? 24;
+  const nowMs = input.nowMs ?? Date.now();
+  const windowMs = blackoutHours * 3_600_000;
+  const symbol = input.order.instrumentSymbol?.toUpperCase() ?? null;
+
+  for (const event of events) {
+    const eventMs = Date.parse(event.scheduledAt);
+    if (!Number.isFinite(eventMs)) continue;
+    const distance = Math.abs(eventMs - nowMs);
+    if (distance > windowMs) continue;
+
+    const eventSymbol = event.symbol?.toUpperCase() ?? null;
+    const isMacro =
+      event.eventType === "fomc" ||
+      event.eventType === "cpi" ||
+      eventSymbol == null;
+    const matchesSymbol =
+      symbol != null && eventSymbol != null && eventSymbol === symbol;
+    if (!isMacro && !matchesSymbol) continue;
+
+    const hoursAway = (distance / 3_600_000).toFixed(1);
+    const label =
+      event.title ??
+      `${event.eventType}${eventSymbol ? ` ${eventSymbol}` : ""}`;
+    return {
+      allowed: false,
+      reason: `Calendar blackout: ${label.trim()} in ${hoursAway}h (window ±${blackoutHours}h)`,
+      gateType: "calendar_blackout",
+    };
+  }
+  return { allowed: true };
 }

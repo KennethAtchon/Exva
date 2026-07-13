@@ -20,11 +20,10 @@ import {
 import { AppError } from "@electron/shared/infra/errors";
 import { z } from "zod";
 import type { AgentMessagesRepo } from "../../db/repositories/agents/agent-messages-repo";
-import type { PeriodAutopsiesRepo } from "../../db/repositories/trades/period-autopsies-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import type { EventsRepo } from "../../db/repositories/system/events-repo";
+import type { AutopsiesRepo } from "../../db/repositories/trades/autopsies-repo";
 import type { AutopsyLessonsRepo } from "../../db/repositories/trades/autopsy-lessons-repo";
-import type { TradeAutopsiesRepo } from "../../db/repositories/trades/trade-autopsies-repo";
 import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
 import { estimateCostUsd } from "../llm/model-pricing";
@@ -102,9 +101,8 @@ type SynthesisOutput = z.infer<typeof synthesisSchema>;
 export interface PeriodAutopsyServiceDeps {
   sessions: SessionRepo;
   trades: TradesRepo;
-  tradeAutopsies: TradeAutopsiesRepo;
   agentMessages: AgentMessagesRepo;
-  autopsies: PeriodAutopsiesRepo;
+  autopsies: AutopsiesRepo;
   lessons: AutopsyLessonsRepo;
   events: EventsRepo;
   providerRegistry: ProviderRegistry;
@@ -150,7 +148,7 @@ export class PeriodAutopsyService {
   }
 
   getById(periodAutopsyId: string): PeriodAutopsyRecord {
-    return this.deps.autopsies.require(periodAutopsyId);
+    return this.deps.autopsies.requirePeriod(periodAutopsyId);
   }
 
   preview(input: PeriodAutopsyRunInput): PeriodAutopsyPreview {
@@ -178,7 +176,7 @@ export class PeriodAutopsyService {
     const tradeContexts = buildTradePromptContexts(
       trades,
       this.deps.agentMessages.listByTrades(trades.map((trade) => trade.id)),
-      this.deps.tradeAutopsies,
+      this.deps.autopsies,
       filters.includeAgentPhases,
     );
     const priorLessons = this.deps.lessons.listByScope({
@@ -261,7 +259,6 @@ export class PeriodAutopsyService {
     const now = new Date().toISOString();
     return this.deps.lessons.insert({
       autopsyId: null,
-      periodAutopsyId: null,
       tradeId: null,
       sessionId: input.scope === "session" ? (input.sessionId ?? null) : null,
       lesson: input.lesson.trim(),
@@ -308,7 +305,6 @@ export class PeriodAutopsyService {
     const now = new Date().toISOString();
     return this.deps.lessons.insert({
       autopsyId: null,
-      periodAutopsyId: null,
       tradeId: null,
       sessionId:
         input.targetScope === "session"
@@ -368,7 +364,7 @@ export class PeriodAutopsyService {
     const tradeContexts = buildTradePromptContexts(
       trades,
       messages,
-      this.deps.tradeAutopsies,
+      this.deps.autopsies,
       filters.includeAgentPhases,
     );
     const promptPlan = buildPromptPlan({
@@ -492,7 +488,7 @@ export class PeriodAutopsyService {
           andonReasons,
         });
 
-    const record = this.deps.autopsies.insert({
+    const record = this.deps.autopsies.insertPeriod({
       scope: input.scope,
       sessionId: input.scope === "session" ? (input.sessionId ?? null) : null,
       windowStart: input.windowStart,
@@ -518,8 +514,7 @@ export class PeriodAutopsyService {
     if (synthesis) {
       for (const lesson of synthesis.lessonsNew) {
         this.deps.lessons.insert({
-          autopsyId: null,
-          periodAutopsyId: record.id,
+          autopsyId: record.id,
           tradeId: null,
           sessionId:
             input.scope === "session" ? (input.sessionId ?? null) : null,
@@ -675,7 +670,7 @@ function normalizeFilters(filters: PeriodAutopsyFilters): PeriodAutopsyFilters {
 function buildTradePromptContexts(
   trades: Trade[],
   messages: AgentMessage[],
-  tradeAutopsies: TradeAutopsiesRepo,
+  autopsiesRepo: AutopsiesRepo,
   includeAgentPhases: string[],
 ): TradePromptContext[] {
   const byTrade = new Map<string, AgentMessage[]>();
@@ -694,7 +689,7 @@ function buildTradePromptContexts(
             includeAgentPhases.includes(message.role),
           )
         : tradeMessages;
-    const latestAutopsy = tradeAutopsies.findLatest(trade.id);
+    const latestAutopsy = autopsiesRepo.findLatestByTrade(trade.id);
     const structured = latestAutopsy
       ? parseAutopsyStructuredJson(latestAutopsy.summaryStructuredJson)
       : null;

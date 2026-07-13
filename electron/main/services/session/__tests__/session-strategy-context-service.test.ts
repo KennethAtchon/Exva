@@ -3,15 +3,9 @@ import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/instruments/se
 import { createMinimalSession } from "../../../db/test-fixtures";
 import { createTestDb } from "../../../db/test-helpers";
 import { ProviderAccountsRepo } from "../../../db/repositories/workspace/provider-accounts-repo";
-import { SessionAiPhasesRepo } from "../../../db/repositories/sessions/session-ai-phases-repo";
-import { SessionAiSettingsRepo } from "../../../db/repositories/sessions/session-ai-settings-repo";
 import { SessionRepo } from "../../../db/repositories/sessions/session-repo";
-import { SessionResearchPostureRepo } from "../../../db/repositories/sessions/session-research-posture-repo";
-import { SessionRiskConfigRepo } from "../../../db/repositories/sessions/session-risk-config-repo";
-import { SessionSelectorSettingsRepo } from "../../../db/repositories/sessions/session-selector-settings-repo";
-import { SessionTimeframeConfigRepo } from "../../../db/repositories/sessions/session-timeframe-config-repo";
-import { SessionTradeRulesRepo } from "../../../db/repositories/sessions/session-trade-rules-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
+import { SessionStrategyConfigService } from "../session-strategy-config-service";
 import { SessionStrategyContextService } from "../session-strategy-context-service";
 
 describe("SessionStrategyContextService", () => {
@@ -25,7 +19,7 @@ describe("SessionStrategyContextService", () => {
     db.sqlite.close();
   });
 
-  it("aggregates strategy config from experience defaults and repos", () => {
+  it("aggregates strategy config from session_strategy_configs", () => {
     const service = createService(db);
     const session = createMinimalSession(db, {
       experienceId: "edgar-catalyst",
@@ -39,76 +33,17 @@ describe("SessionStrategyContextService", () => {
     expect(context.aiSettings.workerGuidanceMarkdown).toBe("");
   });
 
-  it("prefers persisted strategy JSON over table reads", () => {
-    const sessions = new SessionRepo(db);
-    const service = createService(db);
+  it("reads and writes through SessionStrategyConfigService", () => {
+    const strategyConfig = new SessionStrategyConfigService(db);
+    const service = createService(db, strategyConfig);
     const session = createMinimalSession(db, {
       experienceId: "edgar-catalyst",
     });
     service.saveRiskConfig(session.id, { maxPositionUsd: 900 });
 
-    sessions.updateStrategyConfigJson(
-      session.id,
-      JSON.stringify({
-        version: 5,
-        researchPosture: {
-          posturePresetId: "edgar_catalyst",
-          processingMode: "manual",
-          evidenceMode: "balanced",
-          catalystMode: "preferred",
-          fundamentalStrictness: "balanced",
-          postureNotes: "",
-        },
-        rules: {
-          rulesPresetId: "catalyst_entry",
-          setupType: "custom",
-          sideBias: "both",
-          entryStyle: "catalyst",
-          exitStyle: "fixed_pct",
-          scalingMode: "single_entry",
-          tradeRulesMarkdown: "",
-          ruleNotes: "",
-        },
-        riskConfig: {
-          maxPositionUsd: 1200,
-          stopLossPct: 2,
-          takeProfitPct: 4,
-          stopLossType: "fixed_pct",
-          atrStopMultiplier: null,
-          kellyFraction: 0.25,
-          predictionEdgeThreshold: 0.08,
-          maxExposureUsd: null,
-          waitForOpenThreshold: 0.8,
-          maxConcurrentTrades: 2,
-          maxConsecutiveLosers: 3,
-          volatilityHaltMaxSpreadPct: 1.5,
-          dailyLossLimitUsd: 250,
-          profitTargetUsd: 500,
-          maxAiSpendUsd: 25,
-          maxDataSpendUsd: 10,
-          humanApprovalRequired: false,
-        },
-        timeframe: {
-          primaryTradingTimeframe: "1d",
-          holdingStyle: "swing",
-          targetHoldDays: 5,
-          maxHoldDays: 10,
-          timeframeNotes: "",
-        },
-        aiSettings: { workerGuidanceMarkdown: "from-json" },
-        presetIds: {
-          posturePresetId: "edgar_catalyst",
-          rulesPresetId: "catalyst_entry",
-          riskPresetId: "moderate",
-          timeframePresetId: "catalyst",
-        },
-      }),
-    );
-
-    expect(service.get(session.id).riskConfig.maxPositionUsd).toBe(1200);
-    expect(service.get(session.id).aiSettings.workerGuidanceMarkdown).toBe(
-      "from-json",
-    );
+    expect(service.get(session.id).riskConfig.maxPositionUsd).toBe(900);
+    expect(strategyConfig.get(session.id).doc.risk.maxPositionUsd).toBe(900);
+    expect(strategyConfig.get(session.id).version).toBe(2);
   });
 
   it("returns strategy page data with workspace defaults and AI phases", () => {
@@ -143,14 +78,13 @@ describe("SessionStrategyContextService", () => {
       "provider-openrouter",
     ]);
     expect(page.aiPhases).toHaveLength(5);
-    expect(page.selectorSettings).toEqual(
-      new SessionSelectorSettingsRepo(db).get(session.id),
-    );
+    expect(page.selectorSettings.aiPickerEnabled).toBe(true);
   });
 
-  it("persists saves back into strategy JSON and rejects locked sessions", () => {
+  it("persists saves into session_strategy_configs and rejects locked sessions", () => {
     const sessions = new SessionRepo(db);
-    const service = createService(db);
+    const strategyConfig = new SessionStrategyConfigService(db);
+    const service = createService(db, strategyConfig);
     const session = createMinimalSession(db, {
       experienceId: "edgar-catalyst",
     });
@@ -160,8 +94,7 @@ describe("SessionStrategyContextService", () => {
     });
     expect(saved.tradeRulesMarkdown).toBe("only trade clean catalysts");
     expect(
-      JSON.parse(sessions.getStrategyConfigJson(session.id) ?? "{}").rules
-        .tradeRulesMarkdown,
+      strategyConfig.get(session.id).doc.tradeRules.tradeRulesMarkdown,
     ).toBe("only trade clean catalysts");
 
     sessions.setStatus("active", session.id);
@@ -176,8 +109,6 @@ describe("SessionStrategyContextService", () => {
     });
     const service = createService(db);
 
-    // In V2, source-type compatibility is managed at the experience-catalog level;
-    // the legacy subscription-based check is removed.
     expect(() =>
       service.saveResearchPosture(session.id, {
         catalystMode: "required",
@@ -189,17 +120,12 @@ describe("SessionStrategyContextService", () => {
 
 function createService(
   db: ReturnType<typeof createTestDb>,
+  strategyConfig = new SessionStrategyConfigService(db),
 ) {
   return new SessionStrategyContextService({
     sessionRepo: new SessionRepo(db),
-    researchPostureRepo: new SessionResearchPostureRepo(db),
-    rulesRepo: new SessionTradeRulesRepo(db),
-    riskRepo: new SessionRiskConfigRepo(db),
-    timeframeRepo: new SessionTimeframeConfigRepo(db),
-    aiSettingsRepo: new SessionAiSettingsRepo(db),
-    selectorSettingsRepo: new SessionSelectorSettingsRepo(db),
+    strategyConfig,
     providerAccountsRepo: new ProviderAccountsRepo(db),
     workspacePrefsRepo: new WorkspacePreferencesRepo(db),
-    sessionAiPhasesRepo: new SessionAiPhasesRepo(db),
   });
 }

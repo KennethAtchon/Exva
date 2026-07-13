@@ -6,12 +6,14 @@ export function resolveSessionInstrumentClasses(
   session: WorkspaceSession,
   deps: Pick<
     OrchestratorDeps,
-    | "sessionSelectorSettingsRepo"
+    | "strategyContextService"
     | "sessionBrokerAssignmentsRepo"
     | "brokerAccountsRepo"
   >,
 ) {
-  const selectorSettings = deps.sessionSelectorSettingsRepo.get(session.id);
+  const selectorSettings = deps.strategyContextService.getSelectorSettings(
+    session.id,
+  );
   const assignedBrokers = deps.sessionBrokerAssignmentsRepo
     .listBrokerAccountIds(session.id)
     .map((brokerAccountId) => deps.brokerAccountsRepo.find(brokerAccountId))

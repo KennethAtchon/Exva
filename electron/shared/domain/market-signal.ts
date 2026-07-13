@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { InstrumentClass } from "./enums";
 
 /**
@@ -29,6 +30,20 @@ export interface MarketSignalBase {
   provenance: { url?: string; raw?: unknown };
 }
 
+/** Form 4 transaction specifics nested under FilingPayload. */
+export interface Form4FilingDetails {
+  transactionCode: string;
+  role: string;
+  shares: number;
+  pricePerShare: number | null;
+  totalValueUsd: number | null;
+  isOpenMarketBuy: boolean;
+  /** Populated when emitted by the insider-cluster scan. */
+  clusterSize?: number;
+  clusterValueUsd?: number;
+  insiderCount?: number;
+}
+
 export interface FilingPayload {
   filingType: string;
   accessionNumber: string;
@@ -37,6 +52,8 @@ export interface FilingPayload {
   documentUrl: string;
   filedAt: string;
   polarityHint?: "positive" | "negative" | "unclear";
+  /** Present for Form 4 filings / insider-cluster signals. */
+  form4?: Form4FilingDetails;
 }
 
 export interface DislocationPayload {
@@ -48,6 +65,20 @@ export interface DislocationPayload {
   liquidityUsd: number;
   resolutionAt: string;
   resolutionCriteria: string;
+  venue?: "polymarket" | "kalshi";
+  /** Venue fee in basis points baked into cost fields. */
+  feeBps?: number;
+  /** True when emitted by the cross-venue dislocation detector. */
+  crossVenue?: boolean;
+  counterpartVenue?: "polymarket" | "kalshi";
+  counterpartMarketId?: string;
+  counterpartMid?: number;
+  /** Mid-vs-mid divergence net of both venues' fees (absolute). */
+  netDivergence?: number;
+  /** Funding-rate / basis context (crypto dislocations). */
+  fundingRate?: number;
+  fundingPercentile?: number;
+  basisBps?: number;
 }
 
 export interface FlowAnomalyPayload {
@@ -62,6 +93,15 @@ export interface FlowAnomalyPayload {
     expiry: string;
   }>;
   direction: "bullish" | "bearish" | "unclear";
+  /** When set, defined-risk vertical (options-flow v2). */
+  spread?: {
+    structure: "vertical";
+    longLeg: string;
+    shortLeg: string;
+    width: number;
+    netDebit: number;
+    maxLoss: number;
+  };
 }
 
 export interface ScanHitPayload {
@@ -77,12 +117,16 @@ export interface NewsPayload {
   publishedAt: string;
   sourceQuality: "wire" | "major" | "aggregator" | "social";
   tickersMentioned: string[];
+  /** Polarity for freshness cross-check against coincident filings/scans. */
+  polarityHint?: "positive" | "negative" | "unclear";
 }
 
 export interface CalendarPayload {
   eventType: "earnings" | "fomc" | "cpi" | "fda" | "expiry" | "other";
   scheduledAt: string;
   symbol?: string;
+  title?: string;
+  source?: string;
 }
 
 export interface ManualPayload {
@@ -111,6 +155,160 @@ export const DEFAULT_SIGNAL_TTL: Record<MarketSignalKind, string> = {
   calendar_event: "PT24H",
   manual: "PT4H",
 };
+
+// ---------------------------------------------------------------------------
+// Zod payload schemas (round-trip / Dev Panel injection)
+// ---------------------------------------------------------------------------
+
+export const form4FilingDetailsSchema = z
+  .object({
+    transactionCode: z.string(),
+    role: z.string(),
+    shares: z.number(),
+    pricePerShare: z.number().nullable(),
+    totalValueUsd: z.number().nullable(),
+    isOpenMarketBuy: z.boolean(),
+    clusterSize: z.number().optional(),
+    clusterValueUsd: z.number().optional(),
+    insiderCount: z.number().optional(),
+  })
+  .strict();
+
+export const filingPayloadSchema = z
+  .object({
+    filingType: z.string(),
+    accessionNumber: z.string(),
+    itemCodes: z.array(z.string()),
+    companyName: z.string().nullable(),
+    documentUrl: z.string(),
+    filedAt: z.string(),
+    polarityHint: z.enum(["positive", "negative", "unclear"]).optional(),
+    form4: form4FilingDetailsSchema.optional(),
+  })
+  .strict();
+
+export const dislocationPayloadSchema = z
+  .object({
+    marketId: z.string(),
+    question: z.string(),
+    outcome: z.string(),
+    marketMid: z.number(),
+    spreadBps: z.number(),
+    liquidityUsd: z.number(),
+    resolutionAt: z.string(),
+    resolutionCriteria: z.string(),
+    venue: z.enum(["polymarket", "kalshi"]).optional(),
+    feeBps: z.number().optional(),
+    crossVenue: z.boolean().optional(),
+    counterpartVenue: z.enum(["polymarket", "kalshi"]).optional(),
+    counterpartMarketId: z.string().optional(),
+    counterpartMid: z.number().optional(),
+    netDivergence: z.number().optional(),
+    fundingRate: z.number().optional(),
+    fundingPercentile: z.number().optional(),
+    basisBps: z.number().optional(),
+  })
+  .strict();
+
+export const flowAnomalyPayloadSchema = z
+  .object({
+    underlying: z.string(),
+    anomalyType: z.enum([
+      "volume_oi",
+      "iv_spike",
+      "skew_shift",
+      "volume_surge",
+    ]),
+    metric: z.number(),
+    baseline: z.number(),
+    contracts: z
+      .array(
+        z.object({
+          symbol: z.string(),
+          type: z.enum(["call", "put"]),
+          strike: z.number(),
+          expiry: z.string(),
+        }),
+      )
+      .optional(),
+    direction: z.enum(["bullish", "bearish", "unclear"]),
+    spread: z
+      .object({
+        structure: z.literal("vertical"),
+        longLeg: z.string(),
+        shortLeg: z.string(),
+        width: z.number(),
+        netDebit: z.number(),
+        maxLoss: z.number(),
+      })
+      .optional(),
+  })
+  .strict();
+
+export const scanHitPayloadSchema = z
+  .object({
+    strategyId: z.string(),
+    evidence: z.record(z.number()),
+    barWindowHash: z.string(),
+    proposedAction: z.enum(["buy", "sell"]),
+  })
+  .strict();
+
+export const newsPayloadSchema = z
+  .object({
+    headline: z.string(),
+    url: z.string(),
+    publishedAt: z.string(),
+    sourceQuality: z.enum(["wire", "major", "aggregator", "social"]),
+    tickersMentioned: z.array(z.string()),
+    polarityHint: z.enum(["positive", "negative", "unclear"]).optional(),
+  })
+  .strict();
+
+export const calendarPayloadSchema = z
+  .object({
+    eventType: z.enum(["earnings", "fomc", "cpi", "fda", "expiry", "other"]),
+    scheduledAt: z.string(),
+    symbol: z.string().optional(),
+    title: z.string().optional(),
+    source: z.string().optional(),
+  })
+  .strict();
+
+export const manualPayloadSchema = z
+  .object({
+    note: z.string().nullable(),
+  })
+  .strict();
+
+export const marketSignalKindSchema = z.enum([
+  "filing",
+  "market_dislocation",
+  "flow_anomaly",
+  "scan_hit",
+  "news",
+  "calendar_event",
+  "manual",
+]);
+
+export function payloadSchemaForKind(kind: MarketSignalKind) {
+  switch (kind) {
+    case "filing":
+      return filingPayloadSchema;
+    case "market_dislocation":
+      return dislocationPayloadSchema;
+    case "flow_anomaly":
+      return flowAnomalyPayloadSchema;
+    case "scan_hit":
+      return scanHitPayloadSchema;
+    case "news":
+      return newsPayloadSchema;
+    case "calendar_event":
+      return calendarPayloadSchema;
+    case "manual":
+      return manualPayloadSchema;
+  }
+}
 
 /**
  * Parse a simple ISO-8601 duration used by signal TTLs.

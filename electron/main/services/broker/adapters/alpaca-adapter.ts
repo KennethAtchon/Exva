@@ -28,7 +28,8 @@ import {
   type BrokerOrderV2,
   type OrderEventFeed,
 } from "../order-contract-v2";
-import { createPollOrderEventFeed } from "../order-event-feed";
+import { createStreamingOrderEventFeed } from "../streaming-order-event-feed";
+import type { OrderEvent } from "../order-contract-v2";
 
 const logger = createLogger("alpaca-adapter");
 
@@ -533,15 +534,43 @@ export class AlpacaAdapter implements BrokerAdapter {
   }
 
   /**
-   * Poll-based order feed (Alpaca trade_updates websocket not wired yet).
+   * WebSocket trade_updates feed with reconnect + poll fallback.
    * TradeMonitor calls watchOrders after create; empty seed is intentional.
    */
-  createOrderEventFeed(): OrderEventFeed {
+  createOrderEventFeed(opts?: {
+    onFallbackToPoll?: (reason: string) => void;
+  }): OrderEventFeed {
     const intervalMs =
       this.credentials.mode === "paper"
         ? ORDER_EVENT_POLL_MS_PAPER
         : ORDER_EVENT_POLL_MS_LIVE;
-    return createPollOrderEventFeed(this, [], intervalMs);
+    const streamUrl = `${this.baseUrl.replace("https://", "wss://")}/stream`;
+    return createStreamingOrderEventFeed({
+      url: streamUrl,
+      adapter: this,
+      pollIntervalMs: intervalMs,
+      maxReconnectAttempts: 5,
+      onOpen: (socket) => {
+        socket.send(
+          JSON.stringify({
+            action: "auth",
+            key: this.credentials.api_key,
+            secret: this.credentials.secret_key,
+          }),
+        );
+        socket.send(
+          JSON.stringify({
+            action: "listen",
+            data: { streams: ["trade_updates"] },
+          }),
+        );
+      },
+      mapMessage: (raw) => mapAlpacaTradeUpdate(raw),
+      onFallbackToPoll: (reason) => {
+        logger.warn({ reason }, "alpaca order feed using poll fallback");
+        opts?.onFallbackToPoll?.(reason);
+      },
+    });
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -965,4 +994,58 @@ function sleep(ms: number): Promise<void> {
 function toAlpacaClientOrderId(clientOrderId: string): string {
   if (/^[A-Za-z0-9_-]{1,48}$/.test(clientOrderId)) return clientOrderId;
   return `exva-${createHash("sha256").update(clientOrderId).digest("hex").slice(0, 43)}`;
+}
+
+function mapAlpacaTradeUpdate(raw: unknown): OrderEvent[] {
+  const text =
+    typeof raw === "string"
+      ? raw
+      : Buffer.isBuffer(raw)
+        ? raw.toString("utf8")
+        : String(raw);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return [];
+  }
+  if (!parsed || typeof parsed !== "object") return [];
+  const msg = parsed as {
+    stream?: string;
+    data?: {
+      event?: string;
+      price?: string;
+      qty?: string;
+      timestamp?: string;
+      order?: {
+        id?: string;
+        client_order_id?: string;
+        filled_avg_price?: string;
+        filled_qty?: string;
+      };
+    };
+  };
+  if (msg.stream !== "trade_updates" || !msg.data?.order?.id) return [];
+  const event = (msg.data.event ?? "").toLowerCase();
+  let kind: OrderEvent["kind"] | null = null;
+  if (event === "fill") kind = "fill";
+  else if (event === "partial_fill") kind = "partial_fill";
+  else if (event === "canceled") kind = "canceled";
+  else if (event === "expired") kind = "expired";
+  else if (event === "rejected") kind = "rejected";
+  else if (event === "new" || event === "accepted") kind = "accepted";
+  if (!kind) return [];
+  return [
+    {
+      brokerOrderId: msg.data.order.id,
+      clientOrderId: msg.data.order.client_order_id,
+      kind,
+      ts: msg.data.timestamp ?? new Date().toISOString(),
+      filledAvgPrice:
+        Number(msg.data.price ?? msg.data.order.filled_avg_price ?? 0) ||
+        undefined,
+      filledQty:
+        Number(msg.data.qty ?? msg.data.order.filled_qty ?? 0) || undefined,
+    },
+  ];
 }

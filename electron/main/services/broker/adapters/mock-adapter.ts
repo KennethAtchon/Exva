@@ -10,11 +10,31 @@ import type {
   OrderStatus,
 } from "./broker-adapter";
 import {
+  DEFAULT_MARKET_ONLY_CAPABILITIES,
+  adapterSupportsOrder,
+  lowerBrokerOrderV2ToV1,
+  type AdapterCapabilities,
+  type BrokerOrderV2,
+  type OrderEventFeed,
+} from "../order-contract-v2";
+import { createPollOrderEventFeed } from "../order-event-feed";
+import {
   DEFAULT_MOCK_ACCOUNT_BALANCE_USD,
   DEFAULT_MOCK_EXECUTION_TIER,
   type MockExecutionTier,
   type MockScenarioKind,
 } from "@electron/shared/domain/mock-scenario";
+
+const MOCK_CAPABILITIES: AdapterCapabilities = {
+  ...DEFAULT_MARKET_ONLY_CAPABILITIES,
+  supportsLimit: true,
+  supportsStop: false,
+  supportsBracket: true,
+  supportsStreaming: false,
+  quantityKinds: ["notional_usd", "units"],
+  timeInForce: ["day", "gtc", "ioc"],
+  orderTypes: ["market", "limit"],
+};
 
 export type MockScenarioBias = "bullish" | "bearish" | "sideways" | "volatile";
 
@@ -125,6 +145,7 @@ export class MockBrokerAdapter implements BrokerAdapter {
    * paper/dev workflows only. It never touches a real broker.
    */
   readonly launchCapable = false;
+  readonly capabilities = MOCK_CAPABILITIES;
 
   private readonly orders = new Map<
     string,
@@ -226,6 +247,40 @@ export class MockBrokerAdapter implements BrokerAdapter {
     }
 
     return { brokerOrderId, filledAvgPrice };
+  }
+
+  async placeOrderV2(order: BrokerOrderV2): Promise<BrokerOrderResult> {
+    const check = adapterSupportsOrder(this.capabilities, order);
+    if (!check.ok) {
+      throw new Error(`Mock rejects order: ${check.reason}`);
+    }
+    if (
+      order.orderType === "market" &&
+      order.quantity.kind === "notional_usd"
+    ) {
+      return this.placeOrder(lowerBrokerOrderV2ToV1(order));
+    }
+    const sizeUsd =
+      order.quantity.kind === "notional_usd"
+        ? order.quantity.value
+        : order.quantity.value *
+          (order.limitPrice ?? this.basePriceFor(order.instrument.symbol));
+    return this.placeOrder({
+      instrumentSymbol: order.instrument.symbol,
+      instrumentDisplayName: order.instrument.displayName,
+      predictionOutcome: order.instrument.predictionOutcome,
+      instrumentMetadataJson: order.instrument.metadataJson,
+      instrumentType: order.instrument.instrumentClass,
+      side: order.side,
+      sizeUsd,
+      stopLossPrice: order.bracket?.stopLossPrice,
+      takeProfitPrice: order.bracket?.takeProfitPrice,
+      clientOrderId: order.clientOrderId,
+    });
+  }
+
+  createOrderEventFeed(): OrderEventFeed {
+    return createPollOrderEventFeed(this, [], 200);
   }
 
   async cancelOrder(orderId: string): Promise<void> {

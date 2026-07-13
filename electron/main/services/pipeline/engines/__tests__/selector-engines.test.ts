@@ -46,6 +46,10 @@ function baseCtx(overrides: Partial<AIPhaseContext> = {}): AIPhaseContext {
         save: () => undefined,
       },
       strategyContextService: {
+        getSelectorSettings: () => ({
+          aiPickerEnabled: true,
+          noInstrumentRetryMinutes: null,
+        }),
         get: () => ({ timeframe: { holdingStyle: "multi_day_swing" } }),
       },
     } as never,

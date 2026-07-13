@@ -86,9 +86,7 @@ export function PeriodLessonsPanel({
 
   const groups = useMemo(() => {
     const newLessons = currentPeriodAutopsyId
-      ? lessons.filter(
-          (lesson) => lesson.periodAutopsyId === currentPeriodAutopsyId,
-        )
+      ? lessons.filter((lesson) => lesson.autopsyId === currentPeriodAutopsyId)
       : [];
     const openLessons = lessons.filter(
       (lesson) =>

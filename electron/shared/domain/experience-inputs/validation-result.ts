@@ -44,10 +44,6 @@ export function validationResult(
   return { valid: errors.length === 0, errors, warnings };
 }
 
-export function validResult(warnings: FieldWarning[] = []): ValidationResult {
-  return { valid: true, errors: [], warnings };
-}
-
 // ---------------------------------------------------------------------------
 // Session draft validation
 // ---------------------------------------------------------------------------

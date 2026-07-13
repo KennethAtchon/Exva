@@ -9,7 +9,6 @@ import type { ProviderAccountsRepo } from "../../db/repositories/workspace/provi
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
 import type { BrokerRoutingRepo } from "../../db/repositories/brokers/broker-routing-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
-import type { SessionSelectorSettingsRepo } from "../../db/repositories/sessions/session-selector-settings-repo";
 import type { SessionTemplatesRepo } from "../../db/repositories/sessions/session-templates-repo";
 import type { SessionStrategyContextService } from "./session-strategy-context-service";
 
@@ -34,7 +33,6 @@ export class SessionTemplateService {
       templates: SessionTemplatesRepo;
       sessions: SessionRepo;
       strategyContext: SessionStrategyContextService;
-      selectorSettings: SessionSelectorSettingsRepo;
       brokerAssignments: SessionBrokerAssignmentsRepo;
       brokerRouting: BrokerRoutingRepo;
       providerAccounts: ProviderAccountsRepo;
@@ -157,7 +155,7 @@ export class SessionTemplateService {
   buildPayloadFromSession(sessionId: string): SessionTemplatePayload {
     const session = this.deps.sessions.requireById(sessionId);
     const strategyContext = this.deps.strategyContext.get(sessionId);
-    const selector = this.deps.selectorSettings.get(sessionId);
+    const selector = this.deps.strategyContext.getSelectorSettings(sessionId);
     const overrides = this.deps.brokerRouting.listSessionOverrides(sessionId);
 
     return {

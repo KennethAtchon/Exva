@@ -148,7 +148,22 @@ export interface BrokerAdapter {
   getOptionChain?(underlyingSymbol: string): Promise<OptionChainContract[]>;
 
   /** Optional order-event feed (websocket or poll). TradeMonitor prefers this. */
-  createOrderEventFeed?(): OrderEventFeed;
+  createOrderEventFeed?(opts?: {
+    onFallbackToPoll?: (reason: string) => void;
+  }): OrderEventFeed;
+
+  /**
+   * Optional: list resting/open orders at the venue. Paper ghost adapters
+   * return resting GhostFillSimulator limits; live adapters may omit.
+   */
+  getOpenOrders?(): Promise<
+    Array<{
+      brokerOrderId: string;
+      clientOrderId?: string;
+      status: "open";
+      remainingQty?: number;
+    }>
+  >;
 }
 
 export function adapterCapabilitiesOf(

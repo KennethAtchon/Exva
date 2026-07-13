@@ -1,4 +1,8 @@
-import type { InstrumentClass, ProcessingMode, TradingTimeframe } from "@electron/shared/domain/enums";
+import type {
+  InstrumentClass,
+  ProcessingMode,
+  TradingTimeframe,
+} from "@electron/shared/domain/enums";
 import type { LiveSignalSourceType } from "@electron/shared/domain/signals";
 import type { MarketSignalKind } from "@electron/shared/domain/market-signal";
 import type { ExperiencePresetIds } from "@electron/shared/domain/signal-descriptor";
@@ -175,4 +179,3 @@ export interface SessionConfigurationDraft {
   templateVersion: number;
   subscriptions: SessionInputSubscriptionDraftItem[];
 }
-

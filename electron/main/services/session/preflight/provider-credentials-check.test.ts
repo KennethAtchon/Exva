@@ -8,8 +8,12 @@ describe("providerCredentialsCheck", () => {
     const result = await providerCredentialsCheck(
       session as never,
       {
-        sessionAiPhasesRepo: {
-          listBySession: () => [
+        strategyContextService: {
+          getSelectorSettings: () => ({
+            aiPickerEnabled: true,
+            noInstrumentRetryMinutes: null,
+          }),
+          listAiPhases: () => [
             {
               phase: "selector",
               providerKey: "provider-openrouter",
@@ -35,8 +39,8 @@ describe("providerCredentialsCheck", () => {
   });
 
   it("rejects missing, non-AI, or unconfigured providers", async () => {
-    const sessionAiPhasesRepo = {
-      listBySession: () => [
+    const strategyContextService = {
+      listAiPhases: () => [
         {
           phase: "decision",
           providerKey: "provider-openrouter",
@@ -52,7 +56,7 @@ describe("providerCredentialsCheck", () => {
       await providerCredentialsCheck(
         session as never,
         {
-          sessionAiPhasesRepo,
+          strategyContextService,
           providerAccountsRepo,
         } as never,
       ),
@@ -66,8 +70,12 @@ describe("providerCredentialsCheck", () => {
       await providerCredentialsCheck(
         session as never,
         {
-          sessionAiPhasesRepo: {
-            listBySession: () => [
+          strategyContextService: {
+            getSelectorSettings: () => ({
+              aiPickerEnabled: true,
+              noInstrumentRetryMinutes: null,
+            }),
+            listAiPhases: () => [
               { phase: "selector", providerKey: "", modelId: "model" },
             ],
           },
@@ -83,8 +91,12 @@ describe("providerCredentialsCheck", () => {
       await providerCredentialsCheck(
         session as never,
         {
-          sessionAiPhasesRepo: {
-            listBySession: () => [
+          strategyContextService: {
+            getSelectorSettings: () => ({
+              aiPickerEnabled: true,
+              noInstrumentRetryMinutes: null,
+            }),
+            listAiPhases: () => [
               {
                 phase: "selector",
                 providerKey: "search-1",
@@ -111,8 +123,12 @@ describe("providerCredentialsCheck", () => {
       await providerCredentialsCheck(
         session as never,
         {
-          sessionAiPhasesRepo: {
-            listBySession: () => [
+          strategyContextService: {
+            getSelectorSettings: () => ({
+              aiPickerEnabled: true,
+              noInstrumentRetryMinutes: null,
+            }),
+            listAiPhases: () => [
               {
                 phase: "selector",
                 providerKey: "provider-openrouter",

@@ -6,6 +6,9 @@ import { cadenceToMs } from "@electron/shared/domain/experience-inputs/cadence";
 import type { MarketCalendarRegistry } from "./market-calendar-registry";
 import type { ScheduledRuntimePlan } from "./session-input-runtime-planner";
 import type { ScheduledStrategyExecutor } from "./scheduled-strategy-executor";
+import { createLogger } from "../infra/log";
+
+const logger = createLogger("schedule-coordinator");
 
 // ---------------------------------------------------------------------------
 // Types
@@ -224,8 +227,9 @@ export class ScheduleCoordinator {
       baseMs = cadenceToMs(entry.plan.cadence);
     } catch {
       // Cron cadences aren't supported yet; skip.
-      console.warn(
-        `[ScheduleCoordinator] groupKey=${entry.plan.groupKey}: cron cadences are not yet supported, skipping.`,
+      logger.warn(
+        { groupKey: entry.plan.groupKey },
+        "cron cadences are not yet supported, skipping",
       );
       return;
     }
@@ -262,8 +266,9 @@ export class ScheduleCoordinator {
   private async fire(entry: GroupEntry): Promise<void> {
     // Overlap prevention: skip if the previous run hasn't finished.
     if (entry.running) {
-      console.warn(
-        `[ScheduleCoordinator] groupKey=${entry.plan.groupKey}: previous run still in progress, skipping tick.`,
+      logger.warn(
+        { groupKey: entry.plan.groupKey },
+        "previous run still in progress, skipping tick",
       );
       return;
     }
@@ -275,8 +280,9 @@ export class ScheduleCoordinator {
       const calendar = calendarRegistry.require(entry.plan.marketCalendarId);
       calendarOpen = calendar.isOpen();
     } catch (err) {
-      console.warn(
-        `[ScheduleCoordinator] groupKey=${entry.plan.groupKey}: calendar lookup failed (${String(err)}), treating as open.`,
+      logger.warn(
+        { groupKey: entry.plan.groupKey, err },
+        "calendar lookup failed, treating as open",
       );
     }
     if (!calendarOpen) {
@@ -294,7 +300,11 @@ export class ScheduleCoordinator {
         const subscriptions = this.deps.resolveScheduledFanout(
           entry.plan.subscriptionIds,
         );
-        await this.deps.emitSignals(signals, entry.plan.groupKey, subscriptions);
+        await this.deps.emitSignals(
+          signals,
+          entry.plan.groupKey,
+          subscriptions,
+        );
       }
 
       const now = new Date().toISOString();
@@ -309,8 +319,13 @@ export class ScheduleCoordinator {
       entry.lastDurationMs = Date.now() - startMs;
       entry.consecutiveFailures += 1;
       entry.lastError = err instanceof Error ? err.message : String(err);
-      console.error(
-        `[ScheduleCoordinator] groupKey=${entry.plan.groupKey}: execution error (failures=${entry.consecutiveFailures}): ${entry.lastError}`,
+      logger.error(
+        {
+          groupKey: entry.plan.groupKey,
+          failures: entry.consecutiveFailures,
+          err: entry.lastError,
+        },
+        "execution error",
       );
     } finally {
       entry.running = false;
@@ -365,5 +380,4 @@ export class ScheduleCoordinator {
     entry.lastDurationMs = row.lastDurationMs;
     entry.nextRunAt = row.nextRunAt;
   }
-
 }

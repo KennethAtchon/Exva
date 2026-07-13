@@ -12,6 +12,7 @@ import { BrokerRegistry } from "../../broker/broker-registry";
 import { evaluateSignalDeliveryGate } from "../signal-delivery-gate";
 
 function stockSignal(overrides?: Partial<SignalEvent>): SignalEvent {
+  const now = new Date().toISOString();
   return {
     id: crypto.randomUUID(),
     sourceId: "source-1",
@@ -21,8 +22,12 @@ function stockSignal(overrides?: Partial<SignalEvent>): SignalEvent {
     documentUrl: null,
     accessionNumber: "acc-1",
     payloadJson: { instrumentClass: "stock" },
-    filedAt: new Date().toISOString(),
-    detectedAt: new Date().toISOString(),
+    filedAt: now,
+    detectedAt: now,
+    kind: "filing",
+    dedupeKey: "acc-1",
+    ttl: "PT6H",
+    occurredAt: now,
     ...overrides,
   };
 }

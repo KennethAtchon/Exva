@@ -182,6 +182,10 @@ function createContext(options: { runtimeActive: boolean }) {
       }),
     },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         rules: { setupType: "momentum" },
         riskConfig: {
@@ -197,9 +201,6 @@ function createContext(options: { runtimeActive: boolean }) {
           humanApprovalRequired: false,
         },
       }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: {
       upsert: vi.fn(),

@@ -3,6 +3,7 @@ import type {
   SignalEvent,
   SignalSourceRuntimeStatus,
 } from "@electron/shared/domain";
+import { DEFAULT_SIGNAL_TTL } from "@electron/shared/domain/market-signal";
 import type {
   ISignalSource,
   SignalSourceActivityEntry,
@@ -104,6 +105,7 @@ export class MockSignalSource implements ISignalSource {
     };
     const polledAt = new Date().toISOString();
     const ticker = this.config.ticker ?? "NVDA";
+    const accessionNumber = `mock-${Date.now()}`;
     const event: SignalEvent = {
       id: crypto.randomUUID(),
       sourceId: this.id,
@@ -111,7 +113,7 @@ export class MockSignalSource implements ISignalSource {
       ticker,
       companyName: this.config.companyName ?? `${ticker} Corp (mock)`,
       documentUrl: `https://mock.exva.test/8k/${ticker}`,
-      accessionNumber: `mock-${Date.now()}`,
+      accessionNumber,
       payloadJson: {
         itemCodes: ["1.01", "8.01"],
         summary: "Scripted mock 8-K for E2E testing.",
@@ -120,6 +122,10 @@ export class MockSignalSource implements ISignalSource {
       },
       filedAt: polledAt,
       detectedAt: polledAt,
+      kind: "manual",
+      dedupeKey: accessionNumber,
+      ttl: DEFAULT_SIGNAL_TTL.manual,
+      occurredAt: polledAt,
     };
     this.lastSignalAt = event.detectedAt;
     this.lastSignalTicker = event.ticker;

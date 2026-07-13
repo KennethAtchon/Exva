@@ -20,7 +20,6 @@ type LifecycleAction = "start" | "pause" | "resume" | "stop" | "forceStop";
 const FORCE_STOP_CONFIRM_MESSAGE =
   "Force stop will end automated exit management for open positions. Continue?";
 
-
 // ---------------------------------------------------------------------------
 // SessionControls — lifecycle action button group within each card
 // ---------------------------------------------------------------------------
@@ -424,14 +423,12 @@ const SessionCard = ({
         </div>
       ) : null}
       <div className="mt-2 text-[12px] text-[var(--text3)]">
-        {runningButWaiting ? (
-          "Waiting — no live inputs"
-        ) : session.status === "active" &&
-          session.subscribedSources.some((source) => source.enabled) ? (
-          "Listening for signals"
-        ) : (
-          ""
-        )}
+        {runningButWaiting
+          ? "Waiting — no live inputs"
+          : session.status === "active" &&
+              session.subscribedSources.some((source) => source.enabled)
+            ? "Listening for signals"
+            : ""}
       </div>
       {session.rehearsalEligible && !session.rehearsalMode ? (
         <div className={rehearsalSetupBannerClass}>

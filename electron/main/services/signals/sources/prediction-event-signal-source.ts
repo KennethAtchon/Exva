@@ -4,6 +4,7 @@ import type {
   SignalEvent,
   SignalSourceRuntimeStatus,
 } from "@electron/shared/domain";
+import { DEFAULT_SIGNAL_TTL } from "@electron/shared/domain/market-signal";
 import type { PredictionEventTriggerKind } from "@electron/shared/domain/prediction-event-triggers";
 import type {
   ISignalSource,
@@ -234,6 +235,10 @@ export class PredictionEventSignalSource implements ISignalSource {
       },
       filedAt: detectedAt,
       detectedAt,
+      kind: "market_dislocation",
+      dedupeKey: conditionId,
+      ttl: DEFAULT_SIGNAL_TTL.market_dislocation,
+      occurredAt: detectedAt,
     };
   }
 
@@ -260,6 +265,10 @@ export class PredictionEventSignalSource implements ISignalSource {
       },
       filedAt: detectedAt,
       detectedAt,
+      kind: "market_dislocation",
+      dedupeKey: conditionId,
+      ttl: DEFAULT_SIGNAL_TTL.market_dislocation,
+      occurredAt: detectedAt,
     };
   }
 

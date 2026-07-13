@@ -44,6 +44,8 @@ export class TradeMonitor {
   private readonly orderFeeds = new Map<string, OrderEventFeed>();
   /** Accounts that already have an onEvent handler registered (avoid duplicates). */
   private readonly feedHandlerUnsubs = new Map<string, () => void>();
+  /** Optional hook when a streaming order feed falls back to poll. */
+  private onFeedDegraded: ((reason: string) => void) | null = null;
 
   constructor(
     private readonly sessionId: string,
@@ -68,6 +70,11 @@ export class TradeMonitor {
     this.timer = setInterval(() => {
       void this.tick();
     }, this.pollIntervalMs);
+  }
+
+  /** Wire supervisor (or tests) to hear websocket→poll fallbacks. */
+  setFeedDegradedHandler(handler: (reason: string) => void): void {
+    this.onFeedDegraded = handler;
   }
 
   stop(): void {
@@ -96,8 +103,20 @@ export class TradeMonitor {
     }
     const adapter = await this.brokerRegistry.get(brokerAccountId);
     const feed =
-      adapter.createOrderEventFeed?.() ??
-      createPollOrderEventFeed(adapter, orderIds, this.pollIntervalMs);
+      adapter.createOrderEventFeed?.({
+        onFallbackToPoll: (reason) => {
+          logger.error(
+            { sessionId: this.sessionId, brokerAccountId, reason },
+            "order event websocket fell back to poll",
+          );
+          this.onFeedDegraded?.(reason);
+          this.eventBus.emit("notification", {
+            title: "Order feed degraded",
+            body: `Websocket order feed fell back to poll (${brokerAccountId}): ${reason}`,
+            level: "WARN",
+          });
+        },
+      }) ?? createPollOrderEventFeed(adapter, orderIds, this.pollIntervalMs);
     feed.watchOrders?.(orderIds);
     this.orderFeeds.set(brokerAccountId, feed);
     await feed.start();

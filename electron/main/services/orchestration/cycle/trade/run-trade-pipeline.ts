@@ -40,7 +40,6 @@ export async function runTradePipeline(
       >;
     }
 > {
-  const config = ctx.getSessionConfig();
   const session = ctx.deps.sessionRepo.requireById(ctx.sessionId);
   const seedState = tradePipelineSeedFromContext(context);
 
@@ -52,7 +51,6 @@ export async function runTradePipeline(
         cycleId: context.cycleId,
         tradeId: context.trade?.id ?? null,
         instrument: context.instrument,
-        sessionConfig: config,
         instrumentClasses: ctx.getEffectiveInstrumentClasses(session),
         seedState,
         runStep: async (stage, execute) => {

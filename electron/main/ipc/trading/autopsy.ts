@@ -79,7 +79,7 @@ export function registerAutopsyHandlers(services: AppServices): void {
       autopsyId: string;
       format: ExportFormat;
     };
-    const autopsy = services.repos.tradeAutopsies.find(autopsyId);
+    const autopsy = services.repos.autopsies.findTrade(autopsyId);
     if (!autopsy) {
       throw new AppError("Autopsy not found.", "NOT_FOUND", { autopsyId });
     }

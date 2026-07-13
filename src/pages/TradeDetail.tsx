@@ -862,6 +862,106 @@ const TradeVerdictPanel = ({
   );
 };
 
+function WhatIfReplaySection({
+  tradeId,
+  tradeStatus,
+}: {
+  tradeId: string;
+  tradeStatus: string;
+}) {
+  const [zScoreEntry, setZScoreEntry] = useState(-2);
+  const [maxPositionUsd, setMaxPositionUsd] = useState(500);
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (tradeStatus === "open" || tradeStatus === "pending") return null;
+
+  return (
+    <div className="mx-6 mb-4 rounded-[10px] border border-[var(--border)] bg-[var(--surface2)]/60 p-3.5">
+      <div className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-warning">
+        Counterfactual · what-if
+      </div>
+      <div className="mb-2 text-[12px] text-[var(--text2)]">
+        Re-runs deterministic gates only; LLM stage outputs stay frozen.
+      </div>
+      <div className="mb-2 grid grid-cols-2 gap-2">
+        <label className="flex flex-col gap-1 text-[11px] text-[var(--text3)]">
+          zScoreEntry
+          <input
+            type="number"
+            className="h-8 rounded border border-[var(--border)] bg-[var(--surface)] px-2 font-mono text-[12px] text-[var(--text1)]"
+            value={zScoreEntry}
+            onChange={(e) => setZScoreEntry(Number(e.target.value))}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-[11px] text-[var(--text3)]">
+          maxPositionUsd
+          <input
+            type="number"
+            className="h-8 rounded border border-[var(--border)] bg-[var(--surface)] px-2 font-mono text-[12px] text-[var(--text1)]"
+            value={maxPositionUsd}
+            onChange={(e) => setMaxPositionUsd(Number(e.target.value))}
+          />
+        </label>
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          className="rounded border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[12px] text-[var(--text1)]"
+          onClick={() => {
+            setBusy(true);
+            setError(null);
+            void api
+              .whatIfRun({
+                tradeId,
+                params: { zScoreEntry, maxPositionUsd },
+              })
+              .then((r) => setResult(r as Record<string, unknown>))
+              .catch((err) =>
+                setError(err instanceof Error ? err.message : String(err)),
+              )
+              .finally(() => setBusy(false));
+          }}
+        >
+          Replay
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          className="rounded border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[12px] text-[var(--text1)]"
+          onClick={() => {
+            setBusy(true);
+            setError(null);
+            void api
+              .whatIfRun({
+                tradeId,
+                params: { zScoreEntry, maxPositionUsd },
+                save: true,
+              })
+              .then((r) => setResult(r as Record<string, unknown>))
+              .catch((err) =>
+                setError(err instanceof Error ? err.message : String(err)),
+              )
+              .finally(() => setBusy(false));
+          }}
+        >
+          Save experiment
+        </button>
+      </div>
+      {error ? (
+        <div className="mt-2 text-[11px] text-error">{error}</div>
+      ) : null}
+      {result ? (
+        <pre className="mt-2 max-h-[180px] overflow-auto whitespace-pre-wrap font-mono text-[11px] text-[var(--text2)]">
+          {JSON.stringify(result, null, 2)}
+        </pre>
+      ) : null}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // TradeDetail — main component
 // ---------------------------------------------------------------------------
@@ -972,6 +1072,7 @@ export const TradeDetail = ({
             />
             <TradeOrderDetails trade={trade} />
             <TradeExitAnalytics trade={trade} />
+            <WhatIfReplaySection tradeId={tradeId} tradeStatus={trade.status} />
             <TradeGateTimeline steps={gateSteps} />
             <TradeHarnessMessages messages={messages} />
             <TradeAgentRuns runs={runs} />

@@ -1,22 +1,32 @@
 import { describe, expect, it } from "vitest";
-import type { DashboardStats, SessionConfig } from "@/lib/types";
+import type { DashboardStats } from "@/lib/types";
+import type { SessionRiskConfig } from "@electron/shared/domain";
 import { RiskEngine } from "../risk-engine";
 
 describe("RiskEngine", () => {
   const engine = new RiskEngine();
-  const config: SessionConfig = {
-    strategy: "swing",
-    off_hours_trading: "disabled",
-    max_position_usd: 500,
-    stop_loss_pct: 2,
-    take_profit_pct: 4,
-    max_concurrent_trades: 2,
-    max_consecutive_losers: 5,
-    research_depth: "balanced",
-    max_api_spend_usd: 10,
-    daily_loss_limit_usd: 100,
-    profit_target_usd: 250,
-    human_approval_required: false,
+  const riskConfig: SessionRiskConfig = {
+    sessionId: "s1",
+    riskPresetId: "custom",
+    offHoursTrading: "disabled",
+    maxPositionUsd: 500,
+    stopLossPct: 2,
+    takeProfitPct: 4,
+    stopLossType: "fixed_pct",
+    atrStopMultiplier: null,
+    kellyFraction: 0.25,
+    predictionEdgeThreshold: 0.08,
+    maxExposureUsd: null,
+    waitForOpenThreshold: 0.8,
+    maxConcurrentTrades: 2,
+    maxConsecutiveLosers: 5,
+    volatilityHaltMaxSpreadPct: null,
+    dailyLossLimitUsd: 100,
+    profitTargetUsd: 250,
+    maxAiSpendUsd: 10,
+    maxDataSpendUsd: 10,
+    humanApprovalRequired: false,
+    updatedAt: "2026-01-01T00:00:00.000Z",
   };
   const stats: DashboardStats = {
     session_status: "active",
@@ -39,7 +49,7 @@ describe("RiskEngine", () => {
   it("blocks preflight when broker or AI credentials are missing", () => {
     expect(
       engine.preflightSession({
-        config,
+        riskConfig,
         stats,
         brokerConnected: false,
         aiKeyAvailable: true,
@@ -52,7 +62,7 @@ describe("RiskEngine", () => {
 
     expect(
       engine.preflightSession({
-        config,
+        riskConfig,
         stats,
         brokerConnected: true,
         aiKeyAvailable: false,
@@ -66,7 +76,7 @@ describe("RiskEngine", () => {
 
   it("caps order size to the configured max position", () => {
     const result = engine.validateDecision({
-      config,
+      riskConfig,
       stats,
       confidence: 0.8,
       order: {
@@ -111,7 +121,7 @@ describe("RiskEngine", () => {
     "blocks session limits for $name",
     ({ stats: statPatch, gateType, reason }) => {
       const result = engine.validateDecision({
-        config,
+        riskConfig,
         stats: { ...stats, ...statPatch },
         confidence: 0.9,
         order: {
@@ -136,7 +146,7 @@ describe("RiskEngine", () => {
 
   it("does not block consecutive losers when the configured cap is disabled at zero", () => {
     const result = engine.validateDecision({
-      config: { ...config, max_consecutive_losers: 0 },
+      riskConfig: { ...riskConfig, maxConsecutiveLosers: 0 },
       stats: { ...stats, consecutive_losers: 100 },
       confidence: 0.9,
       order: {
@@ -152,7 +162,7 @@ describe("RiskEngine", () => {
 
   it("blocks non-positive order size before concurrent-cap checks", () => {
     const result = engine.validateDecision({
-      config,
+      riskConfig,
       stats: { ...stats, open_trades: 2 },
       confidence: 0.9,
       order: {
@@ -176,7 +186,7 @@ describe("RiskEngine", () => {
 
   it("caps prediction-market exposure before returning the order", () => {
     const result = engine.validateDecision({
-      config,
+      riskConfig,
       stats,
       confidence: 0.9,
       maxExposureUsd: 120,
@@ -196,7 +206,7 @@ describe("RiskEngine", () => {
   it("blocks concurrent cap and asset-group exposure", () => {
     expect(
       engine.validateDecision({
-        config,
+        riskConfig,
         stats: { ...stats, open_trades: 2 },
         confidence: 0.9,
         order: {
@@ -214,7 +224,7 @@ describe("RiskEngine", () => {
 
     expect(
       engine.validateDecision({
-        config,
+        riskConfig,
         stats,
         confidence: 0.9,
         assetGroup: "equities_beta",
@@ -235,7 +245,7 @@ describe("RiskEngine", () => {
   });
 
   it("allows the third concurrent trade and denies the fourth when max is three", () => {
-    const maxThreeConfig = { ...config, max_concurrent_trades: 3 };
+    const maxThreeConfig = { ...riskConfig, maxConcurrentTrades: 3 };
     const order = {
       instrumentSymbol: "AAPL",
       instrumentType: "stock" as const,
@@ -245,7 +255,7 @@ describe("RiskEngine", () => {
 
     expect(
       engine.validateDecision({
-        config: maxThreeConfig,
+        riskConfig: maxThreeConfig,
         stats: { ...stats, open_trades: 2 },
         confidence: 0.9,
         order,
@@ -253,7 +263,7 @@ describe("RiskEngine", () => {
     ).toBe(true);
     expect(
       engine.validateDecision({
-        config: maxThreeConfig,
+        riskConfig: maxThreeConfig,
         stats: { ...stats, open_trades: 3 },
         confidence: 0.9,
         order,
@@ -263,7 +273,7 @@ describe("RiskEngine", () => {
 
   it("applies ATR vol-target sizing when configured", () => {
     const result = engine.validateDecision({
-      config,
+      riskConfig,
       stats: { ...stats, portfolio_value: 100_000 },
       confidence: 0.9,
       sizingMode: "atr_vol_target",
@@ -283,7 +293,7 @@ describe("RiskEngine", () => {
 
   it("uses max-position fallback equity for ATR sizing when portfolio value is unavailable", () => {
     const result = engine.validateDecision({
-      config,
+      riskConfig,
       stats: { ...stats, portfolio_value: 0 },
       confidence: 0.9,
       sizingMode: "atr_vol_target",
@@ -303,7 +313,7 @@ describe("RiskEngine", () => {
 
   it("does not increase order size for ATR vol-target sizing", () => {
     const result = engine.validateDecision({
-      config,
+      riskConfig,
       stats: { ...stats, portfolio_value: 100_000 },
       confidence: 0.9,
       sizingMode: "atr_vol_target",
@@ -323,7 +333,7 @@ describe("RiskEngine", () => {
 
   it("blocks decisions when spread exceeds volatility halt threshold", () => {
     const result = engine.validateDecision({
-      config,
+      riskConfig,
       stats,
       order: {
         instrumentSymbol: "AAPL",
@@ -342,5 +352,59 @@ describe("RiskEngine", () => {
 
     expect(result.allowed).toBe(false);
     expect(result.gateType).toBe("volatility_halt");
+  });
+
+  it("blocks entries inside calendar blackout window", () => {
+    const nowMs = Date.parse("2026-07-15T12:00:00.000Z");
+    const result = engine.validateDecision({
+      riskConfig: { ...riskConfig, calendarBlackoutHours: 24 },
+      stats,
+      order: {
+        instrumentSymbol: "NVDA",
+        instrumentType: "stock",
+        side: "BUY",
+        sizeUsd: 200,
+      },
+      confidence: 0.9,
+      nowMs,
+      upcomingCalendarEvents: [
+        {
+          eventType: "earnings",
+          scheduledAt: "2026-07-15T20:00:00.000Z",
+          symbol: "NVDA",
+          title: "NVDA earnings",
+        },
+      ],
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.gateType).toBe("calendar_blackout");
+  });
+
+  it("allows calendar blackout when experience is event-typed", () => {
+    const nowMs = Date.parse("2026-07-15T12:00:00.000Z");
+    const result = engine.validateDecision({
+      riskConfig: {
+        ...riskConfig,
+        calendarBlackoutHours: 24,
+        eventTypedExperience: true,
+      },
+      stats,
+      order: {
+        instrumentSymbol: "NVDA",
+        instrumentType: "stock",
+        side: "BUY",
+        sizeUsd: 200,
+      },
+      confidence: 0.9,
+      nowMs,
+      upcomingCalendarEvents: [
+        {
+          eventType: "earnings",
+          scheduledAt: "2026-07-15T20:00:00.000Z",
+          symbol: "NVDA",
+        },
+      ],
+    });
+    expect(result.allowed).toBe(true);
   });
 });

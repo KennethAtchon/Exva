@@ -1,9 +1,20 @@
 # Pipeline Runtime - Architecture Design Document
 
-> **Last updated:** 2026-05-25
+> **Last updated:** 2026-07-13 (post finish-line)
 > **Scope:** Main-process AI pipeline execution: registered analyses, AI phases, worker definitions, prompt assembly, tool construction, spend tracking, signal aggregation, selector caching, and trace persistence. Excludes session lifecycle, renderer UI, broker order placement, and trade monitoring except where those systems call the pipeline.
 > **Audience:** Engineers onboarding, reviewers, future maintainers
-> **Related docs:** `docs/architecture/ai-runtime.md`, `docs/folder-structure.md`, `electron/main/services/pipeline/README.md`
+> **Related docs:** `docs/architecture/ai-runtime.md`, `docs/folder-structure.md`, `electron/main/services/pipeline/README.md`, `docs/plans/finish-line/00-INDEX.md`
+
+---
+
+## 0. Post finish-line snapshot (2026-07-13)
+
+- **Operator UI:** five hubs (`src/hubs/*`) — Dashboard, Sessions, Signals & Schedules, Research, Settings — plus Docs and command palette.
+- **Config:** one versioned `session_strategy_config` document per session (config diet); presets are document slices, not 14 tables.
+- **Signals:** typed `MarketSignal` envelopes; schedule-driven scans are scheduler plans, not timer signal sources.
+- **Brokers:** Alpaca, Kalshi, Tradier, Kraken, Polymarket (incl. ghost-fill paper), Coinbase, Tradovate, Mock. IBKR/Schwab dropped.
+- **Ops:** supervisor + notification sinks, `db-backup` / restore helpers, headless mode, prove harness, Data Doctor, morning briefing, kill switch, Backtest Lab.
+- **Smoothness:** typed IPC errors (`AppError` → `toIpcError`), hub `HubQueryError` / empty states, hub query indexes (`0014_hub_query_indexes`).
 
 ---
 

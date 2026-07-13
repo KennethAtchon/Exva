@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { EventSourceType } from "@/lib/types";
-import { Badge as UIBadge, Card as UICard, Separator } from "@/components/ui";
+import { Badge as UIBadge, Card as UICard } from "@/components/ui";
 import {
   Select,
   SelectContent,
@@ -76,22 +76,6 @@ export const Dot = ({
   />
 );
 
-export const Divider = ({
-  vertical,
-  style: styleOverride,
-}: {
-  vertical?: boolean;
-  style?: CSSProperties;
-}) =>
-  vertical ? (
-    <Separator
-      orientation="vertical"
-      style={{ alignSelf: "stretch", flexShrink: 0, ...styleOverride }}
-    />
-  ) : (
-    <Separator style={styleOverride} />
-  );
-
 const AGENT_LABEL: Record<string, { label: string; variant: BadgeVariant }> = {
   technical: { label: "tech", variant: "success" },
   fundamental: { label: "fund", variant: "danger" },
@@ -111,12 +95,6 @@ export const AgentLabel = ({ type }: { type: EventSourceType }) => {
     </Badge>
   );
 };
-
-export const PageShell = ({ children }: { children: ReactNode }) => (
-  <div className="flex flex-1 flex-col gap-7 overflow-auto px-9 py-8">
-    {children}
-  </div>
-);
 
 export const SectionTitle = ({ children }: { children: ReactNode }) => (
   <h2 className="m-0 text-[12px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">

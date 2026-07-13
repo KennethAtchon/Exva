@@ -21,7 +21,6 @@ export function persistPendingTradeFromPipeline(
   context: TradeCycleContext,
   pipeline: InstrumentAnalysisResult,
 ): Trade {
-  const config = ctx.getSessionConfig();
   const { technical, fundamental, review, decision } = requirePipelineAiResults(
     pipeline,
     context.pipelineId,
@@ -31,7 +30,6 @@ export function persistPendingTradeFromPipeline(
     const trade = createTradeFromDecision(
       ctx,
       context.instrument,
-      config,
       decision.output,
       pipeline.totalAiCostUsd,
       review?.output.recommendation,
@@ -82,9 +80,9 @@ export async function runApprovalAndCapital(
   trade: Trade,
   decisionOutput: TradeSignal,
 ): Promise<{ approved: boolean; approvalId: string | null }> {
-  const config = ctx.getSessionConfig();
+  const riskConfig = ctx.getStrategyContext().riskConfig;
   const autoApprove =
-    !config.human_approval_required || (await isScriptedMockSession(ctx));
+    !riskConfig.humanApprovalRequired || (await isScriptedMockSession(ctx));
 
   if (autoApprove) {
     ctx.deps.capitalReservation.reserveForOrder({
@@ -124,9 +122,8 @@ export async function placeBrokerOrder(
   riskOrder: OrderRequest,
   latestQuote?: { price: number; timestamp: string },
 ): Promise<{ brokerOrderId: string; filledAvgPrice: number }> {
-  const config = ctx.getSessionConfig();
+  const strategy = ctx.getStrategyContext();
   const clientOrderId = `${context.cycleId}:${trade.id}`;
-  const strategy = ctx.deps.strategyContextService.get(ctx.sessionId);
   const { adapter, brokerAccountId: resolvedBrokerAccountId } =
     await ctx.deps.brokerRouting.resolveAdapter(
       ctx.sessionId,
@@ -166,7 +163,7 @@ export async function placeBrokerOrder(
     ctx.deps.sessionRepo.getStatus(ctx.sessionId),
     ctx.totalAllocatedUsd(),
     ctx.deps.sessionRepo.uptimeMin(ctx.sessionId),
-    config.max_api_spend_usd,
+    strategy.riskConfig.maxAiSpendUsd,
   );
   const policyResult = runEngineForWorker<{
     allowed: boolean;
@@ -187,7 +184,7 @@ export async function placeBrokerOrder(
       existingOrderCheck: (orderId: string, accountId: string) =>
         ctx.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
       sessionIsPaused: () => !ctx.runtimeIsActive(),
-      config,
+      riskConfig: strategy.riskConfig,
       stats: freshStats,
       order: riskOrder,
       confidence: trade.confidence_score ?? 0,

@@ -32,8 +32,11 @@ export async function taskBoundaryCheck(
       message: "At least one instrument class is required.",
     };
   }
-  const experience = listExperiences().find((e) => e.id === session.experienceId);
-  const experienceSourceTypes = experience?.capabilities.signalSourceTypes ?? [];
+  const experience = listExperiences().find(
+    (e) => e.id === session.experienceId,
+  );
+  const experienceSourceTypes =
+    experience?.capabilities.signalSourceTypes ?? [];
   const requiresInstrumentScope = sessionRequiresInstrumentScope(
     experienceSourceTypes.map((type) => ({ type })),
   );

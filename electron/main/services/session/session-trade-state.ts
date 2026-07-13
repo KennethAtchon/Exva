@@ -70,14 +70,14 @@ export function canScheduleSelector(ctx: TradingCycleContext): boolean {
     return false;
   }
 
-  const config = ctx.getSessionConfig();
+  const riskConfig = ctx.getStrategyContext().riskConfig;
   const blockingCount = tradesRepo.listOpenAndPending(sessionId).length;
-  if (blockingCount >= config.max_concurrent_trades) {
+  if (blockingCount >= riskConfig.maxConcurrentTrades) {
     logger.info(
       {
         sessionId,
         blockingCount,
-        maxConcurrentTrades: config.max_concurrent_trades,
+        maxConcurrentTrades: riskConfig.maxConcurrentTrades,
       },
       "selector scheduling blocked: trade capacity full",
     );

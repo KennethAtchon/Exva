@@ -54,6 +54,7 @@ export async function executeTradeCycle(
   context: TradeCycleContext,
 ): Promise<void> {
   if (!ctx.runtimeIsActive()) return;
+  ctx.touchHeartbeat();
   ctx.cycleContexts.set(context.cycleId, context);
   ctx.deps.logger.debug(
     {
@@ -72,7 +73,7 @@ export async function executeTradeCycle(
         tradeId: context.trade?.id ?? null,
       },
       async () => {
-        const config = ctx.getSessionConfig();
+        const strategyContext = ctx.getStrategyContext();
         const retry = tradeCycleRetry(ctx, context);
 
         const pipeline = await runTradePipeline(ctx, context, retry);
@@ -203,7 +204,7 @@ export async function executeTradeCycle(
         });
         if (brokerStep.status === "paused") return;
         if (brokerStep.status === "failed") {
-          if (!config.human_approval_required) {
+          if (!strategyContext.riskConfig.humanApprovalRequired) {
             ctx.deps.capitalReservation.releaseOnFailure(trade.id);
           } else if (approvalIdForCapital) {
             ctx.deps.capitalReservation.releaseByApproval(approvalIdForCapital);

@@ -39,6 +39,26 @@ export class InstrumentNormalizer {
     }
     const s = input.symbol.trim().toUpperCase();
     switch (input.brokerType) {
+      case "kalshi":
+        // Kalshi tickers are already venue-native (e.g. KXBTC-25JUL14-B105000).
+        return input.symbol.trim().toUpperCase();
+      case "tradier":
+        // Equities: bare ticker. Options: OCC symbol.
+        return s;
+      case "kraken": {
+        if (input.instrumentClass !== "crypto") {
+          throw new AppError(
+            "Kraken routing received a non-crypto instrument",
+            "UNSUPPORTED_INSTRUMENT",
+          );
+        }
+        const base = resolveCanonicalSymbol(s, "crypto");
+        // Kraken altnames are typically BTCUSD / ETHUSD (no slash).
+        return `${base}USD`;
+      }
+      case "polymarket":
+      case "mock":
+        return s;
       case "alpaca":
         if (input.instrumentClass === "stock") {
           return s.replace(/-/g, "");
@@ -72,8 +92,6 @@ export class InstrumentNormalizer {
             "UNSUPPORTED_INSTRUMENT",
           );
         }
-        return s;
-      case "mock":
         return s;
       default:
         return s;

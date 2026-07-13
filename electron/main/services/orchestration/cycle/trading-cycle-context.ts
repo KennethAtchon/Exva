@@ -1,11 +1,10 @@
 import PQueue from "p-queue";
-import {
-  toLegacySessionConfig,
-  type EventSourceType,
-  type ExecutionStage,
-  type SessionConfig,
-  type WorkspaceSession,
+import type {
+  EventSourceType,
+  ExecutionStage,
+  WorkspaceSession,
 } from "@/lib/types";
+import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { OrchestratorDeps } from "../../session";
 import { resolveSessionInstrumentClasses } from "../../session/effective-instrument-classes";
 import type { InstrumentClass } from "@/lib/types";
@@ -77,14 +76,12 @@ export class TradingCycleContext {
     this.queue.add(task).catch(onError);
   }
 
-  getSessionConfig(): SessionConfig {
-    return toLegacySessionConfig(
-      this.deps.strategyContextService.get(this.sessionId),
-    );
+  getStrategyContext(): SessionStrategyContext {
+    return this.deps.strategyContextService.get(this.sessionId);
   }
 
   getFailureRetryMinutes(): number {
-    const configured = this.deps.sessionSelectorSettingsRepo.get(
+    const configured = this.deps.strategyContextService.getSelectorSettings(
       this.sessionId,
     ).noInstrumentRetryMinutes;
     return typeof configured === "number" &&
@@ -308,6 +305,15 @@ export class TradingCycleContext {
     return retryTimes[0] ?? null;
   }
 
+  /** Tell the supervisor this session is still alive. */
+  touchHeartbeat(expectedIntervalMs = 15 * 60 * 1000): void {
+    this.deps.supervisor?.recordHeartbeat?.({
+      sessionId: this.sessionId,
+      lastActivityAt: new Date().toISOString(),
+      expectedIntervalMs,
+    });
+  }
+
   recordFailure(input: {
     cycleId: string;
     stage: ExecutionStage | "trade_cycle" | "selector_cycle";
@@ -317,6 +323,7 @@ export class TradingCycleContext {
     message: string;
     reasonCategory: FailureHistoryReasonCategory;
   }): void {
+    this.touchHeartbeat();
     this.pruneFailureHistory();
     const cycleContext = this.cycleContexts.get(input.cycleId);
     const instrument =

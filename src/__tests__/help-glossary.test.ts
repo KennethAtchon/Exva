@@ -9,6 +9,11 @@ describe("help glossary", () => {
       "Existing positions",
     );
     expect(HELP_GLOSSARY["signal-type-edgar-8k"].body).toContain("8-K");
+    expect(HELP_GLOSSARY["signal-type-kalshi-market"].body).toContain("Kalshi");
+    expect(HELP_GLOSSARY["calendar-blackout"].body).toContain("blackout");
+    expect(HELP_GLOSSARY["strategy-config-history"].body).toContain(
+      "roll back",
+    );
   });
 
   it("resolves glossary-backed help entries", () => {

@@ -1,5 +1,8 @@
 import { z } from "zod";
-import type { InstrumentClass, TradingTimeframe } from "@electron/shared/domain/enums";
+import type {
+  InstrumentClass,
+  TradingTimeframe,
+} from "@electron/shared/domain/enums";
 import type { DeterministicStrategy } from "../backtest/replay-engine";
 
 export interface StrategyDefinition<TParameters = Record<string, unknown>> {
@@ -21,7 +24,9 @@ export class StrategyDefinitionRegistry {
 
   register<TParameters>(definition: StrategyDefinition<TParameters>): void {
     if (this.definitions.has(definition.id)) {
-      throw new Error(`Strategy definition already registered: "${definition.id}"`);
+      throw new Error(
+        `Strategy definition already registered: "${definition.id}"`,
+      );
     }
     this.definitions.set(
       definition.id,
@@ -43,9 +48,7 @@ export class StrategyDefinitionRegistry {
       throw new Error(`Strategy definition not found: "${id}"`);
     }
     if (def.implementationStatus === "disabled") {
-      throw new Error(
-        `Strategy "${id}" is disabled and cannot be activated`,
-      );
+      throw new Error(`Strategy "${id}" is disabled and cannot be activated`);
     }
     return def;
   }
@@ -57,9 +60,7 @@ export class StrategyDefinitionRegistry {
   validateParameters(
     id: string,
     params: unknown,
-  ):
-    | { success: true; data: unknown }
-    | { success: false; error: z.ZodError } {
+  ): { success: true; data: unknown } | { success: false; error: z.ZodError } {
     const def = this.definitions.get(id);
     if (!def) {
       throw new Error(`Strategy definition not found: "${id}"`);

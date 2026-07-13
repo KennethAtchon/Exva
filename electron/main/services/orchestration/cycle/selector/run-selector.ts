@@ -1,5 +1,6 @@
 import type { InstrumentSelection } from "@/lib/schemas";
-import type { SessionConfig, WorkspaceSession } from "@/lib/types";
+import type { WorkspaceSession } from "@/lib/types";
+import type { SessionStrategyContext } from "@electron/shared/domain";
 import { resolvePipelineIdForExperience } from "../../../../experiences";
 import { resolveMockToolContext } from "../../../pipeline/worker-tools/resolve-mock-tool-context";
 import { MarketHoursService } from "../market-hours-service";
@@ -22,17 +23,18 @@ async function shouldSkipMockStockTimeFilters(
 export async function runSelector(
   ctx: TradingCycleContext,
   session: WorkspaceSession,
-  config: SessionConfig,
+  strategyContext: SessionStrategyContext,
   selectorContext: Pick<SelectorCycleContext, "cycleId" | "signalTrigger">,
 ): Promise<ResolvedInstrument[]> {
   const { cycleId, signalTrigger } = selectorContext;
   const { logger } = ctx.deps;
+  const { maxConcurrentTrades, offHoursTrading } = strategyContext.riskConfig;
 
   logger.info(
     {
       sessionId: ctx.sessionId,
       cycleId,
-      maxConcurrentTrades: config.max_concurrent_trades,
+      maxConcurrentTrades,
     },
     "selector orchestrator step starting pipeline run",
   );
@@ -77,7 +79,7 @@ export async function runSelector(
     }),
   );
 
-  const capped = instruments.slice(0, config.max_concurrent_trades);
+  const capped = instruments.slice(0, maxConcurrentTrades);
   if (capped.length < instruments.length) {
     logger.info(
       {
@@ -85,9 +87,9 @@ export async function runSelector(
         cycleId,
         beforeCap: instruments.length,
         afterCap: capped.length,
-        maxConcurrentTrades: config.max_concurrent_trades,
+        maxConcurrentTrades,
         droppedSymbols: instruments
-          .slice(config.max_concurrent_trades)
+          .slice(maxConcurrentTrades)
           .map((row) => row.symbol),
       },
       "selector capped instrument list to max concurrent trades",
@@ -159,7 +161,7 @@ export async function runSelector(
     {
       skipWeekendFilter: skipMockStockTimeFilters,
       skipExchangeHoursFilter: skipMockStockTimeFilters,
-      offHoursTrading: config.off_hours_trading,
+      offHoursTrading,
     },
   );
   // Reset any prior market-open wake time; only a fresh all-filtered result
@@ -209,7 +211,7 @@ export async function runSelector(
     // orchestrator when the market reopens so it waits for the open instead of
     // retrying on the fixed interval and getting blocked again.
     const nextOpen = marketHours.nextTradableAt(excluded, new Date(), {
-      offHoursTrading: config.off_hours_trading,
+      offHoursTrading,
     });
     ctx.setMarketClosedRetryAt(nextOpen ? nextOpen.getTime() : null);
     logger.warn(

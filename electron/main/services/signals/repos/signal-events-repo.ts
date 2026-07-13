@@ -21,11 +21,11 @@ export class SignalEventsRepo {
         filedAt: event.filedAt,
         detectedAt: event.detectedAt,
         dispatchStatus: "new",
-        kind: event.kind ?? null,
+        kind: event.kind,
         payloadV2: event.payloadV2 ? JSON.stringify(event.payloadV2) : null,
-        dedupeKey: event.dedupeKey ?? null,
-        ttl: event.ttl ?? null,
-        occurredAt: event.occurredAt ?? null,
+        dedupeKey: event.dedupeKey,
+        ttl: event.ttl,
+        occurredAt: event.occurredAt,
       })
       .run();
   }
@@ -56,11 +56,11 @@ export class SignalEventsRepo {
         filedAt: event.filedAt,
         detectedAt: event.detectedAt,
         dispatchStatus: "new",
-        kind: event.kind ?? null,
+        kind: event.kind,
         payloadV2: event.payloadV2 ? JSON.stringify(event.payloadV2) : null,
-        dedupeKey: event.dedupeKey ?? null,
-        ttl: event.ttl ?? null,
-        occurredAt: event.occurredAt ?? null,
+        dedupeKey: event.dedupeKey,
+        ttl: event.ttl,
+        occurredAt: event.occurredAt,
         originKind: v2.originKind,
         originId: v2.originId,
         scheduleGroupKey: v2.scheduleGroupKey,
@@ -162,6 +162,12 @@ export class SignalEventsRepo {
         .where(eq(signalEvents.id, id))
         .get() ?? null;
     if (!row) return null;
+    if (!row.kind || !row.dedupeKey || !row.ttl || !row.occurredAt) {
+      throw new Error(
+        `signal_events row ${row.id} missing required envelope fields ` +
+          `(kind/dedupe_key/ttl/occurred_at) — apply migrations`,
+      );
+    }
     return {
       id: row.id,
       sourceId: row.sourceId ?? "",

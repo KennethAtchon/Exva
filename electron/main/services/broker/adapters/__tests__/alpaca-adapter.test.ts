@@ -567,9 +567,9 @@ describe("AlpacaAdapter", () => {
     expect(orderBody).not.toHaveProperty("notional");
   });
 
-  it("createOrderEventFeed returns a feed that starts and stops", async () => {
+  it("createOrderEventFeed advertises streaming and exposes feed methods", () => {
     const adapter = new AlpacaAdapter(credentials, regularHoursClock);
-    expect(adapter.capabilities.supportsStreaming).toBe(false);
+    expect(adapter.capabilities.supportsStreaming).toBe(true);
 
     const feed = adapter.createOrderEventFeed();
     expect(feed).toBeDefined();
@@ -577,9 +577,6 @@ describe("AlpacaAdapter", () => {
     expect(typeof feed.stop).toBe("function");
     expect(typeof feed.onEvent).toBe("function");
     expect(typeof feed.watchOrders).toBe("function");
-
-    await expect(feed.start()).resolves.toBeUndefined();
-    feed.watchOrders?.(["alpaca-order-1"]);
-    await expect(feed.stop()).resolves.toBeUndefined();
+    // Do not start() here — that opens a real Alpaca websocket.
   });
 });

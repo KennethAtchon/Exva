@@ -266,6 +266,10 @@ function createContext(options: { runtimeActive: boolean }) {
       uptimeMin: () => 0,
     },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         researchPosture: {},
         rules: { sideBias: "long_only", setupType: "momentum" },
@@ -282,9 +286,6 @@ function createContext(options: { runtimeActive: boolean }) {
         },
         timeframe: { holdingStyle: "intraday_flat", maxHoldDays: 1 },
       }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: { upsert: vi.fn((step) => step) },
     eventsRepo: { insert: vi.fn((event) => event) },
@@ -338,12 +339,14 @@ function createContext(options: { runtimeActive: boolean }) {
     },
   } as never);
 
-  ctx.getSessionConfig = () =>
+  ctx.getStrategyContext = () =>
     ({
-      strategy: "momentum",
-      max_position_usd: 500,
-      max_api_spend_usd: 5,
-      human_approval_required: false,
+      rules: { setupType: "momentum" },
+      riskConfig: {
+        maxPositionUsd: 500,
+        maxAiSpendUsd: 5,
+        humanApprovalRequired: false,
+      },
     }) as never;
   ctx.resolveBrokerAccountId = () => "broker-1";
   return ctx;

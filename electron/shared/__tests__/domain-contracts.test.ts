@@ -13,7 +13,6 @@ import {
   resolveSessionPromotionTier,
 } from "../domain/promotion-ladder";
 import {
-  isDeprecatedSignalSourceType,
   isLiveSignalSourceType,
   isSearchStyleSignalSourceType,
   isSelfDescribingSignalSourceType,
@@ -102,25 +101,20 @@ describe("promotion-ladder", () => {
 });
 
 describe("signals helpers", () => {
-  it("classifies live vs deprecated and self-describing sources", () => {
+  it("classifies live and self-describing sources", () => {
     expect(isLiveSignalSourceType("edgar_8k")).toBe(true);
     expect(isLiveSignalSourceType("web_search")).toBe(false);
-    expect(isDeprecatedSignalSourceType("web_search")).toBe(true);
-    expect(isDeprecatedSignalSourceType("mock")).toBe(false);
-    // web_search is deprecated; search-style is always false.
-    expect(isSearchStyleSignalSourceType("web_search")).toBe(false);
     expect(isSearchStyleSignalSourceType("edgar_8k")).toBe(false);
+    expect(isSearchStyleSignalSourceType("mock")).toBe(false);
     expect(isSelfDescribingSignalSourceType("edgar_8k")).toBe(true);
-    expect(isSelfDescribingSignalSourceType("web_search")).toBe(false);
+    expect(isSelfDescribingSignalSourceType("mock")).toBe(true);
     expect(isSelfDescribingSignalSourceType("prediction_event")).toBe(false);
     expect(isSelfDescribingSignalSourceType("manual")).toBe(false);
   });
 
-  it("requires instrument scope for empty subscriptions (not deprecated web_search)", () => {
+  it("requires instrument scope for empty subscriptions", () => {
     expect(sessionRequiresInstrumentScope([])).toBe(true);
-    expect(sessionRequiresInstrumentScope([{ type: "web_search" }])).toBe(
-      false,
-    );
+    expect(sessionRequiresInstrumentScope([{ type: "mock" }])).toBe(false);
     expect(sessionRequiresInstrumentScope([{ type: "edgar_8k" }])).toBe(false);
   });
 });
@@ -137,6 +131,10 @@ describe("signal-source-capabilities", () => {
     payloadJson: {},
     filedAt: new Date().toISOString(),
     detectedAt: new Date().toISOString(),
+    kind: "filing",
+    dedupeKey: "0001",
+    ttl: "PT6H",
+    occurredAt: new Date().toISOString(),
     ...overrides,
   });
 
@@ -147,7 +145,7 @@ describe("signal-source-capabilities", () => {
     expect(
       SIGNAL_SOURCE_CAPABILITIES.prediction_event.emittedInstrumentClasses,
     ).toEqual(["prediction_market"]);
-    expect(SIGNAL_SOURCE_CAPABILITIES.web_search.emittedInstrumentClasses).toBe(
+    expect(SIGNAL_SOURCE_CAPABILITIES.mock.emittedInstrumentClasses).toBe(
       "from_config",
     );
   });

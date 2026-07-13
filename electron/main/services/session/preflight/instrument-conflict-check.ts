@@ -20,8 +20,11 @@ export async function instrumentConflictCheck(
   if (session.selectionMode !== "manual_shortlist") return { ok: true };
 
   const symbols = parseInstrumentScopeSymbols(session.instrumentScope);
-  const experience = listExperiences().find((e) => e.id === session.experienceId);
-  const experienceSourceTypes = experience?.capabilities.signalSourceTypes ?? [];
+  const experience = listExperiences().find(
+    (e) => e.id === session.experienceId,
+  );
+  const experienceSourceTypes =
+    experience?.capabilities.signalSourceTypes ?? [];
   const requiresInstrumentScope = sessionRequiresInstrumentScope(
     experienceSourceTypes.map((type) => ({ type })),
   );

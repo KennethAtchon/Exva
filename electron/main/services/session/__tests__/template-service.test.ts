@@ -4,17 +4,11 @@ import { BrokerAccountsRepo } from "../../../db/repositories/brokers/broker-acco
 import { BrokerRoutingRepo } from "../../../db/repositories/brokers/broker-routing-repo";
 import { ProviderAccountsRepo } from "../../../db/repositories/workspace/provider-accounts-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/sessions/session-broker-assignments-repo";
-import { SessionAiPhasesRepo } from "../../../db/repositories/sessions/session-ai-phases-repo";
 import { SessionRepo } from "../../../db/repositories/sessions/session-repo";
-import { SessionRiskConfigRepo } from "../../../db/repositories/sessions/session-risk-config-repo";
-import { SessionSelectorSettingsRepo } from "../../../db/repositories/sessions/session-selector-settings-repo";
-import { SessionTradeRulesRepo } from "../../../db/repositories/sessions/session-trade-rules-repo";
 import { SessionTemplatesRepo } from "../../../db/repositories/sessions/session-templates-repo";
-import { SessionTimeframeConfigRepo } from "../../../db/repositories/sessions/session-timeframe-config-repo";
-import { SessionResearchPostureRepo } from "../../../db/repositories/sessions/session-research-posture-repo";
-import { SessionAiSettingsRepo } from "../../../db/repositories/sessions/session-ai-settings-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
 import { SessionStrategyContextService } from "../session-strategy-context-service";
+import { SessionStrategyConfigService } from "../session-strategy-config-service";
 import { SessionTemplateService } from "../template-service";
 
 describe("SessionTemplateService", () => {
@@ -220,22 +214,17 @@ function createTemplateService(
   db: ReturnType<typeof createTestDb>,
 ): SessionTemplateService {
   const sessions = new SessionRepo(db);
+  const strategyConfig = new SessionStrategyConfigService(db);
+  const strategyContext = new SessionStrategyContextService({
+    sessionRepo: sessions,
+    strategyConfig,
+    providerAccountsRepo: new ProviderAccountsRepo(db),
+    workspacePrefsRepo: new WorkspacePreferencesRepo(db),
+  });
   return new SessionTemplateService({
     templates: new SessionTemplatesRepo(db),
     sessions,
-    strategyContext: new SessionStrategyContextService({
-      sessionRepo: sessions,
-      researchPostureRepo: new SessionResearchPostureRepo(db),
-      rulesRepo: new SessionTradeRulesRepo(db),
-      riskRepo: new SessionRiskConfigRepo(db),
-      timeframeRepo: new SessionTimeframeConfigRepo(db),
-      aiSettingsRepo: new SessionAiSettingsRepo(db),
-      selectorSettingsRepo: new SessionSelectorSettingsRepo(db),
-      providerAccountsRepo: new ProviderAccountsRepo(db),
-      workspacePrefsRepo: new WorkspacePreferencesRepo(db),
-      sessionAiPhasesRepo: new SessionAiPhasesRepo(db),
-    }),
-    selectorSettings: new SessionSelectorSettingsRepo(db),
+    strategyContext,
     brokerAssignments: new SessionBrokerAssignmentsRepo(db),
     brokerRouting: new BrokerRoutingRepo(db),
     providerAccounts: new ProviderAccountsRepo(db),

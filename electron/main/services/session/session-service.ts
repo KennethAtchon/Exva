@@ -163,8 +163,15 @@ export class SessionService {
           }
           total += await this.deps.brokerBalanceCache.getBalance(id);
           counted += 1;
-        } catch {
-          // adapter unavailable; fall through
+        } catch (error) {
+          // Per-broker: one unreachable adapter must not zero the portfolio sum.
+          this.deps.orchestratorDeps.logger.warn(
+            {
+              brokerAccountId: id,
+              err: error instanceof Error ? error.message : String(error),
+            },
+            "portfolio value: broker balance unavailable; skipping account",
+          );
         }
       }
       return { value: total, source: "broker", brokerCount: counted };

@@ -107,6 +107,10 @@ function createContext() {
   return new TradingCycleContext("session-1", {
     sessionRepo: { getStatus: () => "active" },
     strategyContextService: {
+      getSelectorSettings: () => ({
+        aiPickerEnabled: true,
+        noInstrumentRetryMinutes: null,
+      }),
       get: () => ({
         timeframe: {
           holdingStyle: "intraday_flat",
@@ -116,9 +120,6 @@ function createContext() {
           timeframeNotes: "",
         },
       }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: { upsert: vi.fn() },
     eventsRepo: { insert: vi.fn((event) => event) },

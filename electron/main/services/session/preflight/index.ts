@@ -40,11 +40,11 @@ export async function runPreflight(
     },
     {
       check: "signal-source-capability",
-      run: () => signalSourceCapabilityCheck(session, deps),
+      run: () => signalSourceCapabilityCheck(),
     },
     {
       check: "ohlcv-data-probe",
-      run: () => ohlcvDataProbeCheck(session, deps),
+      run: () => ohlcvDataProbeCheck(),
     },
   ];
 

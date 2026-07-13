@@ -6,6 +6,10 @@ import { resolveBrokerModeFilter } from "../../services/session/environment-scop
 import { handle } from "../handle";
 
 const refreshBalanceSchema = z.object({ brokerAccountId: z.string() });
+const resetPaperBalanceSchema = z.object({
+  brokerAccountId: z.string(),
+  startingBalanceUsd: z.number().positive().max(10_000_000).optional(),
+});
 const updateSettingsSchema = z.object({
   brokerAccountId: z.string(),
   maxSessions: z.number().int().min(1).max(50).optional(),
@@ -66,4 +70,40 @@ export function registerBrokerAccountHandlers(services: AppServices): void {
     }
     return { ok: true as const };
   });
+
+  handle(
+    ipcMain,
+    channels.brokerAccounts.resetPaperBalance,
+    async (payload) => {
+      const { brokerAccountId, startingBalanceUsd } =
+        resetPaperBalanceSchema.parse(payload);
+      const account = services.repos.brokerAccounts.require(brokerAccountId);
+      if (account.mode !== "paper") {
+        throw new Error(
+          "Paper balance reset is only available for paper accounts",
+        );
+      }
+      const row = services.repos.paperBalances.reset(
+        brokerAccountId,
+        startingBalanceUsd,
+      );
+      services.brokerRegistry.invalidate(brokerAccountId);
+      const cachedAt = new Date().toISOString();
+      services.repos.brokerAccounts.updateBalanceCache(
+        brokerAccountId,
+        row.balance,
+        cachedAt,
+      );
+      services.eventBus.emit("broker_balance_updated", {
+        brokerAccountId,
+        balanceUsd: row.balance,
+        cachedAt,
+      });
+      return {
+        balanceUsd: row.balance,
+        startingBalanceUsd: row.startingBalance,
+        cachedAt,
+      };
+    },
+  );
 }

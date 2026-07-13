@@ -72,9 +72,7 @@ function createContext() {
       get: () => ({
         riskConfig: { waitForOpenThreshold: 0.8 },
       }),
-    },
-    sessionSelectorSettingsRepo: {
-      get: () => ({ noInstrumentRetryMinutes: 5 }),
+      getSelectorSettings: () => ({ noInstrumentRetryMinutes: 5 }),
     },
     sessionExecutionStepsRepo: {
       upsert: vi.fn(),

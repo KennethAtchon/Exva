@@ -1,8 +1,11 @@
 import type { ExperienceTemplateRevision } from "@electron/shared/domain/experience-inputs/catalog";
 import type { SourceDefinition } from "@electron/shared/domain/experience-inputs/catalog";
 import type { InstrumentSetRevision } from "@electron/shared/domain/experience-inputs/catalog";
-import type { ValidationResult, FieldError } from "@electron/shared/domain/experience-inputs/validation-result";
-import { validResult, validationResult } from "@electron/shared/domain/experience-inputs/validation-result";
+import type {
+  ValidationResult,
+  FieldError,
+} from "@electron/shared/domain/experience-inputs/validation-result";
+import { validationResult } from "@electron/shared/domain/experience-inputs/validation-result";
 import type { StrategyDefinitionRegistry } from "../strategies/strategy-definition-registry";
 import type { SourceAdapterRegistry } from "../signals/adapters/source-adapter-registry";
 
@@ -100,7 +103,10 @@ export class CatalogValidator {
     }
 
     const allowedClasses = template.inputContract.instrumentClasses;
-    if (allowedClasses.length > 0 && !allowedClasses.includes(set.instrumentClass)) {
+    if (
+      allowedClasses.length > 0 &&
+      !allowedClasses.includes(set.instrumentClass)
+    ) {
       errors.push({
         field: "instrumentSetId",
         code: "CLASS_MISMATCH",

@@ -1,7 +1,6 @@
 import type {
   ExecutionStage,
   InstrumentClass,
-  SessionConfig,
   WorkspaceSession,
 } from "@/lib/types";
 import type { PipelinePhase } from "@electron/shared/ai/ai-phase";
@@ -69,7 +68,6 @@ export interface InstrumentAnalysisContext {
   tradeId: string | null;
   session: WorkspaceSession;
   instrument: TradeCycleInstrument;
-  sessionConfig: SessionConfig;
   instrumentClasses: InstrumentClass[];
   strategyContext: SessionStrategyContext;
   toolContext: WorkerToolContext;

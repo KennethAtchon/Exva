@@ -7,6 +7,7 @@ import {
 import type { SourceAdapterDefinition } from "../source-adapter-registry";
 import { createTestDb } from "../../../../db/test-helpers";
 import { CikTickerCache } from "../../cache/cik-ticker-cache";
+import { CalendarEventsRepo } from "../../../../db/repositories/signals/calendar-events-repo";
 
 function makeAdapter(
   kind: "mock",
@@ -99,14 +100,20 @@ describe("SourceAdapterRegistry", () => {
       return createTestDb();
     }
 
-    it("registers edgar_8k, mock, prediction_event, manual", () => {
+    it("registers edgar_8k, mock, prediction_event, kalshi_market, calendar, news_rss, manual", () => {
       const db = buildDb();
       const cikCache = new CikTickerCache(db);
-      const registry = createSourceAdapterRegistry({ cikCache });
+      const registry = createSourceAdapterRegistry({
+        cikCache,
+        calendarEventsRepo: new CalendarEventsRepo(db),
+      });
       const kinds = registry.list().map((a) => a.kind);
       expect(kinds).toContain("edgar_8k");
       expect(kinds).toContain("mock");
       expect(kinds).toContain("prediction_event");
+      expect(kinds).toContain("kalshi_market");
+      expect(kinds).toContain("calendar");
+      expect(kinds).toContain("news_rss");
       expect(kinds).toContain("manual");
       db.sqlite.close();
     });
@@ -114,7 +121,10 @@ describe("SourceAdapterRegistry", () => {
     it("mock adapter creates a MockSignalSource", () => {
       const db = buildDb();
       const cikCache = new CikTickerCache(db);
-      const registry = createSourceAdapterRegistry({ cikCache });
+      const registry = createSourceAdapterRegistry({
+        cikCache,
+        calendarEventsRepo: new CalendarEventsRepo(db),
+      });
       const source = registry.createSource("mock", {
         definition: {
           id: "mock-test",
@@ -130,7 +140,10 @@ describe("SourceAdapterRegistry", () => {
     it("prediction_event adapter creates a PredictionEventSignalSource", () => {
       const db = buildDb();
       const cikCache = new CikTickerCache(db);
-      const registry = createSourceAdapterRegistry({ cikCache });
+      const registry = createSourceAdapterRegistry({
+        cikCache,
+        calendarEventsRepo: new CalendarEventsRepo(db),
+      });
       const source = registry.createSource("prediction_event", {
         definition: { id: "pe-test", config: {} },
         emit: async () => {},
@@ -143,7 +156,10 @@ describe("SourceAdapterRegistry", () => {
     it("edgar_8k adapter creates an EdgarSignalSource", () => {
       const db = buildDb();
       const cikCache = new CikTickerCache(db);
-      const registry = createSourceAdapterRegistry({ cikCache });
+      const registry = createSourceAdapterRegistry({
+        cikCache,
+        calendarEventsRepo: new CalendarEventsRepo(db),
+      });
       const source = registry.createSource("edgar_8k", {
         definition: { id: "edgar-test", config: {} },
         emit: async () => {},
@@ -156,7 +172,10 @@ describe("SourceAdapterRegistry", () => {
     it("manual adapter throws on create", () => {
       const db = buildDb();
       const cikCache = new CikTickerCache(db);
-      const registry = createSourceAdapterRegistry({ cikCache });
+      const registry = createSourceAdapterRegistry({
+        cikCache,
+        calendarEventsRepo: new CalendarEventsRepo(db),
+      });
       expect(() =>
         registry.createSource("manual", {
           definition: { id: "m", config: {} },
@@ -169,7 +188,10 @@ describe("SourceAdapterRegistry", () => {
     it("all live source kinds have a configSchema with a version", () => {
       const db = buildDb();
       const cikCache = new CikTickerCache(db);
-      const registry = createSourceAdapterRegistry({ cikCache });
+      const registry = createSourceAdapterRegistry({
+        cikCache,
+        calendarEventsRepo: new CalendarEventsRepo(db),
+      });
       for (const adapter of registry.list()) {
         expect(adapter.configSchemaVersion).toBeGreaterThan(0);
         expect(adapter.configSchema).toBeDefined();

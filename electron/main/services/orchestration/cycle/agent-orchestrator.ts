@@ -1,5 +1,8 @@
-import type { ExecutionStage, SessionConfig } from "@/lib/types";
-import type { SignalSourceType } from "@electron/shared/domain";
+import type { ExecutionStage } from "@/lib/types";
+import type {
+  SessionStrategyContext,
+  SignalSourceType,
+} from "@electron/shared/domain";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../../session";
 import {
   canScheduleAutonomousSelector,
@@ -43,8 +46,8 @@ export class AgentOrchestrator {
       return;
     }
 
-    const config = this.getSessionConfig();
-    this.ctx.queue.concurrency = config.max_concurrent_trades;
+    const strategyContext = this.getStrategyContext();
+    this.ctx.queue.concurrency = strategyContext.riskConfig.maxConcurrentTrades;
     this.deps.logger.info(
       { sessionId: this.sessionId, concurrency: this.ctx.queue.concurrency },
       "orchestrator starting",
@@ -230,11 +233,16 @@ export class AgentOrchestrator {
       stage: "selector",
       prepare: () => {
         this.ctx.queue.concurrency =
-          this.getSessionConfig().max_concurrent_trades;
+          this.getStrategyContext().riskConfig.maxConcurrentTrades;
       },
       run: () => {
         const session = this.ctx.deps.sessionRepo.requireById(this.sessionId);
-        return runSelector(this.ctx, session, this.getSessionConfig(), context);
+        return runSelector(
+          this.ctx,
+          session,
+          this.getStrategyContext(),
+          context,
+        );
       },
       retryCycle: () => this.executeSelectorCycle(context),
       retryErrorLabel: "Scheduled selector retry failed",
@@ -343,8 +351,8 @@ export class AgentOrchestrator {
   }
 
   /** @internal Visible to orchestrator unit tests. */
-  private getSessionConfig(): SessionConfig {
-    return this.ctx.getSessionConfig();
+  private getStrategyContext(): SessionStrategyContext {
+    return this.ctx.getStrategyContext();
   }
 
   private shouldRunInitialSelectorCycle(): boolean {

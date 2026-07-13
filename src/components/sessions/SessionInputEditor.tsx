@@ -1,7 +1,5 @@
 import { useEffect, useReducer } from "react";
-import {
-  experienceCatalogApi,
-} from "@/lib/experience-catalog-api";
+import { experienceCatalogApi } from "@/lib/experience-catalog-api";
 import type {
   ExperienceTemplateSummary,
   InputMode,
@@ -21,7 +19,6 @@ import type {
 import type { TradingTimeframe } from "@electron/shared/domain/enums";
 import { cadenceLabel } from "@electron/shared/domain/experience-inputs/cadence";
 import { ShadcnSelect } from "@/components/custom-ui";
-import { HelpTooltip } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -169,7 +166,9 @@ function EventSourceEditor({
   const sourceError = fieldErrors.find((e) =>
     e.field.includes("sourceDefinitionId"),
   );
-  const tfError = fieldErrors.find((e) => e.field.includes("analysisTimeframe"));
+  const tfError = fieldErrors.find((e) =>
+    e.field.includes("analysisTimeframe"),
+  );
 
   return (
     <div className="grid gap-3.5">
@@ -231,7 +230,9 @@ function ScheduledScanEditor({
 }) {
   const setError = fieldErrors.find((e) => e.field.includes("instrumentSetId"));
   const cadenceError = fieldErrors.find((e) => e.field.includes("cadence"));
-  const tfError = fieldErrors.find((e) => e.field.includes("analysisTimeframe"));
+  const tfError = fieldErrors.find((e) =>
+    e.field.includes("analysisTimeframe"),
+  );
 
   const cadence = draft.cadence;
   const isInterval = cadence.kind === "interval";
@@ -444,8 +445,12 @@ export function SessionInputEditor({
       // Auto-select mode when only one is available
       const opts = state.options;
       const derived: InputMode[] = [
-        ...(opts.availableSourceDefinitions.length > 0 ? ["event_source" as const] : []),
-        ...(opts.availableInstrumentSets.length > 0 ? ["scheduled_scan" as const] : []),
+        ...(opts.availableSourceDefinitions.length > 0
+          ? ["event_source" as const]
+          : []),
+        ...(opts.availableInstrumentSets.length > 0
+          ? ["scheduled_scan" as const]
+          : []),
       ];
       if (derived.length === 1) {
         dispatch({ mode: derived[0] });
@@ -453,8 +458,14 @@ export function SessionInputEditor({
     }
   }, [state.optionsLoaded, state.options, subscriptions]);
 
-  const { templates, templatesLoaded, options, optionsLoaded, optionsError, mode } =
-    state;
+  const {
+    templates,
+    templatesLoaded,
+    options,
+    optionsLoaded,
+    optionsError,
+    mode,
+  } = state;
 
   if (!templatesLoaded) {
     return (
@@ -543,8 +554,12 @@ export function SessionInputEditor({
   if (!options) return null;
 
   const availableModes: InputMode[] = [
-    ...(options.availableSourceDefinitions.length > 0 ? ["event_source" as const] : []),
-    ...(options.availableInstrumentSets.length > 0 ? ["scheduled_scan" as const] : []),
+    ...(options.availableSourceDefinitions.length > 0
+      ? ["event_source" as const]
+      : []),
+    ...(options.availableInstrumentSets.length > 0
+      ? ["scheduled_scan" as const]
+      : []),
   ];
   const showModePicker = availableModes.length > 1;
 
@@ -571,11 +586,7 @@ export function SessionInputEditor({
 
   const buildDefault = () => {
     if (mode === "event_source") {
-      return defaultEventDraft(
-        templateId,
-        options.templateVersion,
-        options,
-      );
+      return defaultEventDraft(templateId, options.templateVersion, options);
     }
     if (mode === "scheduled_scan") {
       return defaultScheduledDraft(
@@ -588,9 +599,7 @@ export function SessionInputEditor({
   };
 
   const currentDraft: SessionInputSubscriptionDraft | null =
-    firstSub && firstSub.mode === mode
-      ? firstSub
-      : buildDefault();
+    firstSub && firstSub.mode === mode ? firstSub : buildDefault();
 
   const handleDraftChange = (next: SessionInputSubscriptionDraft) => {
     onChange([next]);
@@ -599,7 +608,9 @@ export function SessionInputEditor({
   // ---------------------------------------------------------------------------
   // Warnings
   // ---------------------------------------------------------------------------
-  const overallWarnings = fieldWarnings.filter((w) => !w.field || w.field === ".");
+  const overallWarnings = fieldWarnings.filter(
+    (w) => !w.field || w.field === ".",
+  );
 
   return (
     <div className="grid gap-4">
@@ -629,10 +640,7 @@ export function SessionInputEditor({
                         );
                   if (next) onChange([next]);
                 }}
-                className={cn(
-                  modeChipClass,
-                  mode === m && modeChipActiveClass,
-                )}
+                className={cn(modeChipClass, mode === m && modeChipActiveClass)}
               >
                 {m === "event_source" ? "Event-driven" : "Scheduled scan"}
               </button>
@@ -668,13 +676,23 @@ export function SessionInputEditor({
                     </span>
                     {profile.mode === "scheduled_scan" ? (
                       <span className="block text-[12px] text-[var(--text3)]">
-                        {formatSetLabel(profile.instrumentSetId, options.availableInstrumentSets)} ·{" "}
-                        {cadenceLabel(profile.cadence)} · {TIMEFRAME_LABELS[profile.analysisTimeframe] ?? profile.analysisTimeframe}
+                        {formatSetLabel(
+                          profile.instrumentSetId,
+                          options.availableInstrumentSets,
+                        )}{" "}
+                        · {cadenceLabel(profile.cadence)} ·{" "}
+                        {TIMEFRAME_LABELS[profile.analysisTimeframe] ??
+                          profile.analysisTimeframe}
                       </span>
                     ) : profile.mode === "event_source" ? (
                       <span className="block text-[12px] text-[var(--text3)]">
-                        {formatSourceLabel(profile.sourceDefinitionId, options.availableSourceDefinitions)} ·{" "}
-                        {TIMEFRAME_LABELS[profile.analysisTimeframe] ?? profile.analysisTimeframe}
+                        {formatSourceLabel(
+                          profile.sourceDefinitionId,
+                          options.availableSourceDefinitions,
+                        )}{" "}
+                        ·{" "}
+                        {TIMEFRAME_LABELS[profile.analysisTimeframe] ??
+                          profile.analysisTimeframe}
                       </span>
                     ) : null}
                   </span>
@@ -705,8 +723,7 @@ export function SessionInputEditor({
       {/* Per-mode custom editor */}
       {(isCustom || !hasProfiles) && mode && currentDraft ? (
         <>
-          {mode === "event_source" &&
-          currentDraft.mode === "event_source" ? (
+          {mode === "event_source" && currentDraft.mode === "event_source" ? (
             <EventSourceEditor
               draft={currentDraft}
               options={options}
@@ -767,10 +784,7 @@ export function SessionInputEditor({
 // Minor helpers
 // ---------------------------------------------------------------------------
 
-function formatSetLabel(
-  setId: string,
-  sets: InstrumentSetRevision[],
-): string {
+function formatSetLabel(setId: string, sets: InstrumentSetRevision[]): string {
   return sets.find((s) => s.setId === setId)?.name ?? setId;
 }
 

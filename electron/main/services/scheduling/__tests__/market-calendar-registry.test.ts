@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   MarketCalendarRegistry,
   getMarketCalendarRegistry,
@@ -20,9 +20,9 @@ describe("MarketCalendarRegistry", () => {
   it("throws on duplicate registration", () => {
     const registry = new MarketCalendarRegistry();
     registry.register({ id: "dup", isOpen: () => true });
-    expect(() =>
-      registry.register({ id: "dup", isOpen: () => false }),
-    ).toThrow(/already registered/i);
+    expect(() => registry.register({ id: "dup", isOpen: () => false })).toThrow(
+      /already registered/i,
+    );
   });
 
   it("require() returns a registered calendar", () => {

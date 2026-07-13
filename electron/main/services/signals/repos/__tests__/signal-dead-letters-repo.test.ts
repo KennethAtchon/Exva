@@ -33,6 +33,10 @@ describe("SignalDeadLettersRepo", () => {
       payloadJson: {},
       filedAt: now,
       detectedAt: now,
+      kind: "filing",
+      dedupeKey: "acc-1",
+      ttl: "PT6H",
+      occurredAt: now,
     });
 
     const deadLetter = repo.insert({

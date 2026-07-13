@@ -4,8 +4,6 @@ import {
   isSignalExpired,
   parseTtlMs,
 } from "../market-signal";
-import { enrichSignalEvent } from "../signal-bridge";
-import type { SignalEvent } from "../signals";
 
 describe("parseTtlMs", () => {
   it("parses ISO-8601 PnDTnHnMnS durations", () => {
@@ -57,39 +55,5 @@ describe("computeDedupeKey", () => {
     expect(computeDedupeKey("manual", { note: null, id: undefined })).toBe(
       "manual:id=|note=",
     );
-  });
-});
-
-describe("enrichSignalEvent", () => {
-  const base: SignalEvent = {
-    id: "evt-1",
-    sourceId: "src-1",
-    sourceType: "edgar_8k",
-    ticker: "AAPL",
-    companyName: "Apple",
-    documentUrl: "https://example.com/8k",
-    accessionNumber: "0000320193-26-000001",
-    payloadJson: { item: "2.02" },
-    filedAt: "2026-07-11T10:00:00.000Z",
-    detectedAt: "2026-07-11T10:05:00.000Z",
-  };
-
-  it("fills kind, ttl, dedupeKey, and occurredAt when missing", () => {
-    const enriched = enrichSignalEvent(base);
-    expect(enriched.kind).toBe("filing");
-    expect(enriched.ttl).toBe("PT6H");
-    expect(enriched.dedupeKey).toBe("0000320193-26-000001");
-    expect(enriched.occurredAt).toBe("2026-07-11T10:00:00.000Z");
-    expect(enriched.payloadV2).toEqual({ item: "2.02" });
-  });
-
-  it("is a no-op when kind, dedupeKey, and ttl are already set", () => {
-    const already: SignalEvent = {
-      ...base,
-      kind: "news",
-      ttl: "PT1H",
-      dedupeKey: "custom",
-    };
-    expect(enrichSignalEvent(already)).toBe(already);
   });
 });

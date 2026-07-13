@@ -33,6 +33,8 @@ export interface NightlyResearchJobDeps {
   runLadderAutomation?: () => void;
   /** Optional operator digest (ntfy / in-app notification). */
   sendDigest?: (summary: string) => void;
+  /** Optional DB snapshot (doc 04 T1 nightly backup). */
+  runDbBackup?: () => Promise<string | undefined> | string | undefined;
 }
 
 /**
@@ -123,6 +125,19 @@ export async function runNightlyResearchJobs(
     }
   } else {
     parts.push("ladder: skip");
+  }
+
+  if (deps.runDbBackup) {
+    try {
+      const backupLine = await deps.runDbBackup();
+      logger.info("nightly research jobs: db backup completed");
+      parts.push(backupLine?.trim() || "db-backup: ok");
+    } catch (err) {
+      logger.warn({ err }, "nightly research jobs: db backup failed");
+      parts.push("db-backup: failed");
+    }
+  } else {
+    parts.push("db-backup: skip");
   }
 
   const summary = `Nightly research: ${parts.join("; ")}`;

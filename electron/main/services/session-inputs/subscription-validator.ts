@@ -9,10 +9,7 @@ import type {
   FieldError,
   FieldWarning,
 } from "@electron/shared/domain/experience-inputs/validation-result";
-import {
-  validationResult,
-  validResult,
-} from "@electron/shared/domain/experience-inputs/validation-result";
+import { validationResult } from "@electron/shared/domain/experience-inputs/validation-result";
 import type { ExperienceTemplateRepo } from "../experience-catalog/experience-template-repo";
 import type { SourceDefinitionRepo } from "../signals/source-definition-repo";
 import type { InstrumentSetRepo } from "../instruments/instrument-set-repo";
@@ -60,13 +57,18 @@ export class SubscriptionValidator {
     }
 
     // Template activation check (strategy, adapters)
-    const templateResult = this.catalogValidator.validateTemplateActivation(template);
+    const templateResult =
+      this.catalogValidator.validateTemplateActivation(template);
     for (const e of templateResult.errors) {
       errors.push({ ...e, field: `${prefix}.${e.field}` });
     }
 
     if (draft.mode === "event_source") {
-      this.validateEventSource(draft as EventSourceSubscriptionDraft, prefix, errors, warnings);
+      this.validateEventSource(
+        draft as EventSourceSubscriptionDraft,
+        prefix,
+        errors,
+      );
     } else if (draft.mode === "scheduled_scan") {
       this.validateScheduledScan(
         draft as ScheduledScanSubscriptionDraft,
@@ -90,7 +92,6 @@ export class SubscriptionValidator {
     draft: EventSourceSubscriptionDraft,
     prefix: string,
     errors: FieldError[],
-    _warnings: FieldWarning[],
   ): void {
     const source = this.sourceRepo.get(draft.sourceDefinitionId);
     if (!source) {
@@ -168,12 +169,18 @@ export class SubscriptionValidator {
       return;
     }
 
-    const setResult = this.catalogValidator.validateInstrumentSetForTemplate(rev, template);
+    const setResult = this.catalogValidator.validateInstrumentSetForTemplate(
+      rev,
+      template,
+    );
     for (const e of setResult.errors) {
       errors.push({ ...e, field: `${prefix}.${e.field}` });
     }
 
-    const universeWarnings = this.catalogValidator.checkUniverseWarnings(rev, template);
+    const universeWarnings = this.catalogValidator.checkUniverseWarnings(
+      rev,
+      template,
+    );
     for (const w of universeWarnings) {
       warnings.push({ ...w, field: `${prefix}.${w.field}` });
     }
@@ -201,8 +208,8 @@ export class SubscriptionValidator {
     const allErrors = subscriptionResults.flatMap((r) => r.errors);
     const allWarnings = subscriptionResults.flatMap((r) => r.warnings);
 
-    const usesUnvalidatedUniverse = subscriptionResults.some(
-      (r) => r.warnings.some((w) => w.code === "OUTSIDE_VALIDATED_UNIVERSE"),
+    const usesUnvalidatedUniverse = subscriptionResults.some((r) =>
+      r.warnings.some((w) => w.code === "OUTSIDE_VALIDATED_UNIVERSE"),
     );
 
     return {
@@ -219,7 +226,7 @@ export class SubscriptionValidator {
 
 const KNOWN_STRATEGY_MIN_CADENCE_MS: Record<string, number> = {
   "mean-reversion": 5 * 60 * 1_000,
-  "breakout": 15 * 60 * 1_000,
+  breakout: 15 * 60 * 1_000,
   "trend-following": 15 * 60 * 1_000,
   "options-flow": 15 * 60 * 1_000,
 };

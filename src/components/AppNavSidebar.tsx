@@ -43,6 +43,7 @@ type Props = {
   onToggleCollapse: () => void;
   attentionCount: number;
   needsStrategyConfig: boolean;
+  settingsAlarm: boolean;
   isGlobal: boolean;
   sessionName: string;
 };
@@ -55,6 +56,7 @@ export const AppNavSidebar = ({
   onToggleCollapse,
   attentionCount,
   needsStrategyConfig,
+  settingsAlarm,
   isGlobal,
   sessionName,
 }: Props) => (
@@ -87,8 +89,9 @@ export const AppNavSidebar = ({
     <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2">
       {NAV_ITEMS.map((item) => {
         const active = activePage === item.id;
-        const isStrategy = item.id === "strategy";
+        const isDashboard = item.id === "dashboard";
         const isSessions = item.id === "sessions";
+        const isSettings = item.id === "settings";
         const Icon = item.icon;
 
         const button = (
@@ -101,12 +104,12 @@ export const AppNavSidebar = ({
                 collapsed && "justify-center px-0",
                 active &&
                   "bg-[var(--surface2)] font-medium text-[var(--text1)] before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-r before:bg-[var(--accent)]",
-                isStrategy && needsStrategyConfig && "text-[var(--accent)]",
+                isSessions && needsStrategyConfig && "text-[var(--accent)]",
               )}
             >
               <Icon size={16} className="shrink-0" aria-hidden />
               {!collapsed && <span className="truncate">{item.label}</span>}
-              {!collapsed && isSessions && attentionCount > 0 && (
+              {!collapsed && isDashboard && attentionCount > 0 && (
                 <span
                   className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-error-border bg-error-dim px-[5px] font-mono text-[12px] font-bold text-error"
                   role="button"
@@ -126,29 +129,26 @@ export const AppNavSidebar = ({
                   {attentionCount}
                 </span>
               )}
-              {!collapsed && isStrategy && needsStrategyConfig && (
+              {!collapsed && isSessions && needsStrategyConfig && (
                 <span className="ml-auto inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" />
               )}
-              {collapsed && isSessions && attentionCount > 0 && (
+              {!collapsed && isSettings && settingsAlarm && (
+                <span className="ml-auto inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" />
+              )}
+              {collapsed && isDashboard && attentionCount > 0 && (
                 <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-error" />
               )}
             </Button>
-            {!collapsed && isSessions && attentionCount > 0 ? (
+            {!collapsed && isDashboard && attentionCount > 0 ? (
               <HelpTooltip
-                topic="Sessions needing attention"
-                body="Shows how many sessions currently need intervention."
+                topic="Needs attention"
+                body="Sessions needing intervention — badge jumps to the Sessions hub."
               />
             ) : null}
-            {!collapsed && isStrategy && !isGlobal ? (
+            {!collapsed && isSessions && !isGlobal ? (
               <HelpTooltip
-                topic="Strategy page"
-                body={`Configure AI phases, risk limits, and strategy for ${sessionName}.`}
-              />
-            ) : null}
-            {!collapsed && isStrategy && needsStrategyConfig ? (
-              <HelpTooltip
-                topic="Strategy configuration status"
-                body="The focused session still has missing strategy configuration."
+                topic="Sessions hub"
+                body={`Run, trades, and config for ${sessionName}.`}
               />
             ) : null}
           </div>

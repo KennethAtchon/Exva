@@ -189,6 +189,91 @@ const CredentialFields = ({
     );
   }
 
+  if (brokerType === "kalshi") {
+    return (
+      <>
+        <div className="mb-3">
+          <div className={labelClass}>API key ID</div>
+          <Input
+            className={inputClass}
+            value={apiKey}
+            onChange={(e) => dispatch({ apiKey: e.target.value })}
+            type="password"
+          />
+        </div>
+        <div className="mb-3">
+          <div className={labelClass}>RSA private key (PEM)</div>
+          <Input
+            className={inputClass}
+            value={privateKey}
+            onChange={(e) => dispatch({ privateKey: e.target.value })}
+            type="password"
+            placeholder="-----BEGIN RSA PRIVATE KEY-----..."
+          />
+        </div>
+        <div className="mt-1 text-[12px] text-[var(--text3)]">
+          Paper mode uses demo.kalshi.co; live uses production. Keys are not
+          shared across environments.
+        </div>
+      </>
+    );
+  }
+
+  if (brokerType === "tradier") {
+    return (
+      <>
+        <div className="mb-3">
+          <div className={labelClass}>Access token (Bearer)</div>
+          <Input
+            className={inputClass}
+            value={apiKey}
+            onChange={(e) => dispatch({ apiKey: e.target.value })}
+            type="password"
+          />
+        </div>
+        <div className="mb-3">
+          <div className={labelClass}>Account ID</div>
+          <Input
+            className={inputClass}
+            value={secretKey}
+            onChange={(e) => dispatch({ secretKey: e.target.value })}
+          />
+        </div>
+        <div className="mt-1 text-[12px] text-[var(--text3)]">
+          Paper uses sandbox.tradier.com; live uses api.tradier.com.
+        </div>
+      </>
+    );
+  }
+
+  if (brokerType === "kraken") {
+    return (
+      <>
+        <div className="mb-3">
+          <div className={labelClass}>API key</div>
+          <Input
+            className={inputClass}
+            value={apiKey}
+            onChange={(e) => dispatch({ apiKey: e.target.value })}
+            type="password"
+          />
+        </div>
+        <div className="mb-3">
+          <div className={labelClass}>API secret (base64)</div>
+          <Input
+            className={inputClass}
+            value={secretKey}
+            onChange={(e) => dispatch({ secretKey: e.target.value })}
+            type="password"
+          />
+        </div>
+        <div className="mt-1 text-[12px] text-[var(--text3)]">
+          No sandbox — paper sessions validate-only + ghost fills.
+        </div>
+      </>
+    );
+  }
+
   return null;
 };
 
@@ -274,6 +359,12 @@ export const AddBrokerModal = ({
         return { username, password };
       case "polymarket":
         return { privateKey, funderAddress };
+      case "kalshi":
+        return { keyId: apiKey, privateKeyPem: privateKey };
+      case "tradier":
+        return { accessToken: apiKey, accountId: secretKey };
+      case "kraken":
+        return { apiKey, apiSecret: secretKey };
       default:
         return {};
     }
@@ -371,13 +462,16 @@ export const AddBrokerModal = ({
               { value: "polymarket", label: "Polymarket (prediction markets)" },
               {
                 value: "kalshi",
-                label: "Kalshi (US event contracts — skeleton)",
+                label: "Kalshi (US event contracts — demo/prod)",
               },
               {
                 value: "tradier",
-                label: "Tradier (stocks/options — skeleton)",
+                label: "Tradier (stocks/options — sandbox/prod)",
               },
-              { value: "kraken", label: "Kraken (crypto — skeleton)" },
+              {
+                value: "kraken",
+                label: "Kraken (crypto — validate-only paper)",
+              },
             ]}
           />
           <div className="mt-1.5 text-[12px] text-[var(--text3)]">

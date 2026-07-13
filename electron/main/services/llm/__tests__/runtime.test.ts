@@ -138,7 +138,6 @@ describe("LLMRuntime", () => {
       sessionId: "session-1",
       cycleId: "cycle-1",
       instrument: { symbol: "AAPL", instrumentClass: "stock" as const },
-      sessionConfig: {} as never,
       instrumentClasses: ["stock" as const],
     };
 
@@ -167,7 +166,6 @@ describe("LLMRuntime", () => {
         sessionId: "",
         cycleId: "cycle-1",
         instrument: { symbol: "AAPL", instrumentClass: "stock" },
-        sessionConfig: {} as never,
         instrumentClasses: ["stock"],
       }),
     ).rejects.toMatchObject({ code: "VALIDATION_FAILED" });

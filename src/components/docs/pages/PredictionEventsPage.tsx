@@ -28,7 +28,10 @@ export function PredictionEventsPage() {
         arrive when a new market passes the filters below, not on a fixed
         schedule per symbol. A session needs a Polymarket broker connected —
         otherwise signals are rejected at the{" "}
-        <DocLink to="signal-architecture">delivery gate</DocLink>.
+        <DocLink to="signal-architecture">delivery gate</DocLink>. Prefer a{" "}
+        <DocStrong>paper</DocStrong> Polymarket account for calibration: orders
+        never hit the CLOB; fills are ghost-simulated against live prices and
+        settle when the real market resolves on gamma-api.
       </DocParagraph>
 
       <DocHeading id="how-it-works">How it works</DocHeading>

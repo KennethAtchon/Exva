@@ -152,9 +152,7 @@ function rowToProfile(row: ProfileRow): ExperienceInputProfile {
   };
 }
 
-function buildPayload(
-  input: InputProfileCreateInput,
-): Record<string, unknown> {
+function buildPayload(input: InputProfileCreateInput): Record<string, unknown> {
   if (input.mode === "event_source") {
     return {
       sourceDefinitionId: input.sourceDefinitionId,

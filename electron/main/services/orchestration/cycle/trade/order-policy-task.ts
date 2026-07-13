@@ -1,5 +1,8 @@
-import type { DashboardStats, SessionConfig } from "@/lib/types";
-import type { SessionStrategyContext } from "@electron/shared/domain";
+import type { DashboardStats } from "@/lib/types";
+import type {
+  SessionRiskConfig,
+  SessionStrategyContext,
+} from "@electron/shared/domain";
 import type { OrderRequest } from "../../../broker/adapters/broker-adapter";
 import type { DecisionRiskInput } from "../../../risk/risk-engine";
 import type { PolicyGateInput } from "../../policy/order-policy-gate";
@@ -9,7 +12,7 @@ interface BuildOrderPolicyTaskInput {
   cycleId: string;
   tradeId: string;
   brokerAccountId: string;
-  config: SessionConfig;
+  riskConfig: SessionRiskConfig;
   stats: DashboardStats;
   order: OrderRequest;
   confidence: number;
@@ -35,7 +38,7 @@ export function buildOrderPolicyTask(
     existingOrderCheck: input.existingOrderCheck,
     sessionIsPaused: input.sessionIsPaused,
     decisionRiskInput: {
-      config: input.config,
+      riskConfig: input.riskConfig,
       stats: input.stats,
       order: input.order,
       confidence: input.confidence,

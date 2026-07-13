@@ -4,12 +4,6 @@ import {
   sessionIdParamSchema,
   sessionListFiltersSchema,
   sessionUpdateInputSchema,
-  strategyAiPhaseSaveSchema,
-  strategyAiSettingsSaveSchema,
-  strategyResearchPostureSaveSchema,
-  strategyRiskConfigSaveSchema,
-  strategyRulesSaveSchema,
-  strategyTimeframeConfigSaveSchema,
   templateCreateInputSchema,
   workspacePrefsPatchSchema,
   listSignalDeadLettersInputSchema,
@@ -51,48 +45,6 @@ describe("validation schemas", () => {
         unknownField: true,
       }),
     ).toThrow();
-  });
-
-  it("validates strategy save payloads", () => {
-    expect(
-      strategyResearchPostureSaveSchema.parse({
-        sessionId: "s1",
-        researchPosture: { postureNotes: "Focus catalysts" },
-      }),
-    ).toBeDefined();
-    expect(
-      strategyRulesSaveSchema.parse({
-        sessionId: "s1",
-        rules: { sideBias: "long_only" },
-      }),
-    ).toBeDefined();
-    expect(
-      strategyRiskConfigSaveSchema.parse({
-        sessionId: "s1",
-        riskConfig: { maxAiSpendUsd: 5 },
-      }),
-    ).toBeDefined();
-    expect(
-      strategyAiSettingsSaveSchema.parse({
-        sessionId: "s1",
-        aiSettings: { workerGuidanceMarkdown: "Be conservative" },
-      }),
-    ).toBeDefined();
-    expect(
-      strategyTimeframeConfigSaveSchema.parse({
-        sessionId: "s1",
-        timeframe: { primaryTradingTimeframe: "4h" },
-      }),
-    ).toBeDefined();
-    expect(
-      strategyAiPhaseSaveSchema.parse({
-        sessionId: "s1",
-        phase: "technical",
-        providerKey: "openrouter",
-        modelId: "gpt-4o-mini",
-        reasoningLevel: "medium",
-      }),
-    ).toBeDefined();
   });
 
   it("validates session lifecycle inputs", () => {

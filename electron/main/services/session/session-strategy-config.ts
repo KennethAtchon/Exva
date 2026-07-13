@@ -113,6 +113,8 @@ export function strategyConfigToContext(
       maxAiSpendUsd: config.riskConfig.maxAiSpendUsd,
       maxDataSpendUsd: config.riskConfig.maxDataSpendUsd,
       humanApprovalRequired: config.riskConfig.humanApprovalRequired,
+      calendarBlackoutHours: config.riskConfig.calendarBlackoutHours ?? 24,
+      eventTypedExperience: config.riskConfig.eventTypedExperience ?? false,
       updatedAt,
     },
     timeframe: {

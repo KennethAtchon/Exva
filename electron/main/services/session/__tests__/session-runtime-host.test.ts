@@ -107,7 +107,6 @@ describe("OrchestratorDeps shape", () => {
 
     const expectedKeys: Array<keyof OrchestratorDeps> = [
       "sessionRepo",
-      "sessionStrategiesRepo",
       "strategyContextService",
       "tradesRepo",
       "tradeApprovalsRepo",
@@ -115,8 +114,6 @@ describe("OrchestratorDeps shape", () => {
       "agentMessagesRepo",
       "eventsRepo",
       "statsRepo",
-      "sessionAiPhasesRepo",
-      "sessionSelectorSettingsRepo",
       "sessionExecutionStepsRepo",
       "providerAccountsRepo",
       "workspacePreferencesRepo",

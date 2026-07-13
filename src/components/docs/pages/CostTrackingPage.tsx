@@ -11,10 +11,11 @@ export function CostTrackingPage() {
   return (
     <>
       <DocParagraph>
-        The <DocStrong>API Usage</DocStrong> page tracks what the AI pipeline
-        costs to run. Model and data spend is metered as phases execute, capped
-        by the budgets on the <DocLink to="risk">Risk</DocLink> tab, and
-        attributed back to phases and trades so you can see where money goes.
+        The <DocStrong>Costs</DocStrong> tab in Research tracks what the AI
+        pipeline costs to run. Model and data spend is metered as phases
+        execute, capped by the budgets on the <DocLink to="risk">Risk</DocLink>{" "}
+        tab, and attributed back to phases and trades so you can see where money
+        goes.
       </DocParagraph>
 
       <DocHeading id="budgets" level={2}>

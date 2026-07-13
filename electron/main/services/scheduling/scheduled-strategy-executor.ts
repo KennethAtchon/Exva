@@ -1,10 +1,10 @@
 import { eq, and } from "drizzle-orm";
 import type { DbClient } from "../../db/client";
-import {
-  instrumentSetMembers,
-  instrumentSetRevisions,
-} from "../../db/schema";
-import type { MarketSignal, ScanHitPayload } from "@electron/shared/domain/market-signal";
+import { instrumentSetMembers, instrumentSetRevisions } from "../../db/schema";
+import type {
+  MarketSignal,
+  ScanHitPayload,
+} from "@electron/shared/domain/market-signal";
 import {
   DEFAULT_SIGNAL_TTL,
   computeDedupeKey,
@@ -17,6 +17,9 @@ import type { OhlcvBar } from "../broker/adapters/broker-adapter";
 import type { DeterministicStrategy } from "../backtest/replay-engine";
 import type { StrategyDefinitionRegistry } from "../strategies/strategy-definition-registry";
 import type { ScheduledRuntimePlan } from "./session-input-runtime-planner";
+import { createLogger } from "../infra/log";
+
+const logger = createLogger("scheduled-strategy-executor");
 
 // ---------------------------------------------------------------------------
 // Injection interfaces
@@ -146,9 +149,9 @@ export class ScheduledStrategyExecutor {
         instrumentClass,
       );
     } catch (err) {
-      console.warn(
-        `[ScheduledStrategyExecutor] getBars failed for ${displaySymbol}: ${String(err)}`,
-      );
+      logger.warn({ symbol: displaySymbol, err }, "getBars failed");
+      // Per-instrument isolation: one bar outage must not kill the scan batch.
+      // Caller sees fewer signals; schedule coordinator still ticks.
       return null;
     }
 
@@ -163,9 +166,11 @@ export class ScheduledStrategyExecutor {
         timeframe: plan.analysisTimeframe,
       });
     } catch (err) {
-      console.warn(
-        `[ScheduledStrategyExecutor] evaluate failed for ${displaySymbol} / ${plan.strategyId}: ${String(err)}`,
+      logger.warn(
+        { symbol: displaySymbol, strategyId: plan.strategyId, err },
+        "evaluate failed",
       );
+      // Strategy throws are instrument-local; skip symbol, keep batch alive.
       return null;
     }
 

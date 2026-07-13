@@ -13,14 +13,14 @@ describe("selectorConfigCheck", () => {
     const result = await selectorConfigCheck(
       baseSession as never,
       {
-        sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
+        strategyContextService: {
+          getSelectorSettings: () => ({ aiPickerEnabled: true }),
+          getAiPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }),
+        },
         workspacePreferencesRepo: {
           get: () => ({ defaultSearchProviderId: null }),
         },
         providerAccountsRepo: { find: () => null },
-        sessionAiPhasesRepo: {
-          getByPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }),
-        },
       } as never,
     );
 
@@ -35,7 +35,10 @@ describe("selectorConfigCheck", () => {
     const result = await selectorConfigCheck(
       { ...baseSession, defaultSearchProviderId: "search-1" } as never,
       {
-        sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
+        strategyContextService: {
+          getSelectorSettings: () => ({ aiPickerEnabled: true }),
+          getAiPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }),
+        },
         workspacePreferencesRepo: {
           get: () => ({ defaultSearchProviderId: null }),
         },
@@ -47,9 +50,6 @@ describe("selectorConfigCheck", () => {
                 ? { id, category: "ai", isConfigured: true }
                 : null,
         },
-        sessionAiPhasesRepo: {
-          getByPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }),
-        },
       } as never,
     );
 
@@ -60,7 +60,10 @@ describe("selectorConfigCheck", () => {
     const result = await selectorConfigCheck(
       baseSession as never,
       {
-        sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
+        strategyContextService: {
+          getSelectorSettings: () => ({ aiPickerEnabled: true }),
+          getAiPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }),
+        },
         workspacePreferencesRepo: {
           get: () => ({
             defaultSearchProviderId: BUILT_IN_DUCKDUCKGO_PROVIDER_ID,
@@ -73,9 +76,6 @@ describe("selectorConfigCheck", () => {
               : id === "ai-1"
                 ? { id, category: "ai", isConfigured: true }
                 : null,
-        },
-        sessionAiPhasesRepo: {
-          getByPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }),
         },
       } as never,
     );

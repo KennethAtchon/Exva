@@ -14,10 +14,6 @@
   "project": ["src/**/*.{ts,tsx}", "electron/**/*.{ts,tsx}", "scripts/**/*.ts"],
   "ignore": ["src/components/ui/**"],
   "ignoreExportsUsedInFile": true,
-  "ignoreDependencies": [
-    "lint-staged",
-    "bufferutil",
-    "utf-8-validate",
-    "protobufjs"
-  ]
+  "ignoreDependencies": ["lint-staged", "protobufjs"],
+  "ignoreBinaries": ["sqlite3"]
 }

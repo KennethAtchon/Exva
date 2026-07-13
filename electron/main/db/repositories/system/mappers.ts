@@ -6,21 +6,12 @@ import type {
   EventRow,
   ProviderAccount,
   ExecutionStepState,
-  SessionRiskConfig,
   SessionBrokerRoutingOverride,
-  SessionConfig,
-  SessionSelectorSettings,
-  SessionStrategy,
-  SessionTradeRules,
-  SessionResearchPosture,
-  SessionAiSettings,
-  SessionTimeframeConfig,
   SessionTemplate,
   Trade,
   TradeApproval,
   WorkspaceSession,
 } from "@/lib/types";
-import { isHoldingStyle, isTradingTimeframe } from "@electron/shared/domain";
 import {
   DEFAULT_MOCK_ACCOUNT_BALANCE_USD,
   DEFAULT_MOCK_EXECUTION_TIER,
@@ -134,26 +125,6 @@ export function toExecutionStepState(row: Row): ExecutionStepState {
   };
 }
 
-export function toSessionConfig(row: Row): SessionConfig {
-  row = normalizeRow(row);
-  return {
-    strategy: String(row.strategy_profile),
-    max_position_usd: Number(row.max_position_usd),
-    stop_loss_pct: Number(row.stop_loss_pct),
-    take_profit_pct: Number(row.take_profit_pct),
-    max_concurrent_trades: Number(row.max_concurrent_trades),
-    max_consecutive_losers: Number(row.max_consecutive_losers ?? 5),
-    research_depth: row.research_depth as SessionConfig["research_depth"],
-    daily_loss_limit_usd: Number(row.daily_loss_limit_usd),
-    profit_target_usd: Number(row.profit_target_usd),
-    max_api_spend_usd: Number(row.max_ai_spend_usd),
-    human_approval_required: Boolean(row.human_approval_required),
-    off_hours_trading:
-      (row.off_hours_trading as SessionConfig["off_hours_trading"]) ??
-      "disabled",
-  };
-}
-
 export function toWorkspaceSession(row: Row): WorkspaceSession {
   row = normalizeRow(row);
   return {
@@ -171,142 +142,6 @@ export function toWorkspaceSession(row: Row): WorkspaceSession {
     executionMode: row.execution_mode as WorkspaceSession["executionMode"],
     experienceId: String(row.experience_id ?? "edgar-catalyst"),
     createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at),
-  };
-}
-
-export function toSessionSelectorSettings(row: Row): SessionSelectorSettings {
-  row = normalizeRow(row);
-  return {
-    sessionId: String(row.session_id),
-    aiPickerEnabled: Boolean(row.ai_picker_enabled),
-    noInstrumentRetryMinutes:
-      row.no_instrument_retry_minutes != null
-        ? Number(row.no_instrument_retry_minutes)
-        : null,
-    updatedAt: String(row.updated_at),
-  };
-}
-
-export function toSessionStrategy(row: Row): SessionStrategy {
-  row = normalizeRow(row);
-  const primaryTf = row.primary_trading_timeframe;
-  const holdStyle = row.holding_style;
-  return {
-    sessionId: String(row.session_id),
-    strategyProfile: row.strategy_profile as SessionStrategy["strategyProfile"],
-    maxPositionUsd: Number(row.max_position_usd),
-    stopLossPct: Number(row.stop_loss_pct),
-    takeProfitPct: Number(row.take_profit_pct),
-    maxConcurrentTrades: Number(row.max_concurrent_trades),
-    researchDepth: row.research_depth as SessionStrategy["researchDepth"],
-    dailyLossLimitUsd: Number(row.daily_loss_limit_usd),
-    profitTargetUsd: Number(row.profit_target_usd),
-    maxAiSpendUsd: Number(row.max_ai_spend_usd),
-    humanApprovalRequired: Boolean(row.human_approval_required),
-    primaryTradingTimeframe: isTradingTimeframe(primaryTf) ? primaryTf : "1d",
-    holdingStyle: isHoldingStyle(holdStyle) ? holdStyle : "multi_day_swing",
-    targetHoldDays: nullableNumber(row.target_hold_days),
-    maxHoldDays: nullableNumber(row.max_hold_days),
-    timeframeNotes:
-      row.timeframe_notes != null ? String(row.timeframe_notes) : "",
-  };
-}
-
-export function toSessionResearchPosture(row: Row): SessionResearchPosture {
-  row = normalizeRow(row);
-  return {
-    sessionId: String(row.session_id),
-    posturePresetId:
-      row.posture_preset_id as SessionResearchPosture["posturePresetId"],
-    processingMode:
-      row.processing_mode as SessionResearchPosture["processingMode"],
-    evidenceMode: row.evidence_mode as SessionResearchPosture["evidenceMode"],
-    catalystMode: row.catalyst_mode as SessionResearchPosture["catalystMode"],
-    fundamentalStrictness:
-      row.fundamental_strictness as SessionResearchPosture["fundamentalStrictness"],
-    postureNotes: row.posture_notes != null ? String(row.posture_notes) : "",
-    updatedAt: String(row.updated_at),
-  };
-}
-
-export function toSessionAiSettings(row: Row): SessionAiSettings {
-  row = normalizeRow(row);
-  return {
-    sessionId: String(row.session_id),
-    workerGuidanceMarkdown:
-      row.worker_guidance_markdown != null
-        ? String(row.worker_guidance_markdown)
-        : "",
-    updatedAt: String(row.updated_at),
-  };
-}
-
-export function toSessionTradeRules(row: Row): SessionTradeRules {
-  row = normalizeRow(row);
-  return {
-    sessionId: String(row.session_id),
-    rulesPresetId: row.rules_preset_id as SessionTradeRules["rulesPresetId"],
-    setupType: row.setup_type as SessionTradeRules["setupType"],
-    sideBias: row.side_bias as SessionTradeRules["sideBias"],
-    entryStyle: row.entry_style as SessionTradeRules["entryStyle"],
-    exitStyle: row.exit_style as SessionTradeRules["exitStyle"],
-    scalingMode: row.scaling_mode as SessionTradeRules["scalingMode"],
-    tradeRulesMarkdown:
-      row.trade_rules_markdown != null ? String(row.trade_rules_markdown) : "",
-    ruleNotes: row.rule_notes != null ? String(row.rule_notes) : "",
-    updatedAt: String(row.updated_at),
-  };
-}
-
-export function toSessionRiskConfig(row: Row): SessionRiskConfig {
-  row = normalizeRow(row);
-  return {
-    sessionId: String(row.session_id),
-    riskPresetId:
-      (row.risk_preset_id as SessionRiskConfig["riskPresetId"]) ?? "custom",
-    offHoursTrading:
-      (row.off_hours_trading as SessionRiskConfig["offHoursTrading"]) ??
-      "disabled",
-    maxPositionUsd: Number(row.max_position_usd),
-    stopLossPct: nullableNumber(row.stop_loss_pct),
-    takeProfitPct: nullableNumber(row.take_profit_pct),
-    stopLossType: row.stop_loss_type as SessionRiskConfig["stopLossType"],
-    atrStopMultiplier: nullableNumber(row.atr_stop_multiplier),
-    kellyFraction: Number(row.kelly_fraction),
-    predictionEdgeThreshold: Number(row.prediction_edge_threshold),
-    maxExposureUsd: nullableNumber(row.max_exposure_usd),
-    waitForOpenThreshold: Number(row.wait_for_open_threshold),
-    maxConcurrentTrades: Number(row.max_concurrent_trades),
-    maxConsecutiveLosers: Number(row.max_consecutive_losers ?? 5),
-    volatilityHaltMaxSpreadPct: nullableNumber(
-      row.volatility_halt_max_spread_pct,
-    ),
-    dailyLossLimitUsd: Number(row.daily_loss_limit_usd),
-    profitTargetUsd: Number(row.profit_target_usd),
-    maxAiSpendUsd: Number(row.max_ai_spend_usd),
-    maxDataSpendUsd:
-      row.max_data_spend_usd != null ? Number(row.max_data_spend_usd) : 5,
-    humanApprovalRequired: Boolean(row.human_approval_required),
-    updatedAt: String(row.updated_at),
-  };
-}
-
-export function toSessionTimeframeConfig(row: Row): SessionTimeframeConfig {
-  row = normalizeRow(row);
-  const primaryTf = row.primary_trading_timeframe;
-  const holdStyle = row.holding_style;
-  return {
-    sessionId: String(row.session_id),
-    timeframePresetId:
-      (row.timeframe_preset_id as SessionTimeframeConfig["timeframePresetId"]) ??
-      "custom",
-    primaryTradingTimeframe: isTradingTimeframe(primaryTf) ? primaryTf : "1d",
-    holdingStyle: isHoldingStyle(holdStyle) ? holdStyle : "multi_day_swing",
-    targetHoldDays: nullableNumber(row.target_hold_days),
-    maxHoldDays: nullableNumber(row.max_hold_days),
-    timeframeNotes:
-      row.timeframe_notes != null ? String(row.timeframe_notes) : "",
     updatedAt: String(row.updated_at),
   };
 }

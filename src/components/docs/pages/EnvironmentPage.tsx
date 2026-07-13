@@ -1,11 +1,17 @@
-import { DocCallout, DocLink, DocList, DocParagraph } from "../primitives";
+import {
+  DocCallout,
+  DocLink,
+  DocList,
+  DocParagraph,
+  DocStrong,
+} from "../primitives";
 
 export function EnvironmentPage() {
   return (
     <>
       <DocParagraph>
         The workspace operates in one of two environment modes, toggled from the
-        Accounts page:
+        Settings → Accounts:
       </DocParagraph>
       <DocList
         items={[
@@ -33,6 +39,13 @@ export function EnvironmentPage() {
         session starts. See <DocLink to="sessions">Sessions</DocLink> for
         lifecycle controls.
       </DocCallout>
+      <DocParagraph>
+        For unattended paper operation, run <DocStrong>headless</DocStrong> mode
+        (<code>bun run headless</code> or the launchd agent). Opening the GUI
+        while headless is running signals headless to exit and takes over the
+        single-instance lock. Nightly jobs (labels, calibration, period autopsy,
+        DB backup) run under headless without a window.
+      </DocParagraph>
     </>
   );
 }

@@ -38,7 +38,10 @@ export class SessionInputConfigurationService {
     this.profileRepo = new InputProfileRepo(db);
     this.setRepo = new InstrumentSetRepo(db);
     this.sourceRepo = new SourceDefinitionRepo(db);
-    this.catalogValidator = new CatalogValidator(strategyRegistry, adapterRegistry);
+    this.catalogValidator = new CatalogValidator(
+      strategyRegistry,
+      adapterRegistry,
+    );
     this.validator = new SubscriptionValidator(
       this.templateRepo,
       this.sourceRepo,
@@ -87,20 +90,23 @@ export class SessionInputConfigurationService {
       availableSourceDefinitions,
       availableInstrumentSets,
       supportedAnalysisTimeframes: template.inputContract.analysisTimeframes,
-      cadenceConstraints:
-        template.inputContract.modes.includes("scheduled_scan")
-          ? {
-              minimumMs: 5 * 60 * 1_000,
-              defaultCadence: {
-                kind: "interval",
-                every: 15,
-                unit: "minute",
-                jitterPct: 0.05,
-              },
-            }
-          : null,
+      cadenceConstraints: template.inputContract.modes.includes(
+        "scheduled_scan",
+      )
+        ? {
+            minimumMs: 5 * 60 * 1_000,
+            defaultCadence: {
+              kind: "interval",
+              every: 15,
+              unit: "minute",
+              jitterPct: 0.05,
+            },
+          }
+        : null,
       strategyParameterSchema:
-        template.strategyId != null ? { strategyId: template.strategyId } : null,
+        template.strategyId != null
+          ? { strategyId: template.strategyId }
+          : null,
       recommendedProfiles,
       brokerRequirement: template.brokerRequirement,
       universePolicy: template.universePolicy,
@@ -133,7 +139,9 @@ export class SessionInputConfigurationService {
   ): SessionInputConfiguration {
     const validation = this.validator.validateSessionDraft(input);
     if (!validation.overall.valid) {
-      const messages = validation.overall.errors.map((e) => e.message).join("; ");
+      const messages = validation.overall.errors
+        .map((e) => e.message)
+        .join("; ");
       throw new Error(`Subscription draft is invalid: ${messages}`);
     }
 
@@ -206,9 +214,10 @@ function profileToDraft(
     templateVersion: profile.templateVersion,
     instrumentSetId: profile.instrumentSetId,
     instrumentSetRevision: profile.instrumentSetRevision,
-    cadence: typeof profile.cadence === "string"
-      ? parseCadence(JSON.parse(profile.cadence))
-      : profile.cadence,
+    cadence:
+      typeof profile.cadence === "string"
+        ? parseCadence(JSON.parse(profile.cadence))
+        : profile.cadence,
     analysisTimeframe: profile.analysisTimeframe,
     marketCalendarId: profile.marketCalendarId,
     strategyParameters: profile.strategyParameters,

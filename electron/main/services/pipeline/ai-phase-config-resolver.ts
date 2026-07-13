@@ -13,7 +13,23 @@ import {
   resolvePhaseSpendCapUsd as resolvePhaseSpendCapUsdForProfile,
 } from "@electron/shared/ai/ai-phase-config";
 import type { WorkerExecConfig } from "./core/types";
-import type { SessionAiPhasesRepo } from "../../db/repositories/sessions/session-ai-phases-repo";
+import type { SessionAiPhase } from "@electron/shared/ai/ai-phase";
+
+/** Narrow config source — SessionStrategyContextService or legacy repo adapter. */
+export type AiPhaseConfigSource = {
+  getAiPhase?(sessionId: string, phase: PipelinePhase): SessionAiPhase | null;
+  getByPhase?(sessionId: string, phase: PipelinePhase): SessionAiPhase | null;
+  getAiPhaseWorker?(
+    sessionId: string,
+    phase: PipelinePhase,
+    workerId: string,
+  ): SessionAiPhaseWorker | null;
+  getWorker?(
+    sessionId: string,
+    phase: PipelinePhase,
+    workerId: string,
+  ): SessionAiPhaseWorker | null;
+};
 
 export interface ResolvedPhaseExecConfig {
   providerKey: string;
@@ -30,13 +46,16 @@ export interface ResolvedWorkerExecConfig extends ResolvedPhaseExecConfig {
 }
 
 export class AIPhaseConfigResolver {
-  constructor(private readonly aiPhasesRepo: SessionAiPhasesRepo) {}
+  constructor(private readonly source: AiPhaseConfigSource) {}
 
   resolvePhaseConfig(
     sessionId: string,
     phase: PipelinePhase,
   ): ResolvedPhaseExecConfig {
-    const row = this.aiPhasesRepo.getByPhase(sessionId, phase);
+    const row =
+      this.source.getAiPhase?.(sessionId, phase) ??
+      this.source.getByPhase?.(sessionId, phase) ??
+      null;
     return {
       providerKey: row?.providerKey ?? "",
       modelId: row?.modelId ?? "",
@@ -54,11 +73,10 @@ export class AIPhaseConfigResolver {
     workerId: string,
   ): ResolvedWorkerExecConfig {
     const phaseConfig = this.resolvePhaseConfig(sessionId, phase);
-    const workerOverride = this.aiPhasesRepo.getWorker(
-      sessionId,
-      phase,
-      workerId,
-    );
+    const workerOverride =
+      this.source.getAiPhaseWorker?.(sessionId, phase, workerId) ??
+      this.source.getWorker?.(sessionId, phase, workerId) ??
+      null;
     const promptMarkdown = workerOverride?.promptMarkdown?.trim()
       ? workerOverride.promptMarkdown
       : phaseConfig.promptMarkdown;

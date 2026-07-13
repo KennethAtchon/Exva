@@ -17,17 +17,20 @@ export function StrategyOverviewPage() {
         researches, sizes, exits, and approves trades. It is the control surface
         between an <DocLink to="experiences">experience</DocLink> (which decides{" "}
         <em>what</em> a session can do) and the live runtime (which decides{" "}
-        <em>how</em> each trade is placed). Everything here is per-session and
-        is captured in a strategy snapshot when the session starts, so a running
-        session always trades against the config it was launched with.
+        <em>how</em> each trade is placed). Everything here is one versioned
+        strategy document per session — not separate per-table saves — and is
+        snapshotted when the session starts so a running session always trades
+        against the config it was launched with.
       </DocParagraph>
 
       <DocHeading id="sections" level={2}>
         The five sections
       </DocHeading>
       <DocParagraph>
-        The page is split into five tabs. Each maps to one stored config object
-        and saves independently.
+        The page is split into five tabs for editing. They all live in the same
+        document; saving writes a single patch with optimistic concurrency
+        (version check). A conflict reloads the latest document instead of
+        overwriting.
       </DocParagraph>
       <DocTable
         headers={["Tab", "Controls", "Detail"]}
@@ -64,13 +67,23 @@ export function StrategyOverviewPage() {
         Global strategy presets
       </DocHeading>
       <DocParagraph>
-        A <DocStrong>global strategy preset</DocStrong> is a saved bundle that
-        applies a Style, Rules, Risk, and Timeframe preset together in one
-        click. Applying a preset overwrites those four sections with the preset
-        values and marks them dirty; the AI section is not touched. Each section
-        can also be set to <DocInlineCode>custom</DocInlineCode>, which keeps
-        your manually-tuned fields and tells the runtime not to assume any
-        built-in tolerance profile.
+        A <DocStrong>global strategy preset</DocStrong> is a saved full-document
+        bundle from <DocInlineCode>config_presets</DocInlineCode> that applies
+        Style, Rules, Risk, and Timeframe together in one step. Applying a
+        preset writes immediately (with a version check). Each section can also
+        be set to <DocInlineCode>custom</DocInlineCode>, which keeps your
+        manually-tuned fields and tells the runtime not to assume any built-in
+        tolerance profile.
+      </DocParagraph>
+
+      <DocHeading id="history" level={2}>
+        Config history
+      </DocHeading>
+      <DocParagraph>
+        Every successful save appends the previous document to history.{" "}
+        <DocStrong>Config history</DocStrong> lists those versions, shows a
+        section-level JSON diff against the current document, and can roll back
+        to a prior version (again with a version check).
       </DocParagraph>
 
       <DocHeading id="lock" level={2}>
@@ -102,9 +115,11 @@ export function StrategyOverviewPage() {
         Saving & validation
       </DocHeading>
       <DocParagraph>
-        Saving validates the full strategy context before writing. A common
-        failure is a posture that requires web evidence with no search provider
-        configured — fix the provider on{" "}
+        Saving validates the full strategy context, then writes one document
+        patch with the expected version. If another window already saved, you
+        get a clear stale-version message and a reload — edits are not silently
+        overwritten. A common validation failure is a posture that requires web
+        evidence with no search provider configured — fix the provider on{" "}
         <DocLink to="accounts-brokers">Accounts</DocLink> or set a session
         override. The Rules section also compiles a trade-rules markdown block
         that is injected into the AI prompts, so rule changes reach the model on

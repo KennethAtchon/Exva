@@ -3,6 +3,7 @@ import { channels } from "@electron/shared/ipc/channels";
 import { sessionMatchesEnvironment } from "@electron/shared/domain/environment-mode";
 import type { AppServices } from "../../services/app-services";
 import { resolveExecutionModeFilter } from "../../services/session/environment-scope";
+import { buildCalendarAttentionQueue } from "../../services/signals/calendar/calendar-attention";
 import { handle } from "../handle";
 
 function resolveCostBreakdownDateRange(payload: unknown): "today" | "all" {
@@ -105,5 +106,37 @@ export function registerDashboardHandlers(services: AppServices): void {
       sessionIds: envSessionIds,
       dateRange: resolveCostBreakdownDateRange(payload),
     });
+  });
+
+  handle(ipcMain, channels.dashboard.getCalendarAttention, async () => {
+    const events = services.calendarEventsRepo.listUpcoming({
+      withinHours: 72,
+    });
+    const holdings: Array<{
+      sessionId: string;
+      sessionName: string;
+      symbol: string;
+      quantity: number;
+    }> = [];
+    for (const session of sessionsInWorkspaceEnvironment(services)) {
+      const open = services.repos.trades.listOpenAndPending(session.id);
+      for (const trade of open) {
+        if (trade.status !== "open") continue;
+        holdings.push({
+          sessionId: session.id,
+          sessionName: session.name,
+          symbol: trade.instrumentSymbol,
+          quantity: Math.max(
+            1,
+            Math.round(
+              trade.position_size_usd / Math.max(trade.entry_price ?? 1, 1),
+            ),
+          ),
+        });
+      }
+    }
+    return {
+      items: buildCalendarAttentionQueue({ events, holdings }),
+    };
   });
 }

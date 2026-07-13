@@ -14,7 +14,6 @@ export type EngineRunCtx = Pick<
   | "tradeId"
   | "session"
   | "instrument"
-  | "sessionConfig"
   | "instrumentClasses"
   | "strategyContext"
   | "services"

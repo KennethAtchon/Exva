@@ -20,7 +20,7 @@ flowchart TD
     Trade[Trade id or session id] --> Autopsy[TradeAutopsyService]
     Autopsy --> Messages[Agent transcript]
     Messages --> Provider[LLM provider summary]
-    Provider --> AutopsyRepo[TradeAutopsiesRepo]
+    Provider --> AutopsyRepo[AutopsiesRepo]
     Trade --> Scorecard[PaperScorecardService]
     Scorecard --> ClosedTrades[Closed trades]
     Scorecard --> ApiSpend[API call log]

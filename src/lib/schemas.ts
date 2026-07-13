@@ -1,10 +1,4 @@
 import { z } from "zod";
-import {
-  RISK_PRESET_IDS,
-  TIMEFRAME_PRESET_IDS,
-  type RiskPresetId,
-  type TimeframePresetId,
-} from "../../electron/shared/domain";
 import { selectorEvidenceSchema } from "../../electron/shared/ai/selector-candidate";
 import { selectorDiagnosticsSchema } from "../../electron/shared/ai/selector-diagnostics";
 
@@ -195,180 +189,48 @@ export const brokerRoutingUpdateSchema = z.object({
   ),
 });
 
-const researchPosturePresetIdSchema = z.enum([
-  "edgar_catalyst",
-  "earnings_event",
-  "manual_watchlist",
-  "prediction_event_edge",
-  "custom",
-]);
-const processingModeSchema = z.enum(["catalyst", "contract", "manual"]);
-const researchEvidenceModeSchema = z.enum([
-  "document_first",
-  "probability_edge",
-  "balanced",
-]);
-const researchCatalystModeSchema = z.enum([
-  "required",
-  "preferred",
-  "not_required",
-]);
-const researchFundamentalStrictnessSchema = z.enum([
-  "sanity_check",
-  "balanced",
-  "deep_confirmation",
-  "not_applicable",
-]);
-const tradeRulesPresetIdSchema = z.enum([
-  "catalyst_entry",
-  "event_entry",
-  "probability_edge",
-  "custom",
-]);
-const setupTypeSchema = z.enum([
-  "catalyst_entry",
-  "event_entry",
-  "probability_edge",
-  "custom",
-]);
-const strategySideBiasSchema = z.enum([
-  "long_only",
-  "short_only",
-  "both",
-  "market_neutral",
-  "n_a",
-]);
-const strategyEntryStyleSchema = z.enum([
-  "catalyst",
-  "event",
-  "probability_edge",
-]);
-const strategyExitStyleSchema = z.enum([
-  "fixed_pct",
-  "trailing_atr",
-  "partial_exits",
-  "time_based",
-  "thesis_based",
-  "market_resolution",
-]);
-const strategyScalingModeSchema = z.enum([
-  "single_entry",
-  "scale_in_2",
-  "scale_in_3",
-  "scale_out_partial",
-]);
-const stopLossTypeSchema = z.enum([
-  "fixed_pct",
-  "trailing_atr",
-  "broker_native_trailing",
-  "none",
-]);
-const tradingTimeframeSchema = z.enum(["15m", "30m", "1h", "4h", "1d", "1w"]);
-const holdingStyleSchema = z.enum([
-  "multi_day_swing",
-  "weeks_position",
-  "custom",
-]);
-
-export const strategyResearchPostureSaveSchema = z.object({
+export const strategyConfigGetSchema = z.object({
   sessionId: z.string().min(1),
-  researchPosture: z.object({
-    posturePresetId: researchPosturePresetIdSchema.optional(),
-    processingMode: processingModeSchema.optional(),
-    evidenceMode: researchEvidenceModeSchema.optional(),
-    catalystMode: researchCatalystModeSchema.optional(),
-    fundamentalStrictness: researchFundamentalStrictnessSchema.optional(),
-    postureNotes: z.string().optional(),
-  }),
 });
 
-export const strategyRulesSaveSchema = z.object({
+export const strategyConfigUpdateSchema = z.object({
   sessionId: z.string().min(1),
-  rules: z.object({
-    rulesPresetId: tradeRulesPresetIdSchema.optional(),
-    setupType: setupTypeSchema.optional(),
-    sideBias: strategySideBiasSchema.optional(),
-    entryStyle: strategyEntryStyleSchema.optional(),
-    exitStyle: strategyExitStyleSchema.optional(),
-    scalingMode: strategyScalingModeSchema.optional(),
-    tradeRulesMarkdown: z.string().max(1200).optional(),
-    ruleNotes: z.string().optional(),
-  }),
+  expectedVersion: z.number().int().positive(),
+  patch: z.record(z.string(), z.unknown()),
 });
 
-export const strategyRiskConfigSaveSchema = z.object({
+export const strategyConfigApplyPresetSchema = z.object({
   sessionId: z.string().min(1),
-  riskConfig: z.object({
-    riskPresetId: z
-      .enum(RISK_PRESET_IDS as [RiskPresetId, ...RiskPresetId[]])
+  presetId: z.string().min(1),
+  expectedVersion: z.number().int().positive(),
+});
+
+export const strategyConfigListPresetsSchema = z
+  .object({
+    kind: z
+      .enum(["full", "risk", "timeframe", "research", "rules", "ai"])
       .optional(),
-    maxPositionUsd: z.number().nonnegative().optional(),
-    stopLossPct: z.union([z.number().nonnegative(), z.null()]).optional(),
-    takeProfitPct: z.union([z.number().nonnegative(), z.null()]).optional(),
-    stopLossType: stopLossTypeSchema.optional(),
-    atrStopMultiplier: z.union([z.number().nonnegative(), z.null()]).optional(),
-    kellyFraction: z.number().nonnegative().optional(),
-    predictionEdgeThreshold: z.number().nonnegative().optional(),
-    maxExposureUsd: z.union([z.number().nonnegative(), z.null()]).optional(),
-    waitForOpenThreshold: z.number().nonnegative().optional(),
-    maxConcurrentTrades: z.number().int().nonnegative().optional(),
-    dailyLossLimitUsd: z.number().nonnegative().optional(),
-    profitTargetUsd: z.number().nonnegative().optional(),
-    maxAiSpendUsd: z.number().nonnegative().optional(),
-    humanApprovalRequired: z.boolean().optional(),
-  }),
+  })
+  .optional();
+
+export const strategyConfigSavePresetSchema = z.object({
+  id: z.string().min(1).optional(),
+  name: z.string().min(1),
+  kind: z.enum(["full", "risk", "timeframe", "research", "rules", "ai"]),
+  doc: z.record(z.string(), z.unknown()),
+  builtin: z.boolean().optional(),
 });
 
-export const strategyTimeframeConfigSaveSchema = z.object({
-  sessionId: z.string().min(1),
-  timeframe: z.object({
-    timeframePresetId: z
-      .enum(TIMEFRAME_PRESET_IDS as [TimeframePresetId, ...TimeframePresetId[]])
-      .optional(),
-    primaryTradingTimeframe: tradingTimeframeSchema.optional(),
-    holdingStyle: holdingStyleSchema.optional(),
-    targetHoldDays: z.union([z.number().nonnegative(), z.null()]).optional(),
-    maxHoldDays: z.union([z.number().nonnegative(), z.null()]).optional(),
-    timeframeNotes: z.string().optional(),
-  }),
+export const strategyConfigDeletePresetSchema = z.object({
+  id: z.string().min(1),
 });
 
-export const strategyAiSettingsSaveSchema = z.object({
+export const strategyConfigHistorySchema = z.object({
   sessionId: z.string().min(1),
-  aiSettings: z.object({
-    workerGuidanceMarkdown: z.string().max(1200).optional(),
-  }),
 });
 
-const pipelinePhaseSchema = z.enum([
-  "selector",
-  "technical",
-  "fundamental",
-  "review",
-  "decision",
-]);
-
-export const strategyAiPhaseSaveSchema = z.object({
+export const strategyConfigRollbackSchema = z.object({
   sessionId: z.string().min(1),
-  phase: pipelinePhaseSchema,
-  providerKey: z.string().min(1).optional(),
-  modelId: z.string().min(1).optional(),
-  temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().int().positive().optional(),
-  reasoningLevel: z
-    .enum(["off", "auto", "low", "medium", "high", "max"])
-    .optional(),
-  promptSource: z.enum(["default", "session_override"]).optional(),
-  promptMarkdown: z.string().optional(),
-});
-
-export const strategyAiPhaseWorkerSaveSchema = z.object({
-  sessionId: z.string().min(1),
-  phase: pipelinePhaseSchema,
-  workerId: z.string().min(1),
-  providerKey: z.string().min(1).nullable().optional(),
-  modelId: z.string().min(1).nullable().optional(),
-  maxSteps: z.number().int().positive().nullable().optional(),
-  spendLimitUsd: z.number().nonnegative().nullable().optional(),
-  promptMarkdown: z.string().nullable().optional(),
+  version: z.number().int().positive(),
+  expectedVersion: z.number().int().positive(),
 });

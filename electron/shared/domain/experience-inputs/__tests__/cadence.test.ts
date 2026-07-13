@@ -14,8 +14,16 @@ import {
 
 describe("parseCadence — valid", () => {
   it("accepts a minimal interval cadence", () => {
-    const result = parseCadence({ kind: "interval", every: 15, unit: "minute" });
-    expect(result).toMatchObject({ kind: "interval", every: 15, unit: "minute" });
+    const result = parseCadence({
+      kind: "interval",
+      every: 15,
+      unit: "minute",
+    });
+    expect(result).toMatchObject({
+      kind: "interval",
+      every: 15,
+      unit: "minute",
+    });
   });
 
   it("accepts an interval cadence with explicit jitterPct", () => {
@@ -85,7 +93,12 @@ describe("parseCadence — invalid", () => {
 
   it("rejects jitterPct above 0.25", () => {
     expect(() =>
-      parseCadence({ kind: "interval", every: 15, unit: "minute", jitterPct: 0.5 }),
+      parseCadence({
+        kind: "interval",
+        every: 15,
+        unit: "minute",
+        jitterPct: 0.5,
+      }),
     ).toThrow();
   });
 
@@ -244,7 +257,11 @@ describe("cadenceShortLabel", () => {
 describe("parseLegacyCadenceLabel", () => {
   it('parses "15m"', () => {
     const result = parseLegacyCadenceLabel("15m");
-    expect(result).toMatchObject({ kind: "interval", every: 15, unit: "minute" });
+    expect(result).toMatchObject({
+      kind: "interval",
+      every: 15,
+      unit: "minute",
+    });
   });
 
   it('parses "1h"', () => {
@@ -264,7 +281,11 @@ describe("parseLegacyCadenceLabel", () => {
 
   it("trims surrounding whitespace", () => {
     const result = parseLegacyCadenceLabel("  30m  ");
-    expect(result).toMatchObject({ kind: "interval", every: 30, unit: "minute" });
+    expect(result).toMatchObject({
+      kind: "interval",
+      every: 30,
+      unit: "minute",
+    });
   });
 
   it("rejects empty string", () => {

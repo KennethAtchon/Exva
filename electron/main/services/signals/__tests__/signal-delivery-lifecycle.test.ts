@@ -38,6 +38,10 @@ function insertFixtureSignal(
     payloadJson: { instrumentClass: "stock" },
     filedAt: new Date().toISOString(),
     detectedAt: new Date().toISOString(),
+    kind: "manual",
+    dedupeKey: `manual:${partial.id}`,
+    ttl: "PT4H",
+    occurredAt: new Date().toISOString(),
   });
 }
 

@@ -3,26 +3,7 @@ import {
   buildTradeRulesMarkdown,
   validateSessionStrategyContext,
 } from "../../electron/shared/domain";
-import {
-  RISK_PRESETS,
-  TIMEFRAME_PRESETS,
-  RESEARCH_POSTURE_PRESETS,
-  TRADE_RULE_PRESETS,
-} from "../../electron/shared/presets";
-import type { GlobalStrategyPreset } from "../../electron/shared/presets";
-
-const RESEARCH_POSTURE_PRESETS_MAP = Object.fromEntries(
-  RESEARCH_POSTURE_PRESETS.map((p) => [p.id, p]),
-);
-const TRADE_RULE_PRESETS_MAP = Object.fromEntries(
-  TRADE_RULE_PRESETS.map((p) => [p.id, p]),
-);
-import {
-  api,
-  type PhaseRuntimeSummary,
-  type StrategyGetResponse,
-  type UserGlobalPresetRow,
-} from "@/lib/exva";
+import { api, type StrategyGetResponse } from "@/lib/exva";
 import type { PipelinePhase } from "../../electron/shared/ai/ai-phase";
 import type {
   SessionResearchPosture,
@@ -32,11 +13,22 @@ import type {
   SessionTradeRules,
   SessionTimeframeConfig,
 } from "@/lib/types";
+import type { PhaseRuntimeSummary, UserGlobalPresetRow } from "@/lib/exva";
+import type { GlobalStrategyPreset } from "../../electron/shared/presets";
+import {
+  buildStrategyConfigPatch,
+  configPresetToUserGlobalRow,
+  isStaleVersionError,
+  mapDocToUiSections,
+  staleVersionUserMessage,
+  type StrategyConfigRecord,
+} from "@/lib/strategy-config-ui";
 
 type StrategyPageState = "no_session" | "editable" | "locked";
 type StrategySectionTab = "style" | "rules" | "risk" | "timeframe" | "ai";
 
 interface StrategyStoreState {
+  configVersion: number | null;
   researchPosture: SessionResearchPosture | null;
   rules: SessionTradeRules | null;
   riskConfig: SessionRiskConfig | null;
@@ -69,12 +61,30 @@ interface StrategyStoreState {
     phase: PipelinePhase,
     patch: Partial<PhaseRuntimeSummary>,
   ) => void;
-  applyGlobalPreset: (preset: GlobalStrategyPreset) => void;
+  applyGlobalPreset: (
+    sessionId: string,
+    preset: GlobalStrategyPreset,
+  ) => Promise<void>;
+  applyConfigRecord: (sessionId: string, record: StrategyConfigRecord) => void;
   saveAll: (sessionId: string) => Promise<void>;
   setActiveSection: (section: StrategySectionTab) => void;
 }
 
+function pageLockState(
+  sessionStatus: StrategyGetResponse["sessionStatus"],
+): Pick<StrategyStoreState, "isLocked" | "state"> {
+  const locked =
+    sessionStatus === "active" ||
+    sessionStatus === "paused" ||
+    sessionStatus === "monitoring_only";
+  return {
+    isLocked: locked,
+    state: locked ? "locked" : "editable",
+  };
+}
+
 export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
+  configVersion: null,
   researchPosture: null,
   rules: null,
   riskConfig: null,
@@ -96,42 +106,43 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
   isLocked: false,
   state: "no_session",
   loadStrategy: async (sessionId) => {
-    const result = await api.getStrategy(sessionId);
-    const globalPresetsResult = await api.listGlobalPresets();
+    const [config, page, presetsResult] = await Promise.all([
+      api.getStrategyConfig(sessionId),
+      api.getStrategy(sessionId),
+      api.listStrategyConfigPresets("full"),
+    ]);
+    const sections = mapDocToUiSections(
+      sessionId,
+      config.doc,
+      config.updatedAt,
+    );
 
     set({
-      researchPosture: result.researchPosture,
-      rules: result.rules,
-      riskConfig: result.riskConfig,
-      timeframe: result.timeframe,
-      aiSettings: result.aiSettings,
-      providers: result.providers,
-      selectorSettings: result.selectorSettings,
-      selectionMode: result.selectionMode,
-      defaultSearchProviderId: result.defaultSearchProviderId,
-      workspaceDefaultSearchProviderId: result.workspaceDefaultSearchProviderId,
-      workspaceDefaultModelProviderKey: result.workspaceDefaultModelProviderKey,
-      workspaceDefaultModelModelId: result.workspaceDefaultModelModelId,
-      aiPhases: result.aiPhases,
-      globalPresets: globalPresetsResult.presets,
+      configVersion: config.version,
+      researchPosture: sections.researchPosture,
+      rules: sections.rules,
+      riskConfig: sections.riskConfig,
+      timeframe: sections.timeframe,
+      aiSettings: sections.aiSettings,
+      aiPhases: sections.aiPhases,
+      providers: page.providers,
+      selectorSettings: page.selectorSettings,
+      selectionMode: page.selectionMode,
+      defaultSearchProviderId: page.defaultSearchProviderId,
+      workspaceDefaultSearchProviderId: page.workspaceDefaultSearchProviderId,
+      workspaceDefaultModelProviderKey: page.workspaceDefaultModelProviderKey,
+      workspaceDefaultModelModelId: page.workspaceDefaultModelModelId,
+      globalPresets: presetsResult.presets.map(configPresetToUserGlobalRow),
       dirtyFields: new Set(),
       activeSection: "style",
       strategyErrors: [],
       isSaving: false,
-      isLocked:
-        result.sessionStatus === "active" ||
-        result.sessionStatus === "paused" ||
-        result.sessionStatus === "monitoring_only",
-      state:
-        result.sessionStatus === "active" ||
-        result.sessionStatus === "paused" ||
-        result.sessionStatus === "monitoring_only"
-          ? "locked"
-          : "editable",
+      ...pageLockState(page.sessionStatus),
     });
   },
   resetForEnvironmentChange: () =>
     set({
+      configVersion: null,
       researchPosture: null,
       rules: null,
       riskConfig: null,
@@ -149,8 +160,8 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       state: "no_session",
     }),
   loadGlobalPresets: async () => {
-    const result = await api.listGlobalPresets();
-    set({ globalPresets: result.presets });
+    const result = await api.listStrategyConfigPresets("full");
+    set({ globalPresets: result.presets.map(configPresetToUserGlobalRow) });
   },
   updateResearchPosture: (patch) => {
     const researchPosture = get().researchPosture;
@@ -217,59 +228,53 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     next[index] = { ...currentPhase, ...patch, phase };
     set({ aiPhases: next, dirtyFields, strategyErrors: [] });
   },
-  applyGlobalPreset: (preset) => {
-    const { researchPosture, rules, riskConfig, timeframe } = get();
-    if (!researchPosture || !rules || !riskConfig || !timeframe) return;
-
-    const stylePreset = RESEARCH_POSTURE_PRESETS_MAP[preset.posturePresetId];
-    const rulesPreset = TRADE_RULE_PRESETS_MAP[preset.rulesPresetId];
-    const riskPreset = RISK_PRESETS.find((p) => p.id === preset.riskPresetId);
-    const timeframePreset = TIMEFRAME_PRESETS.find(
-      (p) => p.id === preset.timeframePresetId,
+  applyConfigRecord: (sessionId, record) => {
+    const sections = mapDocToUiSections(
+      sessionId,
+      record.doc,
+      record.updatedAt,
     );
-
-    const dirtyFields = new Set(get().dirtyFields);
-
-    if (stylePreset) {
-      for (const key of Object.keys(stylePreset.posture))
-        dirtyFields.add(`researchPosture.${key}`);
-      set({ researchPosture: { ...researchPosture, ...stylePreset.posture } });
-    }
-    if (rulesPreset) {
-      for (const key of Object.keys(rulesPreset.rules))
-        dirtyFields.add(`rules.${key}`);
-      set({ rules: { ...rules, ...rulesPreset.rules } });
-    }
-    if (riskPreset) {
-      dirtyFields.add("riskConfig.riskPresetId");
-      for (const key of Object.keys(riskPreset.values))
-        dirtyFields.add(`riskConfig.${key}`);
-      set({
-        riskConfig: {
-          ...riskConfig,
-          riskPresetId: riskPreset.id,
-          ...riskPreset.values,
-        },
+    set({
+      configVersion: record.version,
+      researchPosture: sections.researchPosture,
+      rules: sections.rules,
+      riskConfig: sections.riskConfig,
+      timeframe: sections.timeframe,
+      aiSettings: sections.aiSettings,
+      aiPhases: sections.aiPhases,
+      dirtyFields: new Set(),
+      strategyErrors: [],
+      isSaving: false,
+    });
+  },
+  applyGlobalPreset: async (sessionId, preset) => {
+    const expectedVersion = get().configVersion;
+    if (expectedVersion == null) return;
+    set({ isSaving: true, strategyErrors: [] });
+    try {
+      const result = await api.applyStrategyConfigPreset({
+        sessionId,
+        presetId: preset.id,
+        expectedVersion,
       });
+      get().applyConfigRecord(sessionId, result);
+    } catch (err) {
+      if (isStaleVersionError(err)) {
+        await get().loadStrategy(sessionId);
+        set({ strategyErrors: [staleVersionUserMessage()] });
+        return;
+      }
+      const message =
+        err instanceof Error ? err.message : "Failed to apply strategy preset.";
+      set({ strategyErrors: [message] });
+    } finally {
+      set({ isSaving: false });
     }
-    if (timeframePreset) {
-      dirtyFields.add("timeframe.timeframePresetId");
-      for (const key of Object.keys(timeframePreset.values))
-        dirtyFields.add(`timeframe.${key}`);
-      set({
-        timeframe: {
-          ...timeframe,
-          timeframePresetId: timeframePreset.id,
-          ...timeframePreset.values,
-        },
-      });
-    }
-
-    set({ dirtyFields, strategyErrors: [] });
   },
   saveAll: async (sessionId) => {
     const context = currentContext(get());
-    if (!context) return;
+    const expectedVersion = get().configVersion;
+    if (!context || expectedVersion == null) return;
 
     const rulesWithMarkdown = {
       ...context.rules,
@@ -293,53 +298,40 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       return;
     }
 
+    const dirtyFields = new Set(get().dirtyFields);
+    if (dirtyFields.size === 0) return;
+
+    // Ensure markdown is included when rules are dirty.
+    if ([...dirtyFields].some((field) => field.startsWith("rules."))) {
+      dirtyFields.add("rules.tradeRulesMarkdown");
+    }
+
+    const patch = buildStrategyConfigPatch({
+      dirtyFields,
+      researchPosture: context.researchPosture,
+      rules: rulesWithMarkdown,
+      riskConfig: context.riskConfig,
+      timeframe: context.timeframe,
+      aiSettings: context.aiSettings,
+      aiPhases: get().aiPhases,
+    });
+
+    if (Object.keys(patch).length === 0) return;
+
     set({ isSaving: true, strategyErrors: [] });
     try {
-      await api.saveStrategyResearchPosture({
+      const result = await api.updateStrategyConfig({
         sessionId,
-        researchPosture: context.researchPosture,
+        expectedVersion,
+        patch,
       });
-      await api.saveTradeRules({ sessionId, rules: rulesWithMarkdown });
-      await api.saveStrategyRiskConfig({
-        sessionId,
-        riskConfig: context.riskConfig,
-      });
-      await api.saveStrategyTimeframeConfig({
-        sessionId,
-        timeframe: context.timeframe,
-      });
-      if (get().dirtyFields.has("aiSettings.workerGuidanceMarkdown")) {
-        await api.saveStrategyAiSettings({
-          sessionId,
-          aiSettings: context.aiSettings,
-        });
-      }
-      const dirtyAiPhases = [...get().dirtyFields]
-        .filter((field) => field.startsWith("aiPhases."))
-        .map((field) => field.split(".")[1] as PipelinePhase | undefined)
-        .filter((phase): phase is PipelinePhase => Boolean(phase));
-      const uniquePhases = [...new Set(dirtyAiPhases)];
-      for (const phase of uniquePhases) {
-        const config = get().aiPhases.find((p) => p.phase === phase);
-        if (!config) continue;
-        await api.saveStrategyAiPhase({
-          sessionId,
-          phase,
-          providerKey: config.providerKey,
-          modelId: config.modelId,
-          temperature: config.temperature,
-          maxTokens: config.maxTokens,
-          reasoningLevel: config.reasoningLevel,
-          promptSource: config.promptSource,
-          promptMarkdown: config.promptMarkdown,
-        });
-      }
-      set({
-        rules: rulesWithMarkdown,
-        dirtyFields: new Set(),
-        strategyErrors: [],
-      });
+      get().applyConfigRecord(sessionId, result);
     } catch (err) {
+      if (isStaleVersionError(err)) {
+        await get().loadStrategy(sessionId);
+        set({ strategyErrors: [staleVersionUserMessage()] });
+        return;
+      }
       const message =
         err instanceof Error
           ? err.message
