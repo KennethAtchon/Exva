@@ -189,11 +189,11 @@ export const SessionExecutionProgress = ({
 
   return (
     <div className="mb-1 mt-3">
-      <div className="mb-2 h-1 overflow-hidden rounded-full bg-[var(--surface3)]">
+      <div className="mb-2 h-1 overflow-hidden rounded-full bg-surface3">
         <div
           className={cn(
             "h-full rounded-full",
-            !isHoldingPosition && "bg-[var(--accent)]",
+            !isHoldingPosition && "bg-accent",
             isHoldingPosition && "w-[66%]",
           )}
           style={{
@@ -213,13 +213,13 @@ export const SessionExecutionProgress = ({
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-          <span className="text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--text3)]">
+          <span className="text-caption font-medium uppercase tracking-[0.08em] text-text3">
             {stageLabel}
           </span>
 
           {statusChip ? (
             <span
-              className="shrink-0 rounded-full px-[7px] py-0.5 font-mono text-[12px]"
+              className="shrink-0 rounded-full px-2 py-0.5 font-mono text-caption"
               style={{
                 color: statusChip.color,
                 border: `1px solid ${statusChip.border}`,
@@ -231,7 +231,7 @@ export const SessionExecutionProgress = ({
           ) : null}
 
           {activeRoleLabel && isRunning ? (
-            <span className="shrink-0 rounded bg-[var(--surface2)] px-1.5 py-0.5 font-mono text-[12px] text-[var(--text2)]">
+            <span className="shrink-0 rounded bg-surface2 px-1.5 py-0.5 font-mono text-caption text-text2">
               {activeRoleLabel}
             </span>
           ) : null}
@@ -239,7 +239,7 @@ export const SessionExecutionProgress = ({
           {lastErrorMessage && (isFailed || isRetrying) ? (
             <div className="flex min-w-0 items-center gap-1">
               <span
-                className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12px]"
+                className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-caption"
                 style={{ color: detailMessageColor }}
               >
                 {lastErrorMessage.length > 60
@@ -257,7 +257,7 @@ export const SessionExecutionProgress = ({
               {retryable ? (
                 <Button
                   variant="outline"
-                  className="h-6 rounded-md border border-error-border bg-transparent px-2 text-[12px] text-error"
+                  className="h-6 rounded-md border border-error-border bg-transparent px-2 text-caption text-error"
                   onClick={() => onRetry(sessionId, cycleId, activeStage)}
                 >
                   Retry
@@ -265,7 +265,7 @@ export const SessionExecutionProgress = ({
               ) : null}
               <Button
                 variant="outline"
-                className="h-6 rounded-md border border-[var(--border)] bg-transparent px-2 text-[12px] text-[var(--text2)]"
+                className="h-6 rounded-md border border-border bg-transparent px-2 text-caption text-text2"
                 onClick={() => onViewTrace(sessionId, cycleId, activeStage)}
               >
                 View Trace
@@ -277,10 +277,10 @@ export const SessionExecutionProgress = ({
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                className="flex cursor-pointer items-center gap-1 rounded bg-transparent px-1 py-0.5 text-[12px] text-[var(--text3)]"
+                className="flex cursor-pointer items-center gap-1 rounded bg-transparent px-1 py-0.5 text-caption text-text3"
                 onClick={() => onPauseAfterStep(sessionId)}
               >
-                <span className="inline-block size-1.5 shrink-0 rounded-[2px] border border-[var(--text3)]" />
+                <span className="inline-block size-1.5 shrink-0 rounded-sm border border-text3" />
                 Pause after step
               </button>
               <HelpTooltip
@@ -291,7 +291,7 @@ export const SessionExecutionProgress = ({
           ) : null}
 
           <div className="flex items-center gap-1">
-            <span className="font-mono text-[12px] text-[var(--text3)] opacity-60">
+            <span className="font-mono text-caption text-text3 opacity-60">
               #{cycleIdShort}
             </span>
             <HelpTooltip

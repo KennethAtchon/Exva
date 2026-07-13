@@ -12,8 +12,16 @@
     "electron/**/*.test.ts"
   ],
   "project": ["src/**/*.{ts,tsx}", "electron/**/*.{ts,tsx}", "scripts/**/*.ts"],
-  "ignore": ["src/components/ui/**"],
+  "ignore": [
+    "src/components/ui/**",
+    "src/components/sessions/SessionTable.tsx"
+  ],
   "ignoreExportsUsedInFile": true,
-  "ignoreDependencies": ["lint-staged", "protobufjs"],
+  "ignoreDependencies": [
+    "lint-staged",
+    "protobufjs",
+    "@fontsource/instrument-sans",
+    "@fontsource/ibm-plex-mono"
+  ],
   "ignoreBinaries": ["sqlite3"]
 }

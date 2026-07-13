@@ -37,9 +37,7 @@ export const PendingApprovalsPanel = ({
           </Badge>
         </div>
         {pending.length === 0 ? (
-          <p className="mt-2.5 text-[13px] text-[var(--text3)]">
-            No pending approvals.
-          </p>
+          <p className="mt-2.5 text-body text-text3">No pending approvals.</p>
         ) : (
           <div className="mt-3 grid gap-2.5">
             {pending.map((a) => (
@@ -48,23 +46,23 @@ export const PendingApprovalsPanel = ({
                 type="button"
                 onClick={() => setSelected(a)}
                 variant="outline"
-                className="h-auto w-full justify-between gap-3 rounded-[10px] border-border bg-[var(--surface2)] p-[10px_12px] text-left"
+                className="h-auto w-full justify-between gap-3 rounded-sm border-border bg-surface2 p-[10px_12px] text-left"
               >
                 <div className="text-left">
                   {workspaceViewMode === "global" && (
-                    <div className="mb-1 text-[12px] text-[var(--text3)]">
+                    <div className="mb-1 text-caption text-text3">
                       {a.sessionName}
                     </div>
                   )}
-                  <div className="font-mono font-bold text-[var(--text1)]">
+                  <div className="font-mono font-bold text-text1">
                     {a.instrumentSymbol}
                   </div>
                   {a.instrumentDisplayName ? (
-                    <div className="mt-0.5 text-[12px] text-[var(--text3)]">
+                    <div className="mt-0.5 text-caption text-text3">
                       {a.instrumentDisplayName}
                     </div>
                   ) : null}
-                  <div className="mt-1 text-[12px] text-[var(--text3)]">
+                  <div className="mt-1 text-caption text-text3">
                     {a.predictionOutcome ? `${a.predictionOutcome} · ` : ""}
                     {a.proposedSide} · {fmt.usd(a.proposedSizeUsd, 0)}
                     {a.confidenceScore != null && (
@@ -75,7 +73,7 @@ export const PendingApprovalsPanel = ({
                       </>
                     )}
                   </div>
-                  <div className="mt-1 text-[12px] text-[var(--text3)]">
+                  <div className="mt-1 text-caption text-text3">
                     {fmt.time(a.requestedAt)}
                   </div>
                 </div>

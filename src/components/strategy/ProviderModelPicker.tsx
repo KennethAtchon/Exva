@@ -44,9 +44,9 @@ const ModelCombobox = ({
           aria-controls={listId}
           aria-haspopup="listbox"
           disabled={disabled || loading}
-          className="h-10 w-full justify-between border-border bg-[var(--surface2)] px-3 text-[13px] font-normal text-[var(--text1)] hover:bg-[var(--surface2)] hover:text-[var(--text1)]"
+          className="h-10 w-full justify-between border-border bg-surface2 px-3 text-body font-normal text-text1 hover:bg-surface2 hover:text-text1"
         >
-          <span className={cn("truncate", !value && "text-[var(--text3)]")}>
+          <span className={cn("truncate", !value && "text-text3")}>
             {loading
               ? "Loading models…"
               : selected
@@ -60,7 +60,7 @@ const ModelCombobox = ({
         <Command>
           <CommandInput placeholder="Search models…" />
           <CommandList id={listId}>
-            <CommandEmpty className="p-3 text-[12px] text-[var(--text3)]">
+            <CommandEmpty className="p-3 text-caption text-text3">
               No models found.
             </CommandEmpty>
             <CommandGroup>
@@ -81,9 +81,9 @@ const ModelCombobox = ({
                     )}
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[12px]">{o.label}</div>
+                    <div className="truncate text-caption">{o.label}</div>
                     {o.label !== o.id && (
-                      <div className="truncate font-mono text-[12px] text-[var(--text3)]">
+                      <div className="truncate font-mono text-caption text-text3">
                         {o.id}
                       </div>
                     )}
@@ -144,4 +144,4 @@ export const ProviderModelPicker = ({
 );
 
 const fieldClass = "grid gap-1";
-const fieldLabelClass = "text-[12px] text-[var(--text3)]";
+const fieldLabelClass = "text-caption text-text3";

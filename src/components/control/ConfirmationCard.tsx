@@ -38,10 +38,10 @@ export function ConfirmationCard({
           Confirm: {item.label}
         </span>
       </div>
-      <p className="mt-2 text-[13px] text-foreground">{confirm.preview}</p>
+      <p className="mt-2 text-body text-foreground">{confirm.preview}</p>
 
       {confirm.risk ? (
-        <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-[12px] font-medium text-destructive">
+        <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-caption font-medium text-destructive">
           {confirm.risk}
         </p>
       ) : null}
@@ -49,7 +49,7 @@ export function ConfirmationCard({
       <button
         type="button"
         onClick={() => setShowInput((v) => !v)}
-        className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+        className="mt-2 flex items-center gap-1 text-micro text-muted-foreground hover:text-foreground"
       >
         {showInput ? (
           <ChevronDown className="h-3 w-3" />
@@ -59,7 +59,7 @@ export function ConfirmationCard({
         {showInput ? "Hide" : "Show"} full input
       </button>
       {showInput ? (
-        <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-muted/50 p-2 font-mono text-[11px] text-foreground">
+        <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-muted/50 p-2 font-mono text-micro text-foreground">
           {prettyJson(confirm.inputJson)}
         </pre>
       ) : null}
@@ -87,7 +87,7 @@ export function ConfirmationCard({
           Reject
         </Button>
         {canAlwaysAllow ? (
-          <label className="ml-1 flex items-center gap-1.5 text-[12px] text-muted-foreground">
+          <label className="ml-1 flex items-center gap-1.5 text-caption text-muted-foreground">
             <input
               type="checkbox"
               className="h-3.5 w-3.5 accent-primary"
@@ -98,7 +98,7 @@ export function ConfirmationCard({
           </label>
         ) : null}
       </div>
-      <p className="mt-2 text-[11px] text-muted-foreground">
+      <p className="mt-2 text-micro text-muted-foreground">
         The assistant is paused until you decide.
       </p>
     </div>

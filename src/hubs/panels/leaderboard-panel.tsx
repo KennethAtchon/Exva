@@ -1,16 +1,23 @@
 import { useEffect, useState } from "react";
+import { Badge } from "@/components/custom-ui";
+import { HelpTooltip } from "@/components/ui";
+import { EmptyState, PnL } from "@/components/ui/primitives";
 import { api, type ExperienceScorecardSummary } from "@/lib/exva";
-import { Card, HelpTooltip } from "@/components/ui";
+import { fmt } from "@/lib/formatters";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
-const usd = (n: number) =>
-  n.toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
 
-export function LeaderboardPage() {
+export function LeaderboardPage({
+  embedded = false,
+}: { embedded?: boolean } = {}) {
   const [scorecards, setScorecards] = useState<ExperienceScorecardSummary[]>(
     [],
   );
@@ -30,129 +37,121 @@ export function LeaderboardPage() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-6">
-      <div>
-        <h1 className="text-xl font-semibold text-[var(--text1)]">
-          Experience leaderboard
-        </h1>
-        <p className="mt-1 text-[13px] text-[var(--text3)]">
-          Per-experience scorecards — mock-broker trades excluded. Promotion
-          ladder: scripted → rehearsal → paper → live.
-        </p>
-        <div className="mt-2">
-          <HelpTooltip
-            topic="Leaderboard scope"
-            body="Aggregates closed trades by experience. Mock-broker rehearsal trades are excluded from promotion scorecards."
-          />
+    <div className={embedded ? "p-0" : "mx-auto max-w-6xl space-y-4 p-6"}>
+      {!embedded ? (
+        <div>
+          <h1 className="m-0 font-sans text-title text-text1">
+            Experience leaderboard
+          </h1>
+          <p className="mt-1 font-sans text-body text-text3">
+            Per-experience scorecards — mock-broker trades excluded.
+          </p>
+          <div className="mt-2">
+            <HelpTooltip
+              topic="Leaderboard scope"
+              body="Aggregates closed trades by experience. Mock-broker rehearsal trades are excluded."
+            />
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      {error && (
-        <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-300">
-          {error}
+      {error ? (
+        <EmptyState message={error} />
+      ) : sorted.length === 0 ? (
+        <EmptyState message="No closed paper trades yet. Run real-data paper sessions to populate scorecards." />
+      ) : (
+        <div
+          className={
+            embedded
+              ? "overflow-x-auto"
+              : "overflow-hidden rounded-sm border border-border bg-surface"
+          }
+        >
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Experience</TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1">
+                    Tier <HelpTooltip glossaryId="promotion-tier" />
+                  </span>
+                </TableHead>
+                <TableHead className="text-right">Trades</TableHead>
+                <TableHead className="text-right">Win rate</TableHead>
+                <TableHead className="text-right">
+                  <span className="inline-flex items-center gap-1">
+                    Expectancy <HelpTooltip glossaryId="expectancy" />
+                  </span>
+                </TableHead>
+                <TableHead className="text-right">
+                  <span className="inline-flex items-center gap-1">
+                    Max DD <HelpTooltip glossaryId="max-drawdown" />
+                  </span>
+                </TableHead>
+                <TableHead className="text-right">Net PnL</TableHead>
+                <TableHead className="text-right">
+                  <span className="inline-flex items-center gap-1">
+                    Cost/trade <HelpTooltip glossaryId="cost-per-trade" />
+                  </span>
+                </TableHead>
+                <TableHead>Promotion</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sorted.map((row) => (
+                <TableRow key={row.experienceId}>
+                  <TableCell>
+                    <div className="font-sans text-label text-text1">
+                      {row.displayName}
+                    </div>
+                    <div className="font-mono text-micro text-text3">
+                      {row.sessionCount} session
+                      {row.sessionCount === 1 ? "" : "s"}
+                    </div>
+                  </TableCell>
+                  <TableCell className="capitalize text-text2">
+                    {row.promotionTier}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-data tabular-nums">
+                    {row.tradeCount}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-data tabular-nums">
+                    {pct(row.winRate)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-data tabular-nums">
+                    {fmt.usd(row.expectancy)}
+                    {row.walkForward ? (
+                      <div className="font-mono text-micro text-text3">
+                        OOS {fmt.usd(row.walkForward.outOfSample.expectancy)}
+                      </div>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-data tabular-nums">
+                    {pct(row.maxDrawdownPct)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <PnL value={row.netPnlAfterCostsUsd} />
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-data tabular-nums">
+                    {fmt.usd(row.costPerTradeUsd)}
+                  </TableCell>
+                  <TableCell>
+                    {row.meetsPromotion ? (
+                      <Badge variant="success" size="sm">
+                        Ready
+                      </Badge>
+                    ) : (
+                      <span className="font-sans text-caption text-text3">
+                        {row.failedPromotionCriteria.slice(0, 2).join(", ")}
+                      </span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
-
-      <Card className="overflow-hidden border-border bg-[var(--surface1)]">
-        <table className="w-full text-left text-[13px]">
-          <thead className="border-b border-border bg-[var(--surface2)] text-[11px] uppercase tracking-wide text-[var(--text3)]">
-            <tr>
-              <th className="px-4 py-3">Experience</th>
-              <th className="px-4 py-3">
-                <span className="inline-flex items-center gap-1">
-                  Tier <HelpTooltip glossaryId="promotion-tier" />
-                </span>
-              </th>
-              <th className="px-4 py-3">Trades</th>
-              <th className="px-4 py-3">Win rate</th>
-              <th className="px-4 py-3">
-                <span className="inline-flex items-center gap-1">
-                  Expectancy <HelpTooltip glossaryId="expectancy" />
-                </span>
-              </th>
-              <th className="px-4 py-3">
-                <span className="inline-flex items-center gap-1">
-                  Max DD <HelpTooltip glossaryId="max-drawdown" />
-                </span>
-              </th>
-              <th className="px-4 py-3">Net PnL (after costs)</th>
-              <th className="px-4 py-3">
-                <span className="inline-flex items-center gap-1">
-                  Cost/trade <HelpTooltip glossaryId="cost-per-trade" />
-                </span>
-              </th>
-              <th className="px-4 py-3">
-                <span className="inline-flex items-center gap-1">
-                  Promotion{" "}
-                  <HelpTooltip
-                    glossaryId="promotion-tier"
-                    topic="Promotion readiness"
-                    body="Shows whether the experience currently satisfies the promotion criteria for the next tier."
-                  />
-                </span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((row) => (
-              <tr
-                key={row.experienceId}
-                className="border-b border-border/60 last:border-0"
-              >
-                <td className="px-4 py-3 font-medium text-[var(--text1)]">
-                  {row.displayName}
-                  <div className="text-[11px] text-[var(--text3)]">
-                    {row.sessionCount} session
-                    {row.sessionCount === 1 ? "" : "s"}
-                  </div>
-                </td>
-                <td className="px-4 py-3 capitalize text-[var(--text2)]">
-                  {row.promotionTier}
-                </td>
-                <td className="px-4 py-3">{row.tradeCount}</td>
-                <td className="px-4 py-3">{pct(row.winRate)}</td>
-                <td className="px-4 py-3">
-                  {usd(row.expectancy)}
-                  {row.walkForward ? (
-                    <div className="text-[11px] text-[var(--text3)]">
-                      OOS {usd(row.walkForward.outOfSample.expectancy)}{" "}
-                      <HelpTooltip glossaryId="out-of-sample" />
-                    </div>
-                  ) : null}
-                </td>
-                <td className="px-4 py-3">{pct(row.maxDrawdownPct)}</td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-1">
-                    {usd(row.netPnlAfterCostsUsd)}
-                    <HelpTooltip glossaryId="net-pnl-after-costs" />
-                  </span>
-                </td>
-                <td className="px-4 py-3">{usd(row.costPerTradeUsd)}</td>
-                <td className="px-4 py-3">
-                  {row.meetsPromotion ? (
-                    <span className="text-emerald-400">Ready</span>
-                  ) : (
-                    <span className="text-[var(--text3)]">
-                      {row.failedPromotionCriteria.slice(0, 2).join(", ")}
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {sorted.length === 0 && !error && (
-              <tr>
-                <td
-                  colSpan={9}
-                  className="px-4 py-8 text-center text-[var(--text3)]"
-                >
-                  No closed paper trades yet. Run real-data paper sessions to
-                  populate scorecards.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </Card>
     </div>
   );
 }

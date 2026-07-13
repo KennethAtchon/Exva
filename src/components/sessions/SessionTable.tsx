@@ -337,7 +337,7 @@ const SessionCard = ({
           className={titleButtonClass}
         >
           <div className="flex min-w-0 flex-wrap items-center gap-[7px]">
-            <span className="text-[15px] font-bold tracking-[-0.01em] text-[var(--text1)]">
+            <span className="text-head font-bold tracking-[-0.01em] text-text1">
               {session.name}
             </span>
             {session.isFocused ? <Badge variant="blue">focused</Badge> : null}
@@ -380,16 +380,12 @@ const SessionCard = ({
               topic="Selection mode"
               body={selectionModeChip.tooltip}
             >
-              <span
-                className={cn(chipClass, "text-[var(--text3)] cursor-default")}
-              >
+              <span className={cn(chipClass, "text-text3 cursor-default")}>
                 {selectionModeChip.label}
               </span>
             </HelpTooltip>
             {session.rehearsalMode ? (
-              <span className={cn(chipClass, "text-[var(--text3)]")}>
-                Rehearsal
-              </span>
+              <span className={cn(chipClass, "text-text3")}>Rehearsal</span>
             ) : null}
             <HelpTooltip
               glossaryId={
@@ -398,9 +394,7 @@ const SessionCard = ({
                   : "execution-mode-paper-only"
               }
             >
-              <span
-                className={cn(chipClass, "text-[var(--text3)] cursor-default")}
-              >
+              <span className={cn(chipClass, "text-text3 cursor-default")}>
                 {session.executionMode === "live_allowed" ? "Live" : "Paper"}
               </span>
             </HelpTooltip>
@@ -417,12 +411,12 @@ const SessionCard = ({
         onPauseAfterStep={onPauseAfterStep ?? (() => undefined)}
       />
       {researchFailuresBySessionId?.[session.id] ? (
-        <div className="mt-2 text-[12px] leading-snug text-error">
+        <div className="mt-2 text-caption leading-snug text-error">
           Research phase failed ({researchFailuresBySessionId[session.id].phase}
           ): {researchFailuresBySessionId[session.id].error}
         </div>
       ) : null}
-      <div className="mt-2 text-[12px] text-[var(--text3)]">
+      <div className="mt-2 text-caption text-text3">
         {runningButWaiting
           ? "Waiting — no live inputs"
           : session.status === "active" &&
@@ -441,7 +435,7 @@ const SessionCard = ({
       {session.rehearsalMode ? (
         <div className={rehearsalBannerClass}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-[12px] leading-snug text-[var(--text2)]">
+            <div className="text-caption leading-snug text-text2">
               {session.canFireRehearsalSignal
                 ? "Mock rehearsal — fire a synthetic filing to drive the pipeline."
                 : session.status === "active"
@@ -597,10 +591,8 @@ export const SessionTable = ({
 
 const Metric = ({ label, value }: { label: string; value: string }) => (
   <div className="text-center">
-    <div className="text-[15px] font-bold tabular-nums text-[var(--text1)]">
-      {value}
-    </div>
-    <div className="mt-0.5 text-[12px] uppercase tracking-[0.10em] text-[var(--text3)]">
+    <div className="text-head font-bold tabular-nums text-text1">{value}</div>
+    <div className="mt-0.5 text-caption uppercase tracking-[0.10em] text-text3">
       {label}
     </div>
   </div>
@@ -608,12 +600,10 @@ const Metric = ({ label, value }: { label: string; value: string }) => (
 
 const MetaBlock = ({ label, value }: { label: string; value: string }) => (
   <div className="min-w-0">
-    <div className="mb-[3px] text-[12px] uppercase tracking-[0.10em] text-[var(--text3)]">
+    <div className="mb-[3px] text-caption uppercase tracking-[0.10em] text-text3">
       {label}
     </div>
-    <div className="truncate text-[12px] leading-snug text-[var(--text2)]">
-      {value}
-    </div>
+    <div className="truncate text-caption leading-snug text-text2">{value}</div>
   </div>
 );
 
@@ -666,47 +656,47 @@ const titleButtonClass =
   "block w-full min-w-0 cursor-pointer border-none bg-transparent p-0 text-left text-inherit";
 
 const objectiveClass =
-  "mt-1.5 line-clamp-2 overflow-hidden text-[12px] leading-normal text-[var(--text2)]";
+  "mt-1.5 line-clamp-2 overflow-hidden text-caption leading-normal text-text2";
 
 const metricStripClass =
-  "grid grid-cols-3 gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] px-2.5 py-2.5";
+  "grid grid-cols-3 gap-2 rounded-sm border border-border bg-surface2 px-2.5 py-2.5";
 
 const metaGridClass =
-  "mt-3.5 grid grid-cols-4 gap-3 border-t border-[var(--border)] pt-3";
+  "mt-3.5 grid grid-cols-4 gap-3 border-t border-border pt-3";
 
 const chipClass =
-  "rounded-full border border-[var(--border)] bg-[var(--chip)] px-2 py-[3px] text-[12px] font-medium tracking-[0.02em] text-[var(--text2)]";
+  "rounded-full border border-border bg-chip px-2 py-0.5 text-caption font-medium tracking-[0.02em] text-text2";
 
 const controlsBarClass =
-  "mt-3.5 flex flex-wrap gap-1.5 border-t border-[var(--border)] pt-3";
+  "mt-3.5 flex flex-wrap gap-1.5 border-t border-border pt-3";
 
 const actionButtonClass =
-  "h-auto min-h-[30px] rounded-lg border border-[var(--border)] bg-transparent px-2.5 py-1.5 text-[12px] font-medium text-[var(--text2)]";
+  "h-auto min-h-[30px] rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-caption font-medium text-text2";
 
 const focusedButtonClass = "border-info-border text-info";
 
 const primaryActionButtonClass =
-  "h-auto min-h-[30px] rounded-lg border border-transparent bg-[var(--accent)] px-2.5 py-1.5 text-[12px] font-semibold text-[hsl(var(--primary-foreground))]";
+  "h-auto min-h-[30px] rounded-lg border border-transparent bg-accent px-2.5 py-1.5 text-caption font-semibold text-[hsl(var(--primary-foreground))]";
 
 const dangerButtonClass =
-  "h-auto min-h-[30px] rounded-lg border border-error-border bg-transparent px-2.5 py-1.5 text-[12px] font-medium text-error";
+  "h-auto min-h-[30px] rounded-lg border border-error-border bg-transparent px-2.5 py-1.5 text-caption font-medium text-error";
 
 const forceStopButtonClass =
-  "h-auto min-h-[30px] rounded-lg border border-error-border bg-error-dim px-2.5 py-1.5 text-[12px] font-medium text-error";
+  "h-auto min-h-[30px] rounded-lg border border-error-border bg-error-dim px-2.5 py-1.5 text-caption font-medium text-error";
 
 const stopWhenFlatButtonClass =
-  "h-auto min-h-[30px] rounded-lg border border-status-orange-border bg-status-orange-dim px-2.5 py-1.5 text-[12px] font-semibold text-status-orange";
+  "h-auto min-h-[30px] rounded-lg border border-status-orange-border bg-status-orange-dim px-2.5 py-1.5 text-caption font-semibold text-status-orange";
 
 const drainBannerClass =
-  "mt-2 rounded-lg border border-status-orange-border bg-status-orange-dim px-3 py-2.5 text-[12px] leading-[1.45] text-status-orange";
+  "mt-2 rounded-lg border border-status-orange-border bg-status-orange-dim px-3 py-2.5 text-caption leading-[1.45] text-status-orange";
 
 const rehearsalBannerClass =
   "mt-2 rounded-lg border border-info-border bg-info-dim px-3 py-2.5";
 
 const rehearsalSetupBannerClass =
-  "mt-2 rounded-lg border border-warning-border bg-warning-dim px-3 py-2.5 text-[12px] leading-snug text-warning";
+  "mt-2 rounded-lg border border-warning-border bg-warning-dim px-3 py-2.5 text-caption leading-snug text-warning";
 
 const orphanWarningClass =
-  "mt-2 rounded-lg border border-status-orange-border bg-status-orange-dim px-3 py-2.5 text-[12px] leading-[1.45] text-status-orange";
+  "mt-2 rounded-lg border border-status-orange-border bg-status-orange-dim px-3 py-2.5 text-caption leading-[1.45] text-status-orange";
 
 const blockedButtonClass = "cursor-not-allowed opacity-40";

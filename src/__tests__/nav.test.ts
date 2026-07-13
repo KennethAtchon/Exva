@@ -1,12 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  NAV_GROUPS,
-  NAV_ITEMS,
-  NAV_PRIMARY_IDS,
-  type PageKey,
-} from "@/lib/nav";
+import { NAV_ITEMS, NAV_PRIMARY_IDS, type PageKey } from "@/lib/nav";
 
 const APP_SWITCH_PAGES: PageKey[] = [
   "dashboard",
@@ -41,16 +36,7 @@ describe("nav contract", () => {
     }
   });
 
-  it("every nav item is primary or in exactly one wide-nav group", () => {
-    const groupedIds = NAV_GROUPS.flatMap((group) => group.itemIds);
-    const wideNavIds = [...NAV_PRIMARY_IDS, ...groupedIds];
-    expect(new Set(wideNavIds).size).toBe(wideNavIds.length);
-    expect(new Set(wideNavIds)).toEqual(
-      new Set(NAV_ITEMS.map((item) => item.id)),
-    );
-  });
-
-  it("primary nav is exactly the five hubs", () => {
+  it("primary rail is five hubs; docs is a secondary rail item", () => {
     expect(NAV_PRIMARY_IDS).toEqual([
       "dashboard",
       "sessions",
@@ -58,5 +44,6 @@ describe("nav contract", () => {
       "research",
       "settings",
     ]);
+    expect(NAV_ITEMS.map((i) => i.id)).toEqual([...NAV_PRIMARY_IDS, "docs"]);
   });
 });

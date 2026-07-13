@@ -11,7 +11,14 @@ import type {
   EventSourceType,
   Trade,
 } from "@/lib/types";
-import { Dialog, DialogContent, HelpTooltip } from "@/components/ui";
+import {
+  Dialog,
+  DialogContent,
+  HelpTooltip,
+  PnL,
+  SectionHeader,
+  Button,
+} from "@/components/ui";
 import type {
   TechnicalSignal,
   FundamentalSignal,
@@ -61,24 +68,22 @@ const AgentTrace = ({ run }: { run: AgentRun }) => {
             setOpen((o) => !o);
           }
         }}
-        className="flex cursor-pointer items-center gap-2.5 px-3.5 py-[11px]"
+        className="flex cursor-pointer items-center gap-2.5 px-3.5 py-2.5"
         style={{
           background: p.bg,
           borderLeft: `3px solid ${p.bar}`,
         }}
       >
         <AgentLabel type={run.agent_type as EventSourceType} />
-        <span className="flex-1 font-mono text-[12px] text-[var(--text3)]">
+        <span className="flex-1 font-mono text-caption text-text3">
           {run.provider_key.replace(/^provider-/, "")} · {run.finish_reason} ·{" "}
           {fmt.tokens(run.input_tokens + run.output_tokens)} tok ·{" "}
           {fmt.usd(run.cost_usd, 4)} · {fmt.duration(run.duration_ms)}
         </span>
-        <span className="text-[12px] text-[var(--text3)]">
-          {open ? "▲" : "▼"}
-        </span>
+        <span className="text-caption text-text3">{open ? "▲" : "▼"}</span>
       </div>
       {open && (
-        <div className="flex flex-col gap-3 border-t border-[var(--border)] p-3.5">
+        <div className="flex flex-col gap-3 border-t border-border p-3.5">
           <div className="flex gap-5">
             {(
               [
@@ -134,24 +139,20 @@ const MessageTrace = ({ msg }: { msg: AgentMessage }) => {
         }}
       >
         <AgentLabel type={msg.role as EventSourceType} />
-        <span className="flex-1 font-mono text-[12px] text-[var(--text3)]">
+        <span className="flex-1 font-mono text-caption text-text3">
           {msg.provider_key.replace(/^provider-/, "")} · {msg.model_id}
           {msg.cycle_id ? ` · cycle ${msg.cycle_id.slice(0, 8)}…` : ""}
         </span>
-        <span className="text-[12px] text-[var(--text3)]">
-          {open ? "▲" : "▼"}
-        </span>
+        <span className="text-caption text-text3">{open ? "▲" : "▼"}</span>
       </div>
       {open && (
-        <div className="flex flex-col gap-2.5 border-t border-[var(--border)] p-3">
+        <div className="flex flex-col gap-2.5 border-t border-border p-3">
           <pre className={msgJsonPreClass}>
             {previewJson(msg.messages_json)}
           </pre>
           {msg.tool_calls_json ? (
             <div>
-              <div className="mb-1.5 text-[12px] text-[var(--text3)]">
-                Tool calls
-              </div>
+              <div className="mb-1.5 text-caption text-text3">Tool calls</div>
               <pre className={toolCallsPreClass}>
                 {previewJson(msg.tool_calls_json, 1600)}
               </pre>
@@ -169,54 +170,33 @@ const MessageTrace = ({ msg }: { msg: AgentMessage }) => {
 
 const TradeHero = ({
   pnl,
-  hasPositivePnl,
   isOpen,
-  confidenceScore,
-  positionSizeUsd,
+  openedAt,
+  closedAt,
 }: {
   pnl: number | null;
-  hasPositivePnl: boolean;
   isOpen: boolean;
-  confidenceScore: number | null;
-  positionSizeUsd: number;
+  openedAt?: string | null;
+  closedAt?: string | null;
 }) => (
   <div className={heroClass}>
     <div>
       <div className={heroLabelClass}>
         {isOpen ? "Unrealized P&L" : "Final P&L"}
       </div>
-      <div
-        className={cn(
-          "font-mono text-[40px] font-bold leading-none",
-          hasPositivePnl ? "text-success" : "text-error",
-        )}
-      >
-        {pnl != null ? fmt.pnl(pnl) : EMPTY_VALUE}
-      </div>
-      {pnl != null && (
-        <div
-          className={cn(
-            "mt-1 font-mono text-[14px]",
-            hasPositivePnl ? "text-success" : "text-error",
-          )}
-        >
-          {fmt.pct(pnl / positionSizeUsd)}
-        </div>
-      )}
+      <PnL value={pnl} size="hero" />
     </div>
     <div className="text-right">
-      <div
-        className={cn(
-          heroLabelClass,
-          "inline-flex items-center justify-end gap-1",
-        )}
-      >
-        Confidence
-        <HelpTooltip glossaryId="confidence" />
-      </div>
-      <div className="font-mono text-[40px] font-bold leading-none text-[var(--text1)]">
-        {Math.round((confidenceScore ?? 0) * 100)}%
-      </div>
+      {openedAt ? (
+        <div className="font-mono text-caption text-text3">
+          Opened {fmt.time(openedAt)}
+        </div>
+      ) : null}
+      {closedAt ? (
+        <div className="mt-1 font-mono text-caption text-text3">
+          Closed {fmt.time(closedAt)}
+        </div>
+      ) : null}
     </div>
   </div>
 );
@@ -248,21 +228,21 @@ const TradePositionBar = ({
     <div className="px-6 pb-5">
       <div className={secTitleClass}>Position</div>
       <div>
-        <div className="relative h-9 overflow-hidden rounded-lg bg-[var(--surface2)]">
+        <div className="relative h-9 overflow-hidden rounded-lg bg-surface2">
           <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-error-dim)_0%,transparent_38%,transparent_62%,var(--color-success-dim)_100%)]" />
           <div
-            className="absolute top-1.5 bottom-1.5 w-px rounded-[1px] bg-[var(--text3)]"
+            className="absolute top-1.5 bottom-1.5 w-px rounded-sm bg-text3"
             style={{ left: `${entryPct}%` }}
           />
           <div className={priceMarkerClass} style={{ left: `${curPct}%` }} />
-          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-mono text-[12px] text-error">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-mono text-caption text-error">
             {fmt.usd(lo)}
           </span>
-          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-[12px] text-success">
+          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-caption text-success">
             {fmt.usd(hi)}
           </span>
         </div>
-        <div className="mt-[5px] flex justify-between text-[12px] text-[var(--text3)]">
+        <div className="mt-1 flex justify-between text-caption text-text3">
           <span>Stop Loss</span>
           <span>● current price</span>
           <span>Take Profit</span>
@@ -449,12 +429,12 @@ const TradeGateTimeline = ({
         {steps.map((step) => (
           <div
             key={`${step.stage}-${step.updatedAt}`}
-            className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 py-2"
+            className="flex items-center justify-between rounded-lg border border-border bg-surface2 px-3 py-2"
           >
-            <span className="font-mono text-[12px] text-[var(--text2)]">
+            <span className="font-mono text-caption text-text2">
               {step.stage}
             </span>
-            <span className="text-[12px] text-[var(--text3)]">
+            <span className="text-caption text-text3">
               {step.status}
               {step.lastErrorCode ? ` · ${step.lastErrorCode}` : ""}
             </span>
@@ -469,45 +449,54 @@ const TradeGateTimeline = ({
 // TradeHarnessMessages — collapsible harness messages section
 // ---------------------------------------------------------------------------
 
-const TradeHarnessMessages = ({ messages }: { messages: AgentMessage[] }) => {
-  if (messages.length === 0) return null;
+const TradePipelineTimeline = ({
+  runs,
+  messages,
+}: {
+  runs: AgentRun[];
+  messages: AgentMessage[];
+}) => {
+  if (runs.length === 0 && messages.length === 0) return null;
   return (
     <div className={sectionClass}>
-      <div className={cn(secTitleClass, "mb-3")}>Harness messages</div>
-      {messages.map((m) => (
-        <MessageTrace key={m.id} msg={m} />
-      ))}
-    </div>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// TradeAgentRuns — agent runs list + token/cost summary
-// ---------------------------------------------------------------------------
-
-const TradeAgentRuns = ({ runs }: { runs: AgentRun[] }) => {
-  if (runs.length === 0) return null;
-  return (
-    <div className={sectionClass}>
-      <div className={cn(secTitleClass, "mb-3")}>Agent runs</div>
-      {runs.map((r) => (
-        <AgentTrace key={r.id} run={r} />
-      ))}
-      <div className="mt-2.5 flex justify-between rounded-lg bg-[var(--surface2)] px-3.5 py-2.5">
-        <span className="text-[12px] text-[var(--text3)]">
-          Total ·{" "}
-          {fmt.tokens(
-            runs.reduce((s, r) => s + r.input_tokens + r.output_tokens, 0),
-          )}{" "}
-          tokens
-        </span>
-        <span className="font-mono text-[12px] font-semibold text-[var(--text2)]">
-          {fmt.usd(
-            runs.reduce((s, r) => s + r.cost_usd, 0),
-            4,
-          )}
-        </span>
+      <SectionHeader
+        eyebrow="Trace"
+        title="Pipeline timeline"
+        className="mb-3"
+      />
+      <div className="relative flex flex-col gap-0 pl-3">
+        <div
+          className="absolute bottom-2 left-0 top-2 w-px bg-border"
+          aria-hidden
+        />
+        {runs.map((run) => (
+          <div key={run.id} className="relative pb-2">
+            <AgentTrace run={run} />
+          </div>
+        ))}
+        {messages.map((m) => (
+          <div key={m.id} className="relative pb-2">
+            <MessageTrace msg={m} />
+          </div>
+        ))}
       </div>
+      {runs.length > 0 ? (
+        <div className="mt-2 flex justify-between rounded-sm border border-border bg-surface2 px-3.5 py-2.5">
+          <span className="font-sans text-caption text-text3">
+            Total ·{" "}
+            {fmt.tokens(
+              runs.reduce((s, r) => s + r.input_tokens + r.output_tokens, 0),
+            )}{" "}
+            tokens
+          </span>
+          <span className="font-mono text-caption font-medium text-text2">
+            {fmt.usd(
+              runs.reduce((s, r) => s + r.cost_usd, 0),
+              4,
+            )}
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -645,9 +634,9 @@ function buildRejectionChain(
 }
 
 const ScoreBar = ({ score, color }: { score: number; color: string }) => (
-  <div className="h-[3px] w-full overflow-hidden rounded-[2px] bg-[var(--surface3)]">
+  <div className="h-[3px] w-full overflow-hidden rounded-sm bg-surface3">
     <div
-      className="h-full rounded-[2px]"
+      className="h-full rounded-sm"
       style={{
         width: `${Math.min(Math.max(score * 100, 0), 100)}%`,
         background: color,
@@ -673,7 +662,7 @@ const SignalCardShell = ({
   const p = PALETTE[type] ?? { bar: "var(--text3)", bg: "var(--surface2)" };
   return (
     <div
-      className="flex flex-col gap-2.5 rounded-[10px] border border-[var(--border)] p-3"
+      className="flex flex-col gap-2.5 rounded-sm border border-border p-3"
       style={{ borderLeftColor: p.bar, borderLeftWidth: 3, background: p.bg }}
     >
       <div className="flex items-center justify-between gap-2">
@@ -687,7 +676,7 @@ const SignalCardShell = ({
       {summary.trim() && (
         <p
           className={cn(
-            "cursor-pointer text-[12px] italic leading-[1.5] text-[var(--text3)]",
+            "cursor-pointer text-caption italic leading-[1.5] text-text3",
             !expanded && "line-clamp-2",
           )}
           onClick={() => setExpanded((e) => !e)}
@@ -803,9 +792,7 @@ const TradeVerdictPanel = ({
           {label}
         </Badge>
       </div>
-      <p className="mb-4 text-[13px] leading-[1.5] text-[var(--text2)]">
-        {summary}
-      </p>
+      <p className="mb-4 text-body leading-[1.5] text-text2">{summary}</p>
 
       <div className="grid grid-cols-2 gap-3">
         {signals.technical && <TechnicalCard signal={signals.technical} />}
@@ -823,16 +810,13 @@ const TradeVerdictPanel = ({
             {rejectionReasons.map((reason, i) => (
               <div
                 key={i}
-                className="rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 py-2"
+                className="rounded-lg border border-border bg-surface2 px-3 py-2"
                 style={{
                   borderLeftColor: "var(--color-error)",
                   borderLeftWidth: 3,
                 }}
               >
-                <p
-                  className="font-mono text-[12px] text-[var(--text2)]"
-                  title={reason}
-                >
+                <p className="font-mono text-caption text-text2" title={reason}>
                   {reason.length > 120 ? `${reason.slice(0, 120)}…` : reason}
                 </p>
               </div>
@@ -842,13 +826,13 @@ const TradeVerdictPanel = ({
       )}
 
       {showSizingRationale && (
-        <p className="mt-4 text-[12px] text-[var(--text3)]">
+        <p className="mt-4 text-caption text-text3">
           Position sized at{" "}
-          <span className="font-mono text-[var(--text2)]">
+          <span className="font-mono text-text2">
             {fmt.usd(trade.position_size_usd)}
           </span>
           {" · "}
-          <span className="font-mono text-[var(--text2)]">
+          <span className="font-mono text-text2">
             {Math.round((trade.confidence_score ?? 0) * 100)}%
           </span>{" "}
           confidence
@@ -878,28 +862,28 @@ function WhatIfReplaySection({
   if (tradeStatus === "open" || tradeStatus === "pending") return null;
 
   return (
-    <div className="mx-6 mb-4 rounded-[10px] border border-[var(--border)] bg-[var(--surface2)]/60 p-3.5">
-      <div className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-warning">
+    <div className="mx-6 mb-4 rounded-sm border border-border bg-surface2/60 p-3.5">
+      <div className="mb-1 font-mono text-micro font-semibold uppercase tracking-[0.14em] text-warning">
         Counterfactual · what-if
       </div>
-      <div className="mb-2 text-[12px] text-[var(--text2)]">
+      <div className="mb-2 text-caption text-text2">
         Re-runs deterministic gates only; LLM stage outputs stay frozen.
       </div>
       <div className="mb-2 grid grid-cols-2 gap-2">
-        <label className="flex flex-col gap-1 text-[11px] text-[var(--text3)]">
+        <label className="flex flex-col gap-1 text-micro text-text3">
           zScoreEntry
           <input
             type="number"
-            className="h-8 rounded border border-[var(--border)] bg-[var(--surface)] px-2 font-mono text-[12px] text-[var(--text1)]"
+            className="h-8 rounded border border-border bg-surface px-2 font-mono text-caption text-text1"
             value={zScoreEntry}
             onChange={(e) => setZScoreEntry(Number(e.target.value))}
           />
         </label>
-        <label className="flex flex-col gap-1 text-[11px] text-[var(--text3)]">
+        <label className="flex flex-col gap-1 text-micro text-text3">
           maxPositionUsd
           <input
             type="number"
-            className="h-8 rounded border border-[var(--border)] bg-[var(--surface)] px-2 font-mono text-[12px] text-[var(--text1)]"
+            className="h-8 rounded border border-border bg-surface px-2 font-mono text-caption text-text1"
             value={maxPositionUsd}
             onChange={(e) => setMaxPositionUsd(Number(e.target.value))}
           />
@@ -909,7 +893,7 @@ function WhatIfReplaySection({
         <button
           type="button"
           disabled={busy}
-          className="rounded border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[12px] text-[var(--text1)]"
+          className="rounded border border-border bg-surface px-3 py-1.5 text-caption text-text1"
           onClick={() => {
             setBusy(true);
             setError(null);
@@ -930,7 +914,7 @@ function WhatIfReplaySection({
         <button
           type="button"
           disabled={busy}
-          className="rounded border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[12px] text-[var(--text1)]"
+          className="rounded border border-border bg-surface px-3 py-1.5 text-caption text-text1"
           onClick={() => {
             setBusy(true);
             setError(null);
@@ -950,11 +934,9 @@ function WhatIfReplaySection({
           Save experiment
         </button>
       </div>
-      {error ? (
-        <div className="mt-2 text-[11px] text-error">{error}</div>
-      ) : null}
+      {error ? <div className="mt-2 text-micro text-error">{error}</div> : null}
       {result ? (
-        <pre className="mt-2 max-h-[180px] overflow-auto whitespace-pre-wrap font-mono text-[11px] text-[var(--text2)]">
+        <pre className="mt-2 max-h-[180px] overflow-auto whitespace-pre-wrap font-mono text-micro text-text2">
           {JSON.stringify(result, null, 2)}
         </pre>
       ) : null}
@@ -1003,53 +985,53 @@ export const TradeDetail = ({
   if (!trade) return null;
   const isOpen = trade.status === "open";
   const pnl = (isOpen ? trade.unrealized_pnl : trade.final_pnl_usd) ?? null;
-  const hasPositivePnl = pnl != null && pnl >= 0;
 
   return (
     <Dialog open={!!trade} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="h-[92vh] max-w-[96vw] overflow-auto border-border bg-transparent p-0 sm:max-w-[480px]">
         <div className={panelClass}>
           <div className={headerClass}>
-            <div className="flex items-center gap-3">
-              <span className="font-mono text-[22px] font-bold text-[var(--text1)]">
-                {trade.instrumentSymbol}
-              </span>
-              {trade.predictionOutcome ? (
-                <Badge variant="purple">{trade.predictionOutcome}</Badge>
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-stat text-text1">
+                  {trade.instrumentSymbol}
+                </span>
+                {trade.predictionOutcome ? (
+                  <Badge variant="purple">{trade.predictionOutcome}</Badge>
+                ) : null}
+                <Badge variant={trade.side === "BUY" ? "success" : "danger"}>
+                  {trade.side}
+                </Badge>
+                <Badge variant={isOpen ? "success" : "default"}>
+                  {trade.status}
+                </Badge>
+              </div>
+              {trade.instrumentDisplayName ? (
+                <div className="font-sans text-body text-text2">
+                  {trade.instrumentDisplayName}
+                </div>
               ) : null}
-              <Badge variant={trade.side === "BUY" ? "success" : "danger"}>
-                {trade.side}
-              </Badge>
-              <Badge variant={isOpen ? "success" : "default"}>
-                {trade.status}
-              </Badge>
             </div>
             {!isOpen && onViewAutopsy && (
-              <div className="flex items-center gap-1">
-                <button
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => onViewAutopsy(tradeId)}
-                  className={autopsyBtnClass}
                 >
-                  ⚕ Review Trade
-                </button>
+                  Review trade
+                </Button>
                 <HelpTooltip glossaryId="trade-autopsy" />
               </div>
             )}
           </div>
 
           <div className="flex flex-1 flex-col gap-0 overflow-y-auto">
-            {trade.instrumentDisplayName ? (
-              <div className="px-6 pb-3.5 text-[13px] text-[var(--text2)]">
-                {trade.instrumentDisplayName}
-              </div>
-            ) : null}
-
             <TradeHero
               pnl={pnl}
-              hasPositivePnl={hasPositivePnl}
               isOpen={isOpen}
-              confidenceScore={trade.confidence_score ?? null}
-              positionSizeUsd={trade.position_size_usd}
+              openedAt={trade.opened_at}
+              closedAt={trade.closed_at}
             />
 
             {isOpen &&
@@ -1074,18 +1056,18 @@ export const TradeDetail = ({
             <TradeExitAnalytics trade={trade} />
             <WhatIfReplaySection tradeId={tradeId} tradeStatus={trade.status} />
             <TradeGateTimeline steps={gateSteps} />
-            <TradeHarnessMessages messages={messages} />
-            <TradeAgentRuns runs={runs} />
+            <TradePipelineTimeline runs={runs} messages={messages} />
 
             {isOpen && (
               <div className="px-6 pb-7">
-                <button
+                <Button
+                  variant="destructive"
+                  className="w-full"
                   disabled={closing}
                   onClick={handleForceClose}
-                  className={forceCloseBtnClass}
                 >
-                  {closing ? "Closing…" : "Force Close Position"}
-                </button>
+                  {closing ? "Closing…" : "Force close position"}
+                </Button>
               </div>
             )}
           </div>
@@ -1096,50 +1078,43 @@ export const TradeDetail = ({
 };
 
 const traceCardClass =
-  "mb-2 overflow-hidden rounded-[10px] border border-[var(--border)]";
+  "overflow-hidden rounded-sm border border-border bg-surface2";
 
 const traceMetaLabelClass =
-  "mb-[3px] text-[12px] uppercase tracking-[0.06em] text-[var(--text3)]";
+  "mb-0.5 font-mono text-micro uppercase tracking-wider text-text3";
 
-const traceMetaValueClass = "font-mono text-[12px] text-[var(--text2)]";
+const traceMetaValueClass = "font-mono text-caption text-text2";
 
 const outputTextClass =
-  "rounded-lg bg-[var(--surface2)] px-3.5 py-3 text-[13px] italic leading-[1.65] text-[var(--text2)]";
+  "rounded-sm bg-surface3 px-3.5 py-3 font-mono text-body italic leading-relaxed text-text2";
 
 const msgJsonPreClass =
-  "m-0 max-h-[280px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-[var(--surface2)] p-3 font-mono text-[12px] leading-[1.45] text-[var(--text2)]";
+  "m-0 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-sm border border-border bg-bg p-3 font-mono text-caption leading-relaxed text-text2";
 
 const toolCallsPreClass =
-  "m-0 max-h-[200px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-[var(--surface2)] p-3 font-mono text-[12px] leading-[1.45] text-[var(--text2)]";
-
-const autopsyBtnClass =
-  "shrink-0 cursor-pointer rounded-md border border-[var(--border)] bg-transparent px-[11px] py-[5px] font-mono text-[12px] text-[var(--text3)]";
+  "m-0 max-h-52 overflow-auto whitespace-pre-wrap break-words rounded-sm border border-border bg-bg p-3 font-mono text-caption leading-relaxed text-text2";
 
 const priceMarkerClass =
-  "absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--bg)] bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]";
+  "absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-bg bg-primary shadow-popover";
 
 const panelClass =
-  "flex min-h-full w-[480px] animate-[slideIn_0.22s_ease-out] flex-col border-l border-[var(--border)] bg-[var(--surface)]";
+  "flex min-h-full w-[480px] animate-[slideIn_0.22s_ease-out] flex-col border-l border-border bg-surface shadow-popover";
 
 const headerClass =
-  "flex shrink-0 items-center justify-between border-b border-[var(--border)] px-6 py-5";
+  "flex shrink-0 items-start justify-between gap-3 border-b border-border px-6 py-5";
 
 const heroClass =
-  "flex items-end justify-between border-b border-[var(--border)] px-6 pb-5 pt-6";
+  "flex items-end justify-between border-b border-border px-6 pb-5 pt-4";
 
 const heroLabelClass =
-  "mb-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]";
+  "mb-2 font-mono text-micro uppercase tracking-wider text-text3";
 
 const secTitleClass =
-  "text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]";
+  "font-mono text-micro uppercase tracking-wider text-text3";
 
-const sectionClass = "border-t border-[var(--border)] px-6 pb-5 pt-5";
+const sectionClass = "border-t border-border px-6 pb-5 pt-5";
 
 const orderFieldLabelClass =
-  "mb-1 text-[12px] uppercase tracking-[0.06em] text-[var(--text3)]";
+  "mb-1 font-mono text-micro uppercase tracking-wider text-text3";
 
-const orderFieldValueClass =
-  "font-mono text-[13px] font-medium text-[var(--text1)]";
-
-const forceCloseBtnClass =
-  "w-full cursor-pointer rounded-[10px] border border-error-border bg-error-dim px-3 py-3 font-sans text-[13px] font-semibold text-error";
+const orderFieldValueClass = "font-mono text-data font-medium text-text1";

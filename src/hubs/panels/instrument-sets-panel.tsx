@@ -4,14 +4,11 @@ import { canonicalizeInstrumentId } from "@electron/shared/domain/experience-inp
 import type { InstrumentSetMemberRef } from "@electron/shared/domain/experience-inputs/instrument-set";
 import type { InstrumentSetRevision } from "@electron/shared/domain/experience-inputs/catalog";
 import type { InstrumentClass } from "@electron/shared/domain/enums";
-import { Card } from "@/components/custom-ui";
+import { Badge } from "@/components/custom-ui";
 import { Button, Dialog, DialogContent } from "@/components/ui";
+import { EmptyState, SectionHeader } from "@/components/ui/primitives";
 import { ShadcnSelect } from "@/components/custom-ui";
 import { cn } from "@/lib/utils";
-
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
 
 export function InstrumentSetsPage() {
   const [sets, setSets] = useState<InstrumentSetRevision[]>([]);
@@ -42,69 +39,49 @@ export function InstrumentSetsPage() {
   }, []);
 
   return (
-    <div className="hub-panel-body flex flex-col gap-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
-            CONFIGURATION
-          </div>
-          <h1 className="m-0 mt-2.5 text-[28px]">Instrument Sets</h1>
-          <p className="mt-2 text-[13px] text-[var(--text3)]">
-            Reusable groups of instruments for scheduled scan strategies.
-            Sessions pin to a specific revision so changes don&apos;t affect
-            running sessions.
-          </p>
-        </div>
-        <Button
-          className="shrink-0 bg-[var(--accent)] text-white"
-          onClick={() => setCreateOpen(true)}
-        >
-          New Set
-        </Button>
-      </div>
+    <div className="flex flex-col gap-5">
+      <SectionHeader
+        eyebrow="Universes"
+        title="Instrument sets"
+        action={
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            New set
+          </Button>
+        }
+      />
 
-      <Card className="!p-0">
-        {loading ? (
-          <div className="grid gap-3 p-4">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="h-[88px] animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface2)]"
-              />
-            ))}
-          </div>
-        ) : error ? (
-          <div className="m-4 rounded-lg border border-error-border bg-error-dim px-3 py-2 text-[13px] text-error">
-            {error}{" "}
-            <button
-              className="underline"
-              onClick={() => void load()}
-              type="button"
-            >
-              Retry
-            </button>
-          </div>
-        ) : sets.length === 0 ? (
-          <div className="m-4 rounded-lg border border-dashed border-[var(--border)] p-6 text-[13px] text-[var(--text3)]">
-            <div className="mb-2 font-medium text-[var(--text1)]">
-              No instrument sets yet
-            </div>
-            <p className="m-0 leading-relaxed">
-              Create a set to define a reusable list of instruments for
-              scheduled scan strategies. Sessions subscribe to a specific
-              revision of a set.
-            </p>
-          </div>
-        ) : (
-          sets.map((set) => (
-            <SetRow
+      {loading ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[0, 1].map((i) => (
+            <div
+              key={i}
+              className="h-40 animate-pulse rounded-sm border border-border bg-surface2"
+            />
+          ))}
+        </div>
+      ) : error ? (
+        <EmptyState
+          message={error}
+          actionLabel="Retry"
+          onAction={() => void load()}
+        />
+      ) : sets.length === 0 ? (
+        <EmptyState
+          message="No instrument sets yet. Create a reusable list of instruments for scheduled scan strategies."
+          actionLabel="New set"
+          onAction={() => setCreateOpen(true)}
+        />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {sets.map((set) => (
+            <SetCard
               key={`${set.setId}-${set.revision}`}
               set={set}
               onEdit={() => setEditTarget(set)}
             />
-          ))
-        )}
-      </Card>
+          ))}
+        </div>
+      )}
 
       <CreateSetDialog
         open={createOpen}
@@ -125,11 +102,7 @@ export function InstrumentSetsPage() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Row
-// ---------------------------------------------------------------------------
-
-function SetRow({
+function SetCard({
   set,
   onEdit,
 }: {
@@ -137,79 +110,69 @@ function SetRow({
   onEdit: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const COLLAPSE_AT = 8;
+  const collapseAt = 12;
   const visibleMembers =
-    expanded || set.members.length <= COLLAPSE_AT
+    expanded || set.members.length <= collapseAt
       ? set.members
-      : set.members.slice(0, COLLAPSE_AT);
+      : set.members.slice(0, collapseAt);
 
   return (
-    <div className="flex items-start gap-4 border-b border-[var(--border)] p-4 last:border-0">
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[13px] font-semibold text-[var(--text1)]">
+    <article className="flex flex-col rounded-sm border border-border bg-surface p-4">
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="m-0 truncate font-sans text-label text-text1">
             {set.name}
-          </span>
-          <span className={classChipClass(set.instrumentClass)}>
-            {formatClass(set.instrumentClass)}
-          </span>
-          <span className="rounded-full border border-[var(--border)] px-2 py-[2px] text-[11px] text-[var(--text3)]">
-            Rev {set.revision}
-          </span>
-          <span
-            className={cn(
-              "rounded-full border px-2 py-[2px] text-[11px]",
-              set.status === "active"
-                ? "border-success-border bg-success-dim text-success"
-                : set.status === "draft"
-                  ? "border-warning-border bg-warning-dim text-warning"
-                  : "border-[var(--border)] text-[var(--text3)]",
-            )}
-          >
-            {set.status}
-          </span>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1">
-          {visibleMembers.map((m) => (
-            <span key={m.canonicalId} className={memberChipClass}>
-              {m.displaySymbol}
-            </span>
-          ))}
-          {set.members.length > COLLAPSE_AT && !expanded ? (
-            <button
-              type="button"
-              className={memberChipClass + " cursor-pointer"}
-              onClick={() => setExpanded(true)}
+          </h3>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <Badge variant={classBadgeVariant(set.instrumentClass)} size="sm">
+              {formatClass(set.instrumentClass)}
+            </Badge>
+            <Badge variant="default" size="sm">
+              Rev {set.revision}
+            </Badge>
+            <Badge
+              variant={
+                set.status === "active"
+                  ? "success"
+                  : set.status === "draft"
+                    ? "warn"
+                    : "default"
+              }
+              size="sm"
             >
-              +{set.members.length - COLLAPSE_AT} more
-            </button>
-          ) : null}
-        </div>
-        <div className="mt-1.5 text-[12px] text-[var(--text3)]">
-          {set.members.length} instrument{set.members.length === 1 ? "" : "s"}
-          {set.mode === "source_driven" ? " · source-driven universe" : null}
-        </div>
-        {set.status !== "active" ? (
-          <div className="mt-1 text-[12px] text-[var(--text3)]">
-            Research note: strategies validated on a specific universe.
-            Instruments added here may not carry the same evidence base.
+              {set.status}
+            </Badge>
           </div>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onEdit}>
+          Edit
+        </Button>
+      </div>
+
+      <div className="mb-3 flex flex-wrap gap-1">
+        {visibleMembers.map((m) => (
+          <span key={m.canonicalId} className={memberChipClass}>
+            {m.displaySymbol}
+          </span>
+        ))}
+        {set.members.length > collapseAt && !expanded ? (
+          <button
+            type="button"
+            className={cn(memberChipClass, "cursor-pointer hover:bg-surface3")}
+            onClick={() => setExpanded(true)}
+          >
+            +{set.members.length - collapseAt} more
+          </button>
         ) : null}
       </div>
-      <Button
-        variant="outline"
-        className="shrink-0 h-8 text-xs"
-        onClick={onEdit}
-      >
-        Edit
-      </Button>
-    </div>
+
+      <div className="mt-auto font-mono text-caption text-text3">
+        {set.members.length} instrument{set.members.length === 1 ? "" : "s"}
+        {set.mode === "source_driven" ? " · source-driven" : null}
+      </div>
+    </article>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Create dialog
-// ---------------------------------------------------------------------------
 
 type CreateState = {
   name: string;
@@ -282,10 +245,12 @@ function CreateSetDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[520px] border-border bg-[var(--surface)]">
-        <h3 className="m-0 text-[17px] font-semibold">New Instrument Set</h3>
+      <DialogContent className="max-w-lg border-border bg-surface">
+        <h3 className="m-0 font-sans text-head text-text1">
+          New instrument set
+        </h3>
         <div className="grid gap-3">
-          <label className="grid gap-1.5 text-[12px]">
+          <label className="grid gap-1.5 font-sans text-caption">
             <span className={labelClass}>Name</span>
             <input
               value={state.name}
@@ -294,7 +259,7 @@ function CreateSetDialog({
               className={inputClass}
             />
           </label>
-          <label className="grid gap-1.5 text-[12px]">
+          <label className="grid gap-1.5 font-sans text-caption">
             <span className={labelClass}>Instrument class</span>
             <ShadcnSelect
               value={state.instrumentClass}
@@ -309,7 +274,7 @@ function CreateSetDialog({
               ]}
             />
           </label>
-          <label className="grid gap-1.5 text-[12px]">
+          <label className="grid gap-1.5 font-sans text-caption">
             <span className={labelClass}>
               Instruments (comma or newline separated)
             </span>
@@ -323,30 +288,25 @@ function CreateSetDialog({
           </label>
         </div>
         {state.error ? (
-          <div className="text-[12px] text-error">{state.error}</div>
+          <div className="font-sans text-caption text-error">{state.error}</div>
         ) : null}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
-            className="bg-[var(--accent)] text-white"
             disabled={
               !state.name.trim() || !state.membersText.trim() || state.saving
             }
             onClick={() => void save()}
           >
-            {state.saving ? "Creating..." : "Create Set"}
+            {state.saving ? "Creating…" : "Create set"}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Edit dialog
-// ---------------------------------------------------------------------------
 
 type EditState = {
   membersText: string;
@@ -413,15 +373,16 @@ function EditSetDialog({
 
   return (
     <Dialog open={Boolean(set)} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[520px] border-border bg-[var(--surface)]">
-        <h3 className="m-0 text-[17px] font-semibold">Edit — {set.name}</h3>
-        <p className="m-0 text-[12px] text-[var(--text3)]">
-          Saving creates a new revision ({set.revision} → {set.revision + 1}).
-          Running sessions will continue using the revision they were created
-          with.
+      <DialogContent className="max-w-lg border-border bg-surface">
+        <h3 className="m-0 font-sans text-head text-text1">
+          Edit · {set.name}
+        </h3>
+        <p className="m-0 font-sans text-caption text-text3">
+          Saving creates revision {set.revision} → {set.revision + 1}. Running
+          sessions keep their pinned revision.
         </p>
         <div className="grid gap-3">
-          <label className="grid gap-1.5 text-[12px]">
+          <label className="grid gap-1.5 font-sans text-caption">
             <span className={labelClass}>
               Instruments (comma or newline separated)
             </span>
@@ -432,30 +393,19 @@ function EditSetDialog({
               className={textareaClass}
             />
           </label>
-          <div className="text-[12px] text-[var(--text3)]">
-            Class: {formatClass(set.instrumentClass)} · Mode: {set.mode}
-          </div>
-          {set.status !== "active" ? (
-            <div className="rounded-lg border border-warning-border bg-warning-dim px-3 py-2 text-[12px] text-warning">
-              Research note: strategies were validated on the original
-              instrument universe. Adding instruments here may yield different
-              results from backtests.
-            </div>
-          ) : null}
         </div>
         {state.error ? (
-          <div className="text-[12px] text-error">{state.error}</div>
+          <div className="font-sans text-caption text-error">{state.error}</div>
         ) : null}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
-            className="bg-[var(--accent)] text-white"
             disabled={!state.membersText.trim() || state.saving}
             onClick={() => void save()}
           >
-            {state.saving ? "Saving..." : "Save New Revision"}
+            {state.saving ? "Saving…" : "Save new revision"}
           </Button>
         </div>
       </DialogContent>
@@ -463,37 +413,27 @@ function EditSetDialog({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function formatClass(cls: InstrumentClass): string {
-  return cls === "stock"
-    ? "Stocks"
-    : cls === "crypto"
-      ? "Crypto"
-      : cls === "futures"
-        ? "Futures"
-        : cls === "options"
-          ? "Options"
-          : "Prediction Markets";
+  if (cls === "stock") return "Stocks";
+  if (cls === "crypto") return "Crypto";
+  if (cls === "futures") return "Futures";
+  if (cls === "options") return "Options";
+  return "Prediction";
 }
 
-function classChipClass(cls: InstrumentClass): string {
-  const base = "rounded-full border px-2 py-[2px] text-[11px] font-medium";
-  if (cls === "stock")
-    return `${base} border-info-border bg-info-dim text-info`;
-  if (cls === "crypto")
-    return `${base} border-market-border bg-market-dim text-market`;
-  return `${base} border-[var(--border)] text-[var(--text2)]`;
+function classBadgeVariant(
+  cls: InstrumentClass,
+): "default" | "blue" | "purple" | "success" {
+  if (cls === "stock") return "blue";
+  if (cls === "crypto") return "purple";
+  if (cls === "futures") return "success";
+  return "default";
 }
 
 const memberChipClass =
-  "rounded-md border border-[var(--border)] bg-[var(--surface2)] px-2 py-[3px] font-mono text-[11px] text-[var(--text2)]";
-
-const labelClass =
-  "inline-flex items-center gap-1 uppercase tracking-[0.08em] text-[var(--text3)]";
+  "rounded-sm border border-border bg-surface2 px-2 py-0.5 font-mono text-micro text-text2";
+const labelClass = "font-mono text-micro uppercase tracking-wider text-text3";
 const inputClass =
-  "rounded-md border border-[var(--border)] bg-[var(--surface2)] px-2.5 py-2 text-[13px] text-[var(--text1)]";
+  "rounded-sm border border-hairline bg-surface2 px-2.5 py-2 font-sans text-body text-text1";
 const textareaClass =
-  "w-full rounded-md border border-[var(--border)] bg-[var(--surface2)] px-2.5 py-2 text-[13px] text-[var(--text1)]";
+  "w-full rounded-sm border border-hairline bg-surface2 px-2.5 py-2 font-sans text-body text-text1";

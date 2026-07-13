@@ -487,12 +487,6 @@ export const AccountsPage = () => {
                 </div>
               )}
               {aiProviders.map((p) => {
-                const statusColor =
-                  p.lastTestStatus === "ok"
-                    ? "var(--color-success)"
-                    : p.lastTestStatus === "error"
-                      ? "var(--color-error)"
-                      : "var(--text3)";
                 const statusLabel =
                   p.lastTestStatus === "ok"
                     ? "OK"
@@ -502,55 +496,57 @@ export const AccountsPage = () => {
                 const isEditing = editingProviderId === p.id;
                 return (
                   <div key={p.id} className={providerCardClass}>
-                    <div className={providerCardHeaderClass}>
-                      <div>
-                        <div className={providerNameClass}>{p.name}</div>
-                        <div className={providerTypeMonoClass}>
-                          {providerTypeLabel(p.providerType)}
-                        </div>
-                        <div
-                          className={providerStatusClass}
-                          style={{ color: statusColor }}
-                        >
-                          {statusLabel}
-                        </div>
+                    <div className={providerNameRowClass}>
+                      <div className={providerNameClass}>{p.name}</div>
+                      <div className={providerTypeMonoClass}>
+                        {providerTypeLabel(p.providerType)}
                       </div>
-                      {!isEditing ? (
-                        <div className={providerActionsClass}>
-                          <button
-                            type="button"
-                            onClick={() => beginEditProviderKey(p)}
-                            className={outlineBtnClass}
-                          >
-                            Update key
-                          </button>
-                          <button
-                            type="button"
-                            disabled={rowSavingId === p.id}
-                            onClick={async () => {
-                              const r = await api
-                                .testProvider(p.id)
-                                .catch(() => ({ ok: false as const }));
-                              setStatus((s) => ({ ...s, ai: r.ok || s.ai }));
-                              void refetchProviders();
-                            }}
-                            className={testBtnClass}
-                          >
-                            Test
-                          </button>
-                          <button
-                            type="button"
-                            disabled={rowSavingId === p.id}
-                            onClick={() => void deleteProvider(p)}
-                            className={deleteProviderBtnClass(
-                              rowSavingId === p.id,
-                            )}
-                          >
-                            {rowSavingId === p.id ? "Deleting…" : "Delete"}
-                          </button>
-                        </div>
-                      ) : null}
+                      <div
+                        className={cn(
+                          providerStatusClass,
+                          p.lastTestStatus === "ok" && "text-success",
+                          p.lastTestStatus === "error" && "text-error",
+                          p.lastTestStatus === "unknown" && "text-text3",
+                        )}
+                      >
+                        {statusLabel}
+                      </div>
                     </div>
+                    {!isEditing ? (
+                      <div className={providerActionsClass}>
+                        <button
+                          type="button"
+                          onClick={() => beginEditProviderKey(p)}
+                          className={outlineBtnClass}
+                        >
+                          Update key
+                        </button>
+                        <button
+                          type="button"
+                          disabled={rowSavingId === p.id}
+                          onClick={async () => {
+                            const r = await api
+                              .testProvider(p.id)
+                              .catch(() => ({ ok: false as const }));
+                            setStatus((s) => ({ ...s, ai: r.ok || s.ai }));
+                            void refetchProviders();
+                          }}
+                          className={testBtnClass}
+                        >
+                          Test
+                        </button>
+                        <button
+                          type="button"
+                          disabled={rowSavingId === p.id}
+                          onClick={() => void deleteProvider(p)}
+                          className={deleteProviderBtnClass(
+                            rowSavingId === p.id,
+                          )}
+                        >
+                          {rowSavingId === p.id ? "Deleting…" : "Delete"}
+                        </button>
+                      </div>
+                    ) : null}
                     {isEditing ? (
                       <div className={editFormClass}>
                         <InputField
@@ -1380,57 +1376,58 @@ function OpsHardeningCard() {
   );
 }
 
-const inputFieldRootClass = "flex flex-col gap-[7px]";
+const inputFieldRootClass = "flex flex-col gap-2";
 const inputFieldHeaderClass = "flex items-baseline justify-between";
-const inputFieldLabelClass = "text-[13px] font-medium text-[var(--text2)]";
-const inputFieldHintClass = "text-[12px] text-[var(--text3)]";
+const inputFieldLabelClass = "font-sans text-label text-text2";
+const inputFieldHintClass = "font-sans text-caption text-text3";
 
 const inputFieldInputClass = (mono?: boolean) =>
   cn(
-    "rounded-[9px] border border-[var(--border)] bg-[var(--surface2)] px-[14px] py-[10px] text-[13px] text-[var(--text1)] transition-[border-color] duration-150",
-    mono ? "font-mono tracking-[0.04em]" : "font-sans",
+    "h-8 rounded-sm border border-border bg-surface2 px-3 font-sans text-body text-text1 transition-colors duration-hover focus:outline-none focus:ring-1 focus:ring-primary",
+    mono && "font-mono text-data",
   );
 
 const connBadgeClass = (ok: boolean) =>
   cn(
-    "inline-flex items-center gap-1.5 rounded-[20px] px-[11px] py-1 border",
+    "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1",
     ok
       ? "border-success-border bg-success-dim"
       : "border-error-border bg-error-dim",
   );
 
 const connBadgeTextClass = (ok: boolean) =>
-  cn("font-mono text-[12px] font-semibold", ok ? "text-success" : "text-error");
+  cn("font-mono text-caption font-medium", ok ? "text-success" : "text-error");
 
-const pageHeaderRowClass = "flex items-start justify-between";
-const pageTitleClass = "m-0 text-[22px] font-semibold text-[var(--text1)]";
-const pageSubtitleClass = "mt-1 text-[13px] text-[var(--text3)]";
-const twoColumnLayoutClass = "flex gap-4";
-const columnClass = "flex flex-1 flex-col gap-3.5";
+const pageHeaderRowClass = "mb-1 flex items-start justify-between gap-4";
+const pageTitleClass = "m-0 font-sans text-head text-text1";
+const pageSubtitleClass = "mt-1 font-sans text-caption text-text3";
+const twoColumnLayoutClass = "flex flex-col gap-4 lg:flex-row";
+const columnClass = "flex min-w-0 flex-1 flex-col gap-3";
 
-const cardHeaderRowClass = "mb-3.5 flex items-start justify-between";
-const cardTitleClass = "mb-[3px] text-[15px] font-semibold text-[var(--text1)]";
-const cardSubtitleClass = "text-[12px] text-[var(--text3)]";
-const cardSectionStackClass = "flex flex-col gap-2.5";
-const mutedText12Class = "text-[12px] text-[var(--text3)]";
-const noneYetLabelClass = "text-[12px] font-medium text-[var(--text3)]";
+const cardHeaderRowClass = "mb-3 flex items-start justify-between gap-3";
+const cardTitleClass = "mb-0.5 font-sans text-head text-text1";
+const cardSubtitleClass = "font-sans text-caption text-text3";
+const cardSectionStackClass = "flex flex-col gap-2";
+const mutedText12Class = "font-sans text-caption text-text3";
+const noneYetLabelClass = "font-sans text-caption font-medium text-text3";
 
 const providerCardClass =
-  "rounded-[9px] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2.5";
-const providerCardHeaderClass = "flex items-start justify-between gap-2.5";
-const providerNameClass = "text-[13px] font-semibold text-[var(--text1)]";
-const providerTypeMonoClass = "font-mono text-[12px] text-[var(--text3)]";
-const providerStatusClass = "mt-1 text-[12px] font-semibold";
-const providerActionsClass = "flex flex-wrap justify-end gap-2";
-const providerNameRowClass = "flex flex-wrap items-center gap-2";
+  "flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border bg-surface2 px-3.5 py-3";
+const providerCardHeaderClass =
+  "flex min-w-0 flex-1 items-center justify-between gap-3";
+const providerNameClass = "font-sans text-label text-text1";
+const providerTypeMonoClass = "font-mono text-caption text-text3";
+const providerStatusClass = "mt-0.5 font-mono text-caption font-medium";
+const providerActionsClass = "flex shrink-0 flex-wrap items-center gap-2";
+const providerNameRowClass = "flex min-w-0 flex-1 flex-col";
 
 const outlineBtnClass =
-  "cursor-pointer rounded-[7px] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] text-[var(--text2)]";
+  "cursor-pointer rounded-sm border border-border bg-surface px-2.5 py-1.5 font-sans text-caption text-text2 hover:bg-surface3";
 const testBtnClass =
-  "cursor-pointer rounded-[7px] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px]";
+  "cursor-pointer rounded-sm border border-border bg-surface px-2.5 py-1.5 font-sans text-caption text-text1 hover:bg-surface3";
 const deleteProviderBtnClass = (waiting: boolean) =>
   cn(
-    "rounded-[7px] border border-error-border bg-error-dim px-2.5 py-1.5 text-[12px] text-error",
+    "rounded-sm border border-error-border bg-error-dim px-2.5 py-1.5 font-sans text-caption text-error hover:opacity-90",
     waiting ? "cursor-wait" : "cursor-pointer",
   );
 
@@ -1439,71 +1436,71 @@ const buttonRowClass = "flex flex-wrap gap-2";
 
 const saveKeychainBtnClass = (isSaving: boolean) =>
   cn(
-    "rounded-lg border-none bg-[var(--accent)] px-3 py-2 text-[12px] font-semibold text-[hsl(var(--primary-foreground))]",
-    isSaving ? "cursor-wait opacity-85" : "cursor-pointer opacity-100",
+    "rounded-sm border-none bg-primary px-3 py-2 font-sans text-caption font-medium text-primary-foreground hover:opacity-90",
+    isSaving ? "cursor-wait opacity-70" : "cursor-pointer",
   );
 
 const cancelBtnClass =
-  "cursor-pointer rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-[12px] text-[var(--text2)]";
+  "cursor-pointer rounded-sm border border-border bg-transparent px-3 py-2 font-sans text-caption text-text2 hover:bg-surface2";
 
 const addProviderBtnClass =
-  "mt-3 w-full cursor-pointer rounded-[9px] border border-dashed border-[var(--border)] bg-transparent px-[14px] py-2.5 text-[13px] text-[var(--text2)]";
+  "mt-3 w-full cursor-pointer rounded-sm border border-dashed border-border bg-transparent px-3.5 py-2.5 font-sans text-body text-text2 hover:bg-surface2";
 
 const saveDefaultModelBtnClass = (disabled: boolean) =>
   cn(
-    "w-full rounded-[9px] border-none bg-[var(--accent)] px-[14px] py-2.5 text-[13px] font-semibold text-[hsl(var(--primary-foreground))]",
-    disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer opacity-100",
+    "w-full rounded-sm border-none bg-primary px-3.5 py-2.5 font-sans text-label font-medium text-primary-foreground hover:opacity-90",
+    disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
   );
 
-const defaultModelSectionClass = "mt-3.5 grid gap-2.5";
-const sectionLabelClass = "text-[12px] font-medium text-[var(--text2)]";
+const defaultModelSectionClass = "mt-3 grid gap-2.5";
+const sectionLabelClass = "font-sans text-caption font-medium text-text2";
 const reasoningLabelClass =
-  "mb-1 text-[12px] uppercase tracking-[0.04em] text-[var(--text3)]";
-const hintBelowClass = "mt-1 text-[12px] text-[var(--text3)]";
+  "mb-1 font-mono text-micro uppercase tracking-wider text-text3";
+const hintBelowClass = "mt-1 font-sans text-caption text-text3";
 
 const brokerRowClass =
-  "flex items-center justify-between gap-2.5 rounded-[9px] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2.5";
+  "flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border bg-surface2 px-3.5 py-3";
 const removeBrokerBtnClass =
-  "cursor-pointer rounded-[7px] border border-error-border bg-transparent px-2.5 py-1.5 text-[12px] text-error";
-const mockScenarioWrapClass = "mt-2 max-w-[320px]";
+  "cursor-pointer rounded-sm border border-error-border bg-error-dim px-2.5 py-1.5 font-sans text-caption text-error hover:opacity-90";
+const mockScenarioWrapClass = "mt-2 max-w-xs";
 
-const routingDescClass = "mb-3 mt-1.5 text-[12px] text-[var(--text3)]";
+const routingDescClass = "mb-3 mt-1 font-sans text-caption text-text3";
 const routingItemClass = "mb-2.5";
 const routingItemLabelClass =
-  "mb-1.5 text-[12px] font-medium text-[var(--text2)]";
+  "mb-1 font-mono text-micro uppercase tracking-wider text-text3";
 
 const accentActionBtnClass =
-  "w-full cursor-pointer rounded-[9px] border-none bg-[var(--accent)] px-[14px] py-2.5 text-[13px] font-semibold text-[hsl(var(--primary-foreground))]";
+  "w-full cursor-pointer rounded-sm border-none bg-primary px-3.5 py-2 font-sans text-label font-medium text-primary-foreground hover:opacity-90";
 const accentActionBtnMt8Class = cn(accentActionBtnClass, "mt-2");
 const saveOverrideBtnClass = cn(accentActionBtnClass, "mt-3");
 const saveSearchSettingsBtnClass = accentActionBtnClass;
 
 const prefsFieldClass = "mb-2.5";
 const prefsFieldLabelClass =
-  "mb-1.5 text-[12px] font-medium text-[var(--text2)]";
+  "mb-1 font-mono text-micro uppercase tracking-wider text-text3";
 
-const webSearchHeaderClass = "mb-3.5";
-const webSearchMetaRowClass = "mb-3.5 flex items-start justify-between gap-2.5";
+const webSearchHeaderClass = "mb-3";
+const webSearchMetaRowClass = "mb-3 flex items-start justify-between gap-3";
 const webSearchHintClass =
-  "max-w-[360px] text-[12px] leading-normal text-[var(--text3)]";
+  "max-w-sm font-sans text-caption leading-relaxed text-text3";
 
-const searchDefaultSectionClass = "mt-3.5 grid gap-2.5";
+const searchDefaultSectionClass = "mt-3 grid gap-2.5";
 const searchDefaultLabelClass =
-  "mb-1.5 text-[12px] font-medium text-[var(--text2)]";
+  "mb-1 font-mono text-micro uppercase tracking-wider text-text3";
 
 const securityListClass = "mt-4 flex flex-col gap-3";
 const securityItemClass = "flex items-start gap-3";
-const securityCheckClass = "mt-px shrink-0 text-[13px] text-success";
-const securityTitleClass = "text-[13px] font-medium text-[var(--text1)]";
-const securityDescClass = "text-[13px] text-[var(--text3)]";
+const securityCheckClass = "mt-px shrink-0 font-sans text-body text-success";
+const securityTitleClass = "font-sans text-label text-text1";
+const securityDescClass = "font-sans text-body text-text3";
 
 const testAllConnectionsBtnClass =
-  "w-full cursor-pointer rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-5 py-[11px] font-sans text-[13px] font-medium text-[var(--text2)]";
+  "w-full cursor-pointer rounded-sm border border-border bg-surface px-4 py-2.5 font-sans text-label text-text2 hover:bg-surface2";
 
 const envToggleClass =
-  "mt-1 grid grid-cols-2 gap-1.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] p-[5px]";
+  "mt-1 grid grid-cols-2 gap-1 rounded-sm border border-border bg-surface2 p-1";
 const envToggleButtonClass =
-  "cursor-pointer rounded-[7px] border border-[var(--border)] bg-transparent px-4 py-[7px] text-[12px] font-semibold text-[var(--text2)]";
+  "cursor-pointer rounded-sm border border-transparent bg-transparent px-3 py-1.5 font-sans text-caption font-medium text-text2";
 const envTogglePaperActiveClass =
   "border-warning-border bg-warning-dim text-warning";
 const envToggleLiveActiveClass =

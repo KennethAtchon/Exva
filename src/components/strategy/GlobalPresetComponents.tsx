@@ -31,16 +31,16 @@ const presetCardClass =
   "relative flex flex-col gap-3 rounded-[14px] px-4 pb-3.5 pt-4 transition-[border-color,box-shadow] duration-150";
 
 const presetBadgeClass =
-  "whitespace-nowrap rounded-full px-2 py-[3px] text-[12px] font-semibold tracking-[0.3px] text-[var(--text2)]";
+  "whitespace-nowrap rounded-full px-2 py-0.5 text-caption font-semibold tracking-[0.3px] text-text2";
 
 const applyPresetButtonClass =
-  "mt-0.5 flex w-full items-center justify-center gap-[5px] rounded-lg border border-info-border px-3 py-2 text-[12px] font-bold tracking-[0.3px] transition-colors duration-[120ms]";
+  "mt-0.5 flex w-full items-center justify-center gap-[5px] rounded-lg border border-info-border px-3 py-2 text-caption font-bold tracking-[0.3px] transition-colors duration-[120ms]";
 
 const modalOverlayClass =
   "fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.65)] p-6 backdrop-blur-[4px]";
 
 const modalPanelClass =
-  "flex w-full max-w-[460px] flex-col gap-[18px] rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 pb-5 pt-6 shadow-[0_24px_64px_rgba(0,0,0,0.4)]";
+  "flex w-full max-w-[460px] flex-col gap-[18px] rounded-2xl border border-border bg-surface px-6 pb-5 pt-6 shadow-[0_24px_64px_rgba(0,0,0,0.4)]";
 
 function labelize(id: string): string {
   return id
@@ -113,10 +113,10 @@ function GlobalPresetCard({
       className={cn(
         presetCardClass,
         isApplied
-          ? "border border-info-border bg-[var(--surface2)] shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
+          ? "border border-info-border bg-surface2 shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
           : hovered
-            ? "border border-[var(--border)] bg-[var(--surface2)] shadow-[0_4px_20px_rgba(0,0,0,0.08)]"
-            : "border border-[var(--border)] bg-[var(--surface2)] shadow-[0_2px_8px_rgba(0,0,0,0.06)]",
+            ? "border border-border bg-surface2 shadow-[0_4px_20px_rgba(0,0,0,0.08)]"
+            : "border border-border bg-surface2 shadow-[0_2px_8px_rgba(0,0,0,0.06)]",
       )}
     >
       {isApplied && (
@@ -125,11 +125,11 @@ function GlobalPresetCard({
 
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
-          <div className="text-[14px] font-bold leading-[1.3] text-[var(--text1)]">
+          <div className="text-body font-bold leading-[1.3] text-text1">
             {preset.label}
           </div>
           {preset.description && (
-            <div className="mt-[3px] text-[12px] leading-[1.45] text-[var(--text3)]">
+            <div className="mt-[3px] text-caption leading-[1.45] text-text3">
               {preset.description}
             </div>
           )}
@@ -197,10 +197,8 @@ function GlobalPresetCard({
         <div className="grid gap-1">
           {preset.summaryBullets.slice(0, 3).map((b) => (
             <div key={b} className="flex items-start gap-1.5">
-              <span className="mt-0.5 shrink-0 text-[12px] text-[var(--text3)]">
-                ▸
-              </span>
-              <span className="text-[12px] leading-normal text-[var(--text3)]">
+              <span className="mt-0.5 shrink-0 text-caption text-text3">▸</span>
+              <span className="text-caption leading-normal text-text3">
                 {b}
               </span>
             </div>
@@ -276,10 +274,10 @@ export function GlobalPresetGrid({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="m-0 text-[15px] font-semibold tracking-[0.2px] text-[var(--text1)]">
+          <h2 className="m-0 text-head font-semibold tracking-[0.2px] text-text1">
             Global Presets
           </h2>
-          <p className="m-0 mt-[3px] text-[12px] text-[var(--text3)]">
+          <p className="m-0 mt-[3px] text-caption text-text3">
             Apply a preset to configure all sections at once.
           </p>
         </div>
@@ -402,15 +400,15 @@ export function CreateEditGlobalPresetModal({
         className={modalPanelClass}
       >
         <div>
-          <h2 className="m-0 text-[16px] font-semibold text-[var(--text1)]">
+          <h2 className="m-0 text-head font-semibold text-text1">
             {isEdit ? "Edit Global Preset" : "Create Global Preset"}
           </h2>
-          <p className="m-0 mt-1 text-[12px] text-[var(--text3)]">
+          <p className="m-0 mt-1 text-caption text-text3">
             Name this preset and choose sub-presets for each section.
           </p>
         </div>
 
-        <div className="h-px bg-[var(--border)]" />
+        <div className="h-px bg-border" />
 
         <div className="grid gap-3.5">
           <ModalField label="Preset name">
@@ -485,8 +483,8 @@ export function CreateEditGlobalPresetModal({
             className={cn(
               saveBtnBaseClass,
               canSave
-                ? "cursor-pointer bg-[var(--accent)] text-[hsl(var(--primary-foreground))]"
-                : "cursor-not-allowed bg-[var(--surface3)] text-[var(--text3)]",
+                ? "cursor-pointer bg-accent text-[hsl(var(--primary-foreground))]"
+                : "cursor-not-allowed bg-surface3 text-text3",
             )}
           >
             {isEdit ? "Save Changes" : "Create Preset"}
@@ -507,7 +505,7 @@ const ModalField = ({
   children: React.ReactNode;
 }) => (
   <div className="grid gap-1.5">
-    <div className="text-[12px] font-semibold uppercase tracking-[0.4px] text-[var(--text3)]">
+    <div className="text-caption font-semibold uppercase tracking-[0.4px] text-text3">
       {label}
     </div>
     {children}
@@ -562,16 +560,15 @@ const TrashIcon = () => (
 );
 
 const iconBtnClass =
-  "flex h-[26px] w-[26px] cursor-pointer items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface2)] p-0 text-[var(--text3)]";
+  "flex h-[26px] w-[26px] cursor-pointer items-center justify-center rounded-md border border-border bg-surface2 p-0 text-text3";
 
 const modalInputClass =
-  "box-border w-full rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[13px] text-[var(--text1)] outline-none";
+  "box-border w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-body text-text1 outline-none";
 
 const cancelBtnClass =
-  "cursor-pointer rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-4 py-[9px] text-[13px] font-semibold text-[var(--text2)]";
+  "cursor-pointer rounded-lg border border-border bg-surface2 px-4 py-2 text-body font-semibold text-text2";
 
-const saveBtnBaseClass =
-  "rounded-lg border-none px-5 py-[9px] text-[13px] font-bold";
+const saveBtnBaseClass = "rounded-lg border-none px-5 py-2 text-body font-bold";
 
 const createBtnClass =
-  "cursor-pointer rounded-lg border border-info-border bg-info-dim px-3.5 py-[7px] text-[12px] font-bold tracking-[0.3px] text-info";
+  "cursor-pointer rounded-lg border border-info-border bg-info-dim px-3.5 py-1.5 text-caption font-bold tracking-[0.3px] text-info";

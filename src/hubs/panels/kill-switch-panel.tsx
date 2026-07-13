@@ -84,11 +84,9 @@ export function KillSwitchPanel() {
           <HubQueryError message={loadError} onRetry={refresh} />
         ) : null}
         {message ? (
-          <div className="font-mono text-[11px] text-[var(--text2)]">
-            {message}
-          </div>
+          <div className="font-mono text-micro text-text2">{message}</div>
         ) : null}
-        <ul className="m-0 list-none divide-y divide-[var(--border)] p-0">
+        <ul className="m-0 list-none divide-y divide-border p-0">
           {gauges.map((g) => {
             const lossPct =
               g.dailyLossLimitUsd > 0
@@ -108,7 +106,7 @@ export function KillSwitchPanel() {
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-[13px] font-medium text-[var(--text1)]">
+                    <span className="truncate text-body font-medium text-text1">
                       {g.sessionName}
                     </span>
                     <Badge size="sm" variant="default">
@@ -125,7 +123,7 @@ export function KillSwitchPanel() {
                       </Badge>
                     ) : null}
                   </div>
-                  <div className="mt-1 flex gap-3 font-mono text-[11px] text-[var(--text3)]">
+                  <div className="mt-1 flex gap-3 font-mono text-micro text-text3">
                     <GaugeBar
                       label="Day loss"
                       pct={lossPct}
@@ -158,17 +156,17 @@ export function KillSwitchPanel() {
             );
           })}
           {gauges.length === 0 ? (
-            <li className="px-1 py-4 text-[12px] text-[var(--text3)]">
+            <li className="px-1 py-4 text-caption text-text3">
               No sessions to monitor.
             </li>
           ) : null}
         </ul>
 
-        <div className="rounded-[8px] border border-error/30 bg-error-dim/30 p-3">
-          <div className="mb-2 text-[12px] font-medium text-error">
+        <div className="rounded-sm border border-error/30 bg-error-dim/30 p-3">
+          <div className="mb-2 text-caption font-medium text-error">
             Flatten everything
           </div>
-          <div className="mb-2 text-[11px] text-[var(--text2)]">
+          <div className="mb-2 text-micro text-text2">
             Market-closes every open position through the normal gate chain.
             Type FLATTEN to enable.
           </div>
@@ -223,11 +221,11 @@ function GaugeBar({
     <div className="flex min-w-[100px] flex-col gap-0.5">
       <div className="flex justify-between">
         <span>{label}</span>
-        <span className={cn(pct > 0.8 ? "text-error" : "text-[var(--text2)]")}>
+        <span className={cn(pct > 0.8 ? "text-error" : "text-text2")}>
           {value}
         </span>
       </div>
-      <div className="h-1 overflow-hidden rounded bg-[var(--surface3)]">
+      <div className="h-1 overflow-hidden rounded bg-surface3">
         <div
           className={cn(
             "h-full",

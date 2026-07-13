@@ -126,7 +126,7 @@ function ExportMenu({
     <div className="relative">
       <Button
         variant="outline"
-        className="h-9 border-border bg-transparent px-3 text-sm text-[var(--text2)]"
+        className="h-9 border-border bg-transparent px-3 text-sm text-text2"
         onClick={() => setOpen((current) => !current)}
       >
         ↓ Export
@@ -149,7 +149,7 @@ function ExportMenu({
               <button
                 key={format}
                 type="button"
-                className="block w-full rounded-lg px-3 py-2 text-left text-sm text-[var(--text1)] hover:bg-[var(--surface2)]"
+                className="block w-full rounded-lg px-3 py-2 text-left text-sm text-text1 hover:bg-surface2"
                 onClick={() => {
                   setOpen(false);
                   onExport(format);
@@ -186,7 +186,7 @@ function VersionChips({
             "rounded-full border px-3 py-1.5 text-xs",
             selectedId === autopsy.id
               ? "border-primary/40 bg-primary/10 text-primary"
-              : "border-border bg-[var(--surface2)] text-[var(--text2)]",
+              : "border-border bg-surface2 text-text2",
           )}
         >
           v{autopsies.length - index} · {autopsy.createdAt.slice(5, 10)}
@@ -213,10 +213,8 @@ function Section({
         onClick={() => setOpen((current) => !current)}
         className="flex w-full items-center justify-between px-4 py-3 text-left"
       >
-        <span className="text-sm font-semibold text-[var(--text1)]">
-          {title}
-        </span>
-        <span className="text-xs text-[var(--text3)]">{open ? "▲" : "▼"}</span>
+        <span className="text-sm font-semibold text-text1">{title}</span>
+        <span className="text-xs text-text3">{open ? "▲" : "▼"}</span>
       </button>
       {open ? (
         <div className="border-t border-border px-4 py-4">{children}</div>
@@ -517,21 +515,18 @@ export function PeriodAutopsyPage({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="sticky top-0 z-20 border-b border-border bg-[var(--surface)]">
+      <div className="sticky top-0 z-20 border-b border-hairline bg-surface">
         <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold text-[var(--text1)]">
-              Autopsy
-            </h1>
-            <div className="flex rounded-full border border-border bg-[var(--surface2)] p-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex rounded-sm border border-border bg-surface2 p-0.5">
               <button
                 type="button"
                 onClick={() => setScope("global")}
                 className={cn(
-                  "rounded-full px-3 py-1.5 text-sm",
+                  "rounded-sm px-3 py-1.5 font-sans text-label transition-colors duration-hover",
                   scope === "global"
                     ? "bg-primary text-primary-foreground"
-                    : "text-[var(--text2)]",
+                    : "text-text2 hover:text-text1",
                 )}
               >
                 Global
@@ -540,20 +535,20 @@ export function PeriodAutopsyPage({
                 type="button"
                 onClick={() => setScope("session")}
                 className={cn(
-                  "rounded-full px-3 py-1.5 text-sm",
+                  "rounded-sm px-3 py-1.5 font-sans text-label transition-colors duration-hover",
                   scope === "session"
                     ? "bg-primary text-primary-foreground"
-                    : "text-[var(--text2)]",
+                    : "text-text2 hover:text-text1",
                 )}
               >
-                Session ▼
+                Session
               </button>
             </div>
             {scope === "session" ? (
               <select
                 value={sessionId ?? ""}
                 onChange={(event) => setSessionId(event.target.value || null)}
-                className="h-10 rounded-md border border-border bg-[var(--surface2)] px-3 text-sm text-[var(--text1)]"
+                className="h-8 rounded-sm border border-hairline bg-surface2 px-3 font-sans text-body text-text1"
               >
                 {sessions.map((session) => (
                   <option key={session.id} value={session.id}>
@@ -567,7 +562,7 @@ export function PeriodAutopsyPage({
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              className="h-9 border-border bg-transparent px-3 text-sm text-[var(--text2)]"
+              className="h-9 border-border bg-transparent px-3 text-sm text-text2"
               disabled={autopsies.length === 0}
               onClick={() => setHistoryOpen(true)}
             >
@@ -610,7 +605,7 @@ export function PeriodAutopsyPage({
         <div className="border-t border-border px-6 py-3">
           <Button
             variant="ghost"
-            className="mb-3 h-auto p-0 text-sm text-[var(--text2)]"
+            className="mb-3 h-auto p-0 text-sm text-text2"
             onClick={() => setConfigOpen((current) => !current)}
           >
             {configOpen ? "▲ Configure" : "▼ Configure"}
@@ -648,16 +643,16 @@ export function PeriodAutopsyPage({
                         }
                       }}
                       className={cn(
-                        "rounded-full border px-3 py-1.5 text-xs",
+                        "rounded-sm border px-3 py-1.5 font-sans text-caption transition-colors duration-hover",
                         preset === key
-                          ? "border-primary/40 bg-primary/10 text-primary"
-                          : "border-border bg-[var(--surface2)] text-[var(--text2)]",
+                          ? "border-hairline bg-surface2 text-text1"
+                          : "border-transparent text-text2 hover:border-border hover:text-text1",
                       )}
                     >
                       {label}
                     </button>
                   ))}
-                  <div className="ml-auto text-xs text-[var(--text3)]">
+                  <div className="ml-auto font-mono text-micro text-text3">
                     Last run:{" "}
                     {previewQuery.data?.lastAutopsyAt
                       ? formatPageDate(previewQuery.data.lastAutopsyAt)
@@ -667,7 +662,7 @@ export function PeriodAutopsyPage({
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <label className="text-sm text-[var(--text2)]">
+                  <label className="text-sm text-text2">
                     Start
                     <Input
                       type="date"
@@ -676,10 +671,10 @@ export function PeriodAutopsyPage({
                         setPreset("custom");
                         setWindowStart(startOfDayIso(event.target.value));
                       }}
-                      className="mt-1 border-border bg-[var(--surface2)] text-[var(--text1)]"
+                      className="mt-1 border-border bg-surface2 text-text1"
                     />
                   </label>
-                  <label className="text-sm text-[var(--text2)]">
+                  <label className="text-sm text-text2">
                     End
                     <Input
                       type="date"
@@ -688,10 +683,10 @@ export function PeriodAutopsyPage({
                         setPreset("custom");
                         setWindowEnd(endOfDayIso(event.target.value));
                       }}
-                      className="mt-1 border-border bg-[var(--surface2)] text-[var(--text1)]"
+                      className="mt-1 border-border bg-surface2 text-text1"
                     />
                   </label>
-                  <label className="text-sm text-[var(--text2)]">
+                  <label className="text-sm text-text2">
                     Broker
                     <select
                       value={filters.brokerAccountIds[0] ?? ""}
@@ -703,7 +698,7 @@ export function PeriodAutopsyPage({
                             : [],
                         }))
                       }
-                      className="mt-1 h-10 w-full rounded-md border border-border bg-[var(--surface2)] px-3 text-sm text-[var(--text1)]"
+                      className="mt-1 h-10 w-full rounded-md border border-border bg-surface2 px-3 text-sm text-text1"
                     >
                       <option value="">All brokers</option>
                       {(brokersData?.brokers ?? []).map((broker) => (
@@ -713,7 +708,7 @@ export function PeriodAutopsyPage({
                       ))}
                     </select>
                   </label>
-                  <label className="text-sm text-[var(--text2)]">
+                  <label className="text-sm text-text2">
                     Outcome
                     <select
                       value={filters.outcome}
@@ -724,7 +719,7 @@ export function PeriodAutopsyPage({
                             .value as PeriodAutopsyFilters["outcome"],
                         }))
                       }
-                      className="mt-1 h-10 w-full rounded-md border border-border bg-[var(--surface2)] px-3 text-sm text-[var(--text1)]"
+                      className="mt-1 h-10 w-full rounded-md border border-border bg-surface2 px-3 text-sm text-text1"
                     >
                       <option value="all">All</option>
                       <option value="winners">Winners only</option>
@@ -735,7 +730,7 @@ export function PeriodAutopsyPage({
 
                 <div className="grid gap-3 md:grid-cols-2">
                   <div>
-                    <div className="mb-2 text-sm text-[var(--text2)]">
+                    <div className="mb-2 text-sm text-text2">
                       Instrument class
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -760,7 +755,7 @@ export function PeriodAutopsyPage({
                               "rounded-full border px-3 py-1.5 text-xs capitalize",
                               active
                                 ? "border-primary/40 bg-primary/10 text-primary"
-                                : "border-border bg-[var(--surface2)] text-[var(--text2)]",
+                                : "border-border bg-surface2 text-text2",
                             )}
                           >
                             {value.replace(/_/g, " ")}
@@ -770,7 +765,7 @@ export function PeriodAutopsyPage({
                     </div>
                   </div>
                   <div>
-                    <div className="mb-2 text-sm text-[var(--text2)]">
+                    <div className="mb-2 text-sm text-text2">
                       Include agent phases
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -795,7 +790,7 @@ export function PeriodAutopsyPage({
                               "rounded-full border px-3 py-1.5 text-xs capitalize",
                               active
                                 ? "border-primary/40 bg-primary/10 text-primary"
-                                : "border-border bg-[var(--surface2)] text-[var(--text2)]",
+                                : "border-border bg-surface2 text-text2",
                             )}
                           >
                             {value}
@@ -806,7 +801,7 @@ export function PeriodAutopsyPage({
                   </div>
                 </div>
 
-                <label className="text-sm text-[var(--text2)]">
+                <label className="text-sm text-text2">
                   Min position size (USD)
                   <Input
                     type="number"
@@ -817,16 +812,14 @@ export function PeriodAutopsyPage({
                         minPositionSizeUsd: Number(event.target.value || 0),
                       }))
                     }
-                    className="mt-1 max-w-[220px] border-border bg-[var(--surface2)] text-[var(--text1)]"
+                    className="mt-1 max-w-[220px] border-border bg-surface2 text-text1"
                   />
                 </label>
               </div>
 
-              <div className="space-y-3 rounded-xl border border-border bg-[var(--surface2)] px-4 py-4">
-                <div className="text-sm font-medium text-[var(--text1)]">
-                  Model
-                </div>
-                <label className="flex items-center gap-2 text-sm text-[var(--text2)]">
+              <div className="space-y-3 rounded-xl border border-border bg-surface2 px-4 py-4">
+                <div className="text-sm font-medium text-text1">Model</div>
+                <label className="flex items-center gap-2 text-sm text-text2">
                   <input
                     type="checkbox"
                     checked={useWorkspaceDefaultModel}
@@ -843,7 +836,7 @@ export function PeriodAutopsyPage({
                     setProviderKey(event.target.value);
                     setModelId("");
                   }}
-                  className="h-10 w-full rounded-md border border-border bg-[var(--surface)] px-3 text-sm text-[var(--text1)] disabled:opacity-60"
+                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-text1 disabled:opacity-60"
                 >
                   <option value="">Select provider</option>
                   {aiProviders.map((provider) => (
@@ -856,7 +849,7 @@ export function PeriodAutopsyPage({
                   value={modelId}
                   disabled={useWorkspaceDefaultModel || !providerKey}
                   onChange={(event) => setModelId(event.target.value)}
-                  className="h-10 w-full rounded-md border border-border bg-[var(--surface)] px-3 text-sm text-[var(--text1)] disabled:opacity-60"
+                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-text1 disabled:opacity-60"
                 >
                   <option value="">Select model</option>
                   {(providerModels?.models ?? []).map((model) => (
@@ -865,7 +858,7 @@ export function PeriodAutopsyPage({
                     </option>
                   ))}
                 </select>
-                <div className="text-xs text-[var(--text3)]">
+                <div className="text-xs text-text3">
                   {previewQuery.data
                     ? `${previewQuery.data.tradeCount} trades · ~$${previewQuery.data.estimatedCostUsd.toFixed(2)} est.`
                     : "Preview unavailable."}
@@ -899,7 +892,7 @@ export function PeriodAutopsyPage({
         <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-6 py-6 xl:flex-row">
           <div className="min-w-0 flex-1 space-y-4">
             {bannerMessage ? (
-              <div className="rounded-xl border border-border bg-[var(--surface2)] px-4 py-3 text-sm text-[var(--text2)]">
+              <div className="rounded-xl border border-border bg-surface2 px-4 py-3 text-sm text-text2">
                 {bannerMessage}
               </div>
             ) : null}
@@ -907,10 +900,10 @@ export function PeriodAutopsyPage({
             {!selectedAutopsy ? (
               <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[20px] border border-dashed border-border bg-card px-8 text-center">
                 <div className="text-4xl opacity-30">⚕</div>
-                <div className="mt-4 text-xl font-semibold text-[var(--text1)]">
+                <div className="mt-4 text-xl font-semibold text-text1">
                   No period autopsy yet for {scopeLabel}.
                 </div>
-                <div className="mt-2 max-w-[460px] text-sm text-[var(--text3)]">
+                <div className="mt-2 max-w-[460px] text-sm text-text3">
                   Configure the window above and run your first autopsy.
                 </div>
                 <Button
@@ -926,12 +919,12 @@ export function PeriodAutopsyPage({
                 <div className="rounded-[14px] border border-border bg-card px-4 py-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm text-[var(--text2)]">
+                      <div className="text-sm text-text2">
                         Showing autopsy for{" "}
                         {metaAutopsy?.windowStart.slice(0, 10)} ·{" "}
                         {metaAutopsy?.tradeCount} trades included
                       </div>
-                      <div className="mt-1 text-xs text-[var(--text3)]">
+                      <div className="mt-1 text-xs text-text3">
                         Model: {metaAutopsy?.modelId} · Generated:{" "}
                         {metaAutopsy
                           ? formatPageDate(metaAutopsy.createdAt)
@@ -952,13 +945,44 @@ export function PeriodAutopsyPage({
                   </div>
                 ) : null}
 
-                <div className="rounded-[14px] border border-border bg-card px-5 py-5">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <VerdictCard
+                    label="Win rate"
+                    value={`${(parsed.performancePatterns.winRate * 100).toFixed(1)}%`}
+                  />
+                  <VerdictCard
+                    label="Trades"
+                    value={`${parsed.performancePatterns.winners}W / ${parsed.performancePatterns.losers}L / ${parsed.performancePatterns.totalTrades}`}
+                  />
+                  <VerdictCard
+                    label="Avg PnL"
+                    value={fmt.usd(parsed.performancePatterns.avgPnlUsd)}
+                  />
+                  <VerdictCard
+                    label="Best"
+                    value={fmt.usd(parsed.performancePatterns.bestPnlUsd)}
+                    tone="success"
+                  />
+                  <VerdictCard
+                    label="Worst"
+                    value={fmt.usd(parsed.performancePatterns.worstPnlUsd)}
+                    tone="error"
+                  />
+                  <VerdictCard
+                    label="Avg hold"
+                    value={fmt.duration(
+                      parsed.performancePatterns.avgHoldDurationMs,
+                    )}
+                  />
+                </div>
+
+                <div className="rounded-sm border border-border bg-surface px-5 py-5">
                   <div className="mb-2 flex flex-wrap items-center gap-3">
-                    <div className="text-2xl font-semibold text-[var(--text1)]">
-                      Executive Summary
+                    <div className="font-sans text-head text-text1">
+                      Executive summary
                     </div>
                     {selectedAutopsy?.qualityGrade ? (
-                      <span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">
+                      <span className="rounded-sm border border-border bg-surface2 px-2 py-0.5 font-mono text-micro text-text2">
                         {selectedAutopsy.qualityGrade}
                         {selectedAutopsy.qualityScore != null
                           ? ` · ${selectedAutopsy.qualityScore.toFixed(0)}`
@@ -966,55 +990,27 @@ export function PeriodAutopsyPage({
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-sm leading-7 text-[var(--text2)]">
+                  <p className="m-0 font-sans text-body leading-relaxed text-text2">
                     {parsed.executiveSummary}
                   </p>
                 </div>
 
-                <Section title="Performance & Process Patterns">
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    <Metric
-                      label="Win rate"
-                      value={`${(parsed.performancePatterns.winRate * 100).toFixed(1)}%`}
-                    />
-                    <Metric
-                      label="Winners / Losers / Total"
-                      value={`${parsed.performancePatterns.winners} / ${parsed.performancePatterns.losers} / ${parsed.performancePatterns.totalTrades}`}
-                    />
-                    <Metric
-                      label="Avg PnL"
-                      value={fmt.usd(parsed.performancePatterns.avgPnlUsd)}
-                    />
-                    <Metric
-                      label="Best PnL"
-                      value={fmt.usd(parsed.performancePatterns.bestPnlUsd)}
-                    />
-                    <Metric
-                      label="Worst PnL"
-                      value={fmt.usd(parsed.performancePatterns.worstPnlUsd)}
-                    />
-                    <Metric
-                      label="Avg hold"
-                      value={fmt.duration(
-                        parsed.performancePatterns.avgHoldDurationMs,
-                      )}
-                    />
-                  </div>
-                  <div className="mt-4 space-y-3 text-sm text-[var(--text2)]">
+                <Section title="Performance & process patterns">
+                  <div className="space-y-3 font-sans text-body text-text2">
                     <div>
-                      <span className="font-medium text-[var(--text1)]">
+                      <span className="font-medium text-text1">
                         Sizing consistency:
                       </span>{" "}
                       {parsed.performancePatterns.sizingConsistency}
                     </div>
                     <div>
-                      <span className="font-medium text-[var(--text1)]">
+                      <span className="font-medium text-text1">
                         Entry timing:
                       </span>{" "}
                       {parsed.performancePatterns.entryTimingPattern}
                     </div>
                     <div>
-                      <span className="font-medium text-[var(--text1)]">
+                      <span className="font-medium text-text1">
                         Regime notes:
                       </span>{" "}
                       {parsed.performancePatterns.regimeNotes}
@@ -1024,7 +1020,7 @@ export function PeriodAutopsyPage({
 
                 <Section title="Recurring Failure Modes">
                   {parsed.recurringFailureModes.length === 0 ? (
-                    <div className="text-sm text-[var(--text3)]">
+                    <div className="text-sm text-text3">
                       No recurring failures detected in this window.
                     </div>
                   ) : (
@@ -1032,17 +1028,17 @@ export function PeriodAutopsyPage({
                       {parsed.recurringFailureModes.map((failure) => (
                         <div
                           key={`${failure.category}-${failure.description}`}
-                          className="rounded-xl border border-border bg-[var(--surface2)] px-4 py-3"
+                          className="rounded-xl border border-border bg-surface2 px-4 py-3"
                         >
                           <div className="mb-2 flex flex-wrap gap-2">
-                            <span className="rounded-full bg-[var(--surface)] px-2 py-1 text-[11px] uppercase text-[var(--text3)]">
+                            <span className="rounded-full bg-surface px-2 py-1 text-micro uppercase text-text3">
                               {failure.category}
                             </span>
-                            <span className="rounded-full bg-warning-dim px-2 py-1 text-[11px] text-warning">
+                            <span className="rounded-full bg-warning-dim px-2 py-1 text-micro text-warning">
                               {failure.count}
                             </span>
                           </div>
-                          <div className="text-sm text-[var(--text1)]">
+                          <div className="text-sm text-text1">
                             {failure.description}
                           </div>
                         </div>
@@ -1101,17 +1097,17 @@ export function PeriodAutopsyPage({
                     {includedTrades.map((trade) => (
                       <div
                         key={trade.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-[var(--surface2)] px-4 py-3"
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface2 px-4 py-3"
                       >
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--text1)]">
+                        <div className="flex flex-wrap items-center gap-3 text-sm text-text1">
                           <span className="font-mono font-semibold">
                             {trade.instrumentSymbol}
                           </span>
-                          <span className="rounded-full bg-[var(--surface)] px-2 py-1 text-[11px] text-[var(--text3)]">
+                          <span className="rounded-full bg-surface px-2 py-1 text-micro text-text3">
                             {trade.side}
                           </span>
                           <span>{fmt.pnl(trade.final_pnl_usd ?? 0)}</span>
-                          <span className="text-[var(--text3)]">
+                          <span className="text-text3">
                             {trade.closed_at
                               ? formatPageDate(trade.closed_at)
                               : "—"}
@@ -1130,7 +1126,7 @@ export function PeriodAutopsyPage({
                 </Section>
               </>
             ) : (
-              <div className="rounded-[14px] border border-border bg-card px-4 py-4 text-sm text-[var(--text2)]">
+              <div className="rounded-[14px] border border-border bg-card px-4 py-4 text-sm text-text2">
                 Structured results were unavailable for this autopsy version.
               </div>
             )}
@@ -1138,7 +1134,7 @@ export function PeriodAutopsyPage({
 
           <div className="w-full shrink-0 space-y-4 xl:sticky xl:top-24 xl:w-[320px]">
             <div className="rounded-[14px] border border-border bg-card px-4 py-4">
-              <div className="mb-3 text-sm font-semibold text-[var(--text1)]">
+              <div className="mb-3 text-sm font-semibold text-text1">
                 Scope Summary
               </div>
               <SidebarRow label="Scope" value={scopeLabel} />
@@ -1180,11 +1176,11 @@ export function PeriodAutopsyPage({
             </div>
 
             <div className="rounded-[14px] border border-border bg-card px-4 py-4">
-              <div className="mb-3 text-sm font-semibold text-[var(--text1)]">
+              <div className="mb-3 text-sm font-semibold text-text1">
                 Past Autopsies
               </div>
               {autopsies.length === 0 ? (
-                <div className="text-sm text-[var(--text3)]">
+                <div className="text-sm text-text3">
                   This is the first autopsy for this scope.
                 </div>
               ) : (
@@ -1192,13 +1188,13 @@ export function PeriodAutopsyPage({
                   {autopsies.slice(0, 5).map((autopsy) => (
                     <div
                       key={autopsy.id}
-                      className="rounded-xl border border-border bg-[var(--surface2)] px-3 py-3"
+                      className="rounded-xl border border-border bg-surface2 px-3 py-3"
                     >
-                      <div className="text-sm text-[var(--text1)]">
+                      <div className="text-sm text-text1">
                         {autopsy.windowStart.slice(0, 10)} →{" "}
                         {autopsy.windowEnd.slice(0, 10)}
                       </div>
-                      <div className="mt-1 text-xs text-[var(--text3)]">
+                      <div className="mt-1 text-xs text-text3">
                         {autopsy.tradeCount} trades · {autopsy.modelId}
                       </div>
                       <button
@@ -1227,7 +1223,7 @@ export function PeriodAutopsyPage({
           <div className="h-full w-[min(420px,100vw)] overflow-auto border-l border-border bg-card px-5 py-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <div className="text-lg font-semibold text-[var(--text1)]">
+                <div className="text-lg font-semibold text-text1">
                   Autopsy History — {scopeLabel}
                 </div>
               </div>
@@ -1243,20 +1239,20 @@ export function PeriodAutopsyPage({
               {autopsies.map((autopsy) => (
                 <div
                   key={autopsy.id}
-                  className="rounded-xl border border-border bg-[var(--surface2)] px-4 py-4"
+                  className="rounded-xl border border-border bg-surface2 px-4 py-4"
                 >
-                  <div className="text-sm text-[var(--text1)]">
+                  <div className="text-sm text-text1">
                     {autopsy.windowStart.slice(0, 10)} →{" "}
                     {autopsy.windowEnd.slice(0, 10)}
                   </div>
-                  <div className="mt-1 text-xs text-[var(--text3)]">
+                  <div className="mt-1 text-xs text-text3">
                     {autopsy.tradeCount} trades · {autopsy.modelId} ·{" "}
                     {formatPageDate(autopsy.createdAt)}
                   </div>
                   <div className="mt-3 flex gap-2">
                     <Button
                       variant="outline"
-                      className="h-8 border-border bg-transparent px-3 text-xs text-[var(--text2)]"
+                      className="h-8 border-border bg-transparent px-3 text-xs text-text2"
                       onClick={() => {
                         setSelectedAutopsyId(autopsy.id);
                         setHistoryOpen(false);
@@ -1266,7 +1262,7 @@ export function PeriodAutopsyPage({
                     </Button>
                     <Button
                       variant="outline"
-                      className="h-8 border-border bg-transparent px-3 text-xs text-[var(--text2)]"
+                      className="h-8 border-border bg-transparent px-3 text-xs text-text2"
                       onClick={() => void handleExport("markdown", autopsy.id)}
                     >
                       Export
@@ -1308,24 +1304,39 @@ export function PeriodAutopsyPage({
   );
 }
 
-function SidebarRow({ label, value }: { label: string; value: string }) {
+function VerdictCard({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "success" | "error";
+}) {
   return (
-    <div className="mb-2 flex items-start justify-between gap-3 text-sm">
-      <div className="text-[var(--text3)]">{label}</div>
-      <div className="text-right text-[var(--text1)]">{value}</div>
+    <div className="rounded-sm border border-border bg-surface px-4 py-3">
+      <div className="font-mono text-micro uppercase tracking-wider text-text3">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "mt-1 font-mono text-stat tabular-nums",
+          tone === "success" && "text-success",
+          tone === "error" && "text-error",
+          tone === "default" && "text-text1",
+        )}
+      >
+        {value}
+      </div>
     </div>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function SidebarRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border bg-[var(--surface2)] px-4 py-3">
-      <div className="text-xs uppercase tracking-[0.08em] text-[var(--text3)]">
-        {label}
-      </div>
-      <div className="mt-1 text-sm font-medium text-[var(--text1)]">
-        {value}
-      </div>
+    <div className="mb-2 flex items-start justify-between gap-3 text-sm">
+      <div className="text-text3">{label}</div>
+      <div className="text-right text-text1">{value}</div>
     </div>
   );
 }

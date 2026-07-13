@@ -12,10 +12,10 @@ import {
 
 export type SearchProviderType = "brave" | "tavily" | "exa" | "parallel";
 
-const labelClass = "mb-1.5 text-[12px] font-medium text-[var(--text2)]";
+const labelClass = "mb-1.5 text-caption font-medium text-text2";
 
 const hintBoxClass =
-  "mb-4 rounded-[9px] border border-info-border bg-info-dim px-3 py-2.5 text-[12px] leading-[1.45] text-[var(--text3)]";
+  "mb-4 rounded-[9px] border border-info-border bg-info-dim px-3 py-2.5 text-caption leading-[1.45] text-text3";
 
 const DEFAULT_NAMES: Record<SearchProviderType, string> = {
   brave: "Brave Search",
@@ -181,13 +181,13 @@ export const AddSearchProviderModal = ({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-xl border-border bg-[var(--surface)] p-5 sm:max-w-[440px]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-xl border-border bg-surface p-5 sm:max-w-[440px]">
         <DialogHeader>
-          <DialogTitle className="text-base font-bold text-[var(--text1)]">
+          <DialogTitle className="text-base font-bold text-text1">
             Add search provider
           </DialogTitle>
         </DialogHeader>
-        <p className="mb-4 text-[12px] leading-[1.45] text-[var(--text3)]">
+        <p className="mb-4 text-caption leading-[1.45] text-text3">
           Exva already includes DuckDuckGo as the built-in default search path.
           Add a paid API-backed provider here when a session needs a specific
           backend instead.
@@ -205,7 +205,7 @@ export const AddSearchProviderModal = ({
         <div className="mb-3.5">
           <div className={labelClass}>Display name</div>
           <Input
-            className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
+            className="h-10 border-border bg-surface2 text-body text-text1"
             value={name}
             onChange={(e) =>
               dispatch({ type: "setName", name: e.target.value })
@@ -217,7 +217,7 @@ export const AddSearchProviderModal = ({
         <div className="mb-3.5">
           <div className={labelClass}>API key</div>
           <Input
-            className="h-10 border-border bg-[var(--surface2)] font-mono text-[13px] tracking-[0.03em] text-[var(--text1)]"
+            className="h-10 border-border bg-surface2 font-mono text-body tracking-[0.03em] text-text1"
             type="password"
             value={apiKey}
             onChange={(e) =>
@@ -240,7 +240,7 @@ export const AddSearchProviderModal = ({
         </div>
 
         {message ? (
-          <div className="mb-3 break-words text-[12px] leading-[1.4] text-error [overflow-wrap:anywhere]">
+          <div className="mb-3 break-words text-caption leading-[1.4] text-error [overflow-wrap:anywhere]">
             {message}
           </div>
         ) : null}
@@ -249,7 +249,7 @@ export const AddSearchProviderModal = ({
           <Button
             type="button"
             variant="outline"
-            className="flex-1 border-border bg-[var(--surface2)] text-[var(--text2)]"
+            className="flex-1 border-border bg-surface2 text-text2"
             onClick={onClose}
           >
             Cancel
@@ -258,7 +258,7 @@ export const AddSearchProviderModal = ({
             type="button"
             disabled={saving}
             onClick={() => void save()}
-            className="flex-1 bg-[var(--accent)] text-[hsl(var(--primary-foreground))] hover:opacity-95"
+            className="flex-1 bg-accent text-[hsl(var(--primary-foreground))] hover:opacity-95"
           >
             {saving ? "Saving…" : "Save & test"}
           </Button>

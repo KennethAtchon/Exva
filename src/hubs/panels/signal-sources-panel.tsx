@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Card } from "@/components/custom-ui";
+import { useEffect, useState, type ReactNode } from "react";
+import { Badge } from "@/components/custom-ui";
 import {
   Button,
   Dialog,
@@ -7,10 +7,12 @@ import {
   HelpTooltip,
   Switch,
 } from "@/components/ui";
+import { EmptyState } from "@/components/ui/primitives";
 import { api } from "@/lib/exva";
 import { formatSignalSourceTimingSubtitle } from "@electron/shared/domain/signal-timing";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import type { HelpGlossaryId } from "@/lib/help-glossary";
+import { cn } from "@/lib/utils";
 
 type Source = Awaited<
   ReturnType<typeof api.listSignalSources>
@@ -32,10 +34,8 @@ export function SignalSourcesPage({
   addOpenExternal,
   onAddOpenChange,
 }: {
-  /** Hub pane: drop page chrome, soft-refresh without skeleton flash. */
   embedded?: boolean;
   hideHeader?: boolean;
-  /** When set with onAddOpenChange, Add dialog is controlled by hub actions. */
   addOpenExternal?: boolean;
   onAddOpenChange?: (open: boolean) => void;
 } = {}) {
@@ -53,9 +53,7 @@ export function SignalSourcesPage({
   };
 
   const load = async (opts?: { soft?: boolean }) => {
-    if (!opts?.soft) {
-      setLoading(true);
-    }
+    if (!opts?.soft) setLoading(true);
     setError(null);
     try {
       const next = await api.listSignalSources();
@@ -77,21 +75,18 @@ export function SignalSourcesPage({
   const showHeader = !embedded && !hideHeader;
 
   return (
-    <div
-      className={
-        embedded ? "flex flex-col gap-3" : "hub-panel-body flex flex-col gap-5"
-      }
-    >
+    <div className={embedded ? "flex flex-col gap-3" : "flex flex-col gap-5"}>
       {showHeader ? (
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
-              SOURCES
+            <div className="font-mono text-micro uppercase tracking-wider text-text3">
+              Sources
             </div>
-            <h1 className="m-0 mt-2.5 text-[28px]">Signal Sources</h1>
-            <p className="mt-2 text-[13px] text-[var(--text3)]">
-              Connect real-time data feeds to drive the trading pipeline. For
-              scheduled scan feeds, see Event Sources.
+            <h1 className="m-0 mt-2 font-sans text-title text-text1">
+              Signal Sources
+            </h1>
+            <p className="mt-2 font-sans text-body text-text3">
+              Connect real-time data feeds to drive the trading pipeline.
             </p>
             <div className="mt-2">
               <HelpTooltip
@@ -100,96 +95,77 @@ export function SignalSourcesPage({
               />
             </div>
           </div>
-          <Button
-            className="bg-[var(--accent)] text-white"
-            onClick={() => setAddOpen(true)}
-          >
-            Add Source
-          </Button>
+          <Button onClick={() => setAddOpen(true)}>Add source</Button>
         </div>
       ) : null}
 
       {embedded && !addControlled ? (
         <div className="flex justify-end">
-          <Button
-            className="bg-[var(--accent)] text-white"
-            onClick={() => setAddOpen(true)}
-          >
-            Add Source
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            Add source
           </Button>
         </div>
       ) : null}
 
-      <Card className="!p-0">
-        {loading && sources.length === 0 ? (
-          <div className="grid gap-3 p-4">
-            {[0, 1, 2].map((idx) => (
-              <div
-                key={idx}
-                className="h-[112px] animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface2)]"
-              />
-            ))}
-          </div>
-        ) : error ? (
-          <div className="m-4 rounded-lg border border-error-border bg-error-dim px-3 py-2 text-[13px] text-error">
-            Failed to load signal sources. Try again.{" "}
-            <button
-              className="underline"
-              onClick={() => void load()}
-              type="button"
-            >
-              Retry
-            </button>
-          </div>
-        ) : sources.length === 0 ? (
-          <div className="m-4 rounded-lg border border-dashed border-[var(--border)] p-6 text-[13px] text-[var(--text3)]">
-            <div className="mb-2 font-medium text-[var(--text1)]">
-              No signal sources configured
-            </div>
-            <p className="m-0 leading-relaxed">
-              Signal sources are global. Create one here, then subscribe
-              sessions to it when you create or edit a session.
-            </p>
-          </div>
-        ) : (
-          <div>
-            {sources.map((source) => (
-              <SourceRow
-                key={source.id}
-                source={source}
-                onChanged={() => void load({ soft: true })}
-                onConfigure={() =>
-                  setConfigure({
-                    source,
-                    name: source.name,
-                    description: source.description ?? "",
-                    pollIntervalMarketMinutes: String(
-                      Number(
-                        readConfig(source, "pollIntervalMarketMinutes") ?? 3,
-                      ),
+      {loading && sources.length === 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2].map((idx) => (
+            <div
+              key={idx}
+              className="h-36 animate-pulse rounded-sm border border-border bg-surface2"
+            />
+          ))}
+        </div>
+      ) : error ? (
+        <EmptyState
+          message={`Failed to load signal sources. ${error}`}
+          actionLabel="Retry"
+          onAction={() => void load()}
+        />
+      ) : sources.length === 0 ? (
+        <EmptyState
+          message="No signal sources configured. Create one here, then subscribe sessions when you create or edit a session."
+          actionLabel="Add source"
+          onAction={() => setAddOpen(true)}
+        />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {sources.map((source) => (
+            <SourceCard
+              key={source.id}
+              source={source}
+              onChanged={() => void load({ soft: true })}
+              onConfigure={() =>
+                setConfigure({
+                  source,
+                  name: source.name,
+                  description: source.description ?? "",
+                  pollIntervalMarketMinutes: String(
+                    Number(
+                      readConfig(source, "pollIntervalMarketMinutes") ?? 3,
                     ),
-                    pollIntervalOffHoursMinutes: String(
-                      Number(
-                        readConfig(source, "pollIntervalOffHoursMinutes") ?? 15,
-                      ),
+                  ),
+                  pollIntervalOffHoursMinutes: String(
+                    Number(
+                      readConfig(source, "pollIntervalOffHoursMinutes") ?? 15,
                     ),
-                    cikWhitelist: Array.isArray(
-                      readConfig(source, "cikWhitelist"),
-                    )
-                      ? (readConfig(source, "cikWhitelist") as string[]).join(
-                          "\n",
-                        )
-                      : "",
-                    minFilingAgeMinutes: String(
-                      Number(readConfig(source, "minFilingAgeMinutes") ?? 0),
-                    ),
-                  })
-                }
-              />
-            ))}
-          </div>
-        )}
-      </Card>
+                  ),
+                  cikWhitelist: Array.isArray(
+                    readConfig(source, "cikWhitelist"),
+                  )
+                    ? (readConfig(source, "cikWhitelist") as string[]).join(
+                        "\n",
+                      )
+                    : "",
+                  minFilingAgeMinutes: String(
+                    Number(readConfig(source, "minFilingAgeMinutes") ?? 0),
+                  ),
+                })
+              }
+            />
+          ))}
+        </div>
+      )}
 
       <AddSourceDialog
         open={addOpen}
@@ -210,7 +186,7 @@ export function SignalSourcesPage({
   );
 }
 
-function SourceRow({
+function SourceCard({
   source,
   onChanged,
   onConfigure,
@@ -221,13 +197,12 @@ function SourceRow({
 }) {
   const [pending, setPending] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
-  const statusLabel = useMemo(() => {
-    if (source.runtimeStatus === "running") return "Running";
-    if (source.runtimeStatus === "paused") return "Paused";
-    if (source.runtimeStatus === "restarting") return "Restarting";
-    if (source.runtimeStatus === "error") return "Error";
-    return "Idle";
-  }, [source.runtimeStatus]);
+
+  const lastScan = source.lastSignalAt
+    ? formatRelative(source.lastSignalAt)
+    : source.lastPollResult
+      ? "polled recently"
+      : "never";
 
   const onToggle = async (enabled: boolean) => {
     setPending(true);
@@ -267,66 +242,34 @@ function SourceRow({
   };
 
   return (
-    <div className="flex items-start gap-4 border-b border-[var(--border)] p-4 last:border-0">
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <div className="text-[13px] font-semibold text-[var(--text1)]">
+    <article className="flex flex-col rounded-sm border border-border bg-surface p-4">
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <HealthDot status={source.runtimeStatus} />
+          <h3 className="m-0 truncate font-sans text-label text-text1">
             {source.name}
-          </div>
-          <span className={statusBadgeClass(source.runtimeStatus)}>
-            {statusLabel}
-          </span>
-          <HelpTooltip
-            topic={`${source.name} status`}
-            body={
-              source.runtimeStatus === "running"
-                ? "The source is actively polling or listening for new events."
-                : source.runtimeStatus === "paused"
-                  ? "The source is configured but temporarily not polling."
-                  : source.runtimeStatus === "restarting"
-                    ? "The source is being restarted after a config or runtime change."
-                    : source.runtimeStatus === "error"
-                      ? "The source hit a runtime error and is not operating normally."
-                      : "The source is configured but not actively polling right now."
-            }
-          />
+          </h3>
         </div>
-        {source.runtimeLastError ? (
-          <div className="mt-1 text-[12px] text-error">
-            Error: {source.runtimeLastError}
-          </div>
-        ) : null}
-        <div className="mt-1 text-[12px] text-[var(--text3)]">
-          {source.description ?? describeSourceType(source.type)}
-        </div>
-        <div className="mt-1 text-[12px] text-[var(--text3)]">
+        <Badge variant={typeBadgeVariant(source.type)} size="sm">
+          {formatSourceType(source.type)}
+        </Badge>
+      </div>
+
+      <div className="mb-3 space-y-1 font-mono text-caption text-text3">
+        <div>Last scan · {lastScan}</div>
+        <div className="truncate">
           {formatSignalSourceTimingSubtitle(source)}
         </div>
-        <div className="mt-1 text-[12px] text-[var(--text3)]">
-          {source.lastSignalAt && source.lastSignalTicker
-            ? `Last signal: ${source.lastSignalTicker}, ${formatRelative(source.lastSignalAt)}`
-            : "No signals yet"}
-        </div>
-        <div className="mt-1 text-[12px] text-[var(--text3)]">
-          {source.lastPollResult
-            ? `Last poll: ${source.lastPollResult.detected} detected, ${source.lastPollResult.passed} passed to sessions, ${source.lastPollResult.dropped} dropped`
-            : "No polls yet"}
-        </div>
-        {testResult ? (
-          <div className="mt-1 text-[12px] text-[var(--text2)]">
-            {testResult}
-          </div>
+        {source.runtimeLastError ? (
+          <div className="text-error">{source.runtimeLastError}</div>
         ) : null}
-        <div className="mt-1 text-[12px] text-[var(--text3)]">
-          {source.attachedSessionCount > 0
-            ? `Used by ${source.attachedSessionCount} sessions`
-            : "Not attached to any sessions"}
-        </div>
+        {testResult ? <div className="text-text2">{testResult}</div> : null}
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-hairline pt-3">
         <HelpTooltip
           topic="Enable source"
-          body="Disabling a source keeps subscriptions in place, but subscribed sessions will wait idle until the source is enabled again."
+          body="Disabling keeps subscriptions in place, but subscribed sessions wait until re-enabled."
         >
           <Switch
             checked={source.enabled}
@@ -334,18 +277,11 @@ function SourceRow({
             onCheckedChange={onToggle}
           />
         </HelpTooltip>
-        {source.type === "edgar_8k" || source.type === "mock" ? (
-          <HelpTooltip
-            topic="Test source"
-            body={
-              source.type === "mock"
-                ? "Emits one synthetic signal and enqueues deliveries for subscribed sessions."
-                : "Runs one poll now and reports detections. It does not enqueue session deliveries."
-            }
-          >
+        <div className="flex flex-wrap justify-end gap-1">
+          {source.type === "edgar_8k" || source.type === "mock" ? (
             <Button
-              variant="outline"
-              className="h-8 text-xs"
+              variant="ghost"
+              size="sm"
               disabled={pending}
               onClick={async () => {
                 setPending(true);
@@ -354,8 +290,8 @@ function SourceRow({
                   const result = await api.testSignalSource(source.id);
                   setTestResult(
                     source.type === "mock"
-                      ? `Test signal: ${result.result.detected} emitted, ${result.result.passed} passed, ${result.result.dropped} dropped.`
-                      : `Test poll: ${result.result.detected} detected, ${result.result.passed} passed, ${result.result.dropped} dropped.`,
+                      ? `Test: ${result.result.detected} emitted`
+                      : `Poll: ${result.result.detected} detected`,
                   );
                   onChanged();
                 } catch (err) {
@@ -371,28 +307,43 @@ function SourceRow({
             >
               Test
             </Button>
-          </HelpTooltip>
-        ) : null}
-        <Button
-          variant="outline"
-          className="h-8 text-xs"
-          disabled={pending}
-          onClick={onConfigure}
-        >
-          Configure
-        </Button>
-        <HelpTooltip glossaryId="remove-signal-source">
+          ) : null}
           <Button
-            variant="outline"
-            className="h-8 text-xs text-error"
+            variant="ghost"
+            size="sm"
+            disabled={pending}
+            onClick={onConfigure}
+          >
+            Configure
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-error"
             disabled={pending}
             onClick={() => void remove()}
           >
             Remove
           </Button>
-        </HelpTooltip>
+        </div>
       </div>
-    </div>
+    </article>
+  );
+}
+
+function HealthDot({ status }: { status: Source["runtimeStatus"] }) {
+  return (
+    <span
+      className={cn(
+        "inline-block h-2 w-2 shrink-0 rounded-full",
+        status === "running" && "bg-success",
+        status === "paused" && "bg-warning",
+        status === "restarting" && "bg-info",
+        status === "error" && "bg-error",
+        status === "idle" && "bg-text3",
+      )}
+      title={status}
+    />
   );
 }
 
@@ -429,10 +380,12 @@ function AddSourceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[520px] border-border bg-[var(--surface)]">
-        <h3 className="m-0 text-[17px] font-semibold">Add Signal Source</h3>
-        <div className="grid gap-2 text-[13px]">
-          <label className="grid gap-1 rounded-lg border border-[var(--border)] p-3">
+      <DialogContent className="max-w-lg border-border bg-surface">
+        <h3 className="m-0 font-sans text-head text-text1">
+          Add signal source
+        </h3>
+        <div className="grid gap-2 font-sans text-body">
+          <label className="grid gap-1 rounded-sm border border-border p-3">
             <span className="flex items-center gap-2">
               <input
                 type="radio"
@@ -445,11 +398,11 @@ function AddSourceDialog({
               <span>EDGAR 8-K</span>
               <HelpTooltip glossaryId="signal-type-edgar-8k" />
             </span>
-            <span className="text-[12px] text-[var(--text3)]">
+            <span className="font-sans text-caption text-text3">
               Polls SEC EDGAR for 8-K filings in real time. Free, no API key.
             </span>
           </label>
-          <label className="grid gap-1 rounded-lg border border-[var(--border)] p-3">
+          <label className="grid gap-1 rounded-sm border border-border p-3">
             <span className="flex items-center gap-2">
               <input
                 type="radio"
@@ -462,9 +415,8 @@ function AddSourceDialog({
               <span>Mock rehearsal</span>
               <HelpTooltip glossaryId="signal-type-mock" />
             </span>
-            <span className="text-[12px] text-[var(--text3)]">
-              Synthetic filing-style signals for mock broker rehearsal. Fire
-              manually or on an optional interval.
+            <span className="font-sans text-caption text-text3">
+              Synthetic filing-style signals for mock broker rehearsal.
             </span>
           </label>
         </div>
@@ -534,7 +486,7 @@ function AddSourceDialog({
           </div>
         ) : null}
         {error ? (
-          <div className="text-[12px] text-error">
+          <div className="font-sans text-caption text-error">
             Failed to add source: {error}
           </div>
         ) : null}
@@ -543,7 +495,6 @@ function AddSourceDialog({
             Cancel
           </Button>
           <Button
-            className="bg-[var(--accent)] text-white"
             disabled={!type || !name.trim() || saving}
             onClick={async () => {
               if (!type) return;
@@ -581,7 +532,7 @@ function AddSourceDialog({
               }
             }}
           >
-            {saving ? "Adding..." : "Add Source"}
+            {saving ? "Adding…" : "Add source"}
           </Button>
         </div>
       </DialogContent>
@@ -623,9 +574,9 @@ function ConfigureSourceDialog({
 
   return (
     <Dialog open={Boolean(state)} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[560px] border-border bg-[var(--surface)]">
-        <h3 className="m-0 text-[17px] font-semibold">
-          Configure - {form.source.name}
+      <DialogContent className="max-w-xl border-border bg-surface">
+        <h3 className="m-0 font-sans text-head text-text1">
+          Configure · {form.source.name}
         </h3>
         <div className="grid gap-3">
           <InputField label="Name">
@@ -657,7 +608,7 @@ function ConfigureSourceDialog({
             <>
               <div className="grid grid-cols-2 gap-3">
                 <InputField
-                  label="Poll interval - market hours (min)"
+                  label="Poll interval · market (min)"
                   glossaryId="edgar-poll-interval"
                 >
                   <input
@@ -679,7 +630,7 @@ function ConfigureSourceDialog({
                   />
                 </InputField>
                 <InputField
-                  label="Poll interval - off-hours (min)"
+                  label="Poll interval · off-hours (min)"
                   glossaryId="edgar-poll-interval"
                 >
                   <input
@@ -743,38 +694,19 @@ function ConfigureSourceDialog({
             </>
           ) : null}
           {runtimeAffectingChanged ? (
-            <div className="text-[12px] text-[var(--text3)]">
+            <div className="font-sans text-caption text-text3">
               Saving will briefly reconnect this source.
             </div>
           ) : null}
-          {form.source.type === "edgar_8k" &&
-          form.source.recentActivity.length > 0 ? (
-            <div className="grid gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface2)] p-3">
-              <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]">
-                Recent activity
-              </div>
-              <div className="max-h-[180px] overflow-auto">
-                <div className="grid gap-2">
-                  {form.source.recentActivity.map((entry, index) => (
-                    <div
-                      key={`${entry.at}-${index}`}
-                      className="text-[12px] text-[var(--text2)]"
-                    >
-                      {formatRelative(entry.at)} - {entry.summary}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : null}
         </div>
-        {error ? <div className="text-[12px] text-error">{error}</div> : null}
+        {error ? (
+          <div className="font-sans text-caption text-error">{error}</div>
+        ) : null}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
-            className="bg-[var(--accent)] text-white"
             disabled={saving}
             onClick={async () => {
               setSaving(true);
@@ -808,7 +740,7 @@ function ConfigureSourceDialog({
               }
             }}
           >
-            Save Changes
+            Save changes
           </Button>
         </div>
       </DialogContent>
@@ -826,8 +758,8 @@ function InputField({
   glossaryId?: HelpGlossaryId;
 }) {
   return (
-    <label className="grid gap-1.5 text-[12px]">
-      <span className="inline-flex items-center gap-1 uppercase tracking-[0.08em] text-[var(--text3)]">
+    <label className="grid gap-1.5 font-sans text-caption">
+      <span className="inline-flex items-center gap-1 font-mono text-micro uppercase tracking-wider text-text3">
         {label}
         {glossaryId ? (
           <HelpTooltip glossaryId={glossaryId} topic={label} />
@@ -847,33 +779,20 @@ function readConfig(source: Source, key: string): unknown {
   }
 }
 
-function describeSourceType(type: Source["type"]): string {
-  if (type === "edgar_8k") {
-    return "Polls SEC EDGAR for 8-K filings.";
-  }
-  if (type === "mock") {
-    return "Synthetic filing-style signals for rehearsal.";
-  }
-  if (type === "prediction_event") {
-    return "Prediction-market odds and volume dislocations.";
-  }
-  return "Signal source.";
+function formatSourceType(type: Source["type"]): string {
+  if (type === "edgar_8k") return "EDGAR";
+  if (type === "mock") return "Mock";
+  if (type === "prediction_event") return "Prediction";
+  return type.replace(/_/g, " ");
 }
 
-function statusBadgeClass(status: Source["runtimeStatus"]): string {
-  if (status === "running") {
-    return "rounded-full border border-success-border bg-success-dim px-2 py-[2px] text-[11px] text-success";
-  }
-  if (status === "paused") {
-    return "rounded-full border border-warning-border bg-warning-dim px-2 py-[2px] text-[11px] text-warning";
-  }
-  if (status === "restarting") {
-    return "rounded-full border border-info-border bg-info-dim px-2 py-[2px] text-[11px] text-info";
-  }
-  if (status === "error") {
-    return "rounded-full border border-error-border bg-error-dim px-2 py-[2px] text-[11px] text-error";
-  }
-  return "rounded-full border border-[var(--border)] px-2 py-[2px] text-[11px] text-[var(--text2)]";
+function typeBadgeVariant(
+  type: Source["type"],
+): "default" | "success" | "blue" | "purple" {
+  if (type === "edgar_8k") return "blue";
+  if (type === "mock") return "purple";
+  if (type === "prediction_event") return "success";
+  return "default";
 }
 
 function formatRelative(value: string): string {
@@ -889,6 +808,6 @@ function formatRelative(value: string): string {
 }
 
 const inputClass =
-  "rounded-md border border-[var(--border)] bg-[var(--surface2)] px-2 py-2 text-[13px]";
+  "rounded-sm border border-hairline bg-surface2 px-2 py-2 font-sans text-body text-text1";
 const textareaClass =
-  "rounded-md border border-[var(--border)] bg-[var(--surface2)] px-2 py-2 text-[13px]";
+  "w-full rounded-sm border border-hairline bg-surface2 px-2 py-2 font-sans text-body text-text1";

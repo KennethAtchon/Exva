@@ -133,18 +133,10 @@ const BrokerSettingsPanel = ({
       </div>
     </div>
     <div className="flex justify-end gap-2">
-      <Button
-        variant="outline"
-        className="border-border bg-[var(--surface2)] text-[var(--text2)]"
-        onClick={onReset}
-      >
+      <Button variant="secondary" size="sm" onClick={onReset}>
         Reset
       </Button>
-      <Button
-        className="bg-[var(--accent)] text-white"
-        disabled={isSaving}
-        onClick={onSave}
-      >
+      <Button variant="primary" size="sm" disabled={isSaving} onClick={onSave}>
         {isSaving ? "Saving..." : "Save"}
       </Button>
     </div>
@@ -191,76 +183,56 @@ const BrokerCard = ({
     (broker.brokerType === "polymarket" || broker.brokerType === "kraken");
 
   return (
-    <Card className="p-5">
-      <div className="grid gap-3.5">
-        {/* Header row */}
-        <div className="flex flex-wrap items-start justify-between gap-3.5">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="text-[18px] font-bold text-[var(--text1)]">
-                {broker.name}
-              </div>
-              <Badge variant="default">{broker.brokerType}</Badge>
-              {broker.sessions.length > 1 ? (
-                <Badge variant="warn">
-                  Shared · {broker.sessions.length} sessions
-                </Badge>
-              ) : null}
-              {broker.atSessionCap ? (
-                <Badge variant="danger">At capacity</Badge>
-              ) : null}
-              {broker.isOverAllocated ? (
-                <Badge variant="danger">Over-allocated</Badge>
-              ) : null}
-              {broker.isStale ? (
-                <Badge variant="warn">Stale balance</Badge>
-              ) : null}
-              <HelpTooltip glossaryId="broker-connection-health" />
-            </div>
-            <div className="mt-2 text-[12px] text-[var(--text3)]">
-              Balance{" "}
-              {broker.balanceCacheUsd != null
-                ? fmt.usd(broker.balanceCacheUsd)
-                : "—"}
-              {broker.balanceCachedAt
-                ? ` · updated ${formatIsoDateTime(broker.balanceCachedAt)}`
-                : ""}
-              <HelpTooltip
-                topic="Broker balance"
-                body="Balances are cached snapshots from the broker. Free capital is what is currently available for new session allocation. Ghost venues (Polymarket, Kraken paper) use a persisted paper balance you can reset."
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              className="border-border bg-[var(--surface2)] text-[var(--text2)]"
-              onClick={onRefresh}
-            >
-              Refresh
-            </Button>
-            {showPaperReset && onResetPaperBalance ? (
-              <Button
-                variant="outline"
-                className="border-border bg-[var(--surface2)] text-[var(--text2)]"
-                onClick={onResetPaperBalance}
-              >
-                Reset paper balance
-              </Button>
+    <div className={brokerRowCardClass}>
+      <div className={brokerRowHeaderClass}>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className={brokerRowTitleClass}>{broker.name}</div>
+            <Badge variant="default">{broker.brokerType}</Badge>
+            {broker.sessions.length > 1 ? (
+              <Badge variant="warn">
+                Shared · {broker.sessions.length} sessions
+              </Badge>
             ) : null}
-            <Button
-              variant="outline"
-              className="border-border bg-[var(--surface2)] text-[var(--text2)]"
-              onClick={onToggleExpand}
-            >
-              {isExpanded ? "Hide Settings" : "Settings"}
-            </Button>
+            {broker.atSessionCap ? (
+              <Badge variant="danger">At capacity</Badge>
+            ) : null}
+            {broker.isOverAllocated ? (
+              <Badge variant="danger">Over-allocated</Badge>
+            ) : null}
+            {broker.isStale ? (
+              <Badge variant="warn">Stale balance</Badge>
+            ) : null}
+            <HelpTooltip glossaryId="broker-connection-health" />
+          </div>
+          <div className={brokerRowMetaClass}>
+            Balance{" "}
+            {broker.balanceCacheUsd != null
+              ? fmt.usd(broker.balanceCacheUsd)
+              : "—"}
+            {broker.balanceCachedAt
+              ? ` · updated ${formatIsoDateTime(broker.balanceCachedAt)}`
+              : ""}
           </div>
         </div>
+        <div className={brokerRowActionsClass}>
+          <Button variant="secondary" size="sm" onClick={onRefresh}>
+            Refresh
+          </Button>
+          {showPaperReset && onResetPaperBalance ? (
+            <Button variant="secondary" size="sm" onClick={onResetPaperBalance}>
+              Reset paper balance
+            </Button>
+          ) : null}
+          <Button variant="secondary" size="sm" onClick={onToggleExpand}>
+            {isExpanded ? "Hide settings" : "Settings"}
+          </Button>
+        </div>
+      </div>
 
-        {/* Allocation bar */}
+      <div className="grid gap-3 px-4 py-3.5">
         <div className="grid gap-2">
-          <div className="flex justify-between text-[12px] text-[var(--text3)]">
+          <div className="flex justify-between font-mono text-caption text-text3">
             <span>Allocated {fmt.usd(broker.totalAllocatedUsd)}</span>
             <span>
               Free{" "}
@@ -269,16 +241,16 @@ const BrokerCard = ({
                 : "—"}
             </span>
           </div>
-          <div className="h-2.5 overflow-hidden rounded-full bg-[var(--surface3)]">
+          <div className="h-2 overflow-hidden rounded-sm bg-surface3">
             <div
               className={cn(
-                "h-full rounded-full",
-                broker.isOverAllocated ? "bg-error" : "bg-[var(--accent)]",
+                "h-full rounded-sm",
+                broker.isOverAllocated ? "bg-error" : "bg-primary",
               )}
               style={{ width: `${allocationPct}%` }}
             />
           </div>
-          <div className="flex justify-between text-[12px] text-[var(--text3)]">
+          <div className="flex justify-between font-mono text-caption text-text3">
             <span>
               {broker.activeSessionCount} / {broker.maxSessions} active sessions
             </span>
@@ -286,29 +258,28 @@ const BrokerCard = ({
           </div>
         </div>
 
-        {/* Attached sessions */}
         <div className="grid gap-2">
-          <div className="text-[12px] uppercase tracking-[0.1em] text-[var(--text3)]">
+          <div className="font-mono text-micro uppercase tracking-wider text-text3">
             Attached sessions
           </div>
           {broker.sessions.length === 0 ? (
-            <div className="text-[12px] text-[var(--text3)]">
+            <div className="font-sans text-caption text-text3">
               No active or paused sessions are using this broker.
             </div>
           ) : (
             broker.sessions.map((session) => (
               <div key={session.sessionId} className={sessionRowClass}>
                 <div>
-                  <div className="text-[13px] font-semibold text-[var(--text1)]">
+                  <div className="font-sans text-label text-text1">
                     {session.sessionName}
                   </div>
-                  <div className="mt-0.5 text-[12px] text-[var(--text3)]">
+                  <div className="mt-0.5 font-mono text-caption text-text3">
                     {session.status} · allocated {fmt.usd(session.allocatedUsd)}
                   </div>
                 </div>
                 <Button
-                  variant="outline"
-                  className="border-border bg-[var(--surface2)] text-[var(--text2)]"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => onJumpToSession?.(session.sessionId)}
                 >
                   Jump
@@ -318,7 +289,6 @@ const BrokerCard = ({
           )}
         </div>
 
-        {/* Settings panel */}
         {isExpanded ? (
           <BrokerSettingsPanel
             brokerId={broker.id}
@@ -331,7 +301,7 @@ const BrokerCard = ({
           />
         ) : null}
       </div>
-    </Card>
+    </div>
   );
 };
 
@@ -432,23 +402,23 @@ export const BrokersPage = ({
     <div className="hub-panel-body flex flex-col gap-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
-            Broker Topology
+          <div className="font-mono text-micro uppercase tracking-wider text-text3">
+            Broker topology
           </div>
-          <h1 className="m-0 mt-2.5 text-[28px]">Brokers</h1>
-          <p className="mt-2 max-w-[700px] text-[13px] text-[var(--text3)]">
+          <h1 className="m-0 mt-2 font-sans text-title text-text1">Brokers</h1>
+          <p className="mt-2 max-w-lg font-sans text-body text-text3">
             Real broker balances, active session sharing, and per-broker
-            allocation policy now live in one place.
+            allocation policy in one place.
           </p>
         </div>
-        <Card className="min-w-[220px] p-[18px]">
-          <div className="text-[12px] uppercase tracking-[0.12em] text-[var(--text3)]">
+        <Card className="min-w-52 p-4">
+          <div className="font-mono text-micro uppercase tracking-wider text-text3">
             Tracked balance
           </div>
-          <div className="mt-1.5 text-[24px] font-bold tabular-nums text-[var(--text1)]">
+          <div className="mt-1.5 font-mono text-stat tabular-nums text-text1">
             {fmt.usd(totalBalanceUsd)}
           </div>
-          <div className="mt-1 text-[12px] text-[var(--text3)]">
+          <div className="mt-1 font-sans text-caption text-text3">
             {visibleBrokers.length} broker account
             {visibleBrokers.length === 1 ? "" : "s"}
           </div>
@@ -462,10 +432,10 @@ export const BrokersPage = ({
       ) : null}
       {!ui.loading && visibleBrokers.length === 0 ? (
         <div className={emptyStateClass}>
-          <div className="mb-2 font-medium text-[var(--text1)]">
+          <div className="mb-2 font-sans text-head text-text1">
             No {environmentMode} broker accounts configured yet
           </div>
-          <p className="mx-auto max-w-[420px] text-[13px] leading-relaxed">
+          <p className="mx-auto max-w-md font-sans text-body leading-relaxed text-text3">
             Connect brokers on the Accounts page first. Sessions need assigned
             broker accounts before they can launch.
           </p>
@@ -563,19 +533,27 @@ export const BrokersPage = ({
 };
 
 const emptyStateClass =
-  "rounded-2xl border border-dashed border-[var(--border)] p-[22px] text-center text-[var(--text3)]";
+  "rounded-sm border border-dashed border-border p-6 text-center font-sans text-body text-text3";
 
 const errorBannerClass =
-  "rounded-xl border border-error-border bg-error-dim p-3 px-3.5 text-[13px] text-error";
+  "rounded-sm border border-error-border bg-error-dim p-3 font-sans text-body text-error";
 
 const sessionRowClass =
-  "flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-3.5 py-3";
+  "flex items-center justify-between gap-3 rounded-sm border border-border bg-surface2 px-3.5 py-2.5";
 
 const settingsPanelClass =
-  "grid gap-3 rounded-[14px] border border-[var(--border)] bg-[var(--surface2)] p-3.5";
+  "grid gap-3 rounded-sm border border-border bg-surface2 p-3.5";
 
 const fieldClass = "grid gap-1.5";
 const fieldLabelClass =
-  "text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]";
+  "font-mono text-micro uppercase tracking-wider text-text3";
 const inputClass =
-  "w-full rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";
+  "h-8 w-full rounded-sm border border-border bg-surface2 px-3 font-sans text-body text-text1";
+
+const brokerRowCardClass =
+  "overflow-hidden rounded-sm border border-border bg-surface";
+const brokerRowHeaderClass =
+  "flex flex-wrap items-start justify-between gap-3 border-b border-hairline px-4 py-3.5";
+const brokerRowTitleClass = "font-sans text-head text-text1";
+const brokerRowMetaClass = "mt-1 font-mono text-caption text-text3";
+const brokerRowActionsClass = "flex shrink-0 flex-wrap gap-2";

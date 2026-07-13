@@ -64,22 +64,22 @@ export const ApprovalDetailModal = ({
 
   return (
     <Dialog open onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-[14px] border-border bg-[var(--surface)] p-6 sm:max-w-[480px]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-[14px] border-border bg-surface p-6 sm:max-w-[480px]">
         <DialogHeader className="space-y-0">
           <div className="flex items-start justify-between gap-3">
             <div>
               <DialogTitle
                 id="approval-detail-title"
-                className="text-lg text-[var(--text1)]"
+                className="text-lg text-text1"
               >
                 {approval.instrumentSymbol}
               </DialogTitle>
               {approval.instrumentDisplayName ? (
-                <p className="mt-1.5 text-[12px] text-[var(--text2)]">
+                <p className="mt-1.5 text-caption text-text2">
                   {approval.instrumentDisplayName}
                 </p>
               ) : null}
-              <p className="mt-1.5 text-[12px] text-[var(--text3)]">
+              <p className="mt-1.5 text-caption text-text3">
                 {approval.predictionOutcome
                   ? `${approval.predictionOutcome} · `
                   : ""}
@@ -97,51 +97,49 @@ export const ApprovalDetailModal = ({
         </DialogHeader>
 
         {workspaceViewMode === "global" && (
-          <p className="mt-3 text-[12px] text-[var(--text2)]">
+          <p className="mt-3 text-caption text-text2">
             Session:{" "}
-            <strong className="text-[var(--text1)]">
-              {approval.sessionName}
-            </strong>
+            <strong className="text-text1">{approval.sessionName}</strong>
           </p>
         )}
 
         <SessionHorizonSection value={summary.sessionHorizon} />
 
-        <div className="mt-4 rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] p-3">
-          <div className="mb-1.5 text-[12px] text-[var(--text3)]">
+        <div className="mt-4 rounded-sm border border-border bg-surface2 p-3">
+          <div className="mb-1.5 text-caption text-text3">
             Decision snapshot
           </div>
           {typeof summary.reasoning === "string" && (
-            <p className="text-[13px] leading-[1.5] text-[var(--text2)]">
+            <p className="text-body leading-[1.5] text-text2">
               {summary.reasoning}
             </p>
           )}
           {typeof summary.riskNote === "string" && summary.riskNote && (
-            <p className="mt-2.5 text-[12px] text-[var(--text3)]">
+            <p className="mt-2.5 text-caption text-text3">
               Risk: {String(summary.riskNote)}
             </p>
           )}
         </div>
 
         {showRecheckNote && (
-          <p className="mt-3.5 text-[12px] leading-[1.45] text-warning">
+          <p className="mt-3.5 text-caption leading-[1.45] text-warning">
             If this approval was created before the current session run,
             approving will re-run decision and risk checks before any order is
             sent.
           </p>
         )}
 
-        <label className="mt-3.5 block text-[12px] text-[var(--text3)]">
+        <label className="mt-3.5 block text-caption text-text3">
           Note (optional)
           <textarea
             value={note}
             onChange={(event) => setNote(event.target.value)}
             rows={2}
-            className="mt-1 block w-full resize-y rounded-lg border border-border bg-[var(--surface)] p-2 text-[13px] text-[var(--text1)]"
+            className="mt-1 block w-full resize-y rounded-lg border border-border bg-surface p-2 text-body text-text1"
           />
         </label>
 
-        {error && <p className="mt-2.5 text-[12px] text-error">{error}</p>}
+        {error && <p className="mt-2.5 text-caption text-error">{error}</p>}
 
         <div className="mt-[18px] flex justify-end gap-2.5">
           <Button
@@ -192,11 +190,11 @@ function SessionHorizonSection({ value }: { value: unknown }) {
       ? h.timeframeNotes.trim()
       : null;
   return (
-    <div className="mt-1 rounded-[10px] border border-info-border bg-info-dim p-3">
-      <div className="mb-2 text-[12px] text-[var(--text3)]">
+    <div className="mt-1 rounded-sm border border-info-border bg-info-dim p-3">
+      <div className="mb-2 text-caption text-text3">
         Session trading horizon
       </div>
-      <ul className="m-0 list-disc pl-[18px] text-[12px] leading-[1.55] text-[var(--text2)]">
+      <ul className="m-0 list-disc pl-[18px] text-caption leading-[1.55] text-text2">
         {tf ? <li>Primary timeframe: {tf}</li> : null}
         {hs ? <li>Holding style: {hs}</li> : null}
         {typeof target === "number" ? (

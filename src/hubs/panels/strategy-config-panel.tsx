@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Card, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
 import {
+  Button,
+  EmptyState,
   HelpTooltip,
+  SectionHeader,
   Switch,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
 } from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { AiPhasesSection } from "@/components/strategy/AiPhasesSection";
@@ -18,7 +17,7 @@ import {
   type UserGlobalPresetInput,
 } from "@/components/strategy/GlobalPresetComponents";
 import { ConfigHistoryDrawer } from "@/components/strategy/ConfigHistoryDrawer";
-import { api } from "@/lib/exva";
+import { api, type SessionSummary } from "@/lib/exva";
 import { assembleFullPresetDocFromSectionIds } from "@/lib/strategy-config-ui";
 import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/store/sessionStore";
@@ -55,16 +54,6 @@ import {
 import type { GlobalStrategyPreset } from "@electron/shared/presets";
 import type { UserGlobalPresetRow } from "@/lib/exva";
 
-const TABS = [
-  ["style", "Style"],
-  ["rules", "Rules"],
-  ["risk", "Risk"],
-  ["timeframe", "Timeframe"],
-  ["ai", "AI Phases"],
-];
-
-type SectionId = "style" | "rules" | "risk" | "timeframe" | "ai";
-
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 const LockedWarning = ({
@@ -80,29 +69,30 @@ const LockedWarning = ({
   setSessionStatus: (status: SessionStatus) => void;
   loadStrategy: (id: string) => Promise<void>;
 }) => (
-  <div className={warningClass}>
-    <div>
+  <div className="rounded-sm border border-warning-border bg-warning-dim px-4 py-3">
+    <p className="mb-3 font-sans text-body text-warning">
       {sessionStatus === "monitoring_only"
         ? "Session is stopping when flat — open positions remain managed until the last trade closes."
         : "Stop this session before editing its strategy or AI configuration."}
       {sessionStatus !== "monitoring_only" && focusedOpenTradeCount > 0
         ? " Open positions are active — use Stop when flat to drain safely, or Force stop to edit anyway."
         : null}
-    </div>
+    </p>
     <div className="flex flex-wrap gap-2">
       {(sessionStatus === "active" || sessionStatus === "paused") &&
       focusedOpenTradeCount > 0 ? (
         <div className="flex items-center gap-1">
-          <button
+          <Button
+            variant="warning"
+            size="sm"
             onClick={async () => {
               const next = await api.stopSession();
               setSessionStatus(next);
               await loadStrategy(focusedSessionId);
             }}
-            className={warningDrainButtonClass}
           >
             Stop when flat
-          </button>
+          </Button>
           <HelpTooltip
             topic="Stop when flat"
             body="Stops new research immediately and completes shutdown once all open trades close."
@@ -110,7 +100,9 @@ const LockedWarning = ({
         </div>
       ) : null}
       {sessionStatus === "monitoring_only" || focusedOpenTradeCount > 0 ? (
-        <button
+        <Button
+          variant="destructive"
+          size="sm"
           onClick={async () => {
             if (
               !window.confirm(
@@ -123,118 +115,124 @@ const LockedWarning = ({
             setSessionStatus(next);
             await loadStrategy(focusedSessionId);
           }}
-          className={warningForceStopButtonClass}
         >
-          Force Stop Session
-        </button>
+          Force stop session
+        </Button>
       ) : (
-        <button
+        <Button
+          variant="warning"
+          size="sm"
           onClick={async () => {
             const next = await api.stopSession();
             setSessionStatus(next);
             await loadStrategy(focusedSessionId);
           }}
-          className={warningButtonClass}
         >
-          Stop Session
-        </button>
+          Stop session
+        </Button>
       )}
     </div>
   </div>
 );
 
-const StrategyHeader = ({
+const ConfigToolbar = ({
   activeView,
   setActiveView,
-  saveState,
-  focusedSessionId,
-  saveAll,
   onOpenHistory,
+  embedded,
 }: {
   activeView: "presets" | "customize";
   setActiveView: (view: "presets" | "customize") => void;
-  saveState: "locked" | "clean" | "dirty" | "saving";
-  focusedSessionId: string;
-  saveAll: (id: string) => Promise<void>;
   onOpenHistory: () => void;
-}) => {
-  const isSaving = saveState === "saving";
-  const canSave = saveState === "dirty";
-  const showActiveSaveStyle = saveState === "dirty" || saveState === "saving";
-
-  return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  embedded?: boolean;
+}) => (
+  <div className="flex flex-wrap items-center justify-between gap-2">
+    {!embedded ? (
       <div>
-        <h1 className="m-0 text-[22px] text-[var(--text1)]">Strategy</h1>
-        <p className="m-0 mt-1 text-[13px] text-[var(--text3)]">
-          One versioned strategy document per session: research posture, trade
-          rules, risk, timeframe, and AI phase settings.
+        <h1 className="m-0 font-sans text-head text-text1">Strategy</h1>
+        <p className="m-0 mt-1 font-sans text-body text-text2">
+          One versioned strategy document per session.
         </p>
-        <div className="mt-2">
-          <HelpTooltip
-            topic="Strategy page"
-            body="Strategy is session-scoped and saved as one document with optimistic concurrency. Active and paused sessions are read-only here so runtime behavior cannot change mid-cycle."
-          />
-        </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2.5">
-        <div className={viewToggleContainerClass}>
-          <button
-            type="button"
-            onClick={() => setActiveView("presets")}
-            className={
-              activeView === "presets"
-                ? viewToggleActiveClass
-                : viewToggleInactiveClass
-            }
-          >
-            Presets
-          </button>
-          <HelpTooltip
-            topic="Presets view"
-            body="Presets apply bundled style, rules, risk, and timeframe combinations in one step from the config_presets catalog."
-          />
-          <button
-            type="button"
-            onClick={() => setActiveView("customize")}
-            className={
-              activeView === "customize"
-                ? viewToggleActiveClass
-                : viewToggleInactiveClass
-            }
-          >
-            Customize
-          </button>
-          <HelpTooltip
-            topic="Customize view"
-            body="Customize lets you edit each strategy section directly instead of applying a full preset."
-          />
-        </div>
-        <button
-          type="button"
-          onClick={onOpenHistory}
-          className={historyButtonClass}
-        >
-          Config history
-        </button>
-        <HelpTooltip glossaryId="strategy-config-history" />
-        <button
-          onClick={() => void saveAll(focusedSessionId)}
-          disabled={!canSave}
-          className={cn(
-            "rounded-[9px] border-none px-[18px] py-[9px] font-bold",
-            showActiveSaveStyle
-              ? "bg-[var(--accent)] text-[hsl(var(--primary-foreground))]"
-              : "bg-[var(--surface3)] text-[var(--text3)]",
-            canSave ? "cursor-pointer" : "cursor-not-allowed",
-          )}
-        >
-          {isSaving ? "Saving..." : "Save Changes"}
-        </button>
-      </div>
+    ) : (
+      <HelpTooltip
+        topic="Strategy config"
+        body="Strategy is session-scoped and saved as one document with optimistic concurrency."
+      />
+    )}
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        variant={activeView === "presets" ? "secondary" : "ghost"}
+        size="sm"
+        onClick={() => setActiveView("presets")}
+      >
+        Presets
+      </Button>
+      <Button
+        variant={activeView === "customize" ? "secondary" : "ghost"}
+        size="sm"
+        onClick={() => setActiveView("customize")}
+      >
+        Customize
+      </Button>
+      <Button variant="secondary" size="sm" onClick={onOpenHistory}>
+        History
+      </Button>
+      <HelpTooltip glossaryId="strategy-config-history" />
     </div>
-  );
-};
+  </div>
+);
+
+const BrokersInstrumentsSection = ({
+  session,
+}: {
+  session: SessionSummary | null;
+}) => (
+  <section className="rounded-sm border border-border bg-surface p-4">
+    <SectionHeader eyebrow="Session scope" title="Brokers & instruments" />
+    {session ? (
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Instrument scope">
+          <div className="font-sans text-body text-text1">
+            {session.instrumentScope}
+          </div>
+        </Field>
+        <Field label="Instrument classes">
+          <div className="font-sans text-body text-text1">
+            {session.instrumentClasses.join(", ") || "—"}
+          </div>
+        </Field>
+        <Field label="Brokers assigned">
+          <div className="font-sans text-body text-text1">
+            {session.brokerCount}
+          </div>
+        </Field>
+        <Field label="Capital allocated">
+          <div className="font-mono text-data text-text1">
+            ${session.totalAllocatedUsd.toLocaleString()}
+          </div>
+        </Field>
+        <Field label="Execution mode">
+          <div className="font-sans text-body text-text1">
+            {session.executionMode === "live_allowed"
+              ? "Live allowed"
+              : "Paper only"}
+          </div>
+        </Field>
+        <Field label="Signal sources">
+          <div className="font-sans text-body text-text1">
+            {session.subscribedSources.map((s) => s.name).join(", ") || "—"}
+          </div>
+        </Field>
+      </div>
+    ) : (
+      <p className="font-sans text-body text-text3">
+        Session details unavailable. Edit brokers and instruments from the
+        session modal on the Run tab.
+      </p>
+    )}
+  </section>
+);
 
 const PresetPanel = ({
   builtInGlobalPresets,
@@ -294,8 +292,10 @@ const PresetPanel = ({
 
 export const StrategyConfig = ({
   onGoToSessions,
+  embedded = false,
 }: {
   onGoToSessions?: () => void;
+  embedded?: boolean;
 }) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
@@ -313,7 +313,6 @@ export const StrategyConfig = ({
   const timeframe = useStrategyStore((state) => state.timeframe);
   const aiSettings = useStrategyStore((state) => state.aiSettings);
   const dirtyFields = useStrategyStore((state) => state.dirtyFields);
-  const activeSection = useStrategyStore((state) => state.activeSection);
   const isSaving = useStrategyStore((state) => state.isSaving);
   const pageState = useStrategyStore((state) => state.state);
   const strategyErrors = useStrategyStore((state) => state.strategyErrors);
@@ -342,7 +341,6 @@ export const StrategyConfig = ({
     (state) => state.applyConfigRecord,
   );
   const saveAll = useStrategyStore((state) => state.saveAll);
-  const setActiveSection = useStrategyStore((state) => state.setActiveSection);
   const configVersion = useStrategyStore((state) => state.configVersion);
 
   const [activeView, setActiveView] = useState<"presets" | "customize">(
@@ -352,6 +350,8 @@ export const StrategyConfig = ({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [focusedOpenTradeCount, setFocusedOpenTradeCount] = useState(0);
   const [sessionCapitalUsd, setSessionCapitalUsd] = useState(0);
+  const [focusedSessionSummary, setFocusedSessionSummary] =
+    useState<SessionSummary | null>(null);
   const [editingPreset, setEditingPreset] = useState<
     (UserGlobalPresetInput & { id: string }) | null
   >(null);
@@ -372,11 +372,13 @@ export const StrategyConfig = ({
     if (viewMode !== "session" || !focusedSessionId) {
       setFocusedOpenTradeCount(0);
       setSessionCapitalUsd(0);
+      setFocusedSessionSummary(null);
       return;
     }
     void (async () => {
       let nextCount = 0;
       let nextCapital = 0;
+      let nextSummary: SessionSummary | null = null;
       try {
         const result = await api.listSessions({ includeArchived: false });
         const focused = result.sessions.find(
@@ -384,12 +386,15 @@ export const StrategyConfig = ({
         );
         nextCount = focused?.openTradeCount ?? 0;
         nextCapital = focused?.totalAllocatedUsd ?? 0;
+        nextSummary = focused ?? null;
       } catch {
         nextCount = 0;
         nextCapital = 0;
+        nextSummary = null;
       }
       setFocusedOpenTradeCount(nextCount);
       setSessionCapitalUsd(nextCapital);
+      setFocusedSessionSummary(nextSummary);
     })();
   }, [focusedSessionId, viewMode, environmentMode]);
 
@@ -425,40 +430,23 @@ export const StrategyConfig = ({
 
   if (viewMode === "global" || !focusedSessionId) {
     return (
-      <div className="hub-panel-body flex flex-col gap-5">
-        <Header
-          loadWorkspaceView={loadWorkspaceView}
-          setViewMode={setViewMode}
+      <div
+        className={cn(
+          "flex flex-col gap-4 p-5",
+          !embedded && "hub-panel-body gap-5",
+        )}
+      >
+        {!embedded ? (
+          <Header
+            loadWorkspaceView={loadWorkspaceView}
+            setViewMode={setViewMode}
+          />
+        ) : null}
+        <EmptyState
+          message="Strategy configuration is session-scoped. Focus a session from the list, then return here to configure AI phases, risk limits, and strategy behavior."
+          actionLabel={onGoToSessions ? "Go to sessions" : undefined}
+          onAction={onGoToSessions}
         />
-        <div className={emptyStateClass}>
-          <div className="mb-4 text-[32px]">⚙</div>
-          <div className="mb-2 text-[16px] font-bold text-[var(--text1)]">
-            No session focused
-          </div>
-          <div className="mb-2 flex justify-center">
-            <HelpTooltip glossaryId="focus-session" />
-          </div>
-          <p className="mx-auto mb-5 max-w-[380px] text-[13px] leading-[1.65] text-[var(--text2)]">
-            Strategy configuration is session-scoped. You need to focus a
-            session first, then come back here to configure AI phases, risk
-            limits, and strategy behavior.
-          </p>
-          <div className={stepListClass}>
-            <Step n={1} text="Go to Sessions" />
-            <Step n={2} text="Find the session you want to configure" />
-            <Step n={3} text='Click "Focus" on that session' />
-            <Step n={4} text="Return here to configure strategy" />
-          </div>
-          {onGoToSessions && (
-            <button
-              type="button"
-              onClick={onGoToSessions}
-              className={goToSessionsButtonClass}
-            >
-              Go to Sessions →
-            </button>
-          )}
-        </div>
       </div>
     );
   }
@@ -466,7 +454,7 @@ export const StrategyConfig = ({
   if (!researchPosture || !rules || !riskConfig || !timeframe || !aiSettings) {
     return (
       <div className="hub-panel-body flex flex-col gap-5">
-        <div className="text-[var(--text3)]">Loading strategy…</div>
+        <div className="text-text3">Loading strategy…</div>
       </div>
     );
   }
@@ -517,8 +505,6 @@ export const StrategyConfig = ({
     loadGlobalPresets,
     setCreateModalOpen,
     setEditingPreset,
-    activeSection,
-    setActiveSection,
     aiSettings,
     updateResearchPosture,
     updateAiSettings,
@@ -538,6 +524,8 @@ export const StrategyConfig = ({
     setHistoryOpen,
     configVersion,
     applyConfigRecord,
+    embedded,
+    focusedSessionSummary,
   });
 };
 
@@ -576,8 +564,6 @@ type StrategyConfigMainViewArgs = {
   setEditingPreset: (
     preset: (UserGlobalPresetInput & { id: string }) | null,
   ) => void;
-  activeSection: SectionId;
-  setActiveSection: (section: SectionId) => void;
   aiSettings: SessionAiSettings;
   updateResearchPosture: (patch: Partial<SessionResearchPosture>) => void;
   updateAiSettings: (patch: Partial<SessionAiSettings>) => void;
@@ -605,7 +591,11 @@ type StrategyConfigMainViewArgs = {
       updatedAt: string;
     },
   ) => void;
+  embedded?: boolean;
+  focusedSessionSummary: SessionSummary | null;
 };
+
+const formGridClass = "grid gap-4 sm:grid-cols-2";
 
 const renderStrategyConfigMainView = ({
   loadWorkspaceView,
@@ -634,8 +624,6 @@ const renderStrategyConfigMainView = ({
   loadGlobalPresets,
   setCreateModalOpen,
   setEditingPreset,
-  activeSection,
-  setActiveSection,
   aiSettings,
   updateResearchPosture,
   updateAiSettings,
@@ -655,177 +643,201 @@ const renderStrategyConfigMainView = ({
   setHistoryOpen,
   configVersion,
   applyConfigRecord,
-}: StrategyConfigMainViewArgs) => (
-  <div className="hub-panel-body flex flex-col gap-5">
-    <Header loadWorkspaceView={loadWorkspaceView} setViewMode={setViewMode} />
+  embedded = false,
+  focusedSessionSummary,
+}: StrategyConfigMainViewArgs) => {
+  const canSave = hasDirty && !isLocked && !isSaving;
 
-    {strategyErrors.length > 0 && (
-      <div className={cn(warningClass, "mb-3 border-error-border text-error")}>
-        {strategyErrors.map((message) => (
-          <div key={message}>{message}</div>
-        ))}
-      </div>
-    )}
-
-    {isLocked && (
-      <LockedWarning
-        sessionStatus={sessionStatus}
-        focusedSessionId={focusedSessionId}
-        focusedOpenTradeCount={focusedOpenTradeCount}
-        setSessionStatus={setSessionStatus}
-        loadStrategy={loadStrategy}
-      />
-    )}
-
-    <StrategyHeader
-      activeView={activeView}
-      setActiveView={setActiveView}
-      saveState={
-        isSaving ? "saving" : isLocked ? "locked" : hasDirty ? "dirty" : "clean"
-      }
-      focusedSessionId={focusedSessionId}
-      saveAll={saveAll}
-      onOpenHistory={() => setHistoryOpen(true)}
-    />
-
-    <ActiveGlobalPresetIndicator preset={activeGlobalPreset} />
-
-    {activeView === "presets" && (
-      <PresetPanel
-        builtInGlobalPresets={builtInGlobalPresets}
-        userGlobalPresets={userGlobalPresets}
-        researchPosture={researchPosture}
-        rules={rules}
-        riskConfig={riskConfig}
-        timeframe={timeframe}
-        isLocked={isLocked}
-        applyGlobalPreset={applyGlobalPreset}
-        loadGlobalPresets={loadGlobalPresets}
-        setCreateModalOpen={setCreateModalOpen}
-        setEditingPreset={setEditingPreset}
-      />
-    )}
-
-    {activeView === "customize" && (
-      <Tabs
-        value={activeSection}
-        onValueChange={(v) => setActiveSection(v as SectionId)}
+  return (
+    <div
+      className={cn(
+        "relative flex min-h-0 flex-1 flex-col",
+        embedded ? "h-full" : "hub-panel-body gap-5",
+      )}
+    >
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto",
+          embedded ? "px-5 pb-20 pt-4" : "pb-24",
+          hasDirty && !isLocked && "pb-24",
+        )}
       >
-        <TabsList>
-          {TABS.map(([value, label]) => (
-            <TabsTrigger key={value} value={value}>
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        {!embedded ? (
+          <Header
+            loadWorkspaceView={loadWorkspaceView}
+            setViewMode={setViewMode}
+          />
+        ) : null}
 
-        <div className="mt-4 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(320px,1fr))]">
-          <div className="flex flex-col gap-4">
-            {TABS.map(([value]) => (
-              <TabsContent key={value} value={value}>
-                {value === "style" && (
-                  <StyleSection
-                    researchPosture={researchPosture}
-                    aiSettings={aiSettings}
-                    isLocked={isLocked}
-                    updateResearchPosture={updateResearchPosture}
-                    updateAiSettings={updateAiSettings}
-                    selectedStylePreset={selectedStylePreset}
-                    stylePreview={stylePreview}
-                  />
-                )}
-                {value === "rules" && (
-                  <RulesSection
-                    rules={rules}
-                    isLocked={isLocked}
-                    updateRules={updateRules}
-                    selectedRulesPreset={selectedRulesPreset}
-                    rulesPreview={rulesPreview}
-                  />
-                )}
-                {value === "risk" && (
-                  <RiskSection
-                    riskConfig={riskConfig}
-                    isLocked={isLocked}
-                    updateRiskConfig={updateRiskConfig}
-                    sessionCapitalUsd={sessionCapitalUsd}
-                  />
-                )}
-                {value === "timeframe" && (
-                  <TimeframeSection
-                    timeframe={timeframe}
-                    isLocked={isLocked}
-                    updateTimeframe={updateTimeframe}
-                  />
-                )}
-                {value === "ai" && (
-                  <AiPhasesSection
-                    aiPhases={aiPhases}
-                    providers={providers}
-                    isLocked={isLocked}
-                    onUpdatePhase={updateAiPhase}
-                  />
-                )}
-              </TabsContent>
+        {strategyErrors.length > 0 ? (
+          <div className="rounded-sm border border-error-border bg-error-dim px-4 py-3 font-sans text-body text-error">
+            {strategyErrors.map((message) => (
+              <div key={message}>{message}</div>
             ))}
           </div>
+        ) : null}
 
-          <div className="flex flex-col gap-4">
-            <CostSummaryCard riskConfig={riskConfig} />
+        {isLocked ? (
+          <LockedWarning
+            sessionStatus={sessionStatus}
+            focusedSessionId={focusedSessionId}
+            focusedOpenTradeCount={focusedOpenTradeCount}
+            setSessionStatus={setSessionStatus}
+            loadStrategy={loadStrategy}
+          />
+        ) : null}
+
+        <ConfigToolbar
+          activeView={activeView}
+          setActiveView={setActiveView}
+          onOpenHistory={() => setHistoryOpen(true)}
+          embedded={embedded}
+        />
+
+        <ActiveGlobalPresetIndicator preset={activeGlobalPreset} />
+
+        {activeView === "presets" ? (
+          <section className="rounded-sm border border-border bg-surface p-4">
+            <SectionHeader eyebrow="Quick apply" title="Strategy presets" />
+            <PresetPanel
+              builtInGlobalPresets={builtInGlobalPresets}
+              userGlobalPresets={userGlobalPresets}
+              researchPosture={researchPosture}
+              rules={rules}
+              riskConfig={riskConfig}
+              timeframe={timeframe}
+              isLocked={isLocked}
+              applyGlobalPreset={applyGlobalPreset}
+              loadGlobalPresets={loadGlobalPresets}
+              setCreateModalOpen={setCreateModalOpen}
+              setEditingPreset={setEditingPreset}
+            />
+          </section>
+        ) : (
+          <div className="flex flex-col gap-6">
+            <section className="rounded-sm border border-border bg-surface p-4">
+              <SectionHeader eyebrow="Research & rules" title="Strategy" />
+              <div className={cn(formGridClass, "mt-4")}>
+                <StyleSection
+                  researchPosture={researchPosture}
+                  aiSettings={aiSettings}
+                  isLocked={isLocked}
+                  updateResearchPosture={updateResearchPosture}
+                  updateAiSettings={updateAiSettings}
+                  selectedStylePreset={selectedStylePreset}
+                  stylePreview={stylePreview}
+                />
+                <RulesSection
+                  rules={rules}
+                  isLocked={isLocked}
+                  updateRules={updateRules}
+                  selectedRulesPreset={selectedRulesPreset}
+                  rulesPreview={rulesPreview}
+                />
+              </div>
+              <div className="mt-4">
+                <TimeframeSection
+                  timeframe={timeframe}
+                  isLocked={isLocked}
+                  updateTimeframe={updateTimeframe}
+                />
+              </div>
+            </section>
+
+            <section className="rounded-sm border border-border bg-surface p-4">
+              <SectionHeader eyebrow="Limits & sizing" title="Risk" />
+              <div className={cn(formGridClass, "mt-4")}>
+                <RiskSection
+                  riskConfig={riskConfig}
+                  isLocked={isLocked}
+                  updateRiskConfig={updateRiskConfig}
+                  sessionCapitalUsd={sessionCapitalUsd}
+                />
+                <CostSummaryCard riskConfig={riskConfig} />
+              </div>
+            </section>
+
+            <BrokersInstrumentsSection session={focusedSessionSummary} />
+
+            <section className="rounded-sm border border-border bg-surface p-4">
+              <SectionHeader eyebrow="Model routing" title="AI" />
+              <div className="mt-4">
+                <AiPhasesSection
+                  aiPhases={aiPhases}
+                  providers={providers}
+                  isLocked={isLocked}
+                  onUpdatePhase={updateAiPhase}
+                />
+              </div>
+            </section>
           </div>
+        )}
+      </div>
+
+      {hasDirty && !isLocked ? (
+        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 border-t border-border bg-surface px-5 py-3">
+          <span className="font-sans text-caption text-text2">
+            Unsaved strategy changes
+          </span>
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={!canSave}
+            onClick={() => void saveAll(focusedSessionId)}
+          >
+            {isSaving ? "Saving…" : "Save changes"}
+          </Button>
         </div>
-      </Tabs>
-    )}
+      ) : null}
 
-    <CreateEditGlobalPresetModal
-      open={createModalOpen}
-      onSave={async (input) => {
-        await api.saveStrategyConfigPreset({
-          name: input.name,
-          kind: "full",
-          doc: assembleFullPresetDocFromSectionIds(input) as unknown as Record<
-            string,
-            unknown
-          >,
-        });
-        await loadGlobalPresets();
-        setCreateModalOpen(false);
-      }}
-      onClose={() => setCreateModalOpen(false)}
-    />
+      <CreateEditGlobalPresetModal
+        open={createModalOpen}
+        onSave={async (input) => {
+          await api.saveStrategyConfigPreset({
+            name: input.name,
+            kind: "full",
+            doc: assembleFullPresetDocFromSectionIds(
+              input,
+            ) as unknown as Record<string, unknown>,
+          });
+          await loadGlobalPresets();
+          setCreateModalOpen(false);
+        }}
+        onClose={() => setCreateModalOpen(false)}
+      />
 
-    <CreateEditGlobalPresetModal
-      open={!!editingPreset}
-      initial={editingPreset ?? undefined}
-      onSave={async (input) => {
-        if (!editingPreset) return;
-        await api.saveStrategyConfigPreset({
-          id: editingPreset.id,
-          name: input.name,
-          kind: "full",
-          doc: assembleFullPresetDocFromSectionIds(input) as unknown as Record<
-            string,
-            unknown
-          >,
-        });
-        await loadGlobalPresets();
-        setEditingPreset(null);
-      }}
-      onClose={() => setEditingPreset(null)}
-    />
+      <CreateEditGlobalPresetModal
+        open={!!editingPreset}
+        initial={editingPreset ?? undefined}
+        onSave={async (input) => {
+          if (!editingPreset) return;
+          await api.saveStrategyConfigPreset({
+            id: editingPreset.id,
+            name: input.name,
+            kind: "full",
+            doc: assembleFullPresetDocFromSectionIds(
+              input,
+            ) as unknown as Record<string, unknown>,
+          });
+          await loadGlobalPresets();
+          setEditingPreset(null);
+        }}
+        onClose={() => setEditingPreset(null)}
+      />
 
-    <ConfigHistoryDrawer
-      open={historyOpen}
-      sessionId={focusedSessionId}
-      currentVersion={configVersion}
-      isLocked={isLocked}
-      onClose={() => setHistoryOpen(false)}
-      onRolledBack={(record) => {
-        applyConfigRecord(focusedSessionId, record);
-      }}
-    />
-  </div>
-);
+      <ConfigHistoryDrawer
+        open={historyOpen}
+        sessionId={focusedSessionId}
+        currentVersion={configVersion}
+        isLocked={isLocked}
+        onClose={() => setHistoryOpen(false)}
+        onRolledBack={(record) => {
+          applyConfigRecord(focusedSessionId, record);
+        }}
+      />
+    </div>
+  );
+};
 
 const Header = ({
   loadWorkspaceView,
@@ -854,7 +866,7 @@ const Header = ({
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   <div className="grid gap-1.5">
-    <div className="text-[12px] text-[var(--text3)]">{label}</div>
+    <div className="text-caption text-text3">{label}</div>
     {children}
   </div>
 );
@@ -968,69 +980,33 @@ function labelize(value: string): string {
     .join(" ");
 }
 
-const Step = ({ n, text }: { n: number; text: string }) => (
-  <div className="flex items-center gap-2.5">
-    <div className={stepBadgeClass}>{n}</div>
-    <span className="text-[13px] text-[var(--text2)]">{text}</span>
-  </div>
-);
-
-const stepBadgeClass =
-  "flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface3)] text-[12px] font-bold text-[var(--text2)]";
-
-const emptyStateClass =
-  "flex flex-col items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface2)] px-6 py-[60px] text-center";
-
-const stepListClass = "mb-6 grid w-full max-w-[340px] gap-2.5 text-left";
-
-const goToSessionsButtonClass =
-  "cursor-pointer rounded-[10px] border border-info-border bg-info-dim px-[22px] py-2.5 text-[13px] font-semibold text-info";
-
-const viewToggleContainerClass =
-  "flex overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface2)]";
-const viewToggleActiveClass =
-  "cursor-pointer border-none bg-[var(--surface3)] px-4 py-[7px] text-[13px] font-semibold text-[var(--text1)]";
-const viewToggleInactiveClass =
-  "cursor-pointer border-none bg-transparent px-4 py-[7px] text-[13px] font-medium text-[var(--text3)]";
-const historyButtonClass =
-  "cursor-pointer rounded-[9px] border border-[var(--border)] bg-[var(--surface2)] px-3.5 py-[9px] text-[13px] font-semibold text-[var(--text2)]";
 const briefClass =
-  "mt-3.5 whitespace-pre-wrap rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] p-3.5 text-[12px] leading-relaxed text-[var(--text2)]";
+  "mt-3.5 whitespace-pre-wrap rounded-sm border border-border bg-surface2 p-3.5 text-caption leading-relaxed text-text2";
 const inputClass =
-  "w-full rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[var(--text1)]";
+  "w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-text1";
 const textareaClass = cn(inputClass, "min-h-32 resize-y");
-const warningClass =
-  "flex items-center justify-between gap-3 rounded-[10px] border border-warning-border bg-warning-dim p-3 px-3.5 text-[12px] text-warning";
-const warningButtonClass =
-  "cursor-pointer rounded-lg border border-warning-border bg-warning-dim px-2.5 py-[7px] text-warning";
-const warningDrainButtonClass =
-  "cursor-pointer rounded-lg border border-status-orange-border bg-status-orange-dim px-2.5 py-[7px] text-status-orange";
-const warningForceStopButtonClass =
-  "cursor-pointer rounded-lg border border-error-border bg-error-dim px-2.5 py-[7px] text-error";
 const activeGlobalPresetClass =
-  "flex items-center justify-between gap-3 rounded-xl border border-info-border bg-[var(--surface2)] px-4 py-3.5";
+  "flex items-center justify-between gap-3 rounded-xl border border-info-border bg-surface2 px-4 py-3.5";
 const activeGlobalPresetEyebrowClass =
-  "text-[12px] font-bold uppercase tracking-[0.35px] text-info";
-const activeGlobalPresetLabelClass =
-  "text-[16px] font-bold text-[var(--text1)]";
+  "text-caption font-bold uppercase tracking-[0.35px] text-info";
+const activeGlobalPresetLabelClass = "text-head font-bold text-text1";
 const activeGlobalPresetDescriptionClass =
-  "text-[12px] leading-[1.55] text-[var(--text3)]";
+  "text-caption leading-[1.55] text-text3";
 const activeGlobalPresetSourceClass = (
   source: "built_in" | "user" | undefined,
 ) =>
   cn(
-    "inline-flex w-fit rounded-full px-2.5 py-1 text-[12px] font-bold tracking-[0.2px]",
+    "inline-flex w-fit rounded-full px-2.5 py-1 text-caption font-bold tracking-[0.2px]",
     source === "user"
       ? "border border-success-border bg-success-dim text-success"
       : "border border-info-border bg-info-dim text-info",
   );
 const presetSummaryClass =
-  "mt-3.5 grid gap-3 rounded-xl border border-info-border bg-[var(--surface2)] p-3.5";
+  "mt-3.5 grid gap-3 rounded-xl border border-info-border bg-surface2 p-3.5";
 const presetBadgeClass =
-  "inline-flex w-fit rounded-full border border-info-border bg-info-dim px-2.5 py-1 text-[12px] font-bold tracking-[0.2px] text-info";
-const presetThesisClass =
-  "text-[13px] font-semibold leading-[1.55] text-[var(--text1)]";
-const presetBulletClass = "text-[12px] leading-normal text-[var(--text3)]";
+  "inline-flex w-fit rounded-full border border-info-border bg-info-dim px-2.5 py-1 text-caption font-bold tracking-[0.2px] text-info";
+const presetThesisClass = "text-body font-semibold leading-[1.55] text-text1";
+const presetBulletClass = "text-caption leading-normal text-text3";
 
 // ─── Section components ───────────────────────────────────────────────────────
 
@@ -1070,7 +1046,7 @@ const StyleSection = ({
         title="AI Instructions"
         glossaryId="strategy-style-vs-instructions"
       />
-      <p className="mb-3 mt-2 text-[12px] leading-[1.55] text-[var(--text3)]">
+      <p className="mb-3 mt-2 text-caption leading-[1.55] text-text3">
         Optional guidance injected into every AI worker for this session.
         Structured risk limits and position caps on the Risk tab remain
         authoritative.
@@ -1091,7 +1067,7 @@ const StyleSection = ({
 
     <Card>
       <SectionHeading title="Research posture" glossaryId="research-focus" />
-      <p className="mb-1 mt-2 text-[12px] leading-[1.55] text-[var(--text3)]">
+      <p className="mb-1 mt-2 text-caption leading-[1.55] text-text3">
         High-level character of research. A posture preset fills these in for
         you — adjust individually only if you need a custom blend.
       </p>
@@ -1184,7 +1160,7 @@ const StyleSection = ({
 
     <Card>
       <SectionTitle>Selected Style Summary</SectionTitle>
-      <p className="mt-2 text-[12px] leading-[1.55] text-[var(--text3)]">
+      <p className="mt-2 text-caption leading-[1.55] text-text3">
         Keep style high-level here: what edge you want the AI to pursue and what
         evidence posture it should adopt.
       </p>
@@ -1218,7 +1194,7 @@ const RulesSection = ({
   <div className="flex flex-col gap-4">
     <Card>
       <SectionHeading title="Trade Rules" glossaryId="strategy-trade-rules" />
-      <p className="mb-1 mt-2 text-[12px] leading-[1.55] text-[var(--text3)]">
+      <p className="mb-1 mt-2 text-caption leading-[1.55] text-text3">
         Hard mechanics the decision flow must obey. A rules preset sets all of
         these — tweak individually for a custom setup.
       </p>
@@ -1335,7 +1311,7 @@ const RulesSection = ({
 
     <Card>
       <SectionTitle>Selected Rules Summary</SectionTitle>
-      <p className="mt-2 text-[12px] leading-[1.55] text-[var(--text3)]">
+      <p className="mt-2 text-caption leading-[1.55] text-text3">
         Rules define how trades are structured after the style identifies the
         kind of edge to pursue.
       </p>
@@ -1361,18 +1337,18 @@ const usdFormatter = new Intl.NumberFormat("en-US", {
 const formatUsd = (value: number): string => usdFormatter.format(value);
 
 const riskAffixWrapClass =
-  "flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] focus-within:border-[var(--accent)]";
-const riskAffixClass = "shrink-0 text-[13px] text-[var(--text3)]";
+  "flex items-center gap-1 rounded-lg border border-border bg-surface2 px-3 focus-within:border-accent";
+const riskAffixClass = "shrink-0 text-body text-text3";
 const riskBareInputClass =
-  "w-full border-0 bg-transparent p-0 py-[9px] text-[var(--text1)] outline-none";
+  "w-full border-0 bg-transparent p-0 py-2 text-text1 outline-none";
 const riskGroupClass =
-  "grid gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5";
+  "grid gap-3 rounded-xl border border-border bg-surface p-3.5";
 const riskGroupTitleClass =
-  "text-[11px] font-bold uppercase tracking-[0.4px] text-[var(--text2)]";
+  "text-micro font-bold uppercase tracking-[0.4px] text-text2";
 const riskGroupGridClass =
   "grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(148px,1fr))]";
 const riskChipClass =
-  "cursor-pointer rounded-full border border-[var(--border)] bg-[var(--surface2)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text2)] hover:border-[var(--accent)] hover:text-[var(--text1)]";
+  "cursor-pointer rounded-full border border-border bg-surface2 px-2.5 py-1 text-micro font-semibold text-text2 hover:border-accent hover:text-text1";
 
 // Plain-language meaning of each enum option, shown as a hint under the matching
 // select so an operator never has to guess what a value like "document_first"
@@ -1444,7 +1420,7 @@ const SelectField = ({
 }) => (
   <div className="grid content-start gap-1.5">
     <div className="flex items-center gap-1.5">
-      <span className="text-[12px] text-[var(--text3)]">{label}</span>
+      <span className="text-caption text-text3">{label}</span>
       <HelpTooltip topic={label} body={help} />
     </div>
     <ShadcnSelect
@@ -1454,9 +1430,7 @@ const SelectField = ({
       disabled={disabled}
     />
     {hint ? (
-      <span className="text-[11px] leading-tight text-[var(--text3)]">
-        {hint}
-      </span>
+      <span className="text-micro leading-tight text-text3">{hint}</span>
     ) : null}
   </div>
 );
@@ -1489,7 +1463,7 @@ const RiskField = ({
 }) => (
   <div className="grid content-start gap-1.5">
     <div className="flex items-center gap-1.5">
-      <span className="text-[12px] text-[var(--text3)]">{label}</span>
+      <span className="text-caption text-text3">{label}</span>
       <HelpTooltip topic={label} body={help} />
     </div>
     <div className={cn(riskAffixWrapClass, disabled && "opacity-60")}>
@@ -1507,8 +1481,8 @@ const RiskField = ({
     {hint ? (
       <span
         className={cn(
-          "text-[11px] leading-tight",
-          hintTone === "warn" ? "text-warning" : "text-[var(--text3)]",
+          "text-micro leading-tight",
+          hintTone === "warn" ? "text-warning" : "text-text3",
         )}
       >
         {hint}
@@ -1548,7 +1522,7 @@ const CapitalBanner = ({
 }) => {
   if (capital <= 0) {
     return (
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-3 text-[12px] leading-[1.55] text-[var(--text3)]">
+      <div className="rounded-xl border border-border bg-surface2 px-4 py-3 text-caption leading-[1.55] text-text3">
         No capital is allocated to this session yet. Assign broker capital on
         the session to size positions against a real balance — sizes here are
         still enforced, but there is nothing to compare them to.
@@ -1558,24 +1532,24 @@ const CapitalBanner = ({
   const pct = Math.round((maxPos / capital) * 100);
   const over = maxPos > capital;
   return (
-    <div className="grid gap-3 rounded-xl border border-info-border bg-[var(--surface2)] px-4 py-3.5">
+    <div className="grid gap-3 rounded-xl border border-info-border bg-surface2 px-4 py-3.5">
       <div className="flex items-baseline justify-between gap-3">
         <div className="grid gap-0.5">
-          <span className="text-[11px] font-bold uppercase tracking-[0.35px] text-info">
+          <span className="text-micro font-bold uppercase tracking-[0.35px] text-info">
             Session capital
           </span>
-          <span className="text-[18px] font-bold text-[var(--text1)]">
+          <span className="text-title font-bold text-text1">
             {formatUsd(capital)}
           </span>
         </div>
         <div className="grid gap-0.5 text-right">
-          <span className="text-[11px] font-bold uppercase tracking-[0.35px] text-[var(--text3)]">
+          <span className="text-micro font-bold uppercase tracking-[0.35px] text-text3">
             Max position
           </span>
           <span
             className={cn(
-              "text-[18px] font-bold",
-              over ? "text-warning" : "text-[var(--text1)]",
+              "text-title font-bold",
+              over ? "text-warning" : "text-text1",
             )}
           >
             {pct}%
@@ -1584,9 +1558,7 @@ const CapitalBanner = ({
       </div>
       {!isLocked ? (
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-[var(--text3)]">
-            Set max position to
-          </span>
+          <span className="text-micro text-text3">Set max position to</span>
           {[0.1, 0.25, 0.5, 1].map((fraction) => (
             <button
               key={fraction}
@@ -1597,7 +1569,7 @@ const CapitalBanner = ({
               {Math.round(fraction * 100)}%
             </button>
           ))}
-          <span className="text-[11px] text-[var(--text3)]">of capital</span>
+          <span className="text-micro text-text3">of capital</span>
         </div>
       ) : null}
     </div>
@@ -1774,7 +1746,7 @@ const RiskSection = ({
             disabled={isLocked}
           />
           {stopType === "none" ? (
-            <div className="col-span-full text-[11px] leading-[1.5] text-[var(--text3)]">
+            <div className="col-span-full text-micro leading-[1.5] text-text3">
               No hard stop — exits are handled by the timeframe&apos;s hold
               window and the exit style on the Rules tab.
             </div>
@@ -1875,7 +1847,7 @@ const RiskSection = ({
             }
             disabled={isLocked}
           />
-          <div className="flex items-start gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface2)] p-2.5">
+          <div className="flex items-start gap-2.5 rounded-lg border border-border bg-surface2 p-2.5">
             <Switch
               checked={riskConfig.humanApprovalRequired}
               onCheckedChange={(checked) =>
@@ -1884,10 +1856,10 @@ const RiskSection = ({
               disabled={isLocked}
             />
             <div className="grid gap-0.5">
-              <span className="text-[13px] font-medium text-[var(--text1)]">
+              <span className="text-body font-medium text-text1">
                 Require human approval
               </span>
-              <span className="text-[11px] leading-[1.45] text-[var(--text3)]">
+              <span className="text-micro leading-[1.45] text-text3">
                 Every trade waits in the approval queue for you before it
                 executes.
               </span>
@@ -1920,7 +1892,7 @@ const TimeframeSection = ({
           title="Timeframe Preset"
           glossaryId="strategy-timeframe"
         />
-        <p className="mb-1 mt-2 text-[12px] leading-[1.55] text-[var(--text3)]">
+        <p className="mb-1 mt-2 text-caption leading-[1.55] text-text3">
           How long trades are meant to be held and which bar size the AI
           analyzes on. A preset sets the bars and hold window for you.
         </p>

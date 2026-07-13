@@ -6,8 +6,25 @@ import {
   useReducer,
   useRef,
 } from "react";
-import { Badge, Card, ShadcnSelect } from "@/components/custom-ui";
-import { Button, Checkbox, HelpTooltip } from "@/components/ui";
+import { Badge, Dot, ShadcnSelect } from "@/components/custom-ui";
+import {
+  Button,
+  Checkbox,
+  EmptyState,
+  HelpTooltip,
+  Input,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui";
+import {
+  SessionExecutionProgress,
+  deriveProgress,
+  type SessionProgressState,
+} from "@/components/sessions/SessionExecutionProgress";
+import { TradesPage } from "./trades-panel";
+import { StrategyConfig } from "./strategy-config-panel";
 import {
   api,
   listenEvent,
@@ -19,12 +36,7 @@ import { MOCK_REHEARSAL_SIGNAL_SOURCE_ID } from "@electron/shared/instruments/mo
 import { CreateEditSessionModal } from "@/components/sessions/CreateEditSessionModal";
 import { LiveReadinessModal } from "@/components/sessions/LiveReadinessModal";
 import { SessionDetailDrawer } from "@/components/sessions/SessionDetailDrawer";
-import { SessionTable } from "@/components/sessions/SessionTable";
 import { SessionTemplatesModal } from "@/components/sessions/SessionTemplatesModal";
-import {
-  deriveProgress,
-  type SessionProgressState,
-} from "@/components/sessions/SessionExecutionProgress";
 import { cn } from "@/lib/utils";
 import { SESSION_STATUS_HELP_IDS } from "@/lib/help-glossary";
 import { useWorkspaceStore } from "@/store/workspaceStore";
@@ -158,39 +170,23 @@ const executeLifecycleAction = async ({
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-const SessionFilters = ({
-  search,
+type SessionsTab = "run" | "trades" | "config";
+
+const SessionListFilters = ({
   statusFilter,
-  instrumentFilter,
-  includeArchived,
-  onSearchChange,
   onStatusChange,
-  onInstrumentChange,
-  onIncludeArchivedChange,
 }: {
-  search: string;
   statusFilter: SessionStatus | "all";
-  instrumentFilter: InstrumentClass | "all";
-  includeArchived: boolean;
-  onSearchChange: (value: string) => void;
   onStatusChange: (value: SessionStatus | "all") => void;
-  onInstrumentChange: (value: InstrumentClass | "all") => void;
-  onIncludeArchivedChange: (checked: boolean) => Promise<void>;
 }) => (
-  <div className={toolbarClass}>
-    <input
-      value={search}
-      onChange={(event) => onSearchChange(event.target.value)}
-      placeholder="Search by name or objective"
-      className={cn(inputClass, "flex-1")}
-    />
+  <div className="border-t border-border px-3 py-2">
     <HelpTooltip glossaryId="status-filter">
       <ShadcnSelect
         value={statusFilter}
         onValueChange={(value) =>
           onStatusChange(value as SessionStatus | "all")
         }
-        className="w-[180px]"
+        className="w-full"
         options={[
           { value: "all", label: "All statuses" },
           { value: "draft", label: "Draft" },
@@ -204,32 +200,71 @@ const SessionFilters = ({
         ]}
       />
     </HelpTooltip>
-    <HelpTooltip glossaryId="instrument-class">
-      <ShadcnSelect
-        value={instrumentFilter}
-        onValueChange={(value) =>
-          onInstrumentChange(value as InstrumentClass | "all")
-        }
-        className="w-[180px]"
-        options={[
-          { value: "all", label: "All instruments" },
-          { value: "stock", label: "Stocks" },
-          { value: "crypto", label: "Crypto" },
-          { value: "futures", label: "Futures" },
-        ]}
-      />
-    </HelpTooltip>
-    <div className="flex items-center gap-2 whitespace-nowrap text-[12px] text-[var(--text2)]">
-      <Checkbox
-        checked={includeArchived}
-        onCheckedChange={(checked) =>
-          void onIncludeArchivedChange(checked === true)
-        }
-      />
-      Include archived
-    </div>
   </div>
 );
+
+const SessionListCard = ({
+  session,
+  progressPct,
+  onSelect,
+}: {
+  session: SessionSummary;
+  progressPct: number | null;
+  onSelect: (id: string) => void;
+}) => {
+  const isActive = session.status === "active";
+  const envLabel = session.executionMode === "live_allowed" ? "live" : "paper";
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(session.id)}
+      className={cn(
+        "w-full rounded-sm border px-3 py-2.5 text-left transition-colors duration-hover",
+        session.isFocused
+          ? "border-info-border bg-info-dim"
+          : "border-border bg-surface hover:bg-surface2",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate font-sans text-label text-text1">
+          {session.name}
+        </span>
+        <Dot
+          color={
+            isActive
+              ? "var(--color-success)"
+              : session.status === "attention_required"
+                ? "var(--color-error)"
+                : "var(--text3)"
+          }
+          pulse={isActive}
+          size={6}
+        />
+      </div>
+      <div className="mt-1 flex items-center gap-2 font-mono text-micro text-text3">
+        <span className="uppercase">{envLabel}</span>
+        <span>·</span>
+        <span>{session.openTradeCount} open</span>
+      </div>
+      <div className="mt-2 flex h-3 items-end gap-0.5">
+        {[0.25, 0.45, 0.65, 0.85].map((height, index) => (
+          <span
+            key={index}
+            className={cn(
+              "w-2 rounded-sm bg-surface3",
+              isActive && "bg-success/40",
+              session.isFocused && isActive && "bg-success/60",
+            )}
+            style={{
+              height: `${Math.round(height * (progressPct != null ? Math.max(0.35, progressPct / 100) : 1) * 12)}px`,
+            }}
+          />
+        ))}
+      </div>
+    </button>
+  );
+};
 
 const SessionFocusPanel = ({
   focusedSession,
@@ -247,7 +282,7 @@ const SessionFocusPanel = ({
   if (!focusedSession) return null;
   const { status, openTradeCount } = focusedSession;
   return (
-    <div className="flex flex-wrap justify-end gap-2">
+    <div className="flex flex-wrap gap-2">
       {status === "draft" || status === "idle" || status === "stopped" ? (
         <HelpTooltip
           topic="Start session"
@@ -258,12 +293,9 @@ const SessionFocusPanel = ({
           }
         >
           <Button
-            variant="ghost"
+            variant="primary"
+            size="sm"
             onClick={() => onLifecycleAction(focusedSession, "start")}
-            className={cn(
-              primaryButtonClass,
-              aiReady === false && disabledStartClass,
-            )}
             disabled={
               actionSessionId === focusedSession.id || aiReady === false
             }
@@ -278,9 +310,9 @@ const SessionFocusPanel = ({
           body="Pause stops new research but keeps exits and open-position monitoring active."
         >
           <Button
-            variant="outline"
+            variant="warning"
+            size="sm"
             onClick={() => onLifecycleAction(focusedSession, "pause")}
-            className={secondaryButtonClass}
             disabled={actionSessionId === focusedSession.id}
           >
             Pause
@@ -290,9 +322,9 @@ const SessionFocusPanel = ({
       {status === "paused" ? (
         <HelpTooltip glossaryId="resume-session">
           <Button
-            variant="ghost"
+            variant="primary"
+            size="sm"
             onClick={() => onLifecycleAction(focusedSession, "resume")}
-            className={primaryButtonClass}
             disabled={actionSessionId === focusedSession.id}
           >
             Resume
@@ -300,7 +332,7 @@ const SessionFocusPanel = ({
         </HelpTooltip>
       ) : null}
       {status === "monitoring_only" ? (
-        <div className={drainBannerClass}>
+        <div className="w-full rounded-sm border border-warning-border bg-warning-dim px-3 py-2 font-sans text-caption text-warning">
           Stopping when flat: managing {openTradeCount} open trade
           {openTradeCount === 1 ? "" : "s"}. Session stops automatically once
           flat.
@@ -308,9 +340,9 @@ const SessionFocusPanel = ({
       ) : null}
       {(status === "active" || status === "paused") && openTradeCount === 0 ? (
         <Button
-          variant="ghost"
+          variant="destructive"
+          size="sm"
           onClick={() => onLifecycleAction(focusedSession, "stop")}
-          className={dangerButtonClass}
           disabled={actionSessionId === focusedSession.id}
         >
           Stop
@@ -319,9 +351,9 @@ const SessionFocusPanel = ({
       {(status === "active" || status === "paused") && openTradeCount > 0 ? (
         <HelpTooltip topic="Stop when flat" glossaryId="stop-when-flat">
           <Button
-            variant="ghost"
+            variant="warning"
+            size="sm"
             onClick={() => onLifecycleAction(focusedSession, "stop")}
-            className={stopWhenFlatButtonClass}
             disabled={actionSessionId === focusedSession.id}
           >
             Stop when flat
@@ -334,17 +366,17 @@ const SessionFocusPanel = ({
       openTradeCount > 0 ? (
         <HelpTooltip glossaryId="force-stop">
           <Button
-            variant="ghost"
+            variant="destructive"
+            size="sm"
             onClick={() => onLifecycleAction(focusedSession, "forceStop")}
-            className={forceStopButtonClass}
             disabled={actionSessionId === focusedSession.id}
           >
-            Force stop (loses trade management)
+            Force stop
           </Button>
         </HelpTooltip>
       ) : null}
       {status === "stopped" && openTradeCount > 0 ? (
-        <div className={orphanWarningClass}>
+        <div className="w-full rounded-sm border border-warning-border bg-warning-dim px-3 py-2 font-sans text-caption text-warning">
           Stopped with {openTradeCount} open trade
           {openTradeCount === 1 ? "" : "s"}, no automated exits will fire.
           Restart to resume monitoring.
@@ -352,36 +384,87 @@ const SessionFocusPanel = ({
       ) : null}
       {(status === "draft" || status === "idle" || status === "stopped") &&
       onGoToStrategy ? (
-        <div className={strategyNudgeBannerClass}>
-          <span className="text-[12px] text-[var(--text2)]">
-            Configure AI phases, risk limits, and strategy before starting.
+        <div className="flex w-full items-center justify-between gap-2 rounded-sm border border-info-border bg-info-dim px-3 py-2">
+          <span className="font-sans text-caption text-text2">
+            Configure strategy before starting.
           </span>
-          <button
-            type="button"
-            onClick={onGoToStrategy}
-            className={strategyNudgeButtonClass}
-          >
-            Open Strategy →
-          </button>
+          <Button variant="secondary" size="sm" onClick={onGoToStrategy}>
+            Open config
+          </Button>
         </div>
       ) : null}
     </div>
   );
 };
 
-export const SessionsPage = ({
-  initialStatusFilter = "all",
-  onInitialStatusFilterApplied,
-  onGoToStrategy,
-  onGoToAccounts,
-  onViewTrace,
+const FocusedSessionHeader = ({
+  session,
+  viewMode,
 }: {
+  session: SessionSummary | null;
+  viewMode: string;
+}) => {
+  if (!session) {
+    return (
+      <div className="border-b border-border px-5 py-4">
+        <div className="font-sans text-head text-text1">Global workspace</div>
+        <p className="mt-1 mb-0 font-sans text-body text-text2">
+          Select a session from the list to focus runtime controls.
+        </p>
+      </div>
+    );
+  }
+
+  const envVariant =
+    session.executionMode === "live_allowed" ? "success" : "warn";
+
+  return (
+    <div className="border-b border-border px-5 py-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="m-0 font-sans text-head text-text1">{session.name}</h2>
+        <Badge variant={envVariant}>
+          {session.executionMode === "live_allowed" ? "LIVE" : "PAPER"}
+        </Badge>
+        <HelpTooltip
+          glossaryId={SESSION_STATUS_HELP_IDS[session.status]}
+          topic={`${session.name} status`}
+        >
+          <Badge variant={statusVariant(session.status)}>
+            {formatSessionStatusLabel(session.status)}
+          </Badge>
+        </HelpTooltip>
+        {viewMode === "global" ? (
+          <Badge variant="purple">global view</Badge>
+        ) : null}
+      </div>
+      {session.objective ? (
+        <p className="mt-1 mb-0 max-w-2xl font-sans text-body text-text2">
+          {session.objective}
+        </p>
+      ) : null}
+    </div>
+  );
+};
+
+export type SessionsMasterDetailProps = {
+  tab: SessionsTab;
+  onTabChange: (tab: SessionsTab) => void;
   initialStatusFilter?: SessionStatus | "all";
   onInitialStatusFilterApplied?: () => void;
-  onGoToStrategy?: () => void;
   onGoToAccounts?: () => void;
   onViewTrace?: (sessionId: string, cycleId: string, stage: string) => void;
-}) => {
+  onViewAutopsy?: (tradeId: string) => void;
+};
+
+export const SessionsMasterDetail = ({
+  tab,
+  onTabChange,
+  initialStatusFilter = "all",
+  onInitialStatusFilterApplied,
+  onGoToAccounts,
+  onViewTrace,
+  onViewAutopsy,
+}: SessionsMasterDetailProps) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
   const preferences = useWorkspaceStore((state) => state.preferences);
@@ -650,134 +733,144 @@ export const SessionsPage = ({
     [dispatchData, dispatchUi, load],
   );
 
-  return renderSessionsPageView({
-    viewMode,
-    focusedSession,
-    data,
-    activeCount,
-    pausedCount,
-    openTrades,
-    aiReady,
-    onGoToStrategy,
-    runLifecycleAction,
-    filters,
-    preferences,
-    dispatchFilters,
-    dispatchData,
-    loadWorkspaceView,
-    refreshProgress,
-    onViewTrace,
-    dispatchUi,
-    load,
-    onGoToAccounts,
-    ui,
-    environmentMode,
-    onDebugForceTrade: handleDebugForceTrade,
-  });
-};
+  const handleFocusSession = useCallback(
+    async (id: string) => {
+      dispatchData({ error: null });
+      try {
+        await api.focusSession(id);
+        await load();
+      } catch (focusError) {
+        dispatchData({
+          error:
+            focusError instanceof Error
+              ? focusError.message
+              : "Failed to focus session.",
+        });
+      }
+    },
+    [load],
+  );
 
-type RenderSessionsPageViewArgs = {
-  viewMode: string;
-  focusedSession: SessionSummary | null;
-  data: DataState;
-  activeCount: number;
-  pausedCount: number;
-  openTrades: number;
-  aiReady: boolean | null | undefined;
-  onGoToStrategy?: () => void;
-  runLifecycleAction: (
-    session: SessionSummary,
-    action: LifecycleAction,
-  ) => Promise<void>;
-  filters: FiltersState;
-  preferences: { globalIncludeArchived?: boolean } | null | undefined;
-  dispatchFilters: (patch: Partial<FiltersState>) => void;
-  dispatchData: (patch: Partial<DataState>) => void;
-  loadWorkspaceView: () => Promise<void>;
-  refreshProgress: (sessionId: string) => Promise<void>;
-  onViewTrace?: (sessionId: string, cycleId: string, stage: string) => void;
-  dispatchUi: (patch: Partial<UiState>) => void;
-  load: () => Promise<void>;
-  onGoToAccounts?: () => void;
-  ui: UiState;
-  environmentMode: string;
-  onDebugForceTrade: (session: SessionSummary) => Promise<void>;
-};
+  const filteredSessions = useMemo(() => {
+    const query = filters.search.trim().toLowerCase();
+    return data.sessions.filter((session) => {
+      if (query) {
+        const haystack = `${session.name} ${session.objective}`.toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      if (
+        filters.instrumentFilter !== "all" &&
+        !session.instrumentClasses.includes(filters.instrumentFilter)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [data.sessions, filters.instrumentFilter, filters.search]);
 
-const renderSessionsPageView = ({
-  viewMode,
-  focusedSession,
-  data,
-  activeCount,
-  pausedCount,
-  openTrades,
-  aiReady,
-  onGoToStrategy,
-  runLifecycleAction,
-  filters,
-  preferences,
-  dispatchFilters,
-  dispatchData,
-  loadWorkspaceView,
-  refreshProgress,
-  onViewTrace,
-  dispatchUi,
-  load,
-  onGoToAccounts,
-  ui,
-  environmentMode,
-  onDebugForceTrade,
-}: RenderSessionsPageViewArgs) => (
-  <div className="hub-panel-body flex flex-col gap-5">
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
-          Workspace Sessions
+  const runTabSession = focusedSession;
+
+  return (
+    <div className="flex h-full min-h-0">
+      <aside className="flex w-[300px] shrink-0 flex-col border-r border-border bg-surface">
+        <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+          <span className="font-mono text-micro uppercase tracking-wider text-text3">
+            Sessions
+          </span>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                dispatchUi({
+                  templateSourceSession: focusedSession,
+                  templatesOpen: true,
+                });
+              }}
+            >
+              Templates
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                dispatchData({ error: null });
+                try {
+                  await api.goGlobal();
+                  await load();
+                } catch (goGlobalError) {
+                  dispatchData({
+                    error:
+                      goGlobalError instanceof Error
+                        ? goGlobalError.message
+                        : "Failed to switch to global mode.",
+                  });
+                }
+              }}
+              disabled={
+                data.sessions.filter((session) => session.status !== "archived")
+                  .length === 0 || viewMode === "global"
+              }
+            >
+              Global
+            </Button>
+          </div>
         </div>
-        <h1 className="m-0 mt-2.5 text-[28px]">Sessions</h1>
-        <p className="mt-2 max-w-[640px] text-[13px] text-[var(--text3)]">
-          Focus a live trading context, tune its boundary, and turn working
-          configurations into reusable templates.
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          onClick={() => {
-            dispatchUi({
-              templateSourceSession: focusedSession,
-              templatesOpen: true,
-            });
-          }}
-          variant="outline"
-          className={secondaryButtonClass}
-        >
-          Templates
-        </Button>
-        <Button
-          onClick={async () => {
-            dispatchData({ error: null });
-            try {
-              await api.goGlobal();
-              await load();
-            } catch (goGlobalError) {
-              dispatchData({
-                error:
-                  goGlobalError instanceof Error
-                    ? goGlobalError.message
-                    : "Failed to switch to global mode.",
-              });
+
+        <div className="border-b border-border px-3 py-2">
+          <Input
+            value={filters.search}
+            onChange={(event) =>
+              dispatchFilters({ search: event.target.value })
             }
-          }}
-          variant="outline"
-          className={secondaryButtonClass}
-          disabled={
-            data.sessions.filter((session) => session.status !== "archived")
-              .length === 0 || viewMode === "global"
-          }
-        >
-          Go Global
-        </Button>
+            placeholder="Search sessions"
+          />
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
+          {data.loading ? (
+            <p className="px-1 py-4 font-sans text-body text-text3">
+              Loading sessions…
+            </p>
+          ) : null}
+          {!data.loading && filteredSessions.length === 0 ? (
+            <EmptyState
+              message={
+                filters.search ||
+                filters.statusFilter !== "all" ||
+                filters.instrumentFilter !== "all"
+                  ? "No sessions matched the current filters."
+                  : "No sessions yet. Create one to start paper trading."
+              }
+              actionLabel="New session"
+              onAction={() => {
+                dispatchUi({
+                  editing: null,
+                  templateInput: null,
+                  templateWarnings: [],
+                  modalOpen: true,
+                });
+              }}
+              className="border-0 bg-transparent p-2"
+            />
+          ) : null}
+          <div className="grid gap-2">
+            {filteredSessions.map((session) => (
+              <SessionListCard
+                key={session.id}
+                session={session}
+                progressPct={
+                  data.progressBySessionId[session.id]?.progressPct ?? null
+                }
+                onSelect={(id) => void handleFocusSession(id)}
+              />
+            ))}
+          </div>
+        </div>
+
         <Button
+          variant="secondary"
+          className="mx-3 mb-2"
           onClick={() => {
             dispatchUi({
               editing: null,
@@ -786,343 +879,419 @@ const renderSessionsPageView = ({
               modalOpen: true,
             });
           }}
-          variant="ghost"
-          className={primaryButtonClass}
         >
-          New Session
+          + New session
         </Button>
-      </div>
-    </div>
 
-    {data.error ? <div className={errorBannerClass}>{data.error}</div> : null}
-    {data.notice ? (
-      <div className={noticeBannerClass}>{data.notice}</div>
-    ) : null}
+        <SessionListFilters
+          statusFilter={filters.statusFilter}
+          onStatusChange={(value) => dispatchFilters({ statusFilter: value })}
+        />
 
-    <Card accent className="!p-0">
-      <div className={contextHeroClass}>
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
-              {viewMode === "global" ? "Global Workspace" : "Focused Session"}
-            </span>
-            <HelpTooltip
-              glossaryId={
-                viewMode === "global" ? "view-global" : "view-session-focused"
-              }
-            >
-              <Badge variant={viewMode === "global" ? "purple" : "blue"}>
-                {viewMode}
-              </Badge>
-            </HelpTooltip>
-            {focusedSession ? (
-              <HelpTooltip
-                glossaryId={SESSION_STATUS_HELP_IDS[focusedSession.status]}
-                topic={`${focusedSession.name} status`}
-              >
-                <Badge variant={statusVariant(focusedSession.status)}>
-                  {formatSessionStatusLabel(focusedSession.status)}
-                </Badge>
-              </HelpTooltip>
-            ) : null}
-          </div>
-          <div className="mt-2.5 text-[24px] font-bold text-[var(--text1)]">
-            {focusedSession?.name ?? "Global trade fabric"}
-          </div>
-          <div className="mt-2 max-w-[700px] text-[14px] leading-relaxed text-[var(--text2)]">
-            {focusedSession?.objective ??
-              "Aggregate the non-archived sessions, compare posture across them, and choose where the next focused cycle should run."}
-          </div>
-        </div>
-
-        <div className="grid min-w-[280px] gap-3">
-          <div className={contextMetricsClass}>
-            <HelpTooltip
-              glossaryId="session-metrics-scope"
-              triggerClassName="col-span-2 pb-1"
-            >
-              <span className="text-[11px] uppercase tracking-[0.1em] text-[var(--text3)]">
-                Metrics
-              </span>
-            </HelpTooltip>
-            <ContextMetric
-              label="sessions"
-              value={String(data.sessions.length)}
-            />
-            <ContextMetric label="active" value={String(activeCount)} />
-            <ContextMetric label="paused" value={String(pausedCount)} />
-            <ContextMetric label="open trades" value={String(openTrades)} />
-          </div>
-          <SessionFocusPanel
-            focusedSession={focusedSession}
-            actionSessionId={data.actionSessionId}
-            aiReady={aiReady}
-            onGoToStrategy={onGoToStrategy}
-            onLifecycleAction={(session, action) =>
-              void runLifecycleAction(session, action)
-            }
+        <div className="flex items-center gap-2 border-t border-border px-3 py-2">
+          <Checkbox
+            checked={preferences?.globalIncludeArchived ?? false}
+            onCheckedChange={async () => {
+              dispatchData({ error: null });
+              await loadWorkspaceView();
+            }}
           />
+          <span className="font-sans text-caption text-text2">
+            Include archived
+          </span>
         </div>
-      </div>
-    </Card>
+      </aside>
 
-    <Card>
-      <SessionFilters
-        search={filters.search}
-        statusFilter={filters.statusFilter}
-        instrumentFilter={filters.instrumentFilter}
-        includeArchived={preferences?.globalIncludeArchived ?? false}
-        onSearchChange={(value) => dispatchFilters({ search: value })}
-        onStatusChange={(value) => dispatchFilters({ statusFilter: value })}
-        onInstrumentChange={(value) =>
-          dispatchFilters({ instrumentFilter: value })
-        }
-        onIncludeArchivedChange={async () => {
-          dispatchData({ error: null });
-          await loadWorkspaceView();
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-bg">
+        {data.error ? (
+          <div className="border-b border-error-border bg-error-dim px-5 py-2 font-sans text-body text-error">
+            {data.error}
+          </div>
+        ) : null}
+        {data.notice ? (
+          <div className="border-b border-success-border bg-success-dim px-5 py-2 font-sans text-body text-success">
+            {data.notice}
+          </div>
+        ) : null}
+
+        <FocusedSessionHeader session={runTabSession} viewMode={viewMode} />
+
+        <Tabs
+          value={tab}
+          onValueChange={(value) => onTabChange(value as SessionsTab)}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <TabsList className="shrink-0 px-5">
+            <TabsTrigger value="run">Run</TabsTrigger>
+            <TabsTrigger value="trades">Trades</TabsTrigger>
+            <TabsTrigger value="config">Config</TabsTrigger>
+          </TabsList>
+
+          <TabsContent
+            value="run"
+            className="mt-0 min-h-0 flex-1 overflow-y-auto px-5 pb-5 data-[state=inactive]:hidden"
+          >
+            {!runTabSession ? (
+              <EmptyState
+                message="Select a session from the list to view pipeline trace and controls."
+                className="mt-4"
+              />
+            ) : (
+              <SessionRunTab
+                session={runTabSession}
+                aiReady={aiReady}
+                actionSessionId={data.actionSessionId}
+                progress={data.progressBySessionId[runTabSession.id] ?? null}
+                researchFailure={
+                  data.researchFailuresBySessionId[runTabSession.id] ?? null
+                }
+                onGoToConfig={() => onTabChange("config")}
+                onLifecycleAction={(session, action) =>
+                  void runLifecycleAction(session, action)
+                }
+                onRetryStep={async (sessionId, cycleId, stage) => {
+                  try {
+                    await api.retrySessionStep({ sessionId, cycleId, stage });
+                    void refreshProgress(sessionId);
+                  } catch (retryError) {
+                    dispatchData({
+                      error:
+                        retryError instanceof Error
+                          ? retryError.message
+                          : "Retry failed.",
+                    });
+                  }
+                }}
+                onViewTrace={(sessionId, cycleId, stage) => {
+                  if (onViewTrace) {
+                    onViewTrace(sessionId, cycleId, stage);
+                  } else {
+                    dispatchUi({ detail: runTabSession });
+                  }
+                }}
+                onPauseAfterStep={async (sessionId) => {
+                  try {
+                    if (
+                      !data.sessions.find((s) => s.id === sessionId)?.isFocused
+                    ) {
+                      await api.focusSession(sessionId);
+                    }
+                    await api.pauseSessionAfterCurrentStep(sessionId);
+                  } catch (pauseError) {
+                    dispatchData({
+                      error:
+                        pauseError instanceof Error
+                          ? pauseError.message
+                          : "Pause after step failed.",
+                    });
+                  }
+                }}
+                onEdit={() => {
+                  dispatchUi({
+                    editing: runTabSession,
+                    templateInput: null,
+                    templateWarnings: [],
+                    modalOpen: true,
+                  });
+                }}
+                onDuplicate={async () => {
+                  dispatchData({
+                    actionSessionId: runTabSession.id,
+                    error: null,
+                  });
+                  try {
+                    await api.duplicateSession(
+                      runTabSession.id,
+                      `${runTabSession.name} Copy`,
+                    );
+                    await load();
+                  } catch (duplicateError) {
+                    dispatchData({
+                      error:
+                        duplicateError instanceof Error
+                          ? duplicateError.message
+                          : "Failed to duplicate session.",
+                    });
+                  } finally {
+                    dispatchData({ actionSessionId: null });
+                  }
+                }}
+                onArchive={async () => {
+                  dispatchData({
+                    actionSessionId: runTabSession.id,
+                    error: null,
+                  });
+                  try {
+                    await api.archiveSession(runTabSession.id);
+                    await load();
+                  } catch (archiveError) {
+                    dispatchData({
+                      error:
+                        archiveError instanceof Error
+                          ? archiveError.message
+                          : "Failed to archive session.",
+                    });
+                  } finally {
+                    dispatchData({ actionSessionId: null });
+                  }
+                }}
+                onFireRehearsalSignal={async () => {
+                  dispatchData({
+                    actionSessionId: runTabSession.id,
+                    error: null,
+                  });
+                  try {
+                    const mockSourceId =
+                      runTabSession.subscribedSources.find(
+                        (source) => source.type === "mock",
+                      )?.id ?? MOCK_REHEARSAL_SIGNAL_SOURCE_ID;
+                    await api.testSignalSource(mockSourceId);
+                    await load();
+                  } catch (fireError) {
+                    dispatchData({
+                      error:
+                        fireError instanceof Error
+                          ? fireError.message
+                          : "Failed to fire rehearsal signal.",
+                    });
+                  } finally {
+                    dispatchData({ actionSessionId: null });
+                  }
+                }}
+                onDebugForceTrade={
+                  environmentMode === "paper"
+                    ? () => void handleDebugForceTrade(runTabSession)
+                    : undefined
+                }
+                activeCount={activeCount}
+                pausedCount={pausedCount}
+                openTrades={openTrades}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent
+            value="trades"
+            className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+          >
+            <TradesPage
+              embedded
+              onViewAutopsy={onViewAutopsy ?? (() => undefined)}
+            />
+          </TabsContent>
+
+          <TabsContent
+            value="config"
+            className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+          >
+            <StrategyConfig
+              embedded
+              onGoToSessions={() => onTabChange("run")}
+            />
+          </TabsContent>
+        </Tabs>
+      </main>
+
+      <CreateEditSessionModal
+        open={ui.modalOpen}
+        initialSession={ui.editing}
+        templateInput={ui.templateInput}
+        templateWarnings={ui.templateWarnings}
+        onOpenAccounts={onGoToAccounts}
+        onClose={() => dispatchUi({ modalOpen: false })}
+        onSubmit={async (input, sessionId) => {
+          if (sessionId) {
+            await api.updateSession(sessionId, input);
+          } else {
+            await api.createSession(input);
+          }
+          await load();
         }}
       />
-
-      {data.loading ? (
-        <div className={emptyStateClass}>Loading sessions…</div>
-      ) : null}
-      {!data.loading && data.sessions.length === 0 ? (
-        <div className={emptyStateClass}>
-          <div className="mb-2 text-[15px] font-semibold text-[var(--text1)]">
-            {filters.search ||
-            filters.statusFilter !== "all" ||
-            filters.instrumentFilter !== "all"
-              ? "No sessions matched the current filters"
-              : "No sessions yet"}
-          </div>
-          <p className="mx-auto max-w-[420px] text-[13px] leading-relaxed text-[var(--text2)]">
-            {filters.search ||
-            filters.statusFilter !== "all" ||
-            filters.instrumentFilter !== "all"
-              ? "Try clearing filters or include archived sessions."
-              : "No sessions yet → Create from an experience preset (New session), assign brokers, then start paper trading."}
-          </p>
-        </div>
-      ) : null}
-      {!data.loading && data.sessions.length > 0 ? (
-        <SessionTable
-          sessions={data.sessions}
-          busySessionId={data.actionSessionId}
-          focusedSessionAiReady={aiReady}
-          progressBySessionId={data.progressBySessionId}
-          researchFailuresBySessionId={data.researchFailuresBySessionId}
-          onRetryStep={async (sessionId, cycleId, stage) => {
-            try {
-              await api.retrySessionStep({ sessionId, cycleId, stage });
-              void refreshProgress(sessionId);
-            } catch (retryError) {
-              dispatchData({
-                error:
-                  retryError instanceof Error
-                    ? retryError.message
-                    : "Retry failed.",
-              });
-            }
-          }}
-          onViewTrace={(sessionId, cycleId, stage) => {
-            if (onViewTrace) {
-              onViewTrace(sessionId, cycleId, stage);
-            } else {
-              const match = data.sessions.find((s) => s.id === sessionId);
-              if (match) dispatchUi({ detail: match });
-            }
-          }}
-          onPauseAfterStep={async (sessionId) => {
-            try {
-              if (!data.sessions.find((s) => s.id === sessionId)?.isFocused) {
-                await api.focusSession(sessionId);
-              }
-              await api.pauseSessionAfterCurrentStep(sessionId);
-            } catch (pauseError) {
-              dispatchData({
-                error:
-                  pauseError instanceof Error
-                    ? pauseError.message
-                    : "Pause after step failed.",
-              });
-            }
-          }}
-          onFocus={async (id) => {
-            dispatchData({ error: null });
-            try {
-              await api.focusSession(id);
-              await load();
-            } catch (focusError) {
-              dispatchData({
-                error:
-                  focusError instanceof Error
-                    ? focusError.message
-                    : "Failed to focus session.",
-              });
-            }
-          }}
-          onEdit={(session) => {
+      <SessionTemplatesModal
+        open={ui.templatesOpen}
+        sourceSession={ui.templateSourceSession}
+        onClose={() => dispatchUi({ templatesOpen: false })}
+        onUseTemplate={(input, clearedFields) => {
+          dispatchUi({
+            templateInput: input,
+            templateWarnings: clearedFields,
+            editing: null,
+            modalOpen: true,
+          });
+        }}
+      />
+      {ui.liveReadinessSession && ui.liveReadinessReport ? (
+        <LiveReadinessModal
+          sessionId={ui.liveReadinessSession.id}
+          report={ui.liveReadinessReport}
+          onAcknowledged={async () => {
+            const sess = ui.liveReadinessSession;
+            if (!sess) return;
             dispatchUi({
-              editing: session,
-              templateInput: null,
-              templateWarnings: [],
-              modalOpen: true,
+              liveReadinessReport: null,
+              liveReadinessSession: null,
+            });
+            await runLifecycleAction(sess, "start");
+          }}
+          onCancel={() => {
+            dispatchUi({
+              liveReadinessReport: null,
+              liveReadinessSession: null,
             });
           }}
-          onOpen={(session) => dispatchUi({ detail: session })}
-          onDuplicate={async (session) => {
-            dispatchData({ actionSessionId: session.id, error: null });
-            try {
-              await api.duplicateSession(session.id, `${session.name} Copy`);
-              await load();
-            } catch (duplicateError) {
-              dispatchData({
-                error:
-                  duplicateError instanceof Error
-                    ? duplicateError.message
-                    : "Failed to duplicate session.",
-              });
-            } finally {
-              dispatchData({ actionSessionId: null });
-            }
-          }}
-          onArchive={async (id) => {
-            dispatchData({ actionSessionId: id, error: null });
-            try {
-              await api.archiveSession(id);
-              await load();
-            } catch (archiveError) {
-              dispatchData({
-                error:
-                  archiveError instanceof Error
-                    ? archiveError.message
-                    : "Failed to archive session.",
-              });
-            } finally {
-              dispatchData({ actionSessionId: null });
-            }
-          }}
-          onSaveTemplate={(session) => {
-            dispatchUi({
-              templateSourceSession: session,
-              templatesOpen: true,
-            });
-          }}
-          onLifecycle={(session, action) => {
-            void runLifecycleAction(session, action);
-          }}
-          onFireRehearsalSignal={async (session) => {
-            dispatchData({ actionSessionId: session.id, error: null });
-            try {
-              const mockSourceId =
-                session.subscribedSources.find(
-                  (source) => source.type === "mock",
-                )?.id ?? MOCK_REHEARSAL_SIGNAL_SOURCE_ID;
-              await api.testSignalSource(mockSourceId);
-              await load();
-            } catch (fireError) {
-              dispatchData({
-                error:
-                  fireError instanceof Error
-                    ? fireError.message
-                    : "Failed to fire rehearsal signal.",
-              });
-            } finally {
-              dispatchData({ actionSessionId: null });
-            }
-          }}
-          onDebugForceTrade={
-            environmentMode === "paper" ? onDebugForceTrade : undefined
-          }
         />
       ) : null}
-    </Card>
-
-    <CreateEditSessionModal
-      open={ui.modalOpen}
-      initialSession={ui.editing}
-      templateInput={ui.templateInput}
-      templateWarnings={ui.templateWarnings}
-      onOpenAccounts={onGoToAccounts}
-      onClose={() => dispatchUi({ modalOpen: false })}
-      onSubmit={async (input, sessionId) => {
-        if (sessionId) {
-          await api.updateSession(sessionId, input);
-        } else {
-          await api.createSession(input);
+      <SessionDetailDrawer
+        session={ui.detail}
+        onClose={() => dispatchUi({ detail: null })}
+        onFireRehearsalSignal={async (session) => {
+          dispatchData({ actionSessionId: session.id, error: null });
+          try {
+            const mockSourceId =
+              session.subscribedSources.find((source) => source.type === "mock")
+                ?.id ?? MOCK_REHEARSAL_SIGNAL_SOURCE_ID;
+            await api.testSignalSource(mockSourceId);
+            await load();
+          } catch (fireError) {
+            dispatchData({
+              error:
+                fireError instanceof Error
+                  ? fireError.message
+                  : "Failed to fire rehearsal signal.",
+            });
+          } finally {
+            dispatchData({ actionSessionId: null });
+          }
+        }}
+        onDebugForceTrade={
+          environmentMode === "paper" ? handleDebugForceTrade : undefined
         }
-        await load();
-      }}
-    />
-    <SessionTemplatesModal
-      open={ui.templatesOpen}
-      sourceSession={ui.templateSourceSession}
-      onClose={() => dispatchUi({ templatesOpen: false })}
-      onUseTemplate={(input, clearedFields) => {
-        dispatchUi({
-          templateInput: input,
-          templateWarnings: clearedFields,
-          editing: null,
-          modalOpen: true,
-        });
-      }}
-    />
-    {ui.liveReadinessSession && ui.liveReadinessReport ? (
-      <LiveReadinessModal
-        sessionId={ui.liveReadinessSession.id}
-        report={ui.liveReadinessReport}
-        onAcknowledged={async () => {
-          const sess = ui.liveReadinessSession;
-          if (!sess) return;
-          dispatchUi({
-            liveReadinessReport: null,
-            liveReadinessSession: null,
-          });
-          await runLifecycleAction(sess, "start");
-        }}
-        onCancel={() => {
-          dispatchUi({
-            liveReadinessReport: null,
-            liveReadinessSession: null,
-          });
-        }}
       />
-    ) : null}
-    <SessionDetailDrawer
-      session={ui.detail}
-      onClose={() => dispatchUi({ detail: null })}
-      onFireRehearsalSignal={async (session) => {
-        dispatchData({ actionSessionId: session.id, error: null });
-        try {
-          const mockSourceId =
-            session.subscribedSources.find((source) => source.type === "mock")
-              ?.id ?? MOCK_REHEARSAL_SIGNAL_SOURCE_ID;
-          await api.testSignalSource(mockSourceId);
-          await load();
-        } catch (fireError) {
-          dispatchData({
-            error:
-              fireError instanceof Error
-                ? fireError.message
-                : "Failed to fire rehearsal signal.",
-          });
-        } finally {
-          dispatchData({ actionSessionId: null });
-        }
-      }}
-      onDebugForceTrade={
-        environmentMode === "paper" ? onDebugForceTrade : undefined
-      }
+    </div>
+  );
+};
+
+const SessionRunTab = ({
+  session,
+  aiReady,
+  actionSessionId,
+  progress,
+  researchFailure,
+  onGoToConfig,
+  onLifecycleAction,
+  onRetryStep,
+  onViewTrace,
+  onPauseAfterStep,
+  onEdit,
+  onDuplicate,
+  onArchive,
+  onFireRehearsalSignal,
+  onDebugForceTrade,
+  activeCount,
+  pausedCount,
+  openTrades,
+}: {
+  session: SessionSummary;
+  aiReady: boolean | null | undefined;
+  actionSessionId: string | null;
+  progress: SessionProgressState | null;
+  researchFailure: { phase: string; error: string; at: string } | null;
+  onGoToConfig: () => void;
+  onLifecycleAction: (session: SessionSummary, action: LifecycleAction) => void;
+  onRetryStep: (
+    sessionId: string,
+    cycleId: string,
+    stage: import("@/lib/types").ExecutionStage,
+  ) => void;
+  onViewTrace: (
+    sessionId: string,
+    cycleId: string,
+    stage: import("@/lib/types").ExecutionStage,
+  ) => void;
+  onPauseAfterStep: (sessionId: string) => void;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onArchive: () => void;
+  onFireRehearsalSignal: () => void;
+  onDebugForceTrade?: () => void;
+  activeCount: number;
+  pausedCount: number;
+  openTrades: number;
+}) => (
+  <div className="mt-4 flex flex-col gap-4">
+    <div className="grid gap-3 rounded-sm border border-border bg-surface2 p-4 sm:grid-cols-4">
+      <RunMetric label="Active" value={String(activeCount)} />
+      <RunMetric label="Paused" value={String(pausedCount)} />
+      <RunMetric label="Open trades" value={String(openTrades)} />
+      <RunMetric
+        label="Allocated"
+        value={`$${session.totalAllocatedUsd.toLocaleString()}`}
+      />
+    </div>
+
+    <SessionFocusPanel
+      focusedSession={session}
+      actionSessionId={actionSessionId}
+      aiReady={aiReady}
+      onGoToStrategy={onGoToConfig}
+      onLifecycleAction={onLifecycleAction}
     />
+
+    <div className="rounded-sm border border-border bg-surface p-4">
+      <div className="mb-3 font-mono text-micro uppercase tracking-wider text-text3">
+        Pipeline trace
+      </div>
+      <SessionExecutionProgress
+        sessionId={session.id}
+        progress={progress}
+        onRetry={onRetryStep}
+        onViewTrace={onViewTrace}
+        onPauseAfterStep={onPauseAfterStep}
+      />
+      {!progress ? (
+        <p className="font-sans text-body text-text3">
+          No active cycle. Start the session to run the pipeline.
+        </p>
+      ) : null}
+      {researchFailure ? (
+        <p className="mt-2 font-sans text-caption text-error">
+          Research phase failed ({researchFailure.phase}):{" "}
+          {researchFailure.error}
+        </p>
+      ) : null}
+    </div>
+
+    <div className="flex flex-wrap gap-2">
+      <Button variant="secondary" size="sm" onClick={onEdit}>
+        Edit session
+      </Button>
+      <Button variant="secondary" size="sm" onClick={onDuplicate}>
+        Duplicate
+      </Button>
+      <Button variant="secondary" size="sm" onClick={onArchive}>
+        Archive
+      </Button>
+      {session.canFireRehearsalSignal ? (
+        <Button variant="secondary" size="sm" onClick={onFireRehearsalSignal}>
+          Fire rehearsal signal
+        </Button>
+      ) : null}
+      {onDebugForceTrade ? (
+        <Button variant="secondary" size="sm" onClick={onDebugForceTrade}>
+          Force trade
+        </Button>
+      ) : null}
+    </div>
   </div>
 );
 
-const ContextMetric = ({ label, value }: { label: string; value: string }) => (
+const RunMetric = ({ label, value }: { label: string; value: string }) => (
   <div>
-    <div className="text-[12px] uppercase tracking-[0.12em] text-[var(--text3)]">
+    <div className="font-mono text-micro uppercase tracking-wider text-text3">
       {label}
     </div>
-    <div className="mt-1 text-[18px] font-bold text-[var(--text1)]">
+    <div className="mt-1 font-mono text-stat tabular-nums text-text1">
       {value}
     </div>
   </div>
@@ -1154,36 +1323,3 @@ function statusVariant(
       return "default";
   }
 }
-
-const contextHeroClass =
-  "grid gap-[18px] bg-[var(--surface)] p-6 [grid-template-columns:minmax(0,1.4fr)_minmax(280px,0.9fr)]";
-const contextMetricsClass =
-  "grid grid-cols-2 gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-3.5";
-const toolbarClass =
-  "mb-[18px] flex flex-wrap items-center justify-between gap-2.5";
-const inputClass =
-  "rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2.5 text-[var(--text1)]";
-const emptyStateClass =
-  "rounded-2xl border border-dashed border-[var(--border)] p-7 text-center text-[var(--text3)]";
-const secondaryButtonClass =
-  "cursor-pointer rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] px-[13px] py-2.5 text-[var(--text2)]";
-const primaryButtonClass =
-  "cursor-pointer rounded-[10px] border-none bg-[var(--accent)] px-[13px] py-2.5 text-[hsl(var(--primary-foreground))]";
-const dangerButtonClass =
-  "cursor-pointer rounded-[10px] border border-error-border bg-error-dim px-[13px] py-2.5 text-error";
-const forceStopButtonClass = dangerButtonClass;
-const stopWhenFlatButtonClass =
-  "cursor-pointer rounded-[10px] border border-status-orange-border bg-status-orange-dim px-[13px] py-2.5 font-semibold text-status-orange";
-const drainBannerClass =
-  "mt-2 w-full rounded-lg border border-status-orange-border bg-status-orange-dim px-3 py-2.5 text-[12px] leading-[1.45] text-status-orange";
-const orphanWarningClass = drainBannerClass;
-const disabledStartClass =
-  "cursor-not-allowed bg-[var(--surface3)] text-[var(--text3)] opacity-45";
-const strategyNudgeBannerClass =
-  "mt-2.5 flex items-center justify-between gap-2.5 rounded-lg border border-info-border bg-info-dim px-3 py-[9px]";
-const strategyNudgeButtonClass =
-  "cursor-pointer whitespace-nowrap rounded-lg border border-info-border bg-info-dim px-3 py-[5px] text-[12px] font-semibold text-info";
-const errorBannerClass =
-  "rounded-xl border border-error-border bg-error-dim p-3 px-3.5 text-[13px] text-error";
-const noticeBannerClass =
-  "rounded-xl border border-success-border bg-success-dim p-3 px-3.5 text-[13px] text-success";

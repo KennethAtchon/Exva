@@ -51,16 +51,19 @@ export function AssistantSlideOver({
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div
-        className="absolute inset-0 bg-black/30 backdrop-blur-[1px]"
+        className="absolute inset-0 bg-black/40"
         onClick={close}
         aria-hidden
       />
-      <div className="relative flex h-full w-[420px] max-w-[90vw] flex-col border-l border-border bg-background shadow-2xl">
+      <div className="relative flex h-full w-[420px] max-w-[90vw] flex-col border-l border-border bg-surface shadow-popover">
         <header className="flex items-center gap-2 border-b border-border px-4 py-3">
           <div className="min-w-0 flex-1">
+            <div className="mb-0.5 font-mono text-micro uppercase tracking-wider text-text3">
+              Assistant
+            </div>
             <div className="flex items-center gap-2">
-              <span className="truncate text-sm font-semibold text-foreground">
-                {convo.conversation?.title ?? "Assistant"}
+              <span className="truncate font-sans text-head text-text1">
+                {convo.conversation?.title ?? "New conversation"}
               </span>
               <ScopeChip conversation={convo.conversation} />
             </div>
@@ -70,7 +73,6 @@ export function AssistantSlideOver({
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8"
               title="Rename conversation"
               onClick={() => void handleRename()}
               disabled={!convo.conversation}
@@ -80,7 +82,6 @@ export function AssistantSlideOver({
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8"
               title="New conversation"
               onClick={() => void createNew()}
             >
@@ -90,7 +91,6 @@ export function AssistantSlideOver({
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-8 w-8"
                 title="Open full view"
                 onClick={() => {
                   onOpenFullView();
@@ -100,13 +100,7 @@ export function AssistantSlideOver({
                 <SquareArrowOutUpRight className="h-4 w-4" />
               </Button>
             ) : null}
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              title="Close"
-              onClick={close}
-            >
+            <Button size="icon" variant="ghost" title="Close" onClick={close}>
               <X className="h-4 w-4" />
             </Button>
           </div>

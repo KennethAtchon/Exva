@@ -28,8 +28,7 @@ const PHASE_DESCRIPTIONS: Record<PipelinePhase, string> = {
   decision: "Turns the research into a concrete trade or no-trade call.",
 };
 
-const fieldLabelClass =
-  "text-[12px] uppercase tracking-[0.04em] text-[var(--text3)]";
+const fieldLabelClass = "text-caption uppercase tracking-[0.04em] text-text3";
 
 const FieldLabel = ({ label, help }: { label: string; help: string }) => (
   <div className="mb-1 flex items-center gap-1.5">
@@ -39,7 +38,7 @@ const FieldLabel = ({ label, help }: { label: string; help: string }) => (
 );
 
 const inputClass =
-  "w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2.5 py-2 text-[13px] text-[var(--text1)]";
+  "w-full rounded-lg border border-border bg-bg px-2.5 py-2 text-body text-text1";
 
 interface AiPhasesSectionProps {
   aiPhases: PhaseRuntimeSummary[];
@@ -130,7 +129,7 @@ const PhaseCard = ({
   return (
     <Card>
       <SectionTitle>{PHASE_LABELS[phase]}</SectionTitle>
-      <p className="mt-1 text-[12px] leading-[1.5] text-[var(--text3)]">
+      <p className="mt-1 text-caption leading-[1.5] text-text3">
         {PHASE_DESCRIPTIONS[phase]}
       </p>
       <div className="mt-3.5 flex flex-col gap-3">
@@ -213,17 +212,15 @@ const PhaseCard = ({
             placeholder="Off"
             disabled={isLocked}
           />
-          <div className="mt-1 text-[12px] text-[var(--text3)]">
+          <div className="mt-1 text-caption text-text3">
             Non-off levels increase token spend. Pair with a reasoning-capable
             model.
           </div>
         </div>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-[13px] text-[var(--text1)]">
-              Session prompt override
-            </div>
-            <div className="mt-0.5 text-[12px] text-[var(--text3)]">
+            <div className="text-body text-text1">Session prompt override</div>
+            <div className="mt-0.5 text-caption text-text3">
               Replace the bundled worker prompt for this phase.
             </div>
           </div>
@@ -243,13 +240,13 @@ const PhaseCard = ({
             value={config.promptMarkdown}
             disabled={isLocked}
             rows={6}
-            className={`${inputClass} resize-y font-mono text-[12px]`}
+            className={`${inputClass} resize-y font-mono text-caption`}
             onChange={(e) => onUpdate({ promptMarkdown: e.target.value })}
             placeholder="Phase-level prompt override (markdown)"
           />
         )}
         {config.workerOverrides.length > 0 && (
-          <div className="text-[12px] text-[var(--text3)]">
+          <div className="text-caption text-text3">
             {config.workerOverrides.length} worker override
             {config.workerOverrides.length === 1 ? "" : "s"} configured
           </div>

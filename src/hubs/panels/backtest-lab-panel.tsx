@@ -5,6 +5,7 @@ import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { HubPane } from "@/hubs/dna";
 import { Button, Input } from "@/components/ui";
 import { Badge } from "@/components/custom-ui";
+import { EmptyState } from "@/components/ui/primitives";
 import { fmt } from "@/lib/formatters";
 
 type Strategy = { id: string; status: string };
@@ -20,7 +21,7 @@ type RunRow = {
 };
 
 /**
- * Backtest Lab — run / compare / threshold sweep (finish-line 08 T2).
+ * Backtest Lab — run / compare / threshold sweep.
  */
 export function BacktestLabPanel() {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
@@ -153,7 +154,7 @@ export function BacktestLabPanel() {
   };
 
   return (
-    <div className="grid gap-3 lg:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.1fr)]">
+    <div className="grid gap-4 lg:grid-cols-[minmax(280px,0.42fr)_minmax(0,0.58fr)]">
       <HubPane eyebrow="Spec" title="Run backtest">
         <div className="flex flex-col gap-3 p-4">
           <Field label="Experience id">
@@ -164,7 +165,7 @@ export function BacktestLabPanel() {
           </Field>
           <Field label="Strategy">
             <select
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              className="h-8 w-full rounded-sm border border-hairline bg-surface2 px-3 font-sans text-body text-text1"
               value={strategyId}
               onChange={(e) => setStrategyId(e.target.value)}
             >
@@ -213,7 +214,7 @@ export function BacktestLabPanel() {
               Run
             </Button>
             <Button
-              variant="outline"
+              variant="secondary"
               disabled={busy}
               onClick={() => void sweep()}
             >
@@ -235,15 +236,15 @@ export function BacktestLabPanel() {
             </Field>
           </div>
           {progress ? (
-            <div className="font-mono text-[11px] text-[var(--text3)]">
-              {progress}
-            </div>
+            <div className="font-mono text-micro text-text3">{progress}</div>
           ) : null}
-          {error ? <div className="text-[12px] text-error">{error}</div> : null}
+          {error ? (
+            <div className="font-sans text-caption text-error">{error}</div>
+          ) : null}
         </div>
       </HubPane>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex min-h-0 flex-col gap-4">
         <HubPane
           eyebrow="Results"
           title="Latest"
@@ -255,9 +256,9 @@ export function BacktestLabPanel() {
             ) : null
           }
         >
-          <div className="p-4 font-mono text-[12px] text-[var(--text2)]">
+          <div className="p-4">
             {lastResult ? (
-              <pre className="m-0 whitespace-pre-wrap">
+              <pre className="m-0 whitespace-pre-wrap font-mono text-data text-text2">
                 {JSON.stringify(
                   {
                     tradeCount: lastResult.tradeCount,
@@ -274,7 +275,7 @@ export function BacktestLabPanel() {
                 )}
               </pre>
             ) : (
-              "Run a backtest to see fold metrics here."
+              <EmptyState message="Run a backtest to see fold metrics here." />
             )}
           </div>
         </HubPane>
@@ -285,7 +286,7 @@ export function BacktestLabPanel() {
           actions={
             <Button
               size="sm"
-              variant="outline"
+              variant="secondary"
               disabled={compareIds.length < 2 || busy}
               onClick={() => void compare()}
             >
@@ -293,7 +294,7 @@ export function BacktestLabPanel() {
             </Button>
           }
         >
-          <ul className="m-0 list-none divide-y divide-[var(--border)] p-0">
+          <ul className="m-0 list-none divide-y divide-hairline p-0">
             {runs.map((run) => {
               let metrics: Record<string, unknown> = {};
               try {
@@ -308,7 +309,7 @@ export function BacktestLabPanel() {
               return (
                 <li
                   key={run.id}
-                  className="flex cursor-pointer items-center justify-between gap-2 px-4 py-2.5"
+                  className="flex cursor-pointer items-center justify-between gap-2 px-4 py-2.5 hover:bg-surface2"
                   onClick={() => toggleCompare(run.id)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") toggleCompare(run.id);
@@ -317,10 +318,10 @@ export function BacktestLabPanel() {
                   tabIndex={0}
                 >
                   <div className="min-w-0">
-                    <div className="truncate text-[13px] text-[var(--text1)]">
+                    <div className="truncate font-sans text-label text-text1">
                       {run.experienceId} · {run.verdict}
                     </div>
-                    <div className="font-mono text-[11px] text-[var(--text3)]">
+                    <div className="font-mono text-micro text-text3">
                       {fmt.time(run.createdAt)} · trades{" "}
                       {String(metrics.tradeCount ?? "—")} · sharpe{" "}
                       {String(metrics.sharpe ?? "—")}
@@ -333,8 +334,8 @@ export function BacktestLabPanel() {
               );
             })}
             {runs.length === 0 ? (
-              <li className="px-4 py-6 text-[12px] text-[var(--text3)]">
-                No backtest runs yet.
+              <li className="p-4">
+                <EmptyState message="No backtest runs yet." />
               </li>
             ) : null}
           </ul>
@@ -342,7 +343,7 @@ export function BacktestLabPanel() {
 
         {compareView ? (
           <HubPane eyebrow="Compare" title="Aligned metrics">
-            <pre className="m-0 overflow-auto p-4 font-mono text-[11px] text-[var(--text2)]">
+            <pre className="m-0 overflow-auto p-4 font-mono text-data text-text2">
               {JSON.stringify(compareView, null, 2)}
             </pre>
           </HubPane>
@@ -361,7 +362,7 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--text3)]">
+      <span className="font-mono text-micro uppercase tracking-wider text-text3">
         {label}
       </span>
       {children}

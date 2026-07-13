@@ -8,7 +8,7 @@ export function EdgarTradabilityPage() {
         <DocLink to="signal-architecture">delivery queue</DocLink>,
         deterministic tradability filters may reject illiquid or unsuitable
         instruments before AI analysis consumes budget. Implementation:{" "}
-        <code className="rounded bg-[var(--surface2)] px-1.5 py-0.5 font-mono text-[12px]">
+        <code className="rounded bg-surface2 px-1.5 py-0.5 font-mono text-caption">
           electron/shared/instruments/edgar-tradability.ts
         </code>
         .

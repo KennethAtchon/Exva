@@ -1,3 +1,11 @@
+@import "@fontsource/instrument-sans/400.css";
+@import "@fontsource/instrument-sans/500.css";
+@import "@fontsource/instrument-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+@import "@fontsource/ibm-plex-mono/700.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -11,88 +19,83 @@
 }
 
 :root {
-  --background: 220 23% 5%;
-  --foreground: 210 33% 94%;
-  --card: 218 30% 8%;
-  --card-foreground: 210 33% 94%;
-  --popover: 218 30% 8%;
-  --popover-foreground: 210 33% 94%;
-  --primary: 231 87% 69%;
-  --primary-foreground: 220 40% 8%;
-  --secondary: 216 30% 14%;
-  --secondary-foreground: 210 33% 94%;
-  --muted: 216 22% 20%;
-  --muted-foreground: 214 19% 61%;
-  --accent-hsl: 231 87% 69%;
-  --accent-foreground: 220 40% 8%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 210 40% 98%;
-  --border-hsl: 216 30% 17%;
-  --input-hsl: 216 30% 17%;
-  --ring: 231 87% 69%;
-  --radius: 0.6rem;
+  /* shadcn HSL bridge — Terminal Ledger bone/ink */
+  --background: 60 6% 7%;
+  --foreground: 49 18% 89%;
+  --card: 60 5% 9%;
+  --card-foreground: 49 18% 89%;
+  --popover: 60 5% 9%;
+  --popover-foreground: 49 18% 89%;
+  --primary: 49 18% 89%;
+  --primary-foreground: 60 6% 7%;
+  --secondary: 60 4% 12%;
+  --secondary-foreground: 49 18% 89%;
+  --muted: 60 4% 16%;
+  --muted-foreground: 50 5% 58%;
+  --accent-hsl: 49 18% 89%;
+  --accent-foreground: 60 6% 7%;
+  --destructive: 3 87% 66%;
+  --destructive-foreground: 49 18% 89%;
+  --border-hsl: 60 6% 16%;
+  --input-hsl: 60 6% 16%;
+  --ring: 49 18% 89%;
+  --radius: 4px;
 
-  --bg: #080b10;
-  --surface: #0d1219;
-  --surface2: #121a24;
-  --surface3: #1a2333;
-  --chip: #1e2a38;
-  --border: #1e2a38;
-  --text1: #edf2f7;
-  --text2: #8896a8;
-  --text3: #4a5a6a;
-  --accent: oklch(0.65 0.14 240);
-  --accent-dim: rgba(96, 165, 250, 0.2);
-  --font-sans: "Inter", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  /* == Terminal Ledger — dark (default) ================== */
+  --bg: #131311;
+  --surface: #191917;
+  --surface2: #1f1f1c;
+  --surface3: #2a2a26;
+  --chip: #2a2a26;
+  --border: #2b2b26;
+  --hairline: #232320;
 
-  /* =======================================================
-     SEMANTIC COLOR TOKENS
-     -------------------------------------------------------
-     Edit ONLY this section to re-theme the entire app.
-     Dark (default) values live in :root.
-     Light overrides live in .light (applied to <html>).
-     Toggle: document.documentElement.classList.toggle("light")
-     =======================================================
+  --text1: #e8e6dd;
+  --text2: #98968b;
+  --text3: #605e53;
 
-     Dim variants = tinted backgrounds for chips, badges, cards
-     Border variants = outline color for tinted elements
+  --accent: var(--text1);
+  --accent-dim: rgba(232, 230, 221, 0.08);
 
-     Dark mode dim opacity: 10-12%
-     Light mode dim opacity: 13-18%
-     ======================================================= */
+  --font-sans: "Instrument Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  --rail: 56px;
+  --contextbar: 44px;
+  --tape: 28px;
 
   /* Success: buy side, positive PnL, ok status, passing checks */
-  --color-success: #34d399;
-  --color-success-dim: rgba(52, 211, 153, 0.1);
-  --color-success-border: rgba(52, 211, 153, 0.25);
+  --color-success: #4ade80;
+  --color-success-dim: rgba(74, 222, 128, 0.09);
+  --color-success-border: rgba(74, 222, 128, 0.28);
 
   /* Error: sell side, negative PnL, error status, failed checks */
-  --color-error: #f87171;
-  --color-error-dim: rgba(248, 113, 113, 0.1);
-  --color-error-border: rgba(248, 113, 113, 0.25);
+  --color-error: #f4655f;
+  --color-error-dim: rgba(244, 101, 95, 0.1);
+  --color-error-border: rgba(244, 101, 95, 0.3);
 
   /* Warning: attention required, paused, caution states */
-  --color-warning: #fbbf24;
-  --color-warning-dim: rgba(251, 191, 36, 0.1);
-  --color-warning-border: rgba(251, 191, 36, 0.25);
+  --color-warning: #e9b44c;
+  --color-warning-dim: rgba(233, 180, 76, 0.1);
+  --color-warning-border: rgba(233, 180, 76, 0.3);
 
   /* Info: neutral signal, review phase, informational */
-  --color-info: #60a5fa;
-  --color-info-dim: rgba(96, 165, 250, 0.1);
-  --color-info-border: rgba(96, 165, 250, 0.25);
+  --color-info: #7eb3e8;
+  --color-info-dim: rgba(126, 179, 232, 0.1);
+  --color-info-border: rgba(126, 179, 232, 0.28);
 
   /* Market: market context phase, synthesis */
-  --color-market: #a78bfa;
-  --color-market-dim: rgba(167, 139, 250, 0.1);
-  --color-market-border: rgba(167, 139, 250, 0.25);
+  --color-market: #b49fe8;
+  --color-market-dim: rgba(180, 159, 232, 0.1);
+  --color-market-border: rgba(180, 159, 232, 0.28);
 
   /* Orange: executing/running state, partial fill */
-  --color-orange: #fb923c;
-  --color-orange-dim: rgba(251, 146, 60, 0.12);
-  --color-orange-border: rgba(251, 146, 60, 0.35);
+  --color-orange: #ef8e51;
+  --color-orange-dim: rgba(239, 142, 81, 0.12);
+  --color-orange-border: rgba(239, 142, 81, 0.35);
 
-  /* Log level colors - alias semantic tokens */
   --color-log-debug: #374151;
   --color-log-info: var(--color-info);
   --color-log-warn: var(--color-warning);
@@ -100,63 +103,66 @@
 }
 
 .light {
-  --bg: #f8fafc;
-  --surface: #ffffff;
-  --surface2: #f1f5f9;
-  --surface3: #e2e8f0;
-  --chip: #e2e8f0;
-  --border: #cbd5e1;
+  --bg: #f1f0ea;
+  --surface: #faf9f5;
+  --surface2: #edece5;
+  --surface3: #e2e1d8;
+  --chip: #e2e1d8;
+  --border: #d6d4c8;
+  --hairline: #e3e1d6;
 
-  --text1: #0f172a;
-  --text2: #475569;
-  --text3: #94a3b8;
+  --text1: #1c1c18;
+  --text2: #5a5950;
+  --text3: #98968b;
 
-  --accent: oklch(0.55 0.18 240);
-  --accent-dim: rgba(59, 130, 246, 0.15);
+  --accent: var(--text1);
+  --accent-dim: rgba(28, 28, 24, 0.07);
 
-  --background: 210 40% 98%;
-  --foreground: 222 47% 11%;
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  --primary: 231 87% 60%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 210 40% 94%;
-  --secondary-foreground: 222 47% 11%;
-  --muted: 210 40% 94%;
-  --muted-foreground: 215 16% 47%;
-  --accent-hsl: 231 87% 60%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
-  --border-hsl: 214 32% 82%;
-  --input-hsl: 214 32% 82%;
-  --ring: 231 87% 60%;
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.12);
 
-  --color-success: #059669;
-  --color-success-dim: rgba(5, 150, 105, 0.13);
-  --color-success-border: rgba(5, 150, 105, 0.3);
+  --background: 48 20% 93%;
+  --foreground: 60 7% 10%;
+  --card: 48 33% 97%;
+  --card-foreground: 60 7% 10%;
+  --popover: 48 33% 97%;
+  --popover-foreground: 60 7% 10%;
+  --primary: 60 7% 10%;
+  --primary-foreground: 48 33% 97%;
+  --secondary: 48 14% 91%;
+  --secondary-foreground: 60 7% 10%;
+  --muted: 48 12% 88%;
+  --muted-foreground: 50 6% 33%;
+  --accent-hsl: 60 7% 10%;
+  --accent-foreground: 48 33% 97%;
+  --destructive: 3 70% 48%;
+  --destructive-foreground: 48 33% 97%;
+  --border-hsl: 48 12% 81%;
+  --input-hsl: 48 12% 81%;
+  --ring: 60 7% 10%;
 
-  --color-error: #dc2626;
-  --color-error-dim: rgba(220, 38, 38, 0.12);
-  --color-error-border: rgba(220, 38, 38, 0.28);
+  --color-success: #16a34a;
+  --color-success-dim: rgba(22, 163, 74, 0.14);
+  --color-success-border: rgba(22, 163, 74, 0.3);
 
-  --color-warning: #d97706;
-  --color-warning-dim: rgba(217, 119, 6, 0.18);
-  --color-warning-border: rgba(217, 119, 6, 0.35);
+  --color-error: #dc4a43;
+  --color-error-dim: rgba(220, 74, 67, 0.14);
+  --color-error-border: rgba(220, 74, 67, 0.3);
 
-  --color-info: #2563eb;
-  --color-info-dim: rgba(37, 99, 235, 0.12);
-  --color-info-border: rgba(37, 99, 235, 0.28);
+  --color-warning: #c9921a;
+  --color-warning-dim: rgba(201, 146, 26, 0.16);
+  --color-warning-border: rgba(201, 146, 26, 0.35);
 
-  --color-market: #7c3aed;
-  --color-market-dim: rgba(124, 58, 237, 0.12);
-  --color-market-border: rgba(124, 58, 237, 0.28);
+  --color-info: #3b82c4;
+  --color-info-dim: rgba(59, 130, 196, 0.14);
+  --color-info-border: rgba(59, 130, 196, 0.28);
 
-  --color-orange: #ea580c;
-  --color-orange-dim: rgba(234, 88, 12, 0.14);
-  --color-orange-border: rgba(234, 88, 12, 0.3);
+  --color-market: #8b6fd4;
+  --color-market-dim: rgba(139, 111, 212, 0.14);
+  --color-market-border: rgba(139, 111, 212, 0.28);
+
+  --color-orange: #d9772f;
+  --color-orange-dim: rgba(217, 119, 47, 0.16);
+  --color-orange-border: rgba(217, 119, 47, 0.32);
 }
 
 html,
@@ -167,8 +173,15 @@ body,
   background: var(--bg);
   color: var(--text1);
   font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 20px;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+.font-mono,
+[class*="font-mono"] {
+  font-feature-settings: "tnum" 1;
 }
 
 ::-webkit-scrollbar {
@@ -195,9 +208,25 @@ input::placeholder {
   color: var(--text3);
 }
 
+:focus-visible {
+  outline: 1.5px solid var(--text1);
+  outline-offset: 2px;
+}
+
 @keyframes slideIn {
   from {
     transform: translateX(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes tape-slide {
+  from {
+    transform: translateX(12px);
     opacity: 0;
   }
   to {
@@ -218,12 +247,31 @@ input::placeholder {
   }
 }
 
+@keyframes count-up-fade {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes exva-holding-pulse {
   0% {
     background-position: 100% 0;
   }
   100% {
     background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

@@ -9,10 +9,10 @@ export function AssistantRuntimeMeta() {
 
   return (
     <div className="mt-1 flex flex-wrap items-center gap-1.5">
-      <Badge variant="outline" className="font-normal text-[11px]">
+      <Badge variant="outline" className="font-normal text-micro">
         Model {modelLabel}
       </Badge>
-      <Badge variant="outline" className="font-normal text-[11px]">
+      <Badge variant="outline" className="font-normal text-micro">
         Web search off
       </Badge>
     </div>

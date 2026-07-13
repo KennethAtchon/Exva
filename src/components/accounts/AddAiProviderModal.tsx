@@ -12,10 +12,10 @@ import {
 
 export type AiProviderType = "anthropic" | "openai" | "openrouter";
 
-const labelClass = "mb-1.5 text-[12px] font-medium text-[var(--text2)]";
+const labelClass = "mb-1.5 text-caption font-medium text-text2";
 
 const anthropicHintClass =
-  "mb-4 rounded-[9px] border border-success-border bg-success-dim px-3 py-2.5 text-[12px] leading-[1.45] text-[var(--text3)]";
+  "mb-4 rounded-[9px] border border-success-border bg-success-dim px-3 py-2.5 text-caption leading-[1.45] text-text3";
 
 const DEFAULT_NAMES: Record<AiProviderType, string> = {
   anthropic: "Anthropic",
@@ -153,13 +153,13 @@ export const AddAiProviderModal = ({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-xl border-border bg-[var(--surface)] p-5 sm:max-w-[440px]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-xl border-border bg-surface p-5 sm:max-w-[440px]">
         <DialogHeader>
-          <DialogTitle className="text-base font-bold text-[var(--text1)]">
+          <DialogTitle className="text-base font-bold text-text1">
             Add AI provider
           </DialogTitle>
         </DialogHeader>
-        <p className="mb-4 text-[12px] leading-[1.45] text-[var(--text3)]">
+        <p className="mb-4 text-caption leading-[1.45] text-text3">
           Keys are stored in the OS keychain. Pick a provider, then assign
           models per role on the Strategy page.
         </p>
@@ -180,7 +180,7 @@ export const AddAiProviderModal = ({
         <div className="mb-3.5">
           <div className={labelClass}>Display name</div>
           <Input
-            className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
+            className="h-10 border-border bg-surface2 text-body text-text1"
             value={name}
             onChange={(e) =>
               dispatch({ type: "setName", name: e.target.value })
@@ -192,7 +192,7 @@ export const AddAiProviderModal = ({
         <div className="mb-3.5">
           <div className={labelClass}>API key</div>
           <Input
-            className="h-10 border-border bg-[var(--surface2)] font-mono text-[13px] tracking-[0.03em] text-[var(--text1)]"
+            className="h-10 border-border bg-surface2 font-mono text-body tracking-[0.03em] text-text1"
             type="password"
             value={apiKey}
             onChange={(e) =>
@@ -213,14 +213,14 @@ export const AddAiProviderModal = ({
           <div className="mb-3.5">
             <div className={labelClass}>API base URL (optional)</div>
             <Input
-              className="h-10 border-border bg-[var(--surface2)] font-mono text-[12px] text-[var(--text1)]"
+              className="h-10 border-border bg-surface2 font-mono text-caption text-text1"
               value={baseUrl}
               onChange={(e) =>
                 dispatch({ type: "setBaseUrl", baseUrl: e.target.value })
               }
               placeholder="https://openrouter.ai/api/v1"
             />
-            <div className="mt-1.5 text-[12px] text-[var(--text3)]">
+            <div className="mt-1.5 text-caption text-text3">
               Leave empty to use the default OpenRouter endpoint. Use a full
               https URL if you override it.
             </div>
@@ -236,7 +236,7 @@ export const AddAiProviderModal = ({
         ) : null}
 
         {message ? (
-          <div className="mb-3 break-words text-[12px] leading-[1.4] text-error [overflow-wrap:anywhere]">
+          <div className="mb-3 break-words text-caption leading-[1.4] text-error [overflow-wrap:anywhere]">
             {message}
           </div>
         ) : null}
@@ -245,7 +245,7 @@ export const AddAiProviderModal = ({
           <Button
             type="button"
             variant="outline"
-            className="flex-1 border-border bg-[var(--surface2)] text-[var(--text2)]"
+            className="flex-1 border-border bg-surface2 text-text2"
             onClick={onClose}
           >
             Cancel
@@ -254,7 +254,7 @@ export const AddAiProviderModal = ({
             type="button"
             disabled={saving}
             onClick={() => void save()}
-            className="flex-1 bg-[var(--accent)] text-[hsl(var(--primary-foreground))] hover:opacity-95"
+            className="flex-1 bg-accent text-[hsl(var(--primary-foreground))] hover:opacity-95"
           >
             {saving ? "Saving…" : "Save & test"}
           </Button>

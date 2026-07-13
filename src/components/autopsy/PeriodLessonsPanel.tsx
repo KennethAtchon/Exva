@@ -34,22 +34,22 @@ const SEVERITY_OPTIONS: LessonSeverity[] = [
 ];
 
 const statusTone: Record<LessonStatus, string> = {
-  pending: "border-border bg-[var(--surface2)] text-[var(--text2)]",
+  pending: "border-border bg-surface2 text-text2",
   implemented: "border-info-border bg-info-dim text-info",
   validated: "border-success-border bg-success-dim text-success",
   recurring: "border-warning-border bg-warning-dim text-warning",
-  dismissed: "border-border bg-[var(--surface2)] text-[var(--text3)]",
+  dismissed: "border-border bg-surface2 text-text3",
 };
 
 const severityTone: Record<LessonSeverity, string> = {
-  low: "bg-[var(--surface2)] text-[var(--text3)]",
+  low: "bg-surface2 text-text3",
   medium: "bg-info-dim text-info",
   high: "bg-warning-dim text-warning",
   critical: "bg-error-dim text-error",
 };
 
 const sourceTone: Record<AutopsyLesson["source"], string> = {
-  trade: "bg-[var(--surface2)] text-[var(--text3)]",
+  trade: "bg-surface2 text-text3",
   period: "bg-info-dim text-info",
   manual: "bg-success-dim text-success",
 };
@@ -138,12 +138,12 @@ export function PeriodLessonsPanel({
   return (
     <div className="rounded-[14px] border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+        <div className="text-caption font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           LESSONS
         </div>
         <Button
           variant="outline"
-          className="h-8 rounded-md border-border bg-transparent px-3 text-xs text-[var(--text2)]"
+          className="h-8 rounded-md border-border bg-transparent px-3 text-xs text-text2"
           onClick={() => setAdding((current) => !current)}
         >
           + Add Lesson
@@ -166,7 +166,7 @@ export function PeriodLessonsPanel({
               "rounded-full border px-3 py-1.5 text-xs font-medium capitalize",
               tab === value
                 ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-border bg-[var(--surface2)] text-[var(--text2)]",
+                : "border-border bg-surface2 text-text2",
             )}
           >
             {value} ({count})
@@ -175,7 +175,7 @@ export function PeriodLessonsPanel({
       </div>
 
       {adding ? (
-        <div className="border-b border-border bg-[var(--surface2)] px-4 py-4">
+        <div className="border-b border-border bg-surface2 px-4 py-4">
           <div className="flex flex-col gap-3">
             <textarea
               value={form.lesson}
@@ -187,7 +187,7 @@ export function PeriodLessonsPanel({
               }
               rows={3}
               placeholder="Lesson text"
-              className="w-full rounded-md border border-border bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text1)]"
+              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text1"
             />
             <div className="grid gap-3 sm:grid-cols-2">
               <select
@@ -198,7 +198,7 @@ export function PeriodLessonsPanel({
                     severity: event.target.value as LessonSeverity,
                   }))
                 }
-                className="h-10 rounded-md border border-border bg-[var(--surface)] px-3 text-sm text-[var(--text1)]"
+                className="h-10 rounded-md border border-border bg-surface px-3 text-sm text-text1"
               >
                 {SEVERITY_OPTIONS.map((value) => (
                   <option key={value} value={value}>
@@ -214,7 +214,7 @@ export function PeriodLessonsPanel({
                     category: event.target.value as LessonCategory,
                   }))
                 }
-                className="h-10 rounded-md border border-border bg-[var(--surface)] px-3 text-sm text-[var(--text1)]"
+                className="h-10 rounded-md border border-border bg-surface px-3 text-sm text-text1"
               >
                 {CATEGORY_OPTIONS.map((value) => (
                   <option key={value} value={value}>
@@ -232,13 +232,13 @@ export function PeriodLessonsPanel({
                 }))
               }
               placeholder="Proposed fix"
-              className="border-border bg-[var(--surface)] text-[var(--text1)]"
+              className="border-border bg-surface text-text1"
             />
             {error ? <div className="text-xs text-error">{error}</div> : null}
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                className="h-9 border-border bg-transparent px-3 text-xs text-[var(--text2)]"
+                className="h-9 border-border bg-transparent px-3 text-xs text-text2"
                 onClick={() => setAdding(false)}
               >
                 Cancel
@@ -257,49 +257,49 @@ export function PeriodLessonsPanel({
 
       <div className="flex flex-col gap-3 px-4 py-4">
         {visibleLessons.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border px-4 py-6 text-sm text-[var(--text3)]">
+          <div className="rounded-md border border-dashed border-border px-4 py-6 text-sm text-text3">
             No lessons in this tab.
           </div>
         ) : (
           visibleLessons.map((lesson) => (
             <div
               key={lesson.id}
-              className="rounded-xl border border-border bg-[var(--surface2)] px-4 py-3"
+              className="rounded-xl border border-border bg-surface2 px-4 py-3"
             >
               <div className="mb-2 flex flex-wrap gap-2">
                 <span
                   className={cn(
-                    "rounded-full px-2 py-1 text-[11px] font-medium uppercase",
+                    "rounded-full px-2 py-1 text-micro font-medium uppercase",
                     severityTone[lesson.severity],
                   )}
                 >
                   {lesson.severity}
                 </span>
-                <span className="rounded-full bg-[var(--surface)] px-2 py-1 text-[11px] uppercase text-[var(--text3)]">
+                <span className="rounded-full bg-surface px-2 py-1 text-micro uppercase text-text3">
                   {lesson.category}
                 </span>
                 <span
                   className={cn(
-                    "rounded-full px-2 py-1 text-[11px] uppercase",
+                    "rounded-full px-2 py-1 text-micro uppercase",
                     sourceTone[lesson.source],
                   )}
                 >
                   {lesson.source}
                 </span>
                 {lesson.recurrenceCount > 0 ? (
-                  <span className="rounded-full bg-warning-dim px-2 py-1 text-[11px] text-warning">
+                  <span className="rounded-full bg-warning-dim px-2 py-1 text-micro text-warning">
                     x{lesson.recurrenceCount}
                   </span>
                 ) : null}
               </div>
-              <div className="text-sm text-[var(--text1)]">{lesson.lesson}</div>
+              <div className="text-sm text-text1">{lesson.lesson}</div>
               {lesson.proposedFix ? (
-                <div className="mt-2 text-xs text-[var(--text3)]">
+                <div className="mt-2 text-xs text-text3">
                   Proposed fix: {lesson.proposedFix}
                 </div>
               ) : null}
               <div className="mt-3 flex items-center justify-between gap-3">
-                <div className="text-xs text-[var(--text3)]">
+                <div className="text-xs text-text3">
                   Updated {new Date(lesson.updatedAt).toLocaleString()}
                 </div>
                 <select

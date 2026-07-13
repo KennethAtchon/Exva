@@ -80,7 +80,7 @@ export function HelpTooltip({
               type="button"
               aria-label={`More information about ${ariaTopic}`}
               className={cn(
-                "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[var(--text3)] transition-colors hover:text-[var(--text1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-text3 transition-colors hover:text-text1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                 triggerClassName,
               )}
             >
@@ -94,11 +94,11 @@ export function HelpTooltip({
           className={cn("max-w-xs space-y-1.5 px-3 py-2 text-left", className)}
         >
           {entry.title ? (
-            <div className="text-[12px] font-semibold text-[var(--text1)]">
+            <div className="text-caption font-semibold text-text1">
               {entry.title}
             </div>
           ) : null}
-          <div className="text-[12px] leading-[1.45] text-[var(--text2)]">
+          <div className="text-caption leading-[1.45] text-text2">
             {entry.body}
           </div>
         </TooltipContent>

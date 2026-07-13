@@ -415,11 +415,11 @@ export const CreateEditSessionModal = ({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="max-h-[92vh] max-w-[96vw] overflow-auto rounded-[20px] border-border bg-transparent p-0 sm:max-w-[900px]">
         <div className={panelClass}>
-          <div className="mb-5 border-b border-[var(--border)] pb-[18px]">
-            <h2 className="m-0 text-[17px] font-semibold tracking-[-0.01em] text-[var(--text1)]">
+          <div className="mb-5 border-b border-border pb-[18px]">
+            <h2 className="m-0 text-title font-semibold tracking-[-0.01em] text-text1">
               {initialSession ? "Refine Session" : "Create Session"}
             </h2>
-            <div className="mt-[5px] text-[12px] text-[var(--text3)]">
+            <div className="mt-1 text-caption text-text3">
               Identity, signal scope, and execution routing in one place.
             </div>
           </div>
@@ -568,10 +568,10 @@ export const CreateEditSessionModal = ({
                             }
                           />
                           <span>
-                            <span className="block text-[12px] font-semibold text-[var(--text1)]">
+                            <span className="block text-caption font-semibold text-text1">
                               {broker.name}
                             </span>
-                            <span className="mt-px block text-[12px] text-[var(--text3)]">
+                            <span className="mt-px block text-caption text-text3">
                               {broker.id} · {broker.brokerType}
                             </span>
                           </span>
@@ -612,10 +612,10 @@ export const CreateEditSessionModal = ({
                         return (
                           <div key={broker.id} className={allocationRowClass}>
                             <div className="min-w-0">
-                              <div className="text-[12px] font-semibold text-[var(--text1)]">
+                              <div className="text-caption font-semibold text-text1">
                                 {broker.name}
                               </div>
-                              <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-[var(--text3)]">
+                              <div className="mt-0.5 flex items-center gap-1.5 text-caption text-text3">
                                 Balance:{" "}
                                 {broker.balanceCacheUsd != null
                                   ? `$${broker.balanceCacheUsd.toLocaleString()}`
@@ -720,7 +720,7 @@ export const CreateEditSessionModal = ({
           </div>
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-            <div className="text-[12px] text-[var(--text3)]">
+            <div className="text-caption text-text3">
               {v2Subscriptions.length === 0
                 ? "Configure at least one input subscription."
                 : `${v2Subscriptions.length} input subscription${v2Subscriptions.length === 1 ? "" : "s"} configured.`}
@@ -729,7 +729,7 @@ export const CreateEditSessionModal = ({
               <Button
                 onClick={onClose}
                 variant="outline"
-                className="border-border bg-[var(--surface2)] text-[var(--text2)]"
+                className="border-border bg-surface2 text-text2"
               >
                 Cancel
               </Button>
@@ -829,7 +829,7 @@ export const CreateEditSessionModal = ({
                     dispatchReq({ saving: false });
                   }
                 }}
-                className="bg-[var(--accent)] text-white"
+                className="bg-accent text-white"
                 disabled={req.saving || !isValid || !isLaunchable}
               >
                 {req.saving
@@ -856,13 +856,13 @@ const SectionHeader = ({
   glossaryId?: HelpGlossaryId;
 }) => (
   <div className="mb-3.5">
-    <div className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text3)]">
+    <div className="flex items-center gap-1.5 text-caption font-bold uppercase tracking-[0.14em] text-text3">
       <span>{title}</span>
       {glossaryId ? (
         <HelpTooltip glossaryId={glossaryId} topic={title} />
       ) : null}
     </div>
-    <div className="mt-1 text-[12px] text-[var(--text2)]">{caption}</div>
+    <div className="mt-1 text-caption text-text2">{caption}</div>
   </div>
 );
 
@@ -885,7 +885,7 @@ const Field = ({
       glossaryId={glossaryId}
       title={title}
       body={body}
-      labelClassName="text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]"
+      labelClassName="text-caption font-semibold uppercase tracking-[0.08em] text-text3"
     />
     {children}
   </div>
@@ -1012,30 +1012,29 @@ function formatInstrumentClass(value: InstrumentClass): string {
 }
 
 const panelClass =
-  "max-h-[92vh] w-[900px] max-w-[96vw] overflow-auto rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-[22px] shadow-[0_26px_60px_rgba(2,6,23,0.28)]";
-const sectionClass =
-  "rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-3.5";
+  "max-h-[92vh] w-[900px] max-w-[96vw] overflow-auto rounded-[20px] border border-border bg-surface p-[22px] shadow-[0_26px_60px_rgba(2,6,23,0.28)]";
+const sectionClass = "rounded-xl border border-border bg-surface2 px-4 py-3.5";
 const sectionBodyClass = "grid gap-3.5";
 const inputClass =
-  "w-full rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";
+  "w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-body text-text1";
 const textareaClass =
-  "min-h-[88px] w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";
+  "min-h-[88px] w-full resize-y rounded-lg border border-border bg-surface2 px-3 py-2 text-body text-text1";
 const twoColumnGridClass =
   "grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3.5";
 const brokerPickerClass =
-  "grid gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface2)] p-2.5";
+  "grid gap-2 rounded-xl border border-border bg-surface2 p-2.5";
 const brokerRowClass =
-  "flex items-start gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2";
+  "flex items-start gap-2 rounded-lg border border-border bg-surface px-2.5 py-2";
 const allocationRowClass =
-  "grid grid-cols-[1fr_auto] items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 py-2.5";
-const inlineHintClass = "text-[12px] text-[var(--text3)]";
+  "grid grid-cols-[1fr_auto] items-center gap-2.5 rounded-lg border border-border bg-surface2 px-3 py-2.5";
+const inlineHintClass = "text-caption text-text3";
 const quickFillChipClass =
-  "cursor-pointer rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-[3px] text-[11px] font-semibold text-[var(--text2)]";
+  "cursor-pointer rounded-md border border-border bg-surface px-2 py-0.5 text-micro font-semibold text-text2";
 const selectAllButtonClass =
-  "mt-0.5 cursor-pointer justify-self-start rounded-lg border border-[var(--border)] bg-transparent px-2.5 py-[7px] text-[12px] font-semibold text-[var(--text2)]";
-const warningTextClass = "text-[12px] font-semibold text-warning";
-const successTextClass = "text-[12px] font-semibold text-success";
+  "mt-0.5 cursor-pointer justify-self-start rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-caption font-semibold text-text2";
+const warningTextClass = "text-caption font-semibold text-warning";
+const successTextClass = "text-caption font-semibold text-success";
 const warningBannerClass =
-  "mb-4 rounded-xl border border-warning-border bg-warning-dim px-[14px] py-3 text-[13px] leading-normal text-warning";
+  "mb-4 rounded-xl border border-warning-border bg-warning-dim px-[14px] py-3 text-body leading-normal text-warning";
 const errorBannerClass =
-  "mb-4 rounded-xl border border-error-border bg-error-dim px-[14px] py-3 text-[13px] text-error";
+  "mb-4 rounded-xl border border-error-border bg-error-dim px-[14px] py-3 text-body text-error";

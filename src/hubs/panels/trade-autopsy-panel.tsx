@@ -14,7 +14,7 @@ import {
   type LessonStatus,
   type TradeAutopsyRecord,
 } from "@/lib/autopsy-types";
-import { HelpTooltip } from "@/components/ui";
+import { HelpTooltip, PnL } from "@/components/ui";
 import type { Trade } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -23,97 +23,97 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 
 const overlayClass =
-  "fixed inset-0 z-[200] flex flex-col overflow-hidden bg-[var(--bg)]";
+  "fixed inset-0 z-[200] flex flex-col overflow-hidden bg-bg";
 
 const headerClass =
-  "sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-6";
+  "sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-6";
 
 const bodyClass =
-  "mx-auto box-border w-full max-w-[1280px] flex-1 overflow-y-auto px-6 py-5";
+  "mx-auto box-border w-full max-w-6xl flex-1 overflow-y-auto px-6 py-5";
 
 const columnsClass = "flex items-start gap-5";
 
 const backBtnClass =
-  "cursor-pointer rounded-md border border-[var(--border)] bg-transparent px-3 py-1.5 font-sans text-[13px] text-[var(--text2)]";
+  "cursor-pointer rounded-sm border border-border bg-transparent px-3 py-1.5 font-sans text-label text-text2 hover:bg-surface2";
 
 const actionBtnClass =
-  "cursor-pointer rounded-md border border-[var(--border)] bg-transparent px-3.5 py-1.5 font-sans text-[12px] text-[var(--text2)]";
+  "cursor-pointer rounded-sm border border-border bg-transparent px-3.5 py-1.5 font-sans text-caption text-text2 hover:bg-surface2";
 
 const openTradeGuardClass =
   "flex h-[60vh] flex-col items-center justify-center text-center";
 
 const emptyStateClass =
-  "flex min-h-[320px] flex-col items-center justify-center rounded-[10px] border border-dashed border-[var(--border)] p-10 text-center";
+  "flex min-h-80 flex-col items-center justify-center rounded-sm border border-dashed border-border p-10 text-center";
 
 const sectionCardClass =
-  "overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)]";
+  "overflow-hidden rounded-sm border border-border bg-surface";
 
 const collapsibleBtnBaseClass =
-  "flex w-full cursor-pointer items-center justify-between border-none bg-transparent px-4 py-[13px] text-left";
+  "flex w-full cursor-pointer items-center justify-between border-none bg-transparent px-4 py-3 text-left";
 
-const sectionTitleClass =
-  "text-[12px] font-bold tracking-[0.02em] text-[var(--text1)]";
+const sectionTitleClass = "font-sans text-label text-text1";
 
-const sectionToggleClass = "text-[12px] text-[var(--text3)]";
+const sectionToggleClass = "font-sans text-caption text-text3";
 
-const sectionBodyClass = "border-t border-[var(--border)] px-4 pb-4 pt-3.5";
+const sectionBodyClass = "border-t border-border px-4 pb-4 pt-3";
 
 const chipBaseClass =
-  "inline-block rounded px-2 py-[3px] font-mono text-[12px] font-semibold";
+  "inline-block rounded-sm px-2 py-0.5 font-mono text-caption font-medium";
 
 const fieldRowClass = "mb-2.5 flex items-start gap-2.5";
 
 const fieldLabelClass =
-  "min-w-[110px] shrink-0 pt-0.5 text-[12px] font-bold uppercase tracking-[0.07em] text-[var(--text3)]";
+  "min-w-28 shrink-0 pt-0.5 font-mono text-micro uppercase tracking-wider text-text3";
 
-const fieldValueClass = "flex-1 text-[13px] leading-normal text-[var(--text1)]";
+const fieldValueClass = "flex-1 font-sans text-body leading-normal text-text1";
 
-const bodyTextClass = "text-[13px] leading-[1.6] text-[var(--text2)]";
+const bodyTextClass = "font-sans text-body leading-relaxed text-text2";
 
 const gradeChipBaseClass =
-  "flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-[10px]";
+  "flex size-16 shrink-0 items-center justify-center rounded-sm";
 
 const gradeBannerClass =
-  "flex items-start gap-5 rounded-[10px] border border-[var(--border)] px-5 pb-[18px] pt-5";
+  "flex items-start gap-5 rounded-sm border border-border px-5 pb-4 pt-5";
 
 const versionBtnBaseClass =
-  "cursor-pointer rounded-md px-3 py-[5px] font-mono text-[12px]";
+  "cursor-pointer rounded-sm px-3 py-1 font-mono text-caption";
 
 const exportDropdownClass =
-  "absolute right-0 top-[calc(100%+4px)] z-50 min-w-[160px] rounded-lg border border-[var(--border)] bg-[var(--surface3)] p-1 shadow-[0_8px_24px_rgba(0,0,0,0.4)]";
+  "absolute right-0 top-[calc(100%+4px)] z-50 min-w-40 rounded-sm border border-border bg-surface p-1 shadow-popover";
 
 const exportOptionBtnClass =
-  "block w-full cursor-pointer rounded-[5px] border-none bg-transparent px-3 py-2 text-left text-[12px] text-[var(--text1)]";
+  "block w-full cursor-pointer rounded-sm border-none bg-transparent px-3 py-2 text-left font-sans text-caption text-text1 hover:bg-surface2";
 
 const exportBackdropClass =
   "fixed inset-0 z-[49] cursor-default border-none bg-transparent p-0";
 
 const generateBtnClass =
-  "cursor-pointer rounded-lg border border-info-border bg-info-dim px-6 py-2.5 font-sans text-[14px] font-semibold text-info";
+  "cursor-pointer rounded-sm border border-info-border bg-info-dim px-6 py-2.5 font-sans text-label text-info hover:opacity-90";
 
 const rightSidebarClass =
-  "sticky top-[58px] flex max-h-[calc(100vh-74px)] w-[300px] shrink-0 flex-col gap-3 self-start overflow-y-auto";
+  "sticky top-14 flex max-h-[calc(100vh-74px)] w-72 shrink-0 flex-col gap-3 self-start overflow-y-auto";
 
-const mainColumnClass = "flex min-w-0 flex-1 flex-col gap-3.5";
+const mainColumnClass = "flex min-w-0 flex-1 flex-col gap-3";
 
-const metaDotClass = "text-[12px] text-[var(--text3)]";
+const metaDotClass = "font-sans text-caption text-text3";
 
-const metaMonoClass = "font-mono text-[12px] text-[var(--text3)]";
+const metaMonoClass = "font-mono text-caption text-text3";
 
-const listItemClass = "mb-[3px] text-[12px] leading-[1.6] text-[var(--text2)]";
+const listItemClass =
+  "mb-0.5 font-sans text-caption leading-relaxed text-text2";
 
 const listItemSpacedClass =
-  "mb-[5px] text-[12px] leading-[1.6] text-[var(--text2)]";
+  "mb-1 font-sans text-caption leading-relaxed text-text2";
 
 const processItemClass =
-  "mb-2.5 text-[13px] leading-[1.65] text-[var(--text2)]";
+  "mb-2.5 font-sans text-body leading-relaxed text-text2";
 
-const headerDividerClass = "h-[18px] w-px shrink-0 bg-[var(--border)]";
+const headerDividerClass = "h-4 w-px shrink-0 bg-border";
 
-const symbolTitleClass = "font-mono text-[16px] font-bold text-[var(--text1)]";
+const symbolTitleClass = "font-mono text-head font-bold text-text1";
 
 const warningBannerBaseClass =
-  "rounded-lg px-[14px] py-2.5 text-[12px] leading-normal";
+  "rounded-sm px-3.5 py-2.5 font-sans text-caption leading-normal";
 
 // ---------------------------------------------------------------------------
 // Grade styling (dynamic colors only)
@@ -284,7 +284,7 @@ function GradeBanner({
         }}
       >
         <span
-          className="font-mono text-[36px] font-extrabold leading-none"
+          className="font-mono text-hero font-extrabold leading-none"
           style={{
             color: gs.color,
             textShadow: `0 0 20px ${gs.glow}`,
@@ -297,7 +297,7 @@ function GradeBanner({
       <div className="min-w-0 flex-1">
         <div className="mb-2.5 flex flex-wrap items-center gap-2.5">
           <span
-            className="font-mono text-[20px] font-bold"
+            className="font-mono text-title font-bold"
             style={{ color: gs.color }}
           >
             {autopsy.qualityScore?.toFixed(0) ?? "—"}/100
@@ -312,7 +312,7 @@ function GradeBanner({
           <span className={metaMonoClass}>{phaseCount} phases</span>
         </div>
 
-        <p className="m-0 text-[13px] leading-[1.65] text-[var(--text2)]">
+        <p className="m-0 text-body leading-[1.65] text-text2">
           {structured.executiveSummary}
         </p>
       </div>
@@ -322,15 +322,15 @@ function GradeBanner({
 
 function LegacySummaryCard({ autopsy }: { autopsy: TradeAutopsyRecord }) {
   return (
-    <div className="rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-5 py-[18px]">
-      <div className="mb-2.5 text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--text3)]">
+    <div className="rounded-sm border border-border bg-surface px-5 py-[18px]">
+      <div className="mb-2.5 text-caption font-bold uppercase tracking-[0.1em] text-text3">
         Legacy Autopsy Summary
       </div>
-      <div className="mb-3 font-mono text-[12px] text-[var(--text3)]">
+      <div className="mb-3 font-mono text-caption text-text3">
         {autopsy.modelId} · <ClientDateTime iso={autopsy.createdAt} /> · grade{" "}
         {autopsy.qualityGrade ?? "N/A"}
       </div>
-      <p className="m-0 text-[13px] leading-[1.65] text-[var(--text2)]">
+      <p className="m-0 text-body leading-[1.65] text-text2">
         {autopsy.summary}
       </p>
     </div>
@@ -364,11 +364,13 @@ function VersionSelector({
               versionBtnBaseClass,
               active
                 ? "border border-info-border bg-info-dim text-info"
-                : "border border-[var(--border)] bg-transparent text-[var(--text3)]",
+                : "border border-border bg-transparent text-text3",
             )}
           >
             v{autopsies.length - i} · {date}
-            {active && <span className="ml-1.5 text-[12px] opacity-70">●</span>}
+            {active && (
+              <span className="ml-1.5 text-caption opacity-70">●</span>
+            )}
           </button>
         );
       })}
@@ -508,7 +510,7 @@ function ExecutionCard({ d }: { d: AutopsyStructured["executionQuality"] }) {
       </FieldRow>
       {d.slippage && (
         <FieldRow label="Slippage">
-          <span className="text-[13px] text-warning">{d.slippage}</span>
+          <span className="text-body text-warning">{d.slippage}</span>
         </FieldRow>
       )}
     </SectionCard>
@@ -534,7 +536,7 @@ function BehavioralCard({
       helpBody="Highlights process mistakes or behavior patterns the autopsy detected, along with their severity."
     >
       {flags.length === 0 ? (
-        <span className="text-[13px] text-[var(--text3)]">
+        <span className="text-body text-text3">
           No behavioral flags detected.
         </span>
       ) : (
@@ -542,7 +544,7 @@ function BehavioralCard({
           {flags.map((f) => (
             <div
               key={`${f.flag}-${f.severity}-${f.description}`}
-              className="rounded-[7px] bg-[var(--surface2)] px-3 py-2.5"
+              className="rounded-sm bg-surface2 px-3 py-2.5"
               style={{ borderLeft: `3px solid ${sevColor[f.severity]}` }}
             >
               <div className="mb-[5px] flex items-center gap-2">
@@ -552,13 +554,13 @@ function BehavioralCard({
                   bg={`${sevColor[f.severity]}18`}
                 />
                 <span
-                  className="font-mono text-[12px] uppercase"
+                  className="font-mono text-caption uppercase"
                   style={{ color: sevColor[f.severity] }}
                 >
                   {f.severity}
                 </span>
               </div>
-              <span className="text-[12px] leading-[1.55] text-[var(--text2)]">
+              <span className="text-caption leading-[1.55] text-text2">
                 {f.description}
               </span>
             </div>
@@ -618,7 +620,7 @@ function WhatWorkedFailedCard({
     <SectionCard title="What Worked / What Failed">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <div className="mb-2 text-[12px] font-bold uppercase tracking-[0.08em] text-success">
+          <div className="mb-2 text-caption font-bold uppercase tracking-[0.08em] text-success">
             ✓ What Worked
           </div>
           <ul className="m-0 pl-3.5">
@@ -630,7 +632,7 @@ function WhatWorkedFailedCard({
           </ul>
         </div>
         <div>
-          <div className="mb-2 text-[12px] font-bold uppercase tracking-[0.08em] text-error">
+          <div className="mb-2 text-caption font-bold uppercase tracking-[0.08em] text-error">
             ✗ What Failed
           </div>
           <ul className="m-0 pl-3.5">
@@ -653,9 +655,7 @@ function RootCauseCard({ text }: { text: string }) {
       accent="var(--color-error)"
       helpBody="States the main reason the trade succeeded or failed instead of listing every surrounding detail again."
     >
-      <p className="m-0 text-[13px] leading-[1.65] text-[var(--text2)]">
-        {text}
-      </p>
+      <p className="m-0 text-body leading-[1.65] text-text2">{text}</p>
     </SectionCard>
   );
 }
@@ -684,7 +684,7 @@ function ProcessImprovementsCard({ items }: { items: string[] }) {
 function TradeMetaCard({ trade }: { trade: Trade | null }) {
   if (!trade)
     return (
-      <div className="h-[120px] rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] px-4 py-3.5" />
+      <div className="h-[120px] rounded-sm border border-border bg-surface2 px-4 py-3.5" />
     );
 
   const rows: [string, string][] = [
@@ -705,15 +705,15 @@ function TradeMetaCard({ trade }: { trade: Trade | null }) {
   ];
 
   return (
-    <div className="overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)]">
-      <div className="border-b border-[var(--border)] px-3.5 py-[11px] text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--text3)]">
+    <div className="overflow-hidden rounded-sm border border-border bg-surface">
+      <div className="border-b border-border px-3.5 py-2.5 text-caption font-bold uppercase tracking-[0.1em] text-text3">
         Trade Details
       </div>
       <div className="flex flex-col gap-2 px-3.5 py-3">
         {rows.map(([k, v]) => (
           <div key={k} className="flex items-center justify-between">
-            <span className="text-[12px] text-[var(--text3)]">{k}</span>
-            <span className="font-mono text-[12px] font-medium text-[var(--text1)]">
+            <span className="text-caption text-text3">{k}</span>
+            <span className="font-mono text-caption font-medium text-text1">
               {v}
             </span>
           </div>
@@ -909,43 +909,28 @@ export function AutopsyPage({
           </button>
           <div className={headerDividerClass} />
           <div className="flex flex-col gap-1">
-            <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--text3)]">
-              Trade Review
+            <div className="font-mono text-micro uppercase tracking-wider text-text3">
+              Trade review
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className={symbolTitleClass}>
                 {resolvedTrade?.instrumentSymbol ?? "—"}
               </span>
-              {resolvedTrade && (
+              {resolvedTrade ? (
                 <span
-                  className="rounded px-[7px] py-0.5 font-mono text-[12px] font-semibold"
-                  style={{
-                    background:
-                      resolvedTrade.side === "BUY"
-                        ? "var(--color-success-dim)"
-                        : "var(--color-error-dim)",
-                    color:
-                      resolvedTrade.side === "BUY"
-                        ? "var(--color-success)"
-                        : "var(--color-error)",
-                  }}
+                  className={cn(
+                    "rounded-sm px-2 py-0.5 font-mono text-caption font-medium",
+                    resolvedTrade.side === "BUY"
+                      ? "border border-success-border bg-success-dim text-success"
+                      : "border border-error-border bg-error-dim text-error",
+                  )}
                 >
                   {resolvedTrade.side}
                 </span>
-              )}
-              {resolvedTrade && resolvedTrade.final_pnl_usd != null && (
-                <span
-                  className="font-mono text-[13px] font-semibold"
-                  style={{
-                    color:
-                      resolvedTrade.final_pnl_usd >= 0
-                        ? "var(--color-success)"
-                        : "var(--color-error)",
-                  }}
-                >
-                  {fmt.pnl(resolvedTrade.final_pnl_usd)}
-                </span>
-              )}
+              ) : null}
+              {resolvedTrade && resolvedTrade.final_pnl_usd != null ? (
+                <PnL value={resolvedTrade.final_pnl_usd} size="body" />
+              ) : null}
             </div>
           </div>
         </div>
@@ -996,11 +981,11 @@ export function AutopsyPage({
       <div className={bodyClass}>
         {isTradeOpen ? (
           <div className={openTradeGuardClass}>
-            <div className="mb-3 text-[32px] opacity-40">🔒</div>
-            <div className="text-[15px] font-semibold text-[var(--text1)]">
+            <div className="mb-3 text-stat opacity-40">🔒</div>
+            <div className="text-head font-semibold text-text1">
               Autopsy is only available for closed trades.
             </div>
-            <div className="mt-1.5 text-[13px] text-[var(--text3)]">
+            <div className="mt-1.5 text-body text-text3">
               Close this position first to generate an autopsy.
             </div>
           </div>
@@ -1030,11 +1015,11 @@ export function AutopsyPage({
 
               {!autopsiesLoading && autopsies.length === 0 && (
                 <div className={emptyStateClass}>
-                  <div className="mb-3.5 text-[40px] opacity-25">⚕</div>
-                  <div className="mb-1.5 text-[16px] font-semibold text-[var(--text1)]">
+                  <div className="mb-3.5 text-hero opacity-25">⚕</div>
+                  <div className="mb-1.5 text-head font-semibold text-text1">
                     No autopsy generated yet.
                   </div>
-                  <div className="mb-5 text-[13px] text-[var(--text3)]">
+                  <div className="mb-5 text-body text-text3">
                     Generate an autopsy to get structured analysis of this
                     trade.
                   </div>

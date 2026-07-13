@@ -19,12 +19,6 @@ interface ToastItem {
 const MAX_TOASTS = 5;
 const AUTO_DISMISS_MS = 8000;
 
-const toastClass =
-  "pointer-events-auto flex items-start gap-2 rounded-[10px] border px-3 py-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.25)]";
-
-const dismissClass =
-  "h-6 min-w-6 shrink-0 px-1.5 text-base leading-none text-[var(--text3)]";
-
 function formatExitReason(exitReason: string | null | undefined): string {
   if (!exitReason) return "closed";
   return exitReason.replace(/_/g, " ");
@@ -74,7 +68,7 @@ export function RuntimeEventToast() {
     pushToast({
       id: `andon-${payload.lessonId}-${payload.recurrenceCount}`,
       level: "CRITICAL",
-      message: `⚠ Andon Cord — ${payload.lessonText.slice(0, 80)}. Recurred ${payload.recurrenceCount} times without resolution.`,
+      message: `Andon cord — ${payload.lessonText.slice(0, 80)}. Recurred ${payload.recurrenceCount} times without resolution.`,
       sessionId: payload.sessionId,
       persistent: true,
       autopsyScope: payload.scope,
@@ -96,7 +90,7 @@ export function RuntimeEventToast() {
           <div
             key={toast.id}
             className={cn(
-              toastClass,
+              "pointer-events-auto flex items-start gap-2 rounded-sm border px-3 py-2.5 shadow-popover",
               isError
                 ? "border-error-border bg-error-dim"
                 : isInfo
@@ -107,7 +101,7 @@ export function RuntimeEventToast() {
             <div className="min-w-0 flex-1">
               <div
                 className={cn(
-                  "mb-1 font-mono text-[12px] font-bold tracking-[0.05em]",
+                  "mb-1 font-mono text-micro font-bold uppercase tracking-wider",
                   isError
                     ? "text-error"
                     : isInfo
@@ -117,14 +111,14 @@ export function RuntimeEventToast() {
               >
                 {toast.level}
               </div>
-              <div className="break-words text-[12px] leading-[1.45] text-[var(--text1)]">
+              <div className="break-words font-sans text-caption leading-relaxed text-text1">
                 {toast.message}
               </div>
               {toast.autopsyScope ? (
                 <div className="mt-2 flex gap-2">
                   <Button
-                    variant="outline"
-                    className="h-7 border-warning-border bg-transparent px-2.5 text-[11px] text-warning"
+                    variant="warning"
+                    size="sm"
                     onClick={() => {
                       window.dispatchEvent(
                         new CustomEvent("exva:navigate-autopsy", {
@@ -138,11 +132,11 @@ export function RuntimeEventToast() {
                       dismiss(toast.id);
                     }}
                   >
-                    View Autopsy
+                    View autopsy
                   </Button>
                   <Button
                     variant="ghost"
-                    className="h-7 px-2.5 text-[11px] text-[var(--text3)]"
+                    size="sm"
                     onClick={() => dismiss(toast.id)}
                   >
                     Dismiss
@@ -153,7 +147,8 @@ export function RuntimeEventToast() {
             {!toast.autopsyScope ? (
               <Button
                 variant="ghost"
-                className={dismissClass}
+                size="sm"
+                className="h-6 min-w-6 shrink-0 px-1.5 text-text3"
                 onClick={() => dismiss(toast.id)}
                 aria-label="Dismiss notification"
               >

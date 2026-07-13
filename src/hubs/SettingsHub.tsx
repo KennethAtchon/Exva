@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { HelpTooltip } from "@/components/ui";
-import { HubBody, HubFrame, HubHeader, HubTabBar, type HubTab } from "./dna";
+import { HubBody, HubFrame, HubHeader, HubSideNav, type HubTab } from "./dna";
 import { AccountsPage } from "./panels/accounts-panel";
 import { BrokersPage } from "./panels/brokers-panel";
 import { DevPanel, type DevPanelFocus } from "./panels/dev-panel";
@@ -43,7 +43,7 @@ export function SettingsHub({
     }
   }, [devPanelFocus]);
 
-  const tabs: HubTab<SettingsTab>[] = [
+  const navItems: HubTab<SettingsTab>[] = [
     {
       id: "accounts",
       label: "Accounts",
@@ -74,25 +74,30 @@ export function SettingsHub({
         subtitle="Accounts, brokers, notification sinks, backups, and (dev) the workbench."
         help={<HelpTooltip glossaryId="broker-accounts" />}
       />
-      <HubTabBar
-        tabs={tabs}
-        active={tab}
-        onChange={setTab}
-        aria-label="Settings sections"
-      />
-      <HubBody scroll className="p-4">
-        {tab === "accounts" ? <AccountsPage /> : null}
-        {tab === "brokers" ? (
-          <BrokersPage
-            onJumpToSession={onJumpToSession ?? (async () => undefined)}
-          />
-        ) : null}
-        {tab === "developer" && isDev ? (
-          <DevPanel
-            focus={devPanelFocus}
-            onFocusConsumed={onDevFocusConsumed}
-          />
-        ) : null}
+      <HubBody scroll={false} className="flex min-h-0 flex-1">
+        <HubSideNav
+          items={navItems}
+          active={tab}
+          onChange={setTab}
+          aria-label="Settings sections"
+        />
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+          {tab === "developer" && isDev ? (
+            <DevPanel
+              focus={devPanelFocus}
+              onFocusConsumed={onDevFocusConsumed}
+            />
+          ) : (
+            <div className="mx-auto w-full max-w-[760px] px-6 py-5">
+              {tab === "accounts" ? <AccountsPage /> : null}
+              {tab === "brokers" ? (
+                <BrokersPage
+                  onJumpToSession={onJumpToSession ?? (async () => undefined)}
+                />
+              ) : null}
+            </div>
+          )}
+        </div>
       </HubBody>
     </HubFrame>
   );

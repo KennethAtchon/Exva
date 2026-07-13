@@ -1,14 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, HelpTooltip } from "@/components/ui";
-import {
-  HubBody,
-  HubFrame,
-  HubHeader,
-  HubPane,
-  HubSplit,
-  HubTabBar,
-  type HubTab,
-} from "./dna";
+import { SectionHeader } from "@/components/ui/primitives";
+import { HubBody, HubFrame, HubHeader, HubTabBar, type HubTab } from "./dna";
 import { SignalSourcesPage } from "./panels/signal-sources-panel";
 import { EventSourcesPage } from "./panels/event-sources-panel";
 import { InstrumentSetsPage } from "./panels/instrument-sets-panel";
@@ -17,13 +10,13 @@ import { DataDoctorPanel } from "./panels/data-doctor-panel";
 type SignalsTab = "overview" | "instruments" | "doctor";
 
 const TABS: HubTab<SignalsTab>[] = [
-  { id: "overview", label: "Feeds & schedules", hint: "Two-pane input room" },
+  { id: "overview", label: "Overview", hint: "Signal and event source health" },
   {
     id: "instruments",
-    label: "Instrument sets",
+    label: "Instruments",
     hint: "Watchlists and universes",
   },
-  { id: "doctor", label: "Data doctor", hint: "Coverage, gaps, backfill" },
+  { id: "doctor", label: "Doctor", hint: "Coverage checks and data gaps" },
 ];
 
 /**
@@ -46,7 +39,7 @@ export function SignalsHub({
       <HubHeader
         eyebrow="Inputs"
         title="Signals & Schedules"
-        subtitle="Information feeds versus schedules — same mental model as the ops room."
+        subtitle="Source health, instrument universes, and data coverage in one place."
         help={<HelpTooltip glossaryId="signal-source" />}
       />
       <HubTabBar
@@ -55,53 +48,38 @@ export function SignalsHub({
         onChange={setTab}
         aria-label="Signals sections"
       />
-      <HubBody scroll={false} className="overflow-hidden">
+      <HubBody scroll className="p-6">
         {tab === "overview" ? (
-          <HubSplit
-            leftWidth="50%"
-            left={
-              <HubPane
+          <div className="mx-auto flex max-w-6xl flex-col gap-8">
+            <section>
+              <SectionHeader
                 eyebrow="Information"
-                title="Signal feeds"
-                className="h-full"
-                actions={
-                  <Button
-                    className="h-7 bg-[var(--accent)] px-2.5 text-[11px] text-white"
-                    onClick={() => setAddSourceOpen(true)}
-                  >
+                title="Signal sources"
+                action={
+                  <Button size="sm" onClick={() => setAddSourceOpen(true)}>
                     Add source
                   </Button>
                 }
-              >
-                <div className="p-3">
-                  <SignalSourcesPage
-                    embedded
-                    addOpenExternal={addSourceOpen}
-                    onAddOpenChange={setAddSourceOpen}
-                  />
-                </div>
-              </HubPane>
-            }
-            right={
-              <HubPane
-                eyebrow="Cadence"
-                title="Schedules & catalog"
-                className="h-full"
-              >
-                <div className="p-3">
-                  <EventSourcesPage embedded />
-                </div>
-              </HubPane>
-            }
-          />
+              />
+              <SignalSourcesPage
+                embedded
+                addOpenExternal={addSourceOpen}
+                onAddOpenChange={setAddSourceOpen}
+              />
+            </section>
+            <section>
+              <SectionHeader eyebrow="Cadence" title="Event sources" />
+              <EventSourcesPage embedded />
+            </section>
+          </div>
         ) : null}
         {tab === "instruments" ? (
-          <div className="h-full overflow-auto p-4">
+          <div className="mx-auto max-w-6xl">
             <InstrumentSetsPage />
           </div>
         ) : null}
         {tab === "doctor" ? (
-          <div className="h-full overflow-auto">
+          <div className="mx-auto max-w-5xl">
             <DataDoctorPanel />
           </div>
         ) : null}

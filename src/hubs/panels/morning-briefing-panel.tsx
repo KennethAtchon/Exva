@@ -80,13 +80,11 @@ export function MorningBriefingPanel() {
         )
       ) : (
         <div className="flex flex-col gap-2 px-4 py-3">
-          <div className="font-mono text-[11px] text-[var(--text3)]">
-            {briefing.date}
-          </div>
-          <p className="m-0 text-[13px] leading-relaxed text-[var(--text1)]">
+          <div className="font-mono text-micro text-text3">{briefing.date}</div>
+          <p className="m-0 text-body leading-relaxed text-text1">
             {briefing.narrative}
           </p>
-          <div className="flex flex-wrap gap-3 font-mono text-[11px] text-[var(--text2)]">
+          <div className="flex flex-wrap gap-3 font-mono text-micro text-text2">
             <span>P&L {fmt.pnl(briefing.doc.yesterdayPnlUsd)}</span>
             <span>
               {briefing.doc.tradesOpened}o / {briefing.doc.tradesClosed}c
@@ -97,11 +95,11 @@ export function MorningBriefingPanel() {
               {fmt.usd(briefing.doc.aiBudgetUsd)}
             </span>
           </div>
-          <div className="text-[11px] text-[var(--text3)]">
+          <div className="text-micro text-text3">
             {briefing.doc.dataCoverageStatus}
           </div>
           {briefing.doc.alarms[0] ? (
-            <div className="text-[11px] text-warning">
+            <div className="text-micro text-warning">
               Alarm: {briefing.doc.alarms[0].message}
             </div>
           ) : null}

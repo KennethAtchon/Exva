@@ -80,7 +80,7 @@ export function ToolCallCard({ item }: { item: ToolItem }) {
         </span>
         <span
           className={cn(
-            "ml-auto inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+            "ml-auto inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-micro font-semibold",
             meta.className,
           )}
         >
@@ -95,26 +95,26 @@ export function ToolCallCard({ item }: { item: ToolItem }) {
           {meta.label}
         </span>
       </button>
-      <p className="mt-1.5 pl-6 text-[13px] text-muted-foreground">
+      <p className="mt-1.5 pl-6 text-body text-muted-foreground">
         {item.summary}
       </p>
       {expanded ? (
         <div className="mt-2 space-y-2 pl-6">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            <p className="text-micro uppercase tracking-wide text-muted-foreground">
               Input
             </p>
-            <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-muted/50 p-2 font-mono text-[11px] text-foreground">
+            <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-muted/50 p-2 font-mono text-micro text-foreground">
               {prettyJson(item.inputJson)}
             </pre>
           </div>
           {item.resultSummary ? (
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              <p className="text-micro uppercase tracking-wide text-muted-foreground">
                 Result · {item.resultSummary}
               </p>
               {item.resultJson ? (
-                <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-muted/50 p-2 font-mono text-[11px] text-foreground">
+                <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-muted/50 p-2 font-mono text-micro text-foreground">
                   {prettyJson(item.resultJson)}
                 </pre>
               ) : null}

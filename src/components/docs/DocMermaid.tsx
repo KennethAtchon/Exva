@@ -63,11 +63,11 @@ const fullscreenShellClass = cn(
   "[&:fullscreen]:fixed [&:fullscreen]:inset-0 [&:fullscreen]:z-[9999]",
   "[&:fullscreen]:mb-0 [&:fullscreen]:flex [&:fullscreen]:h-screen [&:fullscreen]:w-screen",
   "[&:fullscreen]:max-h-none [&:fullscreen]:flex-col [&:fullscreen]:overflow-hidden",
-  "[&:fullscreen]:rounded-none [&:fullscreen]:border-0 [&:fullscreen]:bg-[var(--bg)]",
+  "[&:fullscreen]:rounded-none [&:fullscreen]:border-0 [&:fullscreen]:bg-bg",
   "[&:-webkit-full-screen]:fixed [&:-webkit-full-screen]:inset-0 [&:-webkit-full-screen]:z-[9999]",
   "[&:-webkit-full-screen]:mb-0 [&:-webkit-full-screen]:flex [&:-webkit-full-screen]:h-screen [&:-webkit-full-screen]:w-screen",
   "[&:-webkit-full-screen]:max-h-none [&:-webkit-full-screen]:flex-col [&:-webkit-full-screen]:overflow-hidden",
-  "[&:-webkit-full-screen]:rounded-none [&:-webkit-full-screen]:border-0 [&:-webkit-full-screen]:bg-[var(--bg)]",
+  "[&:-webkit-full-screen]:rounded-none [&:-webkit-full-screen]:border-0 [&:-webkit-full-screen]:bg-bg",
 );
 
 export function DocMermaid({ chart }: { chart: string }) {
@@ -158,7 +158,7 @@ export function DocMermaid({ chart }: { chart: string }) {
 
   if (error) {
     return (
-      <div className="mb-6 rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-4 py-3 text-[13px] text-[var(--text3)]">
+      <div className="mb-6 rounded-lg border border-border bg-surface2 px-4 py-3 text-body text-text3">
         {error}
       </div>
     );
@@ -168,21 +168,19 @@ export function DocMermaid({ chart }: { chart: string }) {
     <div
       ref={shellRef}
       className={cn(
-        "relative mb-6 overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface2)] p-4",
+        "relative mb-6 overflow-x-auto rounded-lg border border-border bg-surface2 p-4",
         fullscreenShellClass,
         isFullscreen && "overflow-hidden p-0",
       )}
       aria-busy={!ready}
     >
       {isFullscreen ? (
-        <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-          <div className="text-[13px] font-medium text-[var(--text2)]">
-            Diagram
-          </div>
+        <div className="flex shrink-0 items-center justify-between border-b border-border bg-surface px-4 py-3">
+          <div className="text-body font-medium text-text2">Diagram</div>
           <button
             type="button"
             onClick={() => void toggleFullscreen()}
-            className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--text2)] transition-colors hover:bg-[var(--surface2)] hover:text-[var(--text1)]"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-text2 transition-colors hover:bg-surface2 hover:text-text1"
             aria-label="Exit full screen"
           >
             <Minimize2 size={16} />
@@ -194,7 +192,7 @@ export function DocMermaid({ chart }: { chart: string }) {
         <button
           type="button"
           onClick={() => void toggleFullscreen()}
-          className="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text2)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text1)]"
+          className="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface text-text2 transition-colors hover:border-accent hover:text-text1"
           aria-label="Enter full screen"
         >
           <Maximize2 size={14} />
@@ -202,7 +200,7 @@ export function DocMermaid({ chart }: { chart: string }) {
       ) : null}
 
       {!ready ? (
-        <div className="py-8 text-center text-[12px] text-[var(--text3)]">
+        <div className="py-8 text-center text-caption text-text3">
           Loading diagram…
         </div>
       ) : null}

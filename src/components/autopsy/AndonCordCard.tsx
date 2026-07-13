@@ -10,12 +10,12 @@ export function AndonCordCard({
 }) {
   return (
     <div className="rounded-[14px] border border-border bg-card">
-      <div className="border-b border-border px-4 py-3 text-sm font-semibold text-[var(--text1)]">
+      <div className="border-b border-border px-4 py-3 text-sm font-semibold text-text1">
         Andon Cord
       </div>
       <div className="px-4 py-4">
         {lessons.length === 0 ? (
-          <div className="text-sm text-[var(--text3)]">
+          <div className="text-sm text-text3">
             No Andon Cord events for this scope.
           </div>
         ) : (
@@ -29,14 +29,12 @@ export function AndonCordCard({
                   <span className="rounded-full bg-error-dim px-2 py-1 text-error">
                     {lesson.severity}
                   </span>
-                  <span className="rounded-full bg-[var(--surface)] px-2 py-1 text-[var(--text3)]">
+                  <span className="rounded-full bg-surface px-2 py-1 text-text3">
                     recurred {lesson.recurrenceCount} times
                   </span>
                 </div>
-                <div className="text-sm text-[var(--text1)]">
-                  {lesson.lesson}
-                </div>
-                <div className="mt-2 text-xs text-[var(--text3)]">
+                <div className="text-sm text-text1">{lesson.lesson}</div>
+                <div className="mt-2 text-xs text-text3">
                   Fired {new Date(lesson.updatedAt).toLocaleString()}
                 </div>
                 <div className="mt-3">

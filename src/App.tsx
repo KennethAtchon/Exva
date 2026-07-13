@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { RuntimeEventToast } from "./components/RuntimeEventToast";
-import { NavShell, type PageKey } from "./components/TopNav";
+import { Shell } from "./components/shell";
+import type { PageKey } from "./lib/nav";
 import { LiveReadinessModal } from "./components/sessions/LiveReadinessModal";
 import { DashboardHub } from "./hubs/DashboardHub";
 import { SessionsHub } from "./hubs/SessionsHub";
@@ -473,7 +474,7 @@ export default function App() {
   };
 
   return (
-    <NavShell
+    <Shell
       activePage={ui.page}
       onNavigate={(p) => {
         dispatchUi({
@@ -500,9 +501,10 @@ export default function App() {
       onSessionAction={handleSession}
       sessionActionPending={ui.sessionActionPending}
       stats={stats}
+      onOpenPalette={() => setPaletteOpen(true)}
     >
       {ui.loadError && (
-        <div className="border-b border-error-border bg-error-dim px-7 py-2.5 font-mono text-[12px] text-error">
+        <div className="border-b border-error-border bg-error-dim px-6 py-2 font-mono text-caption text-error">
           {ui.loadError}
         </div>
       )}
@@ -556,9 +558,9 @@ export default function App() {
       )}
       <button
         type="button"
-        title="Assistant (⌘K)"
+        title="Assistant"
         onClick={() => useControlStore.getState().toggleSlideOver()}
-        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
+        className="fixed bottom-10 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-sm bg-primary text-primary-foreground shadow-popover transition-opacity duration-hover hover:opacity-90"
       >
         <Sparkles className="h-5 w-5" />
       </button>
@@ -591,6 +593,6 @@ export default function App() {
           }}
         />
       ) : null}
-    </NavShell>
+    </Shell>
   );
 }

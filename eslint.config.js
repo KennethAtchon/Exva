@@ -70,8 +70,51 @@ const themingPlugin = {
         };
       },
     },
+    "no-arbitrary-token-escape": {
+      meta: {
+        type: "problem",
+        docs: {
+          description:
+            "Disallow bg-[var(--…)] / text-[Npx] escape hatches; use registered Tailwind tokens.",
+        },
+        schema: [],
+      },
+      create(context) {
+        const VAR_ESCAPE = /\[var\(--(?!radix)/;
+        const TEXT_PX_ESCAPE = /(?:^|[\s"'`])text-\[[0-9]+px\]/;
+
+        function checkLiteral(node, value) {
+          if (typeof value !== "string") return;
+          if (VAR_ESCAPE.test(value)) {
+            context.report({
+              node,
+              message:
+                "Use registered Tailwind colors (bg-surface, text-text2, …) instead of [var(--…)].",
+            });
+          } else if (TEXT_PX_ESCAPE.test(value)) {
+            context.report({
+              node,
+              message:
+                "Use named scale tokens (text-body, text-caption, …) instead of text-[Npx].",
+            });
+          }
+        }
+
+        return {
+          Literal(node) {
+            checkLiteral(node, node.value);
+          },
+          TemplateElement(node) {
+            checkLiteral(node, node.value.raw);
+          },
+        };
+      },
+    },
   },
 };
+
+/** Files still on the pre-overhaul escape-hatch pattern — burn down by P8. */
+const LEGACY_STYLE_FILES = ["src/components/sessions/SessionTable.tsx"];
 
 export default tseslint.config(
   {
@@ -83,6 +126,7 @@ export default tseslint.config(
       "e2e",
       "scripts",
       "playwright.config.ts",
+      "tmp",
     ],
   },
   js.configs.recommended,
@@ -122,6 +166,13 @@ export default tseslint.config(
         },
       ],
       "theming/no-static-inline-styles": "error",
+      "theming/no-arbitrary-token-escape": "error",
+    },
+  },
+  {
+    files: LEGACY_STYLE_FILES,
+    rules: {
+      "theming/no-arbitrary-token-escape": "off",
     },
   },
   {

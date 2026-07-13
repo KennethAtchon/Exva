@@ -58,10 +58,9 @@ function mergeReducer<S>(state: S, update: Partial<S>): S {
   return { ...state, ...update };
 }
 
-const labelClass = "mb-1.5 text-[12px] font-medium text-[var(--text2)]";
+const labelClass = "mb-1.5 text-caption font-medium text-text2";
 
-const inputClass =
-  "h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]";
+const inputClass = "h-10 border-border bg-surface2 text-body text-text1";
 
 const CredentialFields = ({
   brokerType,
@@ -211,7 +210,7 @@ const CredentialFields = ({
             placeholder="-----BEGIN RSA PRIVATE KEY-----..."
           />
         </div>
-        <div className="mt-1 text-[12px] text-[var(--text3)]">
+        <div className="mt-1 text-caption text-text3">
           Paper mode uses demo.kalshi.co; live uses production. Keys are not
           shared across environments.
         </div>
@@ -239,7 +238,7 @@ const CredentialFields = ({
             onChange={(e) => dispatch({ secretKey: e.target.value })}
           />
         </div>
-        <div className="mt-1 text-[12px] text-[var(--text3)]">
+        <div className="mt-1 text-caption text-text3">
           Paper uses sandbox.tradier.com; live uses api.tradier.com.
         </div>
       </>
@@ -267,7 +266,7 @@ const CredentialFields = ({
             type="password"
           />
         </div>
-        <div className="mt-1 text-[12px] text-[var(--text3)]">
+        <div className="mt-1 text-caption text-text3">
           No sandbox — paper sessions validate-only + ghost fills.
         </div>
       </>
@@ -288,7 +287,7 @@ const TestResult = ({
   return (
     <div
       className={cn(
-        "mb-3 rounded-lg px-2.5 py-2 text-[12px]",
+        "mb-3 rounded-lg px-2.5 py-2 text-caption",
         testOk ? "bg-success-dim text-success" : "bg-error-dim text-error",
       )}
     >
@@ -432,9 +431,9 @@ export const AddBrokerModal = ({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-xl border-border bg-[var(--surface)] p-5 sm:max-w-[440px]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-xl border-border bg-surface p-5 sm:max-w-[440px]">
         <DialogHeader>
-          <DialogTitle className="text-base font-bold text-[var(--text1)]">
+          <DialogTitle className="text-base font-bold text-text1">
             Add broker account
           </DialogTitle>
         </DialogHeader>
@@ -474,7 +473,7 @@ export const AddBrokerModal = ({
               },
             ]}
           />
-          <div className="mt-1.5 text-[12px] text-[var(--text3)]">
+          <div className="mt-1.5 text-caption text-text3">
             Supports: {supportedHint().join(", ")}
           </div>
         </div>
@@ -492,7 +491,7 @@ export const AddBrokerModal = ({
                 label: `${MOCK_SCENARIO_LABELS[kind].label} ${MOCK_SCENARIO_LABELS[kind].outcome}`,
               }))}
             />
-            <div className="mt-1.5 text-[12px] text-[var(--text3)]">
+            <div className="mt-1.5 text-caption text-text3">
               Use Clean breakout to verify the bot selects, decides, and fills a
               trade end-to-end.
             </div>
@@ -517,7 +516,7 @@ export const AddBrokerModal = ({
         <div className="mb-3">
           <div className={labelClass}>Display name</div>
           <Input
-            className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
+            className="h-10 border-border bg-surface2 text-body text-text1"
             value={name}
             onChange={(e) => dispatchForm({ name: e.target.value })}
             placeholder="e.g. Main Alpaca"
@@ -538,7 +537,7 @@ export const AddBrokerModal = ({
             variant="outline"
             onClick={() => void runTest()}
             disabled={testing}
-            className="flex-1 border-border bg-[var(--surface2)] text-[var(--text2)]"
+            className="flex-1 border-border bg-surface2 text-text2"
           >
             {testing ? "Testing…" : "Test connection"}
           </Button>
@@ -546,7 +545,7 @@ export const AddBrokerModal = ({
             type="button"
             onClick={() => void save()}
             disabled={saving || testOk !== true}
-            className="flex-1 bg-[var(--accent)] text-[hsl(var(--primary-foreground))] hover:opacity-95 disabled:opacity-45"
+            className="flex-1 bg-accent text-[hsl(var(--primary-foreground))] hover:opacity-95 disabled:opacity-45"
           >
             {saving ? "Saving…" : "Save"}
           </Button>
@@ -554,7 +553,7 @@ export const AddBrokerModal = ({
             type="button"
             variant="outline"
             onClick={onClose}
-            className="flex-1 border-border bg-[var(--surface2)] text-[var(--text2)]"
+            className="flex-1 border-border bg-surface2 text-text2"
           >
             Cancel
           </Button>

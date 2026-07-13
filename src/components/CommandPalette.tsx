@@ -161,11 +161,11 @@ export function CommandPalette({
                 <div className="flex w-full items-center justify-between gap-3">
                   <span>{action.title}</span>
                   {action.destructive && pendingConfirm === action.id ? (
-                    <span className="font-mono text-[11px] text-error">
+                    <span className="font-mono text-micro text-error">
                       Enter to confirm
                     </span>
                   ) : action.destructive ? (
-                    <span className="font-mono text-[11px] text-[var(--text3)]">
+                    <span className="font-mono text-micro text-text3">
                       destructive
                     </span>
                   ) : null}
@@ -186,7 +186,7 @@ export function CommandPalette({
                 >
                   <div className="flex flex-col">
                     <span>{hit.title}</span>
-                    <span className="font-mono text-[11px] text-[var(--text3)]">
+                    <span className="font-mono text-micro text-text3">
                       {hit.kind}
                       {hit.subtitle ? ` · ${hit.subtitle}` : ""}
                     </span>

@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui";
+import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 type BadgeVariant =
@@ -17,6 +18,27 @@ type BadgeVariant =
   | "warn"
   | "blue"
   | "purple";
+
+const badgeTone = cva(
+  "inline-flex max-w-full min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap rounded-sm border font-mono text-micro font-medium uppercase tracking-wider",
+  {
+    variants: {
+      variant: {
+        default: "border-transparent bg-muted text-muted-foreground",
+        success: "border-success-border bg-success-dim text-success",
+        danger: "border-error-border bg-error-dim text-error",
+        warn: "border-warning-border bg-warning-dim text-warning",
+        blue: "border-info-border bg-info-dim text-info",
+        purple: "border-market-border bg-market-dim text-market",
+      },
+      size: {
+        sm: "px-1.5 py-0.5",
+        md: "px-2 py-0.5",
+      },
+    },
+    defaultVariants: { variant: "default", size: "md" },
+  },
+);
 
 export const Badge = ({
   children,
@@ -30,31 +52,14 @@ export const Badge = ({
   size?: "sm" | "md";
   title?: string;
   className?: string;
-}) => {
-  const tone: Record<BadgeVariant, string> = {
-    default: "bg-muted text-muted-foreground border-transparent",
-    success: "border-success-border bg-success-dim text-success",
-    danger: "border-error-border bg-error-dim text-error",
-    warn: "border-warning-border bg-warning-dim text-warning",
-    blue: "border-info-border bg-info-dim text-info",
-    purple: "border-market-border bg-market-dim text-market",
-  };
-  return (
-    <UIBadge
-      title={title}
-      className={cn(
-        "inline-flex max-w-full min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap rounded-[5px] font-mono font-medium tracking-wide",
-        size === "sm"
-          ? "px-[7px] py-[2px] text-[12px]"
-          : "px-[9px] py-[3px] text-[12px]",
-        tone[variant],
-        className,
-      )}
-    >
-      <span className="truncate">{children}</span>
-    </UIBadge>
-  );
-};
+} & VariantProps<typeof badgeTone>) => (
+  <UIBadge
+    title={title}
+    className={cn(badgeTone({ variant, size }), className)}
+  >
+    <span className="truncate">{children}</span>
+  </UIBadge>
+);
 
 export const Dot = ({
   color = "var(--text3)",
@@ -76,7 +81,10 @@ export const Dot = ({
   />
 );
 
-const AGENT_LABEL: Record<string, { label: string; variant: BadgeVariant }> = {
+export const AGENT_LABEL: Record<
+  string,
+  { label: string; variant: BadgeVariant }
+> = {
   technical: { label: "tech", variant: "success" },
   fundamental: { label: "fund", variant: "danger" },
   review: { label: "review", variant: "blue" },
@@ -97,7 +105,7 @@ export const AgentLabel = ({ type }: { type: EventSourceType }) => {
 };
 
 export const SectionTitle = ({ children }: { children: ReactNode }) => (
-  <h2 className="m-0 text-[12px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+  <h2 className="m-0 font-mono text-micro font-medium uppercase tracking-wider text-text3">
     {children}
   </h2>
 );
@@ -115,8 +123,8 @@ export const Card = ({
 }) => (
   <UICard
     className={cn(
-      "rounded-[14px] border border-border bg-card px-6 py-[22px]",
-      accent && "border-primary/35",
+      "rounded-sm border border-border bg-surface px-4 py-4",
+      accent && "border-text1/35",
       className,
     )}
     style={style}
@@ -155,7 +163,7 @@ export const ShadcnSelect = ({
     >
       <SelectTrigger
         className={cn(
-          "h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]",
+          "h-8 border-hairline bg-surface2 text-body text-text1",
           className,
         )}
       >

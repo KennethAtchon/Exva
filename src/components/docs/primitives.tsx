@@ -30,10 +30,10 @@ export const DocHeading = ({
     <Tag
       id={id}
       className={cn(
-        "group/heading scroll-mt-6 text-[var(--text1)]",
+        "group/heading scroll-mt-6 text-text1",
         level === 2
-          ? "mb-4 mt-10 border-b border-[var(--border)] pb-3 text-[20px] font-semibold first:mt-0"
-          : "mb-3 mt-7 text-[15px] font-semibold",
+          ? "mb-4 mt-10 border-b border-border pb-3 font-sans text-head first:mt-0"
+          : "mb-3 mt-7 font-sans text-label",
       )}
     >
       <span className="inline-flex items-center gap-2">
@@ -42,7 +42,7 @@ export const DocHeading = ({
           type="button"
           onClick={linkToHeading}
           aria-label={`Link to section: ${id}`}
-          className="inline-flex items-center text-[var(--text3)] opacity-0 transition-opacity hover:text-[var(--accent)] focus-visible:opacity-100 focus-visible:outline-none group-hover/heading:opacity-100"
+          className="inline-flex items-center text-text3 opacity-0 transition-opacity duration-hover hover:text-primary focus-visible:opacity-100 focus-visible:outline-none group-hover/heading:opacity-100"
         >
           <Link2 size={level === 2 ? 15 : 13} />
         </button>
@@ -52,19 +52,19 @@ export const DocHeading = ({
 };
 
 export const DocParagraph = ({ children }: { children: ReactNode }) => (
-  <p className="m-0 mb-4 text-[14px] leading-[1.65] text-[var(--text2)]">
+  <p className="m-0 mb-4 font-sans text-body leading-relaxed text-text2">
     {children}
   </p>
 );
 
 export const DocInlineCode = ({ children }: { children: ReactNode }) => (
-  <code className="rounded bg-[var(--surface2)] px-1.5 py-0.5 font-mono text-[12px] text-[var(--text1)]">
+  <code className="rounded-sm border border-border bg-surface2 px-1.5 py-0.5 font-mono text-caption text-text1">
     {children}
   </code>
 );
 
 export const DocStrong = ({ children }: { children: ReactNode }) => (
-  <strong className="font-semibold text-[var(--text1)]">{children}</strong>
+  <strong className="font-medium text-text1">{children}</strong>
 );
 
 export const DocLink = ({
@@ -84,7 +84,7 @@ export const DocLink = ({
       type="button"
       onClick={() => navigate(to, heading)}
       className={cn(
-        "inline cursor-pointer border-none bg-transparent p-0 text-[14px] font-medium text-[var(--accent)] underline-offset-2 hover:underline focus-visible:underline focus-visible:outline-none",
+        "inline cursor-pointer border-none bg-transparent p-0 font-sans text-body font-medium text-primary underline-offset-2 hover:underline focus-visible:underline focus-visible:outline-none",
         className,
       )}
     >
@@ -94,7 +94,7 @@ export const DocLink = ({
 };
 
 export const DocList = ({ items }: { items: ReactNode[] }) => (
-  <ul className="mb-4 list-disc space-y-2 pl-5 text-[14px] leading-[1.6] text-[var(--text2)]">
+  <ul className="mb-4 list-disc space-y-2 pl-5 font-sans text-body leading-relaxed text-text2">
     {items.map((item, index) => (
       <li key={index}>{item}</li>
     ))}
@@ -116,13 +116,11 @@ export const DocCallout = ({
     tip: "border-success-border bg-success-dim",
   };
   return (
-    <div className={cn("mb-5 rounded-lg border px-4 py-3", styles[variant])}>
+    <div className={cn("mb-5 rounded-sm border px-4 py-3", styles[variant])}>
       {title ? (
-        <div className="mb-1 text-[13px] font-semibold text-[var(--text1)]">
-          {title}
-        </div>
+        <div className="mb-1 font-sans text-label text-text1">{title}</div>
       ) : null}
-      <div className="text-[13px] leading-[1.6] text-[var(--text2)]">
+      <div className="font-sans text-body leading-relaxed text-text2">
         {children}
       </div>
     </div>
@@ -147,7 +145,7 @@ export const DocCode = ({ children }: { children: string }) => {
         onClick={copy}
         aria-label={copied ? "Copied" : "Copy code"}
         className={cn(
-          "absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text3)] transition-all hover:border-[var(--accent)] hover:text-[var(--text1)] focus-visible:opacity-100 focus-visible:outline-none",
+          "absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-sm border border-border bg-surface text-text3 transition-all duration-hover hover:border-primary hover:text-text1 focus-visible:opacity-100 focus-visible:outline-none",
           copied
             ? "opacity-100 text-success"
             : "opacity-0 group-hover/code:opacity-100",
@@ -155,7 +153,7 @@ export const DocCode = ({ children }: { children: string }) => {
       >
         {copied ? <Check size={14} /> : <Copy size={14} />}
       </button>
-      <pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-4 py-3 pr-12 font-mono text-[12px] leading-[1.55] text-[var(--text1)]">
+      <pre className="overflow-x-auto rounded-sm border border-border bg-surface2 px-4 py-3 pr-12 font-mono text-caption leading-relaxed text-text1">
         {children}
       </pre>
     </div>
@@ -169,14 +167,14 @@ export const DocTable = ({
   headers: string[];
   rows: ReactNode[][];
 }) => (
-  <div className="mb-6 overflow-x-auto rounded-lg border border-[var(--border)]">
-    <table className="w-full min-w-[480px] border-collapse text-left text-[13px]">
+  <div className="mb-6 overflow-x-auto rounded-sm border border-border">
+    <table className="w-full min-w-[480px] border-collapse text-left">
       <thead>
-        <tr className="border-b border-[var(--border)] bg-[var(--surface2)]">
+        <tr className="border-b border-border bg-surface2">
           {headers.map((header) => (
             <th
               key={header}
-              className="px-4 py-2.5 font-semibold text-[var(--text1)]"
+              className="px-4 py-2.5 font-mono text-micro uppercase tracking-wider text-text3"
             >
               {header}
             </th>
@@ -187,12 +185,12 @@ export const DocTable = ({
         {rows.map((row, rowIndex) => (
           <tr
             key={rowIndex}
-            className="border-b border-[var(--border)] last:border-0"
+            className="border-b border-border last:border-0 hover:bg-surface2"
           >
             {row.map((cell, cellIndex) => (
               <td
                 key={cellIndex}
-                className="px-4 py-2.5 align-top text-[var(--text2)]"
+                className="px-4 py-2.5 align-top font-sans text-body text-text2"
               >
                 {cell}
               </td>
@@ -213,15 +211,13 @@ export const FlowStep = ({
   title: string;
   children: ReactNode;
 }) => (
-  <div className="relative mb-4 flex gap-4 rounded-lg border border-[var(--border)] bg-[var(--surface2)] p-4">
-    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] font-mono text-[12px] font-bold text-[hsl(var(--primary-foreground))]">
+  <div className="relative mb-4 flex gap-4 rounded-sm border border-border bg-surface2 p-4">
+    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary font-mono text-caption font-bold text-primary-foreground">
       {step}
     </div>
     <div className="min-w-0 flex-1">
-      <div className="mb-1 text-[14px] font-semibold text-[var(--text1)]">
-        {title}
-      </div>
-      <div className="text-[13px] leading-[1.6] text-[var(--text2)]">
+      <div className="mb-1 font-sans text-label text-text1">{title}</div>
+      <div className="font-sans text-body leading-relaxed text-text2">
         {children}
       </div>
     </div>
@@ -241,13 +237,13 @@ export const GlossaryTerm = ({
 }) => (
   <div
     id={id}
-    className="scroll-mt-6 border-b border-[var(--border)] py-3 last:border-0"
+    className="scroll-mt-6 border-b border-border py-3 last:border-0"
   >
-    <dt className="text-[14px] font-semibold text-[var(--text1)]">{term}</dt>
-    <dd className="mt-1 text-[13px] leading-[1.55] text-[var(--text2)]">
+    <dt className="font-sans text-label text-text1">{term}</dt>
+    <dd className="mt-1 font-sans text-body leading-relaxed text-text2">
       {definition}
       {related ? (
-        <div className="mt-2 text-[12px] text-[var(--text3)]">
+        <div className="mt-2 font-sans text-caption text-text3">
           See also: {related}
         </div>
       ) : null}
@@ -273,12 +269,10 @@ export const DocCard = ({
     <button
       type="button"
       onClick={() => navigate(to)}
-      className="rounded-lg border border-[var(--border)] bg-[var(--surface2)] p-4 text-left transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface)] focus-visible:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
+      className="rounded-sm border border-border bg-surface2 p-4 text-left transition-colors duration-hover hover:border-primary hover:bg-surface focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
     >
-      <div className="text-[14px] font-semibold text-[var(--text1)]">
-        {title}
-      </div>
-      <div className="mt-1.5 text-[13px] leading-[1.5] text-[var(--text3)]">
+      <div className="font-sans text-label text-text1">{title}</div>
+      <div className="mt-1.5 font-sans text-body leading-relaxed text-text3">
         {description}
       </div>
     </button>

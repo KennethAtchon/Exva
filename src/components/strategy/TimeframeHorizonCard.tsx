@@ -51,7 +51,7 @@ export const TimeframeHorizonCard = ({
   return (
     <Card>
       <SectionTitle>Timeframe &amp; holding horizon</SectionTitle>
-      <p className="mt-2 text-[12px] leading-[1.55] text-[var(--text3)]">
+      <p className="mt-2 text-caption leading-[1.55] text-text3">
         Bar size agents use for thesis and risk. Optional hold targets align
         approvals and AI context with how long you intend to keep positions.
       </p>
@@ -145,7 +145,7 @@ export const TimeframeHorizonCard = ({
         </Field>
       </div>
       {mismatch ? (
-        <p className="mt-3 text-[12px] leading-[1.45] text-warning">
+        <p className="mt-3 text-caption leading-[1.45] text-warning">
           {mismatch}
         </p>
       ) : null}
@@ -179,16 +179,14 @@ const Field = ({
 }) => (
   <div className="grid gap-1.5">
     <div className="flex items-center gap-1.5">
-      <span className="text-[12px] text-[var(--text3)]">{label}</span>
+      <span className="text-caption text-text3">{label}</span>
       {help ? <HelpTooltip topic={label} body={help} /> : null}
     </div>
     {children}
     {hint ? (
-      <span className="text-[11px] leading-tight text-[var(--text3)]">
-        {hint}
-      </span>
+      <span className="text-micro leading-tight text-text3">{hint}</span>
     ) : null}
   </div>
 );
 const inputClass =
-  "w-full rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[var(--text1)]";
+  "w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-text1";

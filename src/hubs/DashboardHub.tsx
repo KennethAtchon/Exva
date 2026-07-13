@@ -1,29 +1,38 @@
-import { useEffect, useState } from "react";
-import { Badge, Dot } from "@/components/custom-ui";
-import { Checkbox, HelpTooltip } from "@/components/ui";
+import { useCallback, useEffect, useState } from "react";
+import { Badge } from "@/components/custom-ui";
+import {
+  Checkbox,
+  EmptyState,
+  HelpTooltip,
+  PnL,
+  SectionHeader,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { PendingApprovalsPanel } from "@/components/approvals/PendingApprovalsPanel";
-import { VirtualList } from "@/components/hub/VirtualList";
 import { fmt } from "@/lib/formatters";
 import { formatIpcError } from "@/lib/ipc-error";
-import { api, type ExperienceScorecardSummary } from "@/lib/exva";
+import {
+  api,
+  type ExperienceScorecardSummary,
+  type SessionSummary,
+} from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { useSessionStore } from "@/store/sessionStore";
 import { useTradeStore } from "@/store/tradeStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { cn } from "@/lib/utils";
-import type {
-  ApprovalSummary,
-  EventRow,
-  EventSourceType,
-  Trade,
-} from "@/lib/types";
+import type { ApprovalSummary, Trade } from "@/lib/types";
 import {
   HubBody,
   HubEmptyState,
   HubFrame,
   HubHeader,
-  HubMetricStrip,
   HubPane,
   HubQueryError,
   HubStatusStrip,
@@ -31,47 +40,9 @@ import {
 import { EquityCurvePanel } from "./panels/equity-curve-panel";
 import { KillSwitchPanel } from "./panels/kill-switch-panel";
 import { MorningBriefingPanel } from "./panels/morning-briefing-panel";
-
-const AGENT_PALETTE: Partial<
-  Record<EventSourceType, { color: string; label: string; bg: string }>
-> = {
-  technical: {
-    color: "var(--color-success)",
-    label: "Technical",
-    bg: "var(--color-success-dim)",
-  },
-  fundamental: {
-    color: "var(--color-error)",
-    label: "Fundamental",
-    bg: "var(--color-error-dim)",
-  },
-  review: {
-    color: "var(--color-info)",
-    label: "Review",
-    bg: "var(--color-info-dim)",
-  },
-  decision: {
-    color: "var(--color-market)",
-    label: "Decision",
-    bg: "var(--color-market-dim)",
-  },
-  selector: {
-    color: "var(--color-warning)",
-    label: "Universe",
-    bg: "var(--color-warning-dim)",
-  },
-};
-
-const LEVEL_COLOR: Record<string, string> = {
-  DEBUG: "var(--color-log-debug)",
-  INFO: "var(--color-log-info)",
-  WARN: "var(--color-log-warn)",
-  ERROR: "var(--color-log-error)",
-};
-
 /**
- * Journey: arrive → equity/P&L at a glance → clear attention queue →
- * scan promotion ladder → leave knowing whether money and risk need a tap.
+ * Journey: arrive → hero P&L + equity curve → clear attention queue →
+ * scan recent trades and sessions → leave knowing what needs a tap.
  */
 export function DashboardHub() {
   const stats = useSessionStore((s) => s.stats);
@@ -81,7 +52,8 @@ export function DashboardHub() {
   const setViewMode = useWorkspaceStore((s) => s.setViewMode);
   const loadWorkspaceView = useWorkspaceStore((s) => s.loadWorkspaceView);
   const environmentMode = useWorkspaceStore((s) => s.environmentMode);
-  const [events, setEvents] = useState<EventRow[]>([]);
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [approvalList, setApprovalList] = useState<{
     workspaceViewMode: "session" | "global";
     approvals: ApprovalSummary[];
@@ -89,23 +61,27 @@ export function DashboardHub() {
   const [scorecards, setScorecards] = useState<ExperienceScorecardSummary[]>(
     [],
   );
+  const [scorecardsError, setScorecardsError] = useState<string | null>(null);
   const [backupLabel, setBackupLabel] = useState("—");
   const [sinkOk, setSinkOk] = useState(true);
-  const [eventsError, setEventsError] = useState<string | null>(null);
   const [approvalsError, setApprovalsError] = useState<string | null>(null);
-  const [scorecardsError, setScorecardsError] = useState<string | null>(null);
 
-  const loadEvents = () => {
-    api
-      .getEvents({ limit: 80 })
-      .then((rows) => {
-        setEvents(rows);
-        setEventsError(null);
+  const refreshSessions = useCallback(() => {
+    void api
+      .listSessions({
+        includeArchived: preferences?.globalIncludeArchived ?? false,
+        executionMode:
+          environmentMode === "live" ? "live_allowed" : "paper_only",
+      })
+      .then((res) => {
+        setSessions(res.sessions);
+        setSessionsError(null);
       })
       .catch((err) => {
-        setEventsError(formatIpcError(err).display);
+        setSessionsError(formatIpcError(err).display);
+        setSessions([]);
       });
-  };
+  }, [environmentMode, preferences?.globalIncludeArchived]);
 
   const refreshApprovals = () => {
     void api
@@ -123,9 +99,9 @@ export function DashboardHub() {
   };
 
   useEffect(() => {
-    setEvents([]);
-    loadEvents();
-  }, [environmentMode]);
+    setSessions([]);
+    refreshSessions();
+  }, [refreshSessions]);
 
   useEffect(() => {
     setApprovalList({ workspaceViewMode: "session", approvals: [] });
@@ -167,29 +143,37 @@ export function DashboardHub() {
       });
   }, []);
 
-  useExvaEvent("agent_event", () => {
-    loadEvents();
-  });
   useExvaEvent("approval_required", () => refreshApprovals());
   useExvaEvent("approval_resolved", () => refreshApprovals());
+  useExvaEvent("session_status_changed", () => refreshSessions());
+  useExvaEvent("stats_update", () => refreshSessions());
 
   if (!stats) {
     return (
       <HubFrame>
-        <div className="flex flex-1 items-center justify-center text-[14px] text-[var(--text3)]">
+        <div className="flex flex-1 items-center justify-center font-sans text-body text-text3">
           Loading…
         </div>
       </HubFrame>
     );
   }
 
-  const ready = scorecards.filter((s) => s.meetsPromotion);
-  const pnlTone =
-    stats.daily_pnl_usd > 0
-      ? "pos"
-      : stats.daily_pnl_usd < 0
-        ? "neg"
-        : "default";
+  const pendingApprovals = approvalList.approvals.filter(
+    (a) => a.status === "pending",
+  );
+  const attentionSessions = sessions.filter(
+    (s) => s.status === "attention_required",
+  );
+  const needsAttention =
+    pendingApprovals.length > 0 || attentionSessions.length > 0;
+  const pnlPctTone =
+    stats.daily_pnl_pct > 0
+      ? "text-success"
+      : stats.daily_pnl_pct < 0
+        ? "text-error"
+        : "text-text2";
+  const spendWarn =
+    stats.api_budget > 0 && stats.daily_api_spend / stats.api_budget > 0.8;
 
   return (
     <HubFrame>
@@ -198,7 +182,7 @@ export function DashboardHub() {
         title="Dashboard"
         subtitle={
           viewMode === "global"
-            ? "Portfolio pulse, attention queue, and promotion ladder."
+            ? "Portfolio pulse, attention queue, and session roster."
             : "Focused session pulse — clear what needs a tap."
         }
         help={<HelpTooltip glossaryId="dashboard-scope" />}
@@ -216,180 +200,80 @@ export function DashboardHub() {
         }
       />
 
-      <HubMetricStrip
-        items={[
-          {
-            label:
-              stats.portfolio_value_source === "broker"
-                ? "Portfolio"
-                : "Portfolio",
-            value:
-              stats.portfolio_value_source === "broker"
-                ? fmt.usd(stats.portfolio_value)
-                : "—",
-            sub:
-              stats.portfolio_value_source === "broker"
-                ? `${fmt.pnl(stats.unrealized_pnl)} unrealized`
-                : "No live broker balance yet",
-            tone:
-              stats.portfolio_value_source === "broker"
-                ? stats.unrealized_pnl >= 0
-                  ? "pos"
-                  : "neg"
-                : "default",
-          },
-          {
-            label: "Daily P&L",
-            value: fmt.pnl(stats.daily_pnl_usd),
-            sub: fmt.pct(stats.daily_pnl_pct),
-            tone: pnlTone,
-          },
-          {
-            label: "Win rate",
-            value: `${Math.round(stats.win_rate_today * 100)}%`,
-            sub: `${stats.closed_trades_today} closed today`,
-          },
-          {
-            label: "Open",
-            value: stats.open_trades,
-            sub: `${stats.total_trades_today} total today`,
-          },
-          {
-            label: "AI spend",
-            value: fmt.usd(stats.daily_api_spend),
-            sub: `of ${fmt.usd(stats.api_budget)}`,
-            tone:
-              stats.api_budget > 0 &&
-              stats.daily_api_spend / stats.api_budget > 0.8
-                ? "warn"
-                : "default",
-          },
-        ]}
-      />
-
-      {viewMode === "global" && (
-        <div className="flex items-center gap-2 border-b border-[var(--border)] px-7 py-2 text-[12px] text-[var(--text2)]">
-          <Checkbox
-            checked={preferences?.globalIncludeArchived ?? false}
-            onCheckedChange={async (checked) => {
-              await api.patchWorkspacePreferences({
-                globalIncludeArchived: checked === true,
-              });
-              await loadWorkspaceView();
-            }}
-          />
-          Include archived sessions
-        </div>
-      )}
-
       <HubBody scroll className="flex flex-col gap-3 p-4">
-        <div className="grid min-h-[160px] grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.8fr)]">
+        <div className="grid min-h-[200px] grid-cols-1 gap-3 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+          <PnLTodayCard
+            dailyPnlUsd={stats.daily_pnl_usd}
+            dailyPnlPct={stats.daily_pnl_pct}
+            pnlPctTone={pnlPctTone}
+            openTrades={stats.open_trades}
+            winRateToday={stats.win_rate_today}
+            dailyApiSpend={stats.daily_api_spend}
+            pendingCount={pendingApprovals.length}
+            spendWarn={spendWarn}
+          />
           <HubPane
-            eyebrow="Equity"
-            title="Portfolio curve"
-            className="min-h-[160px]"
+            eyebrow="Portfolio"
+            title="Equity curve"
+            className="min-h-[200px]"
           >
             <EquityCurvePanel />
           </HubPane>
-          <HubPane
-            eyebrow="Ladder"
-            title="Promotion ready"
-            actions={
-              <Badge
-                variant={ready.length > 0 ? "success" : "default"}
-                size="sm"
-              >
-                {ready.length} ready
-              </Badge>
-            }
-          >
-            <PromotionBoard
-              scorecards={scorecards}
-              error={scorecardsError}
-              onRetry={() => {
-                void api
-                  .listExperienceScorecards()
-                  .then((rows) => {
-                    setScorecards(rows);
-                    setScorecardsError(null);
-                  })
-                  .catch((err) => {
-                    setScorecardsError(formatIpcError(err).display);
-                  });
-              }}
-            />
-          </HubPane>
         </div>
 
+        {needsAttention ? (
+          <NeedsAttentionSection
+            attentionSessions={attentionSessions}
+            approvalsError={approvalsError}
+            pendingApprovals={pendingApprovals}
+            approvalWorkspaceViewMode={approvalList.workspaceViewMode}
+            onRefreshApprovals={refreshApprovals}
+            onFocusSession={async (id) => {
+              await api.focusSession(id);
+              await loadWorkspaceView();
+            }}
+          />
+        ) : null}
+
+        <div className="grid min-h-[280px] flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
+          <RecentTradesPanel
+            trades={trades}
+            emptyDay={stats.total_trades_today === 0}
+          />
+          <SessionsColumn
+            sessions={sessions}
+            sessionsError={sessionsError}
+            scorecards={scorecards}
+            scorecardsError={scorecardsError}
+            viewMode={viewMode}
+            includeArchived={preferences?.globalIncludeArchived ?? false}
+            onRetrySessions={refreshSessions}
+            onRetryScorecards={() => {
+              void api
+                .listExperienceScorecards()
+                .then((rows) => {
+                  setScorecards(rows);
+                  setScorecardsError(null);
+                })
+                .catch((err) => {
+                  setScorecardsError(formatIpcError(err).display);
+                });
+            }}
+            onToggleArchived={async (checked) => {
+              await api.patchWorkspacePreferences({
+                globalIncludeArchived: checked,
+              });
+              await loadWorkspaceView();
+            }}
+            onFocusSession={async (id) => {
+              await api.focusSession(id);
+              await loadWorkspaceView();
+            }}
+          />
+        </div>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           <MorningBriefingPanel />
           <KillSwitchPanel />
-        </div>
-
-        <div className="shrink-0">
-          {approvalsError ? (
-            <HubQueryError
-              message={approvalsError}
-              onRetry={refreshApprovals}
-            />
-          ) : (
-            <PendingApprovalsPanel
-              approvals={approvalList.approvals}
-              workspaceViewMode={approvalList.workspaceViewMode}
-              onRefresh={refreshApprovals}
-              onDecide={(input) => api.decideApproval(input)}
-            />
-          )}
-        </div>
-
-        <div className="grid min-h-[320px] flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
-          <HubPane
-            eyebrow="Positions"
-            title="Trades"
-            actions={
-              <div className="flex gap-2">
-                <Badge variant="success" size="sm">
-                  {trades.filter((t) => t.status === "open").length} open
-                </Badge>
-                <Badge variant="default" size="sm">
-                  {trades.filter((t) => t.status === "closed").length} closed
-                </Badge>
-              </div>
-            }
-          >
-            <DashboardTradesPanel />
-          </HubPane>
-          <HubPane
-            eyebrow="Live"
-            title="Agent feed"
-            actions={
-              <div className="flex items-center gap-[5px]">
-                <Dot color="var(--color-success)" pulse size={6} />
-                <span className="text-[12px] text-[var(--text3)]">live</span>
-              </div>
-            }
-          >
-            {eventsError ? (
-              <HubQueryError message={eventsError} onRetry={loadEvents} />
-            ) : (
-              <VirtualList
-                items={events}
-                rowHeight={52}
-                className="h-full min-h-[200px] py-1 pr-0 pb-2 pl-2"
-                getKey={(ev) => ev.id}
-                renderRow={(ev, i) => (
-                  <FeedRow ev={ev} isLast={i === events.length - 1} />
-                )}
-                empty={
-                  <HubEmptyState
-                    title="No agent events yet"
-                    body="Start a session — pipeline steps and decisions appear here live."
-                    className="py-8"
-                  />
-                }
-              />
-            )}
-          </HubPane>
         </div>
       </HubBody>
 
@@ -407,8 +291,8 @@ export function DashboardHub() {
           },
           {
             label: "Approvals",
-            value: String(approvalList.approvals.length),
-            ok: approvalList.approvals.length === 0,
+            value: String(pendingApprovals.length),
+            ok: pendingApprovals.length === 0,
           },
           {
             label: "Session",
@@ -423,250 +307,443 @@ export function DashboardHub() {
   );
 }
 
-function PromotionBoard({
+function PnLTodayCard({
+  dailyPnlUsd,
+  dailyPnlPct,
+  pnlPctTone,
+  openTrades,
+  winRateToday,
+  dailyApiSpend,
+  pendingCount,
+  spendWarn,
+}: {
+  dailyPnlUsd: number;
+  dailyPnlPct: number;
+  pnlPctTone: string;
+  openTrades: number;
+  winRateToday: number;
+  dailyApiSpend: number;
+  pendingCount: number;
+  spendWarn: boolean;
+}) {
+  return (
+    <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-sm border border-border bg-surface">
+      <div className="shrink-0 border-b border-hairline px-4 py-2.5">
+        <div className="font-mono text-micro uppercase tracking-wider text-text3">
+          Performance
+        </div>
+        <h2 className="m-0 font-sans text-head text-text1">P&amp;L today</h2>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col px-4 py-4">
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <PnL value={dailyPnlUsd} size="hero" />
+          <span className={cn("font-mono text-stat tabular-nums", pnlPctTone)}>
+            {fmt.pct(dailyPnlPct)}
+          </span>
+        </div>
+        <div className="mt-4 border-t border-hairline pt-3">
+          <p className="m-0 font-mono text-micro uppercase tracking-wider text-text2">
+            <span className="text-text3">POS</span>{" "}
+            <span className="text-data text-text1">{openTrades}</span>
+            <span className="mx-2 text-text3">·</span>
+            <span className="text-text3">WIN</span>{" "}
+            <span className="text-data text-text1">
+              {Math.round(winRateToday * 100)}%
+            </span>
+            <span className="mx-2 text-text3">·</span>
+            <span className="text-text3">SPEND</span>{" "}
+            <span
+              className={cn(
+                "text-data",
+                spendWarn ? "text-warning" : "text-text1",
+              )}
+            >
+              {fmt.usd(dailyApiSpend)}
+            </span>
+            <span className="mx-2 text-text3">·</span>
+            <span className="text-text3">PENDING</span>{" "}
+            <span
+              className={cn(
+                "text-data",
+                pendingCount > 0 ? "text-warning" : "text-text1",
+              )}
+            >
+              {pendingCount}
+            </span>
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function NeedsAttentionSection({
+  attentionSessions,
+  approvalsError,
+  pendingApprovals,
+  approvalWorkspaceViewMode,
+  onRefreshApprovals,
+  onFocusSession,
+}: {
+  attentionSessions: SessionSummary[];
+  approvalsError: string | null;
+  pendingApprovals: ApprovalSummary[];
+  approvalWorkspaceViewMode: "session" | "global";
+  onRefreshApprovals: () => void;
+  onFocusSession: (id: string) => void | Promise<void>;
+}) {
+  return (
+    <section className="rounded-sm border border-error-border bg-error-dim">
+      <div className="border-b border-error-border px-4 py-3">
+        <SectionHeader
+          eyebrow="Queue"
+          title="Needs attention"
+          className="mb-0"
+        />
+      </div>
+      <div className="flex flex-col gap-3 p-4">
+        {attentionSessions.length > 0 ? (
+          <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
+            {attentionSessions.map((session) => (
+              <li key={session.id}>
+                <button
+                  type="button"
+                  onClick={() => void onFocusSession(session.id)}
+                  className="flex w-full flex-col gap-1 rounded-sm border border-error-border bg-surface px-3 py-2.5 text-left transition-colors duration-hover hover:bg-surface2"
+                >
+                  <span className="truncate font-sans text-body font-medium text-text1">
+                    {session.name}
+                  </span>
+                  <span className="font-mono text-micro uppercase tracking-wider text-error">
+                    Needs attention
+                  </span>
+                  <span className="font-mono text-caption text-text3">
+                    {session.executionMode === "live_allowed"
+                      ? "Live"
+                      : "Paper"}
+                    {session.openTradeCount > 0
+                      ? ` · ${session.openTradeCount} open`
+                      : ""}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {approvalsError ? (
+          <HubQueryError
+            message={approvalsError}
+            onRetry={onRefreshApprovals}
+            className="m-0"
+          />
+        ) : pendingApprovals.length > 0 ? (
+          <PendingApprovalsPanel
+            approvals={pendingApprovals}
+            workspaceViewMode={approvalWorkspaceViewMode}
+            onRefresh={onRefreshApprovals}
+            onDecide={(input) => api.decideApproval(input)}
+          />
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function RecentTradesPanel({
+  trades,
+  emptyDay,
+}: {
+  trades: Trade[];
+  emptyDay: boolean;
+}) {
+  const setSelected = useTradeStore((s) => s.setSelected);
+  const selectedId = useTradeStore((s) => s.selectedId);
+
+  const recent = trades
+    .filter((t) => t.status !== "no_trade")
+    .toSorted((a, b) => {
+      const at = a.opened_at ? new Date(a.opened_at).getTime() : 0;
+      const bt = b.opened_at ? new Date(b.opened_at).getTime() : 0;
+      return bt - at;
+    })
+    .slice(0, 10);
+
+  return (
+    <HubPane eyebrow="Activity" title="Recent trades">
+      {emptyDay ? (
+        <div className="p-4">
+          <EmptyState message="No trades yet today. The pipeline runs automatically while a session is active." />
+        </div>
+      ) : recent.length === 0 ? (
+        <HubEmptyState
+          title="No trades to show"
+          body="Trades appear here as the pipeline opens and closes positions."
+          className="py-8"
+        />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Instrument</TableHead>
+              <TableHead>Side</TableHead>
+              <TableHead className="text-right">P&amp;L</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Time</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {recent.map((trade) => (
+              <TradeTableRow
+                key={trade.id}
+                trade={trade}
+                selected={trade.id === selectedId}
+                onSelect={() => setSelected(trade.id)}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </HubPane>
+  );
+}
+
+function TradeTableRow({
+  trade,
+  selected,
+  onSelect,
+}: {
+  trade: Trade;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const isOpen = trade.status === "open";
+  const pnl = (isOpen ? trade.unrealized_pnl : trade.final_pnl_usd) ?? null;
+
+  return (
+    <TableRow
+      data-state={selected ? "selected" : undefined}
+      className={cn("cursor-pointer", selected && "bg-surface2")}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      tabIndex={0}
+      role="button"
+    >
+      <TableCell>
+        <span className="font-mono text-data font-semibold text-text1">
+          {trade.instrumentSymbol}
+        </span>
+      </TableCell>
+      <TableCell>
+        <Badge variant={trade.side === "BUY" ? "success" : "danger"} size="sm">
+          {trade.side}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-right">
+        <PnL value={pnl} size="body" />
+      </TableCell>
+      <TableCell>
+        <Badge variant={isOpen ? "success" : "default"} size="sm">
+          {trade.status}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-right font-mono text-data text-text3">
+        {trade.opened_at ? fmt.time(trade.opened_at) : "—"}
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function SessionsColumn({
+  sessions,
+  sessionsError,
   scorecards,
-  error,
-  onRetry,
+  scorecardsError,
+  viewMode,
+  includeArchived,
+  onRetrySessions,
+  onRetryScorecards,
+  onToggleArchived,
+  onFocusSession,
+}: {
+  sessions: SessionSummary[];
+  sessionsError: string | null;
+  scorecards: ExperienceScorecardSummary[];
+  scorecardsError: string | null;
+  viewMode: "session" | "global";
+  includeArchived: boolean;
+  onRetrySessions: () => void;
+  onRetryScorecards: () => void;
+  onToggleArchived: (checked: boolean) => void | Promise<void>;
+  onFocusSession: (id: string) => void | Promise<void>;
+}) {
+  const ready = scorecards.filter((s) => s.meetsPromotion);
+  const sortedSessions = [...sessions].sort((a, b) => {
+    if (a.isFocused !== b.isFocused) return a.isFocused ? -1 : 1;
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  });
+
+  return (
+    <div className="flex min-h-0 min-w-0 flex-col gap-3">
+      <HubPane
+        eyebrow="Roster"
+        title="Sessions"
+        actions={
+          viewMode === "global" ? (
+            <label className="flex cursor-pointer items-center gap-2 font-sans text-caption text-text2">
+              <Checkbox
+                checked={includeArchived}
+                onCheckedChange={(checked) =>
+                  void onToggleArchived(checked === true)
+                }
+              />
+              Archived
+            </label>
+          ) : null
+        }
+      >
+        {sessionsError ? (
+          <HubQueryError message={sessionsError} onRetry={onRetrySessions} />
+        ) : sortedSessions.length === 0 ? (
+          <HubEmptyState
+            title="No sessions"
+            body="Create a session from the Sessions hub to start the pipeline."
+            className="py-6"
+          />
+        ) : (
+          <ul className="m-0 list-none divide-y divide-hairline p-0">
+            {sortedSessions.slice(0, 8).map((session) => (
+              <li key={session.id}>
+                <button
+                  type="button"
+                  onClick={() => void onFocusSession(session.id)}
+                  className={cn(
+                    "flex w-full items-start justify-between gap-2 px-4 py-2.5 text-left transition-colors duration-hover hover:bg-surface2",
+                    session.isFocused && "bg-surface2",
+                  )}
+                >
+                  <div className="min-w-0">
+                    <div className="truncate font-sans text-body font-medium text-text1">
+                      {session.name}
+                    </div>
+                    <div className="mt-0.5 font-mono text-caption text-text3">
+                      {session.executionMode === "live_allowed"
+                        ? "Live"
+                        : "Paper"}
+                      {session.openTradeCount > 0
+                        ? ` · ${session.openTradeCount} open`
+                        : ""}
+                    </div>
+                  </div>
+                  <SessionStatusBadge status={session.status} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </HubPane>
+
+      <HubPane
+        eyebrow="Ladder"
+        title="Promotion ready"
+        actions={
+          <Badge variant={ready.length > 0 ? "success" : "default"} size="sm">
+            {ready.length} ready
+          </Badge>
+        }
+      >
+        {scorecardsError ? (
+          <HubQueryError
+            message={scorecardsError}
+            onRetry={onRetryScorecards}
+          />
+        ) : (
+          <PromotionLadder scorecards={scorecards} />
+        )}
+      </HubPane>
+    </div>
+  );
+}
+
+function SessionStatusBadge({ status }: { status: SessionSummary["status"] }) {
+  if (status === "active") {
+    return (
+      <Badge variant="success" size="sm">
+        Active
+      </Badge>
+    );
+  }
+  if (status === "attention_required") {
+    return (
+      <Badge variant="danger" size="sm">
+        Attention
+      </Badge>
+    );
+  }
+  if (status === "paused") {
+    return (
+      <Badge variant="warn" size="sm">
+        Paused
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="default" size="sm">
+      {status.replaceAll("_", " ")}
+    </Badge>
+  );
+}
+
+function PromotionLadder({
+  scorecards,
 }: {
   scorecards: ExperienceScorecardSummary[];
-  error?: string | null;
-  onRetry?: () => void;
 }) {
-  if (error) {
-    return <HubQueryError message={error} onRetry={onRetry} />;
-  }
   const sorted = [...scorecards].sort(
     (a, b) => Number(b.meetsPromotion) - Number(a.meetsPromotion),
   );
+
   if (sorted.length === 0) {
     return (
       <HubEmptyState
         title="No scorecards yet"
-        body="Paper sessions populate the promotion ladder — create a session from an experience preset."
+        body="Paper sessions populate the promotion ladder."
         className="py-6"
       />
     );
   }
+
   return (
-    <ul className="m-0 list-none divide-y divide-[var(--border)] p-0">
-      {sorted.slice(0, 8).map((row) => (
+    <ul className="m-0 list-none divide-y divide-hairline p-0">
+      {sorted.slice(0, 5).map((row) => (
         <li
           key={row.experienceId}
           className="flex items-center justify-between gap-2 px-4 py-2.5"
         >
           <div className="min-w-0">
-            <div className="truncate text-[13px] font-medium text-[var(--text1)]">
+            <div className="truncate font-sans text-body font-medium text-text1">
               {row.displayName}
             </div>
-            <div className="font-mono text-[11px] capitalize text-[var(--text3)]">
+            <div className="font-mono text-caption capitalize text-text3">
               {row.promotionTier} · {row.tradeCount} trades
             </div>
           </div>
           {row.meetsPromotion ? (
-            <span className="shrink-0 font-mono text-[11px] font-semibold text-success">
+            <span className="shrink-0 font-mono text-micro font-semibold uppercase tracking-wider text-success">
               Promote
             </span>
           ) : (
-            <span className="max-w-[140px] truncate text-right text-[11px] text-[var(--text3)]">
+            <span className="max-w-[120px] truncate text-right font-sans text-caption text-text3">
               {row.failedPromotionCriteria[0] ?? "Building"}
             </span>
           )}
         </li>
       ))}
     </ul>
-  );
-}
-
-function DashboardTradesPanel() {
-  const trades = useTradeStore((s) => s.trades);
-  const selectedId = useTradeStore((s) => s.selectedId);
-  const setSelected = useTradeStore((s) => s.setSelected);
-  const [hideNoTrade, setHideNoTrade] = useState(true);
-
-  const sorted = trades.toSorted((a, b) => {
-    const at = a.opened_at ? new Date(a.opened_at).getTime() : 0;
-    const bt = b.opened_at ? new Date(b.opened_at).getTime() : 0;
-    return bt - at;
-  });
-  const visible = hideNoTrade
-    ? sorted.filter((t) => t.status !== "no_trade")
-    : sorted;
-
-  return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-auto">
-        <div className="flex min-h-0 min-w-[720px] flex-1 flex-col">
-          <div className="grid shrink-0 grid-cols-[130px_90px_90px_90px_70px_110px_minmax(76px,auto)_60px] gap-0 border-b border-[var(--border)] px-6 pb-2.5 text-[12px] font-semibold uppercase tracking-[0.07em] text-[var(--text3)]">
-            {[
-              "Instrument",
-              "Entry",
-              "Current",
-              "P&L",
-              "Size",
-              "Confidence",
-              "Status",
-              "Time",
-            ].map((h) => (
-              <span key={h}>{h}</span>
-            ))}
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {visible.map((t) => (
-              <TradeRow
-                key={t.id}
-                trade={t}
-                selected={t.id === selectedId}
-                onClick={() => setSelected(t.id === selectedId ? null : t.id)}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 border-t border-[var(--border)] px-6 py-2.5">
-        <Checkbox
-          id="hide-no-trade"
-          checked={hideNoTrade}
-          onCheckedChange={(v) => setHideNoTrade(!!v)}
-        />
-        <label
-          htmlFor="hide-no-trade"
-          className="cursor-pointer select-none text-[12px] text-[var(--text3)]"
-        >
-          Hide no trade
-        </label>
-      </div>
-    </div>
-  );
-}
-
-function TradeRow({
-  trade,
-  selected,
-  onClick,
-}: {
-  trade: Trade;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  const isOpen = trade.status === "open";
-  const pnl = (isOpen ? trade.unrealized_pnl : trade.final_pnl_usd) ?? null;
-  const pos = pnl != null && pnl >= 0;
-  return (
-    <div
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onClick();
-        }
-      }}
-      className="grid cursor-pointer grid-cols-[130px_90px_90px_90px_70px_110px_minmax(76px,auto)_60px] items-center gap-0 border-b border-[var(--border)] px-6 py-[11px] transition-[background] duration-100"
-      style={{ background: selected ? "var(--surface2)" : "transparent" }}
-    >
-      <div className="flex items-center gap-2.5">
-        <div className="flex min-w-0 flex-col">
-          <span className="w-[46px] font-mono text-[14px] font-bold text-[var(--text1)]">
-            {trade.instrumentSymbol}
-          </span>
-        </div>
-        <Badge variant={trade.side === "BUY" ? "success" : "danger"} size="sm">
-          {trade.side}
-        </Badge>
-      </div>
-      <span className="font-mono text-[13px] text-[var(--text2)]">
-        {trade.entry_price != null ? fmt.usd(trade.entry_price) : "—"}
-      </span>
-      <span className="font-mono text-[13px] text-[var(--text2)]">
-        {isOpen && trade.current_price != null
-          ? fmt.usd(trade.current_price)
-          : "—"}
-      </span>
-      <span
-        className={cn(
-          "font-mono text-[13px] font-semibold",
-          pos ? "text-success" : "text-error",
-        )}
-      >
-        {pnl != null ? fmt.pnl(pnl) : "—"}
-      </span>
-      <span className="font-mono text-[13px] text-[var(--text2)]">
-        {fmt.usd(trade.position_size_usd, 0)}
-      </span>
-      <div className="flex items-center gap-2">
-        <div className="h-[3px] w-9 overflow-hidden rounded-[2px] bg-[var(--surface3)]">
-          <div
-            className="h-full rounded-[2px] bg-[var(--accent)]"
-            style={{ width: `${(trade.confidence_score ?? 0) * 100}%` }}
-          />
-        </div>
-        <span className="w-7 font-mono text-[13px] text-[var(--text2)]">
-          {Math.round((trade.confidence_score ?? 0) * 100)}%
-        </span>
-      </div>
-      <Badge variant={isOpen ? "success" : "default"} size="sm">
-        {trade.status}
-      </Badge>
-      <span className="font-mono text-[13px] text-[var(--text3)]">
-        {trade.opened_at ? fmt.time(trade.opened_at) : "—"}
-      </span>
-    </div>
-  );
-}
-
-function FeedRow({ ev, isLast }: { ev: EventRow; isLast: boolean }) {
-  const ap = ev.agent_type ? AGENT_PALETTE[ev.agent_type] : null;
-  return (
-    <div className="relative flex gap-0">
-      <div className="flex w-8 shrink-0 flex-col items-center pt-3.5">
-        <div
-          className="h-2 w-2 shrink-0 rounded-full border-2 border-[var(--surface)]"
-          style={{
-            background: ap ? ap.color : LEVEL_COLOR[ev.level],
-            boxShadow: ap ? `0 0 6px ${ap.color}60` : "none",
-          }}
-        />
-        {!isLast && (
-          <div className="mt-1 min-h-2 w-px flex-1 bg-[var(--border)]" />
-        )}
-      </div>
-      <div className="min-w-0 flex-1 pr-4 pb-2.5">
-        <div
-          className={cn("flex items-center gap-[7px] pt-2.5", ap && "mb-1.5")}
-        >
-          {ap ? (
-            <span
-              className="text-[12px] font-semibold tracking-[0.02em]"
-              style={{ color: ap.color }}
-            >
-              {ap.label}
-            </span>
-          ) : (
-            <span
-              className="font-mono text-[11px] font-semibold"
-              style={{ color: LEVEL_COLOR[ev.level] }}
-            >
-              {ev.level}
-            </span>
-          )}
-          <span className="font-mono text-[11px] text-[var(--text3)]">
-            {ev.created_at ? fmt.time(ev.created_at) : ""}
-          </span>
-        </div>
-        <span
-          className={cn(
-            "text-[12px] leading-[1.4]",
-            ev.level === "WARN" && "text-warning",
-            ev.level === "ERROR" && "text-error",
-            ev.level !== "WARN" &&
-              ev.level !== "ERROR" &&
-              "text-[var(--text3)]",
-          )}
-        >
-          {ev.message}
-        </span>
-      </div>
-    </div>
   );
 }

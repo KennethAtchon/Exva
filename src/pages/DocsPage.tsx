@@ -21,7 +21,7 @@ class DocsContentErrorBoundary extends Component<
   render() {
     if (this.state.error) {
       return (
-        <div className="rounded-lg border border-error-border bg-error-dim px-4 py-3 text-[13px] text-error">
+        <div className="rounded-sm border border-error-border bg-error-dim px-4 py-3 font-sans text-body text-error">
           This documentation page failed to render. Try another page from the
           sidebar, or reload the app.
         </div>
@@ -40,9 +40,9 @@ function DocsPageContent() {
       <DocsSidebar />
       <main
         data-doc-content
-        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-[var(--surface)]"
+        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-surface"
       >
-        <div className="mx-auto w-full max-w-3xl flex-1 px-7 py-8 lg:px-9">
+        <div className="mx-auto w-full max-w-[720px] flex-1 px-6 py-8 lg:px-8">
           <DocPageHeader />
           <DocsContentErrorBoundary>
             <article>
@@ -51,7 +51,7 @@ function DocsPageContent() {
           </DocsContentErrorBoundary>
           <RelatedPages />
           <DocPager />
-          <footer className="mt-10 pb-4 text-[12px] text-[var(--text3)]">
+          <footer className="mt-10 pb-4 font-sans text-caption text-text3">
             Exva operator documentation — reflects the signal-driven
             architecture in the current codebase.
           </footer>
@@ -65,7 +65,7 @@ function DocsPageContent() {
 export function DocsPage() {
   return (
     <DocsNavigationProvider>
-      <div className="flex min-h-0 flex-1 overflow-hidden bg-[var(--surface)]">
+      <div className="flex min-h-0 flex-1 overflow-hidden bg-surface">
         <DocsPageContent />
       </div>
     </DocsNavigationProvider>

@@ -111,7 +111,7 @@ const SessionInfoGrid = ({
                 <span className={mutedClass}>Loading cache…</span>
               ) : instrumentCache?.instruments?.length ? (
                 <div className="grid gap-2">
-                  <div className="text-[12px] text-[var(--text2)]">
+                  <div className="text-caption text-text2">
                     {instrumentCache.selectedAt
                       ? `Selected ${formatTimestamp(instrumentCache.selectedAt)}`
                       : "—"}
@@ -138,14 +138,12 @@ const SessionInfoGrid = ({
                       session.status === "active" || session.status === "paused"
                     }
                     variant="outline"
-                    className="self-start border-border bg-[var(--surface2)] text-xs text-[var(--text2)]"
+                    className="self-start border-border bg-surface2 text-xs text-text2"
                   >
                     Re-run selector on next start
                   </Button>
                   {cacheAction ? (
-                    <div className="text-[12px] text-[var(--text3)]">
-                      {cacheAction}
-                    </div>
+                    <div className="text-caption text-text3">{cacheAction}</div>
                   ) : null}
                 </div>
               ) : (
@@ -580,9 +578,9 @@ export const SessionDetailDrawer = ({
       <DialogContent className="max-h-[92vh] max-w-[96vw] overflow-hidden border-border bg-transparent p-0 sm:max-w-[620px]">
         <div className={panelClass}>
           {/* Header */}
-          <div className="mb-[18px] border-b border-[var(--border)] pb-[18px]">
+          <div className="mb-[18px] border-b border-border pb-[18px]">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="m-0 text-[17px] font-semibold tracking-[-0.01em] text-[var(--text1)]">
+              <h2 className="m-0 text-title font-semibold tracking-[-0.01em] text-text1">
                 {session.name}
               </h2>
               <Badge variant={statusVariant(session.status)}>
@@ -591,13 +589,13 @@ export const SessionDetailDrawer = ({
               {session.isFocused ? <Badge variant="blue">focused</Badge> : null}
             </div>
             {session.objective ? (
-              <div className="mt-1.5 text-[13px] leading-[1.55] text-[var(--text2)]">
+              <div className="mt-1.5 text-body leading-[1.55] text-text2">
                 {session.objective}
               </div>
             ) : null}
             {session.rehearsalMode ? (
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-info-border bg-info-dim px-3 py-2.5">
-                <div className="text-[12px] leading-snug text-[var(--text2)]">
+                <div className="text-caption leading-snug text-text2">
                   {session.canFireRehearsalSignal
                     ? "Mock rehearsal session — fire a synthetic filing to start a cycle."
                     : session.status === "active"
@@ -671,7 +669,7 @@ export const SessionDetailDrawer = ({
                   ))}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span className="self-center text-[11px] uppercase tracking-[0.08em] text-[var(--text3)]">
+                  <span className="self-center text-micro uppercase tracking-[0.08em] text-text3">
                     Dead letters
                   </span>
                   {(
@@ -704,14 +702,14 @@ export const SessionDetailDrawer = ({
                     {signalRows.map((row) => (
                       <div
                         key={row.delivery.id}
-                        className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
+                        className="rounded-lg border border-border bg-surface px-3 py-2"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <div className="text-[12px] font-semibold text-[var(--text1)]">
+                            <div className="text-caption font-semibold text-text1">
                               {(row.event.ticker as string) ?? "—"}
                             </div>
-                            <div className="text-[12px] text-[var(--text3)]">
+                            <div className="text-caption text-text3">
                               {(row.source.name as string) ?? "Source"}
                               {(row.event.companyName as string | null)
                                 ? ` · ${String(row.event.companyName)}`
@@ -737,7 +735,7 @@ export const SessionDetailDrawer = ({
                             </Badge>
                           </HelpTooltip>
                         </div>
-                        <div className="mt-1 text-[12px] text-[var(--text3)]">
+                        <div className="mt-1 text-caption text-text3">
                           {formatTimestamp(row.delivery.enqueuedAt)}
                           {row.delivery.status === "queued"
                             ? ` · #${row.delivery.queuePositionAtEnqueue} in queue`
@@ -748,7 +746,7 @@ export const SessionDetailDrawer = ({
                             href={String(row.event.documentUrl)}
                             target="_blank"
                             rel="noreferrer"
-                            className="mt-1 inline-block text-[12px] text-[var(--accent)]"
+                            className="mt-1 inline-block text-caption text-accent"
                           >
                             Open document
                           </a>
@@ -758,14 +756,14 @@ export const SessionDetailDrawer = ({
                     {deadLetterRows.map((row) => (
                       <div
                         key={row.deadLetter.id}
-                        className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
+                        className="rounded-lg border border-border bg-surface px-3 py-2"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <div className="text-[12px] font-semibold text-[var(--text1)]">
+                            <div className="text-caption font-semibold text-text1">
                               {row.deadLetter.ticker}
                             </div>
-                            <div className="text-[12px] text-[var(--text3)]">
+                            <div className="text-caption text-text3">
                               {(row.source.name as string) ?? "Source"} · Not
                               delivered
                             </div>
@@ -781,7 +779,7 @@ export const SessionDetailDrawer = ({
                             </Badge>
                           </HelpTooltip>
                         </div>
-                        <div className="mt-1 text-[12px] text-[var(--text3)]">
+                        <div className="mt-1 text-caption text-text3">
                           {formatTimestamp(row.deadLetter.createdAt)}
                           {row.deadLetter.replayedAt ? " · Replayed" : ""}
                         </div>
@@ -865,7 +863,7 @@ export const SessionDetailDrawer = ({
                       </span>
                     )}
                     {researchFailure ? (
-                      <div className="mt-2 text-[12px] leading-[1.45] text-error">
+                      <div className="mt-2 text-caption leading-[1.45] text-error">
                         {researchFailure}
                       </div>
                     ) : null}
@@ -910,16 +908,16 @@ export const SessionDetailDrawer = ({
                       {recentEvents.map((ev) => (
                         <div
                           key={ev.id}
-                          className="grid grid-cols-[auto_1fr] gap-2.5 text-[12px] leading-[1.45]"
+                          className="grid grid-cols-[auto_1fr] gap-2.5 text-caption leading-[1.45]"
                         >
-                          <span className="whitespace-nowrap pt-px text-[12px] text-[var(--text3)]">
+                          <span className="whitespace-nowrap pt-px text-caption text-text3">
                             {formatTimestamp(ev.created_at)}
                           </span>
                           <span
                             className={cn(
                               ev.level === "ERROR"
                                 ? "text-error"
-                                : "text-[var(--text2)]",
+                                : "text-text2",
                             )}
                           >
                             {ev.message}
@@ -963,16 +961,14 @@ const Section = ({
 const Row = ({ label, value }: { label: string; value: string }) => (
   <div className="grid grid-cols-[140px_1fr] items-start gap-2">
     <div className={rowLabelClass}>{label}</div>
-    <div className="text-[13px] leading-normal text-[var(--text1)]">
-      {value}
-    </div>
+    <div className="text-body leading-normal text-text1">{value}</div>
   </div>
 );
 
 const StatBlock = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2.5">
+  <div className="rounded-sm border border-border bg-surface2 px-3 py-2.5">
     <div className={rowLabelClass}>{label}</div>
-    <div className="mt-1 text-[14px] font-semibold tabular-nums text-[var(--text1)]">
+    <div className="mt-1 text-body font-semibold tabular-nums text-text1">
       {value}
     </div>
   </div>
@@ -1066,20 +1062,19 @@ function formatTimestamp(value: string): string {
 }
 
 const panelClass =
-  "w-[620px] max-w-[96vw] rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-[22px]";
+  "w-[620px] max-w-[96vw] rounded-[20px] border border-border bg-surface p-[22px]";
 
-const sectionClass =
-  "rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-3.5";
+const sectionClass = "rounded-xl border border-border bg-surface2 px-4 py-3.5";
 
 const sectionTitleClass =
-  "mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text3)]";
+  "mb-3 text-caption font-bold uppercase tracking-[0.14em] text-text3";
 
-const rowLabelClass = "pt-px text-[12px] leading-normal text-[var(--text3)]";
+const rowLabelClass = "pt-px text-caption leading-normal text-text3";
 
 const cacheChipClass =
-  "rounded-full border border-[var(--border)] bg-[var(--chip)] px-2 py-[3px] text-[12px] text-[var(--text2)]";
+  "rounded-full border border-border bg-chip px-2 py-0.5 text-caption text-text2";
 
-const mutedClass = "text-[13px] text-[var(--text3)]";
+const mutedClass = "text-body text-text3";
 
 const errorBannerClass =
-  "mb-3.5 rounded-[10px] border border-error-border bg-error-dim px-[14px] py-[11px] text-[13px] text-error";
+  "mb-3.5 rounded-sm border border-error-border bg-error-dim px-[14px] py-2.5 text-body text-error";

@@ -6,11 +6,7 @@ import {
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import os from "node:os";
-import {
-  getNavGroupForPage,
-  NAV_ITEMS,
-  NAV_PRIMARY_IDS,
-} from "../../src/lib/nav";
+import { NAV_ITEMS } from "../../src/lib/nav";
 
 export type LaunchedExva = {
   app: ElectronApplication;
@@ -51,7 +47,7 @@ export async function launchExva(): Promise<LaunchedExva> {
 }
 
 export function navLocator(window: Page) {
-  return window.locator("header nav, [aria-label='Main navigation'] nav");
+  return window.getByRole("navigation", { name: "Main navigation" });
 }
 
 export async function navigateToNavItem(
@@ -63,30 +59,15 @@ export async function navigateToNavItem(
     throw new Error(`Unknown nav label: ${label}`);
   }
 
-  const nav = navLocator(window);
-
-  if (NAV_PRIMARY_IDS.includes(item.id)) {
-    await nav.getByRole("button", { name: label, exact: true }).click();
-    return;
-  }
-
-  const flatButton = nav.getByRole("button", { name: label, exact: true });
-  if (await flatButton.isVisible()) {
-    await flatButton.click();
-    return;
-  }
-
-  const group = getNavGroupForPage(item.id);
-  if (!group) {
-    throw new Error(`Nav item ${label} is not in any nav group`);
-  }
-
-  await nav.getByRole("button", { name: group.label, exact: true }).click();
-  await window.getByRole("menuitem", { name: label, exact: true }).click();
+  await navLocator(window)
+    .getByRole("button", { name: label, exact: true })
+    .click();
 }
 
 export async function waitForAppReady(window: Page): Promise<void> {
-  await window.getByText("exva", { exact: true }).waitFor({ timeout: 30_000 });
+  await window
+    .getByRole("navigation", { name: "Main navigation" })
+    .waitFor({ timeout: 30_000 });
   await window
     .getByRole("heading", { name: "Dashboard", level: 1 })
     .waitFor({ state: "visible", timeout: 30_000 });

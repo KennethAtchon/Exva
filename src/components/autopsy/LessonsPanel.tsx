@@ -69,28 +69,28 @@ const LESSON_CATEGORIES: LessonCategory[] = [
 ];
 
 const lessonChipClass =
-  "rounded-[4px] bg-[var(--surface3)] px-[7px] py-[2px] font-mono text-[12px]";
+  "rounded-[4px] bg-surface3 px-2 py-[2px] font-mono text-caption";
 
 const statusPillButtonClass =
-  "cursor-pointer rounded-[5px] border-none px-[9px] py-[3px] font-mono text-[12px] font-semibold tracking-[0.04em]";
+  "cursor-pointer rounded-sm border-none px-2.5 py-0.5 font-mono text-caption font-semibold tracking-[0.04em]";
 
 const statusPickerContainerClass =
-  "absolute right-0 top-[calc(100%+4px)] z-50 min-w-[140px] rounded-lg border border-[var(--border)] bg-[var(--surface3)] p-1 shadow-[0_8px_24px_rgba(0,0,0,0.4)]";
+  "absolute right-0 top-[calc(100%+4px)] z-50 min-w-[140px] rounded-lg border border-border bg-surface3 p-1 shadow-[0_8px_24px_rgba(0,0,0,0.4)]";
 
 const statusPickerButtonClass =
-  "flex w-full cursor-pointer items-center gap-2 rounded-md border-none px-[10px] py-[7px] text-left";
+  "flex w-full cursor-pointer items-center gap-2 rounded-md border-none px-[10px] py-1.5 text-left";
 
 const addLessonButtonClass =
-  "rounded-[5px] border border-[var(--border)] bg-transparent px-[9px] py-[3px] text-[12px] text-[var(--text2)]";
+  "rounded-sm border border-border bg-transparent px-2.5 py-0.5 text-caption text-text2";
 
 const inputClass =
-  "w-full resize-y rounded-md border border-[var(--border)] bg-[var(--surface)] px-[10px] py-2 font-sans text-[12px] text-[var(--text1)]";
+  "w-full resize-y rounded-md border border-border bg-surface px-[10px] py-2 font-sans text-caption text-text1";
 
 const secondaryButtonClass =
-  "cursor-pointer rounded-md border border-[var(--border)] bg-transparent px-[11px] py-[7px] text-[12px] text-[var(--text2)]";
+  "cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-caption text-text2";
 
 const primaryButtonClass =
-  "cursor-pointer rounded-md border border-info-border bg-info-dim px-[11px] py-[7px] text-[12px] text-info";
+  "cursor-pointer rounded-md border border-info-border bg-info-dim px-3 py-1.5 text-caption text-info";
 
 // ---------------------------------------------------------------------------
 // Components
@@ -125,7 +125,7 @@ function StatusPicker({
               className="size-[7px] shrink-0 rounded-full"
               style={{ background: st.color }}
             />
-            <span className="text-[12px] text-[var(--text1)]">{st.label}</span>
+            <span className="text-caption text-text1">{st.label}</span>
           </button>
         );
       })}
@@ -155,7 +155,7 @@ function LessonRow({
   const sev = SEVERITY_STYLE[lesson.severity] ?? SEVERITY_STYLE.medium;
 
   return (
-    <div className="overflow-visible rounded-lg border border-[var(--border)] bg-[var(--surface2)]">
+    <div className="overflow-visible rounded-lg border border-border bg-surface2">
       {/* Header row */}
       <div
         role="button"
@@ -190,7 +190,7 @@ function LessonRow({
           <span
             className={cn(
               lessonChipClass,
-              "uppercase tracking-[0.05em] text-[var(--text3)]",
+              "uppercase tracking-[0.05em] text-text3",
             )}
           >
             {lesson.category}
@@ -202,8 +202,7 @@ function LessonRow({
               "uppercase tracking-[0.05em]",
               lesson.source === "period" && "bg-info-dim text-info",
               lesson.source === "manual" && "bg-success-dim text-success",
-              lesson.source === "trade" &&
-                "bg-[var(--surface3)] text-[var(--text3)]",
+              lesson.source === "trade" && "bg-surface3 text-text3",
             )}
           >
             {lesson.source}
@@ -222,7 +221,7 @@ function LessonRow({
         {/* Lesson text */}
         <div
           className={cn(
-            "text-[12px] leading-[1.55] text-[var(--text1)]",
+            "text-caption leading-[1.55] text-text1",
             !expanded && "line-clamp-2",
           )}
         >
@@ -232,11 +231,11 @@ function LessonRow({
 
       {/* Proposed fix (expanded) */}
       {expanded && lesson.proposedFix && (
-        <div className="mt-0.5 border-t border-[var(--border)] px-3 pb-2.5 pt-2">
-          <div className="mb-[5px] text-[12px] font-semibold uppercase tracking-[0.07em] text-[var(--text3)]">
+        <div className="mt-0.5 border-t border-border px-3 pb-2.5 pt-2">
+          <div className="mb-[5px] text-caption font-semibold uppercase tracking-[0.07em] text-text3">
             Proposed Fix
           </div>
-          <div className="text-[12px] leading-[1.55] text-[var(--text2)]">
+          <div className="text-caption leading-[1.55] text-text2">
             {lesson.proposedFix}
           </div>
         </div>
@@ -249,7 +248,7 @@ function LessonRow({
             {promoteSessionId ? (
               <button
                 type="button"
-                className="rounded-[5px] border border-[var(--border)] bg-transparent px-[9px] py-[3px] text-[12px] text-[var(--text2)]"
+                className="rounded-sm border border-border bg-transparent px-2.5 py-0.5 text-caption text-text2"
                 onClick={(event) => {
                   event.stopPropagation();
                   if (
@@ -270,7 +269,7 @@ function LessonRow({
             ) : null}
             <button
               type="button"
-              className="rounded-[5px] border border-[var(--border)] bg-transparent px-[9px] py-[3px] text-[12px] text-[var(--text2)]"
+              className="rounded-sm border border-border bg-transparent px-2.5 py-0.5 text-caption text-text2"
               onClick={(event) => {
                 event.stopPropagation();
                 if (
@@ -419,10 +418,10 @@ export function LessonsPanel({
   };
 
   return (
-    <div className="overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)]">
+    <div className="overflow-hidden rounded-sm border border-border bg-surface">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-3.5 py-3">
-        <span className="text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--text3)]">
+      <div className="flex items-center justify-between border-b border-border px-3.5 py-3">
+        <span className="text-caption font-bold uppercase tracking-[0.1em] text-text3">
           Lessons
         </span>
         <button
@@ -444,7 +443,7 @@ export function LessonsPanel({
       </div>
 
       {adding && onAddLesson && (
-        <div className="flex flex-col gap-2.5 border-b border-[var(--border)] bg-[var(--surface2)] px-3.5 py-3">
+        <div className="flex flex-col gap-2.5 border-b border-border bg-surface2 px-3.5 py-3">
           <textarea
             value={lesson}
             onChange={(e) => dispatchForm({ lesson: e.target.value })}
@@ -488,7 +487,9 @@ export function LessonsPanel({
             className={inputClass}
           />
           {error && (
-            <div className="text-[12px] leading-normal text-error">{error}</div>
+            <div className="text-caption leading-normal text-error">
+              {error}
+            </div>
           )}
           <div className="flex justify-end gap-2">
             <button
@@ -517,7 +518,7 @@ export function LessonsPanel({
       {/* Lesson list */}
       <div className="flex flex-col gap-2 px-3 py-2.5">
         {lessons.length === 0 ? (
-          <div className="py-5 text-center text-[12px] text-[var(--text3)]">
+          <div className="py-5 text-center text-caption text-text3">
             No lessons extracted.
           </div>
         ) : (

@@ -36,16 +36,16 @@ const MONTH_LABELS = [
 ] as const;
 
 const phaseChipClass =
-  "shrink-0 rounded-[4px] px-2 py-0.5 font-mono text-[12px] font-bold tracking-[0.05em]";
+  "shrink-0 rounded-[4px] px-2 py-0.5 font-mono text-caption font-bold tracking-[0.05em]";
 
 const promptBlockPreClass =
-  "m-0 overflow-auto whitespace-pre-wrap break-words rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 font-mono text-[12px] leading-normal";
+  "m-0 overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-bg px-3 py-2.5 font-mono text-caption leading-normal";
 
 const versionChipClass =
-  "cursor-pointer rounded-md px-[11px] py-1 font-mono text-[12px]";
+  "cursor-pointer rounded-md px-3 py-1 font-mono text-caption";
 
 const footerBtnClass =
-  "cursor-pointer rounded-[7px] border border-[var(--border)] bg-transparent px-3.5 py-[7px] font-sans text-[12px] text-[var(--text2)]";
+  "cursor-pointer rounded-sm border border-border bg-transparent px-3.5 py-1.5 font-sans text-caption text-text2";
 
 function formatIsoMonthDay(isoLike: string): string {
   const match = isoLike.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -79,10 +79,8 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-lg bg-[var(--surface2)]",
-        hasError
-          ? "border border-error-border"
-          : "border border-[var(--border)]",
+        "overflow-hidden rounded-lg bg-surface2",
+        hasError ? "border border-error-border" : "border border-border",
       )}
     >
       {/* Header */}
@@ -113,24 +111,24 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
         </span>
 
         {/* Stats */}
-        <span className="flex-1 font-mono text-[12px] text-[var(--text3)]">
+        <span className="flex-1 font-mono text-caption text-text3">
           {trace.providerKey} · {trace.modelId} ·{" "}
           {fmt.tokens(trace.inputTokens)} in · {fmt.tokens(trace.outputTokens)}{" "}
           out · {fmt.usd(trace.costUsd, 4)} · {fmt.duration(trace.durationMs)}
         </span>
 
         {hasError && (
-          <span className="mr-1 font-mono text-[12px] text-error">ERROR</span>
+          <span className="mr-1 font-mono text-caption text-error">ERROR</span>
         )}
 
-        <span className="shrink-0 text-[12px] text-[var(--text3)]">
+        <span className="shrink-0 text-caption text-text3">
           {open ? "▲" : "▼"}
         </span>
       </div>
 
       {/* Expanded body */}
       {open && (
-        <div className="flex flex-col gap-3.5 border-t border-[var(--border)] px-4 py-3.5">
+        <div className="flex flex-col gap-3.5 border-t border-border px-4 py-3.5">
           <PromptBlock
             label="SYSTEM PROMPT"
             text={trace.systemPrompt}
@@ -189,7 +187,7 @@ function PromptBlock({
 
   return (
     <div>
-      <div className="mb-1.5 font-mono text-[12px] font-bold tracking-[0.05em] text-[var(--text3)]">
+      <div className="mb-1.5 font-mono text-caption font-bold tracking-[0.05em] text-text3">
         {label}
       </div>
       <pre
@@ -233,8 +231,8 @@ function VersionChips({
               versionChipClass,
               "border",
               active
-                ? "border-[var(--accent)] bg-info-dim text-info"
-                : "border-[var(--border)] bg-transparent text-[var(--text3)]",
+                ? "border-accent bg-info-dim text-info"
+                : "border-border bg-transparent text-text3",
             )}
           >
             v{i + 1} · <span suppressHydrationWarning>{date}</span>
@@ -295,14 +293,14 @@ export function ChatHistoryModal({
           "flex h-[88vh] max-w-[700px] flex-col overflow-hidden border-border bg-transparent p-0",
         )}
       >
-        <div className="flex h-full flex-col overflow-hidden rounded-[14px] border border-[var(--border)] bg-[var(--surface)]">
+        <div className="flex h-full flex-col overflow-hidden rounded-[14px] border border-border bg-surface">
           {/* Modal header */}
-          <div className="shrink-0 border-b border-[var(--border)] px-5 pb-4 pt-[18px]">
-            <div className="mb-1 text-[15px] font-bold text-[var(--text1)]">
+          <div className="shrink-0 border-b border-border px-5 pb-4 pt-[18px]">
+            <div className="mb-1 text-head font-bold text-text1">
               Autopsy Chat History
             </div>
             {autopsy && (
-              <div className="font-mono text-[12px] text-[var(--text3)]">
+              <div className="font-mono text-caption text-text3">
                 {autopsy.modelId} ·{" "}
                 <span suppressHydrationWarning>
                   {formatIsoDateTime(autopsy.createdAt)}
@@ -314,7 +312,7 @@ export function ChatHistoryModal({
 
           {/* Version selector */}
           {autopsies.length > 1 && (
-            <div className="shrink-0 border-b border-[var(--border)] px-5 py-3">
+            <div className="shrink-0 border-b border-border px-5 py-3">
               <VersionChips
                 autopsies={autopsies}
                 selected={selectedAutopsyId}
@@ -326,7 +324,7 @@ export function ChatHistoryModal({
           {/* Phase list */}
           <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-[18px] py-3.5">
             {phases.length === 0 ? (
-              <div className="py-10 text-center text-[13px] text-[var(--text3)]">
+              <div className="py-10 text-center text-body text-text3">
                 Chat history not available for this autopsy.
               </div>
             ) : (
@@ -348,7 +346,7 @@ export function ChatHistoryModal({
           </div>
 
           {/* Footer */}
-          <div className="flex shrink-0 gap-2 border-t border-[var(--border)] px-[18px] py-3">
+          <div className="flex shrink-0 gap-2 border-t border-border px-[18px] py-3">
             <button onClick={handleCopyAll} className={footerBtnClass}>
               Copy All (JSON)
             </button>

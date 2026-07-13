@@ -1,12 +1,19 @@
 import { useEffect, useState } from "react";
 import { HelpTooltip } from "@/components/ui";
-import { HubBody, HubFrame, HubHeader, HubTabBar, type HubTab } from "./dna";
+import {
+  HubBody,
+  HubFrame,
+  HubHeader,
+  HubPane,
+  HubSplit,
+  HubTabBar,
+  type HubTab,
+} from "./dna";
 import { LeaderboardPage } from "./panels/leaderboard-panel";
 import { PeriodAutopsyPage } from "./panels/period-autopsy-panel";
 import { CostBreakdownPage } from "./panels/cost-breakdown-panel";
 import { BacktestLabPanel } from "./panels/backtest-lab-panel";
 import { EquityCurvePanel } from "./panels/equity-curve-panel";
-import { HubPane } from "./dna";
 
 type ResearchTab = "scorecards" | "autopsies" | "costs" | "lab" | "attribution";
 
@@ -14,7 +21,7 @@ const TABS: HubTab<ResearchTab>[] = [
   { id: "scorecards", label: "Scorecards", hint: "Experience leaderboard" },
   { id: "autopsies", label: "Autopsies", hint: "Merged period post-mortems" },
   { id: "costs", label: "Costs", hint: "API spend breakdown" },
-  { id: "lab", label: "Backtest lab", hint: "Run, compare, sweep" },
+  { id: "lab", label: "Lab", hint: "Run, compare, sweep" },
   {
     id: "attribution",
     label: "Attribution",
@@ -51,7 +58,7 @@ export function ResearchHub({
       <HubHeader
         eyebrow="Evidence"
         title="Research"
-        subtitle="Scorecards, merged autopsies, spend honesty, Backtest Lab, and attribution."
+        subtitle="Scorecards, autopsies, spend honesty, and backtest lab."
         help={<HelpTooltip glossaryId="promotion-tier" />}
       />
       <HubTabBar
@@ -60,8 +67,35 @@ export function ResearchHub({
         onChange={setTab}
         aria-label="Research sections"
       />
-      <HubBody scroll className="p-4">
-        {tab === "scorecards" ? <LeaderboardPage /> : null}
+      <HubBody
+        scroll={tab !== "autopsies"}
+        className={tab === "autopsies" ? "overflow-hidden" : "p-6"}
+      >
+        {tab === "scorecards" ? (
+          <div className="mx-auto flex max-w-6xl flex-col gap-4">
+            <HubSplit
+              leftWidth="58%"
+              left={
+                <HubPane
+                  eyebrow="Rankings"
+                  title="Experience leaderboard"
+                  className="min-h-[420px]"
+                >
+                  <LeaderboardPage embedded />
+                </HubPane>
+              }
+              right={
+                <HubPane
+                  eyebrow="Equity"
+                  title="Portfolio curve"
+                  className="min-h-[420px]"
+                >
+                  <EquityCurvePanel />
+                </HubPane>
+              }
+            />
+          </div>
+        ) : null}
         {tab === "autopsies" ? (
           <PeriodAutopsyPage
             initialScope={periodAutopsyScope}
@@ -70,12 +104,22 @@ export function ResearchHub({
             onReviewTrade={onReviewTrade ?? (() => undefined)}
           />
         ) : null}
-        {tab === "costs" ? <CostBreakdownPage /> : null}
-        {tab === "lab" ? <BacktestLabPanel /> : null}
+        {tab === "costs" ? (
+          <div className="mx-auto max-w-5xl">
+            <CostBreakdownPage />
+          </div>
+        ) : null}
+        {tab === "lab" ? (
+          <div className="mx-auto max-w-6xl">
+            <BacktestLabPanel />
+          </div>
+        ) : null}
         {tab === "attribution" ? (
-          <HubPane eyebrow="P&L" title="Attribution (net of AI)">
-            <EquityCurvePanel showAiCost />
-          </HubPane>
+          <div className="mx-auto max-w-3xl">
+            <HubPane eyebrow="P&L" title="Attribution (net of AI)">
+              <EquityCurvePanel showAiCost />
+            </HubPane>
+          </div>
         ) : null}
       </HubBody>
     </HubFrame>

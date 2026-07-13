@@ -67,7 +67,7 @@ const TemplateSearchBar = ({
       value={search}
       onChange={(event) => onSearchChange(event.target.value)}
       placeholder="Search templates"
-      className="h-10 flex-1 border-border bg-[var(--surface2)] text-[var(--text1)]"
+      className="h-10 flex-1 border-border bg-surface2 text-text1"
     />
     <ShadcnSelect
       value={instrumentClass}
@@ -102,19 +102,17 @@ const TemplateCard = ({
     <div className="flex flex-wrap items-start justify-between gap-[14px]">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="text-[15px] font-bold text-[var(--text1)]">
-            {template.name}
-          </div>
+          <div className="text-head font-bold text-text1">{template.name}</div>
           {template.instrumentClasses.map((value) => (
             <span key={value} className={chipClass}>
               {formatInstrumentClass(value)}
             </span>
           ))}
         </div>
-        <div className="mt-2 text-[13px] leading-normal text-[var(--text2)]">
+        <div className="mt-2 text-body leading-normal text-text2">
           {template.description ?? "No description provided."}
         </div>
-        <div className="mt-2.5 text-[12px] text-[var(--text3)]">
+        <div className="mt-2.5 text-caption text-text3">
           Source:{" "}
           {template.sourceSessionName ??
             template.sourceSessionId ??
@@ -125,14 +123,14 @@ const TemplateCard = ({
       <div className="flex flex-wrap items-start gap-2">
         <Button
           onClick={() => onUse(template.id)}
-          className="bg-[var(--accent)] text-white"
+          className="bg-accent text-white"
         >
           Use Template
         </Button>
         <Button
           onClick={() => onDelete(template.id)}
           variant="outline"
-          className="border-border bg-[var(--surface2)] text-[var(--text2)]"
+          className="border-border bg-surface2 text-text2"
         >
           Delete
         </Button>
@@ -334,10 +332,10 @@ const renderSessionTemplatesModalView = ({
         <div className="mb-[18px] flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
-              <h2 className="m-0 text-[20px]">Session Templates</h2>
+              <h2 className="m-0 text-title">Session Templates</h2>
               <HelpTooltip glossaryId="session-templates" />
             </div>
-            <div className="mt-1.5 text-[13px] text-[var(--text3)]">
+            <div className="mt-1.5 text-body text-text3">
               Capture a full session payload or seed a new one from saved
               structure.
             </div>
@@ -348,13 +346,13 @@ const renderSessionTemplatesModalView = ({
 
         <div className={heroCardClass}>
           <div>
-            <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
+            <div className="text-caption uppercase tracking-[0.14em] text-text3">
               Save session as template
             </div>
-            <div className="mt-2 text-[16px] font-bold text-[var(--text1)]">
+            <div className="mt-2 text-head font-bold text-text1">
               {sourceSession?.name ?? "Choose a session from the table first"}
             </div>
-            <div className="mt-1.5 text-[13px] leading-normal text-[var(--text2)]">
+            <div className="mt-1.5 text-body leading-normal text-text2">
               {sourceSession?.objective ??
                 "Use the page-level Templates button to manage existing templates, or use a row action to save a specific session."}
             </div>
@@ -370,7 +368,7 @@ const renderSessionTemplatesModalView = ({
                 })
               }
               placeholder="Template name"
-              className="h-10 border-border bg-[var(--surface2)] text-[var(--text1)]"
+              className="h-10 border-border bg-surface2 text-text1"
             />
             <textarea
               value={templateDescription}
@@ -445,7 +443,7 @@ const renderSessionTemplatesModalView = ({
                   dispatch({ type: "saveEnd" });
                 }
               }}
-              className="bg-[var(--accent)] text-white"
+              className="bg-accent text-white"
               disabled={saving || !sourceSession || !templateName.trim()}
             >
               {saving ? "Saving Template..." : "Save Full Session Payload"}
@@ -523,17 +521,16 @@ function formatTimestamp(value: string): string {
 }
 
 const panelClass =
-  "max-h-[92vh] w-[920px] max-w-[96vw] overflow-auto rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[0_26px_60px_rgba(2,6,23,0.28)]";
+  "max-h-[92vh] w-[920px] max-w-[96vw] overflow-auto rounded-[20px] border border-border bg-surface p-6 shadow-[0_26px_60px_rgba(2,6,23,0.28)]";
 const heroCardClass =
   "mb-[18px] grid grid-cols-[1.2fr_1fr] items-start gap-[18px] rounded-[18px] border border-info-border bg-info-dim p-[18px]";
 const toolbarClass = "mb-3.5 flex flex-wrap items-center gap-2.5";
-const templateCardClass =
-  "rounded-2xl border border-[var(--border)] bg-[var(--surface2)] p-4";
+const templateCardClass = "rounded-2xl border border-border bg-surface2 p-4";
 const emptyStateClass =
-  "rounded-2xl border border-dashed border-[var(--border)] p-[22px] text-center text-[var(--text3)]";
+  "rounded-2xl border border-dashed border-border p-[22px] text-center text-text3";
 const textareaClass =
-  "min-h-[84px] resize-y rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] px-3 py-[11px] text-[var(--text1)]";
+  "min-h-[84px] resize-y rounded-sm border border-border bg-surface2 px-3 py-2.5 text-text1";
 const chipClass =
-  "rounded-full border border-[var(--border)] bg-[var(--chip)] px-[9px] py-1 text-[12px] text-[var(--text2)]";
+  "rounded-full border border-border bg-chip px-2.5 py-1 text-caption text-text2";
 const errorBannerClass =
-  "mb-4 rounded-xl border border-error-border bg-error-dim px-[14px] py-3 text-[13px] text-error";
+  "mb-4 rounded-xl border border-error-border bg-error-dim px-[14px] py-3 text-body text-error";

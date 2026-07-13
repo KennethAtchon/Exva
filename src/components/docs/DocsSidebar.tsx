@@ -90,17 +90,17 @@ export function DocsSidebar() {
           onClick={() => navigate(pageSlug)}
           aria-current={active ? "page" : undefined}
           className={cn(
-            "block w-full rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors",
-            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]",
+            "block w-full rounded-md px-2.5 py-1.5 text-left text-body transition-colors",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent",
             active
-              ? "bg-[var(--surface2)] font-medium text-[var(--text1)]"
-              : "text-[var(--text2)] hover:bg-[var(--surface2)] hover:text-[var(--text1)]",
+              ? "bg-surface2 font-medium text-text1"
+              : "text-text2 hover:bg-surface2 hover:text-text1",
           )}
         >
           {groupPage.title}
         </button>
         {showHeadings ? (
-          <div className="mb-1 mt-0.5 space-y-0.5 border-l border-[var(--border)] pl-2">
+          <div className="mb-1 mt-0.5 space-y-0.5 border-l border-border pl-2">
             {page.headings.map((heading) => {
               const headingActive = activeHeadingId === heading.id;
               return (
@@ -110,12 +110,12 @@ export function DocsSidebar() {
                   onClick={() => navigate(pageSlug, heading.id)}
                   aria-current={headingActive ? "location" : undefined}
                   className={cn(
-                    "block w-full rounded-md py-1 text-left text-[12px] leading-snug transition-colors",
-                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]",
+                    "block w-full rounded-md py-1 text-left text-caption leading-snug transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent",
                     heading.level === 3 ? "pl-5 pr-2" : "pl-2.5 pr-2",
                     headingActive
-                      ? "font-medium text-[var(--accent)]"
-                      : "text-[var(--text3)] hover:text-[var(--text1)]",
+                      ? "font-medium text-accent"
+                      : "text-text3 hover:text-text1",
                   )}
                 >
                   {heading.title}
@@ -139,22 +139,22 @@ export function DocsSidebar() {
           aria-expanded={expanded}
           className={cn(
             "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors",
-            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]",
-            "text-[10px] font-semibold uppercase tracking-[0.12em] hover:text-[var(--text1)]",
-            groupActive ? "text-[var(--text2)]" : "text-[var(--text3)]",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent",
+            "text-micro font-semibold uppercase tracking-[0.12em] hover:text-text1",
+            groupActive ? "text-text2" : "text-text3",
           )}
         >
           <ChevronRight
             size={12}
             className={cn(
-              "shrink-0 text-[var(--text3)] transition-transform duration-150",
+              "shrink-0 text-text3 transition-transform duration-150",
               expanded && "rotate-90",
             )}
           />
           {group.label}
         </button>
         {expanded ? (
-          <div className="mb-3 ml-3 mt-0.5 space-y-0.5 border-l border-[var(--border)] pl-2">
+          <div className="mb-3 ml-3 mt-0.5 space-y-0.5 border-l border-border pl-2">
             {group.slugs.map((pageSlug) => renderPageLink(pageSlug))}
             {group.subgroups?.map((sub) => renderGroup(sub, depth + 1))}
           </div>
@@ -164,22 +164,22 @@ export function DocsSidebar() {
   };
 
   return (
-    <aside className="flex w-[240px] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface)]">
+    <aside className="flex w-[240px] shrink-0 flex-col border-r border-border bg-surface">
       <div className="px-4 pb-4 pt-5">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text3)]">
+        <div className="text-micro font-semibold uppercase tracking-[0.14em] text-text3">
           Documentation
         </div>
         <label className="relative mt-3 block">
           <Search
             size={14}
-            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text3)]"
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text3"
           />
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search docs…"
-            className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface2)] pl-8 pr-2 text-[12px] text-[var(--text1)] outline-none placeholder:text-[var(--text3)] focus:border-[var(--accent)]"
+            className="h-8 w-full rounded-md border border-border bg-surface2 pl-8 pr-2 text-caption text-text1 outline-none placeholder:text-text3 focus:border-accent"
           />
         </label>
       </div>
@@ -191,7 +191,7 @@ export function DocsSidebar() {
         {showSearch ? (
           <div className="space-y-1">
             {results.length === 0 ? (
-              <div className="px-3 py-2 text-[12px] text-[var(--text3)]">
+              <div className="px-3 py-2 text-caption text-text3">
                 No pages match your search.
               </div>
             ) : (
@@ -205,14 +205,14 @@ export function DocsSidebar() {
                   }}
                   className={cn(
                     "block w-full rounded-md px-3 py-2 text-left transition-colors",
-                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]",
+                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent",
                     slug === result.slug
-                      ? "bg-[var(--surface2)] text-[var(--text1)]"
-                      : "text-[var(--text2)] hover:bg-[var(--surface2)]",
+                      ? "bg-surface2 text-text1"
+                      : "text-text2 hover:bg-surface2",
                   )}
                 >
-                  <div className="text-[13px] font-medium">{result.title}</div>
-                  <div className="mt-0.5 text-[11px] text-[var(--text3)]">
+                  <div className="text-body font-medium">{result.title}</div>
+                  <div className="mt-0.5 text-micro text-text3">
                     {result.category}
                   </div>
                 </button>

@@ -15,12 +15,68 @@ const config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-sans)"],
+        mono: ["var(--font-mono)"],
+      },
+      fontSize: {
+        micro: [
+          "10.5px",
+          { lineHeight: "14px", letterSpacing: "0.08em", fontWeight: "500" },
+        ],
+        caption: ["12px", { lineHeight: "16px", fontWeight: "400" }],
+        body: ["13px", { lineHeight: "20px", fontWeight: "400" }],
+        label: ["13px", { lineHeight: "20px", fontWeight: "500" }],
+        data: ["13px", { lineHeight: "20px", fontWeight: "400" }],
+        head: ["15px", { lineHeight: "22px", fontWeight: "600" }],
+        title: [
+          "19px",
+          { lineHeight: "26px", letterSpacing: "-0.01em", fontWeight: "600" },
+        ],
+        stat: ["26px", { lineHeight: "30px", fontWeight: "600" }],
+        hero: [
+          "40px",
+          { lineHeight: "44px", letterSpacing: "-0.02em", fontWeight: "600" },
+        ],
+      },
+      spacing: {
+        rail: "var(--rail)",
+        contextbar: "var(--contextbar)",
+        tape: "var(--tape)",
+      },
+      height: {
+        rail: "var(--rail)",
+        contextbar: "var(--contextbar)",
+        tape: "var(--tape)",
+      },
+      width: {
+        rail: "var(--rail)",
+      },
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        md: "calc(var(--radius) - 1px)",
+        sm: "3px",
+        DEFAULT: "var(--radius)",
+      },
+      boxShadow: {
+        popover: "var(--shadow-popover)",
+      },
+      transitionDuration: {
+        hover: "120ms",
+        panel: "180ms",
+        tape: "240ms",
       },
       colors: {
+        bg: "var(--bg)",
+        surface: "var(--surface)",
+        surface2: "var(--surface2)",
+        surface3: "var(--surface3)",
+        chip: "var(--chip)",
+        hairline: "var(--hairline)",
+        text1: "var(--text1)",
+        text2: "var(--text2)",
+        text3: "var(--text3)",
+        "accent-dim": "var(--accent-dim)",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {
@@ -44,8 +100,9 @@ const config = {
           foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent-hsl))",
+          DEFAULT: "var(--accent)",
           foreground: "hsl(var(--accent-foreground))",
+          dim: "var(--accent-dim)",
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
@@ -85,7 +142,10 @@ const config = {
         "log-info": "var(--color-log-info)",
         "log-warn": "var(--color-log-warn)",
         "log-error": "var(--color-log-error)",
-        border: "hsl(var(--border-hsl))",
+        border: {
+          DEFAULT: "var(--border)",
+          hsl: "hsl(var(--border-hsl))",
+        },
         input: "hsl(var(--input-hsl))",
         ring: "hsl(var(--ring))",
       },

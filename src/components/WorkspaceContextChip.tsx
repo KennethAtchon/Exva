@@ -44,7 +44,7 @@ export const WorkspaceContextChip = ({
         <Button
           type="button"
           variant="outline"
-          className="max-w-[min(280px,42vw)] overflow-hidden rounded-full border-border bg-[var(--surface2)] px-3 py-2 text-xs text-[var(--text2)]"
+          className="max-w-xs overflow-hidden rounded-sm border-border bg-surface2 px-3 py-2 text-caption text-text2"
         >
           <span className="truncate">
             {viewMode === "global"
@@ -55,9 +55,9 @@ export const WorkspaceContextChip = ({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="z-[200] w-[min(280px,calc(100vw-48px))] border-border bg-[var(--surface)] p-2"
+        className="z-[200] w-72 border-border bg-surface p-2 shadow-popover"
       >
-        <div className="mb-2 text-[12px] uppercase text-[var(--text3)]">
+        <div className="mb-2 font-mono text-micro uppercase tracking-wider text-text3">
           Workspace Context
         </div>
         <DropdownMenuItem
@@ -65,7 +65,7 @@ export const WorkspaceContextChip = ({
             setOpen(false);
             onGoGlobal?.();
           }}
-          className="justify-between rounded-lg text-[var(--text2)]"
+          className="justify-between rounded-sm text-text2"
         >
           Global Workspace
         </DropdownMenuItem>
@@ -76,10 +76,10 @@ export const WorkspaceContextChip = ({
               setOpen(false);
               onSwitchSession?.(session.id);
             }}
-            className="justify-between rounded-lg text-[var(--text2)]"
+            className="justify-between rounded-sm text-text2"
           >
             <span>{session.name}</span>
-            <span className="text-[12px] text-[var(--text3)]">
+            <span className="font-mono text-caption text-text3">
               {session.status}
             </span>
           </DropdownMenuItem>

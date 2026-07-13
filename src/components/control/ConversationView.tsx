@@ -14,7 +14,7 @@ function MessageBubble({
 }) {
   if (item.role === "system") {
     return (
-      <div className="mx-auto rounded-full bg-muted px-3 py-1 text-center text-[11px] text-muted-foreground">
+      <div className="mx-auto rounded-full bg-muted px-3 py-1 text-center text-micro text-muted-foreground">
         {item.content}
       </div>
     );

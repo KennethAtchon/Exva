@@ -152,148 +152,139 @@ const ROLE_COLOR: Record<string, string> = {
 // ─── Shared class bundles ─────────────────────────────────────────────────────
 
 const devClass = {
-  mono9: "font-mono text-[12px] tracking-[0.08em]",
-  mono10: "font-mono text-[12px]",
-  mono11: "font-mono text-[12px]",
-  label:
-    "font-mono text-[12px] font-extrabold tracking-[0.12em] uppercase text-[var(--text3)]",
+  mono9: "font-mono text-caption tracking-wider",
+  mono10: "font-mono text-caption",
+  mono11: "font-mono text-caption",
+  label: "font-mono text-micro font-bold uppercase tracking-wider text-text3",
   sectionTitle:
-    "font-mono text-[8px] font-extrabold tracking-[0.16em] uppercase text-[var(--text3)] px-3 pt-2.5 pb-1",
+    "px-3 pb-1 pt-2.5 font-mono text-micro font-bold uppercase tracking-wider text-text3",
   copyBtnBase:
-    "rounded px-[7px] py-[2px] font-mono text-[12px] tracking-[0.08em] font-bold cursor-pointer transition-[background,border-color,color] duration-150",
+    "cursor-pointer rounded-sm px-2 py-0.5 font-mono text-caption font-bold tracking-wider transition-colors duration-hover",
   statusChipBase:
-    "inline-flex items-center gap-1 rounded-[5px] px-[7px] py-[2px] font-mono text-[12px] tracking-[0.08em] font-bold",
+    "inline-flex items-center gap-1 rounded-sm px-2 py-0.5 font-mono text-caption font-bold tracking-wider",
   scopeItemBtn:
-    "flex w-full items-center gap-2 border-0 py-[7px] pl-3.5 pr-3 text-left cursor-pointer transition-[background,border-color] duration-100",
+    "flex w-full cursor-pointer items-center gap-2 border-0 py-2 pl-3.5 pr-3 text-left transition-colors duration-hover",
   stripBtnBase:
-    "flex items-center gap-[5px] rounded-[5px] px-2.5 py-[5px] font-mono text-[12px] tracking-[0.08em] font-bold transition-[background,border-color,opacity] duration-[120ms]",
+    "flex items-center gap-1 rounded-sm px-2.5 py-1 font-mono text-caption font-bold tracking-wider transition-opacity duration-hover",
   eventTimelineOuter:
-    "flex min-w-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)]",
+    "flex min-w-0 flex-1 flex-col overflow-hidden rounded-sm border border-border bg-surface",
   eventRowBtnBase:
-    "flex w-full cursor-pointer items-start gap-2 border-0 border-b border-b-white/[0.022] px-3.5 py-[7px] text-left transition-[background] duration-[80ms]",
+    "flex w-full cursor-pointer items-start gap-2 border-0 border-b border-hairline px-3.5 py-2 text-left transition-colors duration-hover hover:bg-surface2",
   preBlockWithMax:
-    "max-h-[420px] overflow-x-auto whitespace-pre-wrap rounded-[7px] border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 font-mono text-[12px] tracking-[0.08em] leading-[1.65] text-[var(--text2)]",
+    "max-h-[420px] overflow-x-auto whitespace-pre-wrap rounded-sm border border-border bg-bg px-3 py-2.5 font-mono text-caption leading-relaxed text-text2",
   preBlock:
-    "overflow-x-auto whitespace-pre-wrap rounded-[7px] border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 font-mono text-[12px] tracking-[0.08em] leading-[1.65] text-[var(--text2)]",
+    "overflow-x-auto whitespace-pre-wrap rounded-sm border border-border bg-bg px-3 py-2.5 font-mono text-caption leading-relaxed text-text2",
   runCardHeaderBtn:
-    "flex w-full cursor-pointer items-center gap-1.5 border-0 bg-[var(--surface2)] px-2.5 py-2 text-left",
+    "flex w-full cursor-pointer items-center gap-1.5 border-0 bg-surface2 px-2.5 py-2 text-left",
   inspectorTabBtnBase:
-    "cursor-pointer whitespace-nowrap border-0 bg-transparent px-3 py-2 font-mono text-[12px] font-bold tracking-[0.05em] transition-[color,border-color] duration-100",
+    "cursor-pointer whitespace-nowrap border-0 bg-transparent px-3 py-2 font-mono text-caption font-bold tracking-wider transition-colors duration-hover",
   debugCaptureBtnBase:
-    "flex cursor-pointer items-center gap-1.5 rounded-md border border-[var(--color-info-border)] bg-[var(--color-info-dim)] px-4 py-[7px] font-mono text-[12px] font-bold tracking-[0.08em] text-[var(--color-info)]",
+    "flex cursor-pointer items-center gap-1.5 rounded-sm border border-info-border bg-info-dim px-4 py-2 font-mono text-caption font-bold tracking-wider text-info",
   toggleTrackBase:
-    "relative h-[18px] w-9 cursor-pointer rounded-[9px] border-0 transition-[background] duration-200",
+    "relative h-4 w-9 cursor-pointer rounded-full border-0 transition-colors duration-panel",
   toggleThumbBase:
-    "absolute top-0.5 h-3.5 w-3.5 rounded-full transition-[left] duration-200",
+    "absolute top-0.5 h-3.5 w-3.5 rounded-full transition-[left] duration-panel",
   exportDrawer:
-    "fixed bottom-5 right-5 z-20 flex w-[360px] flex-col gap-2.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-[18px] py-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]",
+    "fixed bottom-5 right-5 z-20 flex w-80 flex-col gap-2.5 rounded-sm border border-border bg-surface px-4 py-4 shadow-popover",
   exportActionBtn:
-    "flex-1 cursor-pointer rounded-[5px] border border-[var(--border)] bg-[var(--surface3)] py-1.5 font-mono text-[12px] font-bold tracking-[0.08em] text-[var(--text2)]",
+    "flex-1 cursor-pointer rounded-sm border border-border bg-surface3 py-1.5 font-mono text-caption font-bold tracking-wider text-text2 hover:bg-surface2",
   toastContainer:
     "pointer-events-none fixed bottom-5 left-1/2 z-30 flex -translate-x-1/2 flex-col gap-1.5",
   streamBadgeBase:
-    "inline-flex items-center gap-1 rounded-[5px] px-2 py-[3px] font-mono text-[12px] tracking-[0.08em]",
+    "inline-flex items-center gap-1 rounded-sm px-2 py-0.5 font-mono text-caption tracking-wider",
   headerBtnBase:
-    "flex items-center gap-[5px] rounded-md px-2.5 py-[5px] font-mono text-[12px] font-bold tracking-[0.08em] transition-[background,border-color,opacity] duration-[120ms]",
+    "flex items-center gap-1 rounded-sm px-2.5 py-1 font-mono text-caption font-bold tracking-wider transition-opacity duration-hover",
   searchInput:
-    "flex-1 rounded-[5px] border border-[var(--border)] bg-[var(--bg)] px-2.5 py-[5px] text-[var(--text1)] outline-none shadow-none focus:shadow-[0_0_0_2px_var(--accent)]",
+    "flex-1 rounded-sm border border-border bg-bg px-2.5 py-1 font-sans text-body text-text1 outline-none focus:ring-1 focus:ring-primary",
   scopeRail:
-    "flex w-[210px] shrink-0 flex-col overflow-y-auto border-r border-[var(--border)] bg-[var(--surface)]",
-  scopeRailHeader:
-    "shrink-0 border-b border-[var(--border)] px-3.5 pb-2 pt-3.5",
+    "flex w-52 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface",
+  scopeRailHeader: "shrink-0 border-b border-border px-3.5 pb-2 pt-3.5",
   actionStrip:
-    "flex shrink-0 flex-col gap-2 border-b border-[var(--border)] bg-[var(--surface2)] px-4 py-2",
+    "flex shrink-0 flex-col gap-2 border-b border-border bg-surface2 px-4 py-2",
   actionStripRow: "flex flex-wrap items-center gap-2.5",
-  filterGroup:
-    "flex overflow-hidden rounded-[5px] border border-[var(--border)] bg-[var(--bg)]",
+  filterGroup: "flex overflow-hidden rounded-sm border border-border bg-bg",
   statPill:
-    "flex items-center gap-1 rounded-[5px] border border-[var(--border)] bg-[var(--bg)] px-2 py-[3px]",
+    "flex items-center gap-1 rounded-sm border border-border bg-bg px-2 py-0.5",
   timelineSearchBar:
-    "flex shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--surface2)] px-3 py-2",
+    "flex shrink-0 items-center gap-2 border-b border-border bg-surface2 px-3 py-2",
   tabPadding: "flex flex-col gap-2 px-3.5 py-3",
   sectionCard:
-    "flex flex-col gap-1.5 rounded-[7px] border border-[var(--border)] bg-[var(--bg)] px-2.5 py-2",
+    "flex flex-col gap-1.5 rounded-sm border border-border bg-bg px-2.5 py-2",
   sectionCardTitle:
-    "mb-0.5 border-b border-[var(--border)] pb-[5px] font-mono text-[12px] font-extrabold tracking-[0.12em] uppercase text-[var(--text3)]",
+    "mb-0.5 border-b border-border pb-1 font-mono text-micro font-bold uppercase tracking-wider text-text3",
   dataRow: "flex min-h-5 items-start justify-between gap-3",
   emptyState:
-    "px-5 py-9 text-center font-mono text-[12px] leading-relaxed tracking-[0.08em] text-[var(--text3)]",
+    "px-5 py-9 text-center font-mono text-caption leading-relaxed tracking-wider text-text3",
   inspectorPanel:
-    "flex flex-col overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)]",
+    "flex flex-col overflow-hidden rounded-sm border border-border bg-surface",
   inspectorTabBar:
-    "flex shrink-0 overflow-x-auto border-b border-[var(--border)] bg-[var(--surface2)]",
+    "flex shrink-0 overflow-x-auto border-b border-border bg-surface2",
   mainColumn: "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
   devHeader:
-    "flex shrink-0 items-center gap-2.5 border-b border-[var(--border)] bg-[var(--surface2)] px-4 py-2.5",
+    "flex shrink-0 items-center gap-2.5 border-b border-border bg-surface2 px-4 py-2.5",
   mainSplit: "flex min-h-0 flex-1 gap-2.5 overflow-hidden p-2.5",
-  timelineColumn: "flex min-w-0 basis-[60%] flex-col",
-  inspectorColumn: "flex min-w-0 basis-[calc(40%-10px)] flex-col",
+  timelineColumn: "flex min-w-0 basis-3/5 flex-col",
+  inspectorColumn: "flex min-w-0 basis-2/5 flex-col",
   devFooter:
-    "flex shrink-0 items-center gap-4 border-t border-[var(--border)] bg-[var(--surface2)] px-4 py-1",
+    "flex shrink-0 items-center gap-4 border-t border-border bg-surface2 px-4 py-1",
   rootLayout: "flex min-h-0 flex-1 overflow-hidden",
-  skeletonRow:
-    "flex h-9 items-center gap-2.5 border-b border-b-[var(--border)] px-3.5",
-  skeletonBar: "h-2 rounded-[3px] bg-[var(--surface3)] opacity-60",
+  skeletonRow: "flex h-9 items-center gap-2.5 border-b border-border px-3.5",
+  skeletonBar: "h-2 rounded-sm bg-surface3 opacity-60",
   modalOverlay:
     "fixed inset-0 z-[1000] flex items-center justify-center bg-black/70",
   modalPanel:
-    "flex w-[420px] flex-col gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-6 py-5",
-  closeBtn: "cursor-pointer border-0 bg-transparent text-[var(--text3)]",
+    "flex w-[420px] flex-col gap-4 rounded-sm border border-border bg-surface px-6 py-5 shadow-popover",
+  closeBtn: "cursor-pointer border-0 bg-transparent text-text3",
   fieldGroup: "flex flex-col gap-1.5",
   toggleRow: "flex items-center justify-between",
-  scopeFooter: "border-t border-[var(--border)] py-2",
-  lifecycleDivider: "mx-0.5 h-5 w-px bg-[var(--border)]",
+  scopeFooter: "border-t border-border py-2",
+  lifecycleDivider: "mx-0.5 h-5 w-px bg-border",
   loadMoreWrap: "flex justify-center px-3.5 py-3",
   loadMoreBtn:
-    "cursor-pointer rounded-[5px] border border-[var(--border)] bg-[var(--surface3)] px-4 py-1.5 font-mono text-[12px] font-bold tracking-[0.08em] text-[var(--text2)]",
+    "cursor-pointer rounded-sm border border-border bg-surface3 px-4 py-1.5 font-mono text-caption font-bold tracking-[0.08em] text-text2",
   collapsibleBody:
-    "font-mono text-[12px] leading-relaxed text-[var(--text2)] whitespace-pre-wrap break-words",
+    "font-mono text-caption leading-relaxed text-text2 whitespace-pre-wrap break-words",
   expandBtn:
-    "mt-1 cursor-pointer border-0 bg-transparent font-mono text-[12px] tracking-[0.08em] text-[var(--text3)]",
+    "mt-1 cursor-pointer border-0 bg-transparent font-mono text-caption tracking-[0.08em] text-text3",
   logSelect:
-    "cursor-pointer rounded-[5px] border border-[var(--border)] bg-[var(--bg)] px-1.5 py-[3px] font-mono text-[12px] tracking-[0.08em] text-[var(--text2)]",
+    "cursor-pointer rounded-sm border border-border bg-bg px-1.5 py-0.5 font-mono text-caption tracking-[0.08em] text-text2",
   filterChipBtn:
-    "cursor-pointer rounded px-[7px] py-[2px] font-mono text-[12px] tracking-[0.08em] font-bold",
+    "cursor-pointer rounded px-2 py-[2px] font-mono text-caption tracking-[0.08em] font-bold",
   windowBtn:
-    "cursor-pointer border-0 px-2 py-1 font-mono text-[12px] tracking-[0.08em] font-bold",
+    "cursor-pointer border-0 px-2 py-1 font-mono text-caption tracking-[0.08em] font-bold",
   levelBtn:
-    "cursor-pointer border-0 px-2 py-[3px] font-mono text-[12px] tracking-[0.08em] font-bold",
+    "cursor-pointer border-0 px-2 py-0.5 font-mono text-caption tracking-[0.08em] font-bold",
   scopeLabelTitle:
-    "font-mono text-[12px] font-extrabold tracking-[0.05em] text-[var(--text3)]",
-  devTitle: "text-sm font-extrabold tracking-tight text-[var(--text1)]",
-  scopeSubtitle:
-    "mt-0.5 font-mono text-[12px] tracking-[0.08em] text-[var(--text3)]",
+    "font-mono text-caption font-extrabold tracking-[0.05em] text-text3",
+  devTitle: "text-sm font-extrabold tracking-tight text-text1",
+  scopeSubtitle: "mt-0.5 font-mono text-caption tracking-[0.08em] text-text3",
   modalTitle:
-    "font-mono text-[12px] font-extrabold tracking-[0.05em] text-[var(--text1)]",
+    "font-mono text-caption font-extrabold tracking-[0.05em] text-text1",
   modalScopeBox:
-    "rounded-md border border-[var(--border)] bg-[var(--surface2)] px-2.5 py-1.5 font-mono text-[12px] tracking-[0.08em] text-[var(--text3)]",
+    "rounded-md border border-border bg-surface2 px-2.5 py-1.5 font-mono text-caption tracking-[0.08em] text-text3",
   modalCancelBtn:
-    "cursor-pointer rounded-md border border-[var(--border)] bg-[var(--surface3)] px-4 py-[7px] font-mono text-[12px] font-bold tracking-[0.08em] text-[var(--text2)]",
+    "cursor-pointer rounded-md border border-border bg-surface3 px-4 py-1.5 font-mono text-caption font-bold tracking-[0.08em] text-text2",
   captureDurationBtn:
-    "cursor-pointer rounded-[5px] px-3 py-[5px] font-mono text-[12px] tracking-[0.08em] font-bold",
+    "cursor-pointer rounded-sm px-3 py-1 font-mono text-caption tracking-[0.08em] font-bold",
   captureSelect:
-    "w-full rounded-[5px] border border-[var(--border)] bg-[var(--bg)] px-2 py-[5px] font-mono text-[12px] text-[var(--text1)]",
+    "w-full rounded-sm border border-border bg-bg px-2 py-1 font-mono text-caption text-text1",
   traceConfirmBtn:
-    "cursor-pointer rounded border border-[var(--color-warning-border)] bg-[var(--color-warning-dim)] px-2.5 py-1 font-mono text-[12px] font-bold tracking-[0.08em] text-[var(--color-warning)]",
+    "cursor-pointer rounded border border-warning-border bg-warning-dim px-2.5 py-1 font-mono text-caption font-bold tracking-[0.08em] text-warning",
   eventLevelBtn:
-    "flex-1 cursor-pointer border-0 px-1 py-[5px] font-mono text-[12px] tracking-[0.08em] font-bold",
+    "flex-1 cursor-pointer border-0 px-1 py-1 font-mono text-caption tracking-[0.08em] font-bold",
   exportSectionChip:
-    "rounded-[3px] bg-[var(--surface3)] px-[5px] py-[2px] font-mono text-[12px] tracking-[0.08em] text-[var(--text2)]",
+    "rounded-sm bg-surface3 px-1 py-[2px] font-mono text-caption tracking-[0.08em] text-text2",
   exportHeaderRow: "flex items-center justify-between",
-  statGridCell:
-    "rounded-[5px] border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-center",
+  statGridCell: "rounded-sm border border-border bg-bg px-2 py-1.5 text-center",
   executionStepCard: "rounded-md px-2.5 py-2",
-  runCardShell: "overflow-hidden rounded-[7px] border border-[var(--border)]",
-  runCardBody: "border-t border-[var(--border)] bg-[var(--bg)] px-3 py-2.5",
+  runCardShell: "overflow-hidden rounded-sm border border-border",
+  runCardBody: "border-t border-border bg-bg px-3 py-2.5",
   phaseGraphHeader:
-    "flex items-center justify-between bg-[var(--surface2)] px-2.5 py-[7px]",
-  phaseGraphBody: "flex flex-col gap-2 bg-[var(--bg)] px-3 py-2.5",
-  workerCard:
-    "rounded-[5px] border border-[var(--border)] bg-[var(--surface)] px-[9px] py-[7px]",
-  apiCallCard:
-    "rounded-[5px] border border-[var(--border)] bg-[var(--bg)] px-[9px] py-[7px]",
-  phaseGraphShell:
-    "overflow-hidden rounded-[7px] border border-[var(--border)]",
+    "flex items-center justify-between bg-surface2 px-2.5 py-1.5",
+  phaseGraphBody: "flex flex-col gap-2 bg-bg px-3 py-2.5",
+  workerCard: "rounded-sm border border-border bg-surface px-2.5 py-1.5",
+  apiCallCard: "rounded-sm border border-border bg-bg px-2.5 py-1.5",
+  phaseGraphShell: "overflow-hidden rounded-sm border border-border",
   rawTabHeader: "mb-1.5 flex justify-end",
   flex1Scroll: "flex-1 overflow-y-auto",
   flex1: "flex-1",
@@ -309,11 +300,11 @@ const devClass = {
   iconMuted: "text-xs opacity-50",
   scopeItemLabel: "min-w-0 flex-1",
   scopeItemTitle:
-    "overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px]",
+    "overflow-hidden text-ellipsis whitespace-nowrap font-mono text-caption",
   noFocusedSession:
-    "px-3.5 py-1.5 font-mono text-[12px] tracking-[0.08em] text-[var(--text3)]",
+    "px-3.5 py-1.5 font-mono text-caption tracking-[0.08em] text-text3",
   sessionCount:
-    "px-3.5 py-1 font-mono text-[12px] tracking-[0.08em] text-[var(--text3)]",
+    "px-3.5 py-1 font-mono text-caption tracking-[0.08em] text-text3",
   skeletonGroup: "flex gap-1.5",
   controlsCluster: "ml-auto flex items-center gap-1.5",
   sourceFilterRow: "flex flex-wrap gap-1",
@@ -492,9 +483,7 @@ const CollapsibleText = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
   if (!text)
-    return (
-      <span className={cn(devClass.mono9, "text-[var(--text3)]")}>n/a</span>
-    );
+    return <span className={cn(devClass.mono9, "text-text3")}>n/a</span>;
   const needs = text.length > collapseAt;
   return (
     <div>
@@ -552,13 +541,13 @@ const ScopeRailItem = ({
         <div
           className={cn(
             devClass.scopeItemTitle,
-            isActive ? "font-bold text-[var(--text1)]" : "text-[var(--text2)]",
+            isActive ? "font-bold text-text1" : "text-text2",
           )}
         >
           {label}
         </div>
         {subLabel && (
-          <div className={cn(devClass.mono9, "mt-px text-[var(--text3)]")}>
+          <div className={cn(devClass.mono9, "mt-px text-text3")}>
             {subLabel}
           </div>
         )}
@@ -719,7 +708,7 @@ const ActionStrip = ({
             {[80, 60, 100].map((w) => (
               <div
                 key={w}
-                className="h-6 rounded-[5px] bg-[var(--surface3)]"
+                className="h-6 rounded-sm bg-surface3"
                 style={{ width: w }}
               />
             ))}
@@ -748,7 +737,7 @@ const ActionStrip = ({
             )}
           </>
         ) : (
-          <span className={cn(devClass.mono9, "text-[var(--text3)]")}>n/a</span>
+          <span className={cn(devClass.mono9, "text-text3")}>n/a</span>
         )}
 
         <div className={devClass.controlsCluster}>
@@ -973,7 +962,7 @@ const StatPill = ({
   color?: string;
 }) => (
   <div className={devClass.statPill}>
-    <span className={cn(devClass.mono9, "text-[var(--text3)]")}>{label}</span>
+    <span className={cn(devClass.mono9, "text-text3")}>{label}</span>
     <span className={cn(devClass.mono9, "font-extrabold")} style={{ color }}>
       {value}
     </span>
@@ -1021,7 +1010,7 @@ const EventTimeline = ({
           className={cn(devClass.searchInput, devClass.mono10)}
         />
         {loading && <Spinner />}
-        <span className={cn(devClass.mono9, "shrink-0 text-[var(--text3)]")}>
+        <span className={cn(devClass.mono9, "shrink-0 text-text3")}>
           {filtered.length}/{events.length}
         </span>
         <CopyBtn text={copyAllText} label="copy all events" />
@@ -1035,13 +1024,13 @@ const EventTimeline = ({
 
         {!loading && filtered.length === 0 && (
           <div className={devClass.centerEmpty}>
-            <div className={cn(devClass.mono10, "text-[var(--text3)]")}>
+            <div className={cn(devClass.mono10, "text-text3")}>
               {events.length === 0
                 ? "No developer events have been recorded yet."
                 : "No events match these filters."}
             </div>
             {events.length === 0 && (
-              <div className={cn(devClass.mono9, "mt-1.5 text-[var(--text3)]")}>
+              <div className={cn(devClass.mono9, "mt-1.5 text-text3")}>
                 Start a session or run a diagnostic to create events.
               </div>
             )}
@@ -1064,10 +1053,7 @@ const EventTimeline = ({
               }}
             >
               <span
-                className={cn(
-                  devClass.mono9,
-                  "w-[50px] shrink-0 text-[var(--text3)]",
-                )}
+                className={cn(devClass.mono9, "w-[50px] shrink-0 text-text3")}
               >
                 {fmt.time(ev.created_at)}
               </span>
@@ -1085,7 +1071,7 @@ const EventTimeline = ({
                   <span
                     className={cn(
                       devClass.mono9,
-                      "rounded-[3px] px-[5px] py-px font-bold",
+                      "rounded-sm px-1 py-px font-bold",
                     )}
                     style={{
                       color: rc,
@@ -1096,7 +1082,7 @@ const EventTimeline = ({
                   </span>
                 )}
                 {ev.cycle_id && (
-                  <span className="rounded-[3px] bg-[var(--surface3)] px-1 py-px font-mono text-[12px] tracking-[0.08em] text-[var(--text3)]">
+                  <span className="rounded-sm bg-surface3 px-1 py-px font-mono text-caption tracking-[0.08em] text-text3">
                     cyc·{String(ev.cycle_id).slice(0, 5)}
                   </span>
                 )}
@@ -1105,10 +1091,10 @@ const EventTimeline = ({
                 className={cn(
                   devClass.mono10,
                   "min-w-0 flex-1 truncate leading-snug",
-                  sel ? "text-[var(--text1)]" : "text-[var(--text2)]",
+                  sel ? "text-text1" : "text-text2",
                 )}
               >
-                <span className="mr-[5px] font-mono text-[12px] tracking-[0.08em] text-[var(--color-info-border)]">
+                <span className="mr-1 font-mono text-caption tracking-[0.08em] text-info">
                   [{summarizeEventSource(ev)}]
                 </span>
                 {ev.message}
@@ -1157,9 +1143,7 @@ const OverviewTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
           label="errors"
           value={
             <span
-              className={
-                diag.counts.errors > 0 ? "text-error" : "text-[var(--text2)]"
-              }
+              className={diag.counts.errors > 0 ? "text-error" : "text-text2"}
             >
               {diag.counts.errors}
             </span>
@@ -1171,9 +1155,7 @@ const OverviewTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
           value={
             <span
               className={
-                diag.counts.warnings > 0
-                  ? "text-warning"
-                  : "text-[var(--text2)]"
+                diag.counts.warnings > 0 ? "text-warning" : "text-text2"
               }
             >
               {diag.counts.warnings}
@@ -1188,9 +1170,7 @@ const OverviewTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
           value={
             <span
               className={
-                diag.counts.failedSteps > 0
-                  ? "text-error"
-                  : "text-[var(--text2)]"
+                diag.counts.failedSteps > 0 ? "text-error" : "text-text2"
               }
             >
               {diag.counts.failedSteps}
@@ -1204,7 +1184,7 @@ const OverviewTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
           <div className={cn(devClass.mono9, "leading-normal text-error")}>
             {diag.latestError.message}
           </div>
-          <div className={cn(devClass.mono9, "mt-1 text-[var(--text3)]")}>
+          <div className={cn(devClass.mono9, "mt-1 text-text3")}>
             {fmt.time(diag.latestError.createdAt)}
           </div>
         </SectionCard>
@@ -1226,7 +1206,7 @@ const ExecutionTab = ({
   return (
     <div className={cn(devClass.tabPadding, "gap-1.5")}>
       {diag?.executionProgress?.cycleId && (
-        <div className={cn(devClass.mono9, "mb-1 text-[var(--text3)]")}>
+        <div className={cn(devClass.mono9, "mb-1 text-text3")}>
           Cycle: {diag.executionProgress.cycleId}
         </div>
       )}
@@ -1242,7 +1222,7 @@ const ExecutionTab = ({
         return (
           <div
             key={step.stage}
-            className={cn(devClass.executionStepCard, "bg-[var(--bg)]")}
+            className={cn(devClass.executionStepCard, "bg-bg")}
             style={{
               border: `1px solid ${c}40`,
               borderLeft: `2px solid ${c}`,
@@ -1260,7 +1240,7 @@ const ExecutionTab = ({
               </span>
             </div>
             {step.attempt > 0 && (
-              <div className={cn(devClass.mono9, "mt-1 text-[var(--text3)]")}>
+              <div className={cn(devClass.mono9, "mt-1 text-text3")}>
                 attempt {step.attempt}
               </div>
             )}
@@ -1272,7 +1252,7 @@ const ExecutionTab = ({
               </div>
             )}
             {step.outcome && (
-              <div className={cn(devClass.mono9, "mt-1 text-[var(--text3)]")}>
+              <div className={cn(devClass.mono9, "mt-1 text-text3")}>
                 outcome: {step.outcome}
               </div>
             )}
@@ -1325,15 +1305,8 @@ const PipelineConfigTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
           ["engines", String(config.engines.length)],
         ].map(([label, value]) => (
           <div key={label} className={devClass.statGridCell}>
-            <div className={cn(devClass.mono9, "text-[var(--text3)]")}>
-              {label}
-            </div>
-            <div
-              className={cn(
-                devClass.mono10,
-                "mt-0.5 font-bold text-[var(--text1)]",
-              )}
-            >
+            <div className={cn(devClass.mono9, "text-text3")}>{label}</div>
+            <div className={cn(devClass.mono10, "mt-0.5 font-bold text-text1")}>
               {value}
             </div>
           </div>
@@ -1418,13 +1391,8 @@ const AITraceTab = ({
           ["cost", fmt.usd(total.cost, 4)],
         ].map(([l, v]) => (
           <div key={l} className={devClass.statGridCell}>
-            <div className={cn(devClass.mono9, "text-[var(--text3)]")}>{l}</div>
-            <div
-              className={cn(
-                devClass.mono10,
-                "mt-0.5 font-bold text-[var(--text1)]",
-              )}
-            >
+            <div className={cn(devClass.mono9, "text-text3")}>{l}</div>
+            <div className={cn(devClass.mono10, "mt-0.5 font-bold text-text1")}>
               {v}
             </div>
           </div>
@@ -1452,13 +1420,13 @@ const RunCard = ({ run, accent }: { run: ExtAgentRun; accent: string }) => {
         className={devClass.runCardHeaderBtn}
       >
         <AgentLabel type={run.agent_type as EventSourceType} />
-        <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
+        <span className={cn(devClass.mono9, "text-text3")}>
           {run.provider_key} · {run.model}
         </span>
         <span
           className={cn(
             devClass.mono9,
-            "rounded-[3px] px-[5px] py-px font-bold",
+            "rounded-sm px-1 py-px font-bold",
             run.finish_reason === "stop"
               ? "bg-success-dim text-success"
               : "bg-error-dim text-error",
@@ -1467,12 +1435,12 @@ const RunCard = ({ run, accent }: { run: ExtAgentRun; accent: string }) => {
           {run.finish_reason}
         </span>
         <div className={devClass.mlAutoFlex}>
-          <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
+          <span className={cn(devClass.mono9, "text-text3")}>
             {fmt.tokens(run.input_tokens + run.output_tokens)} ·{" "}
             {fmt.usd(run.cost_usd, 4)} · {fmt.duration(run.duration_ms)}
           </span>
           <CopyBtn text={JSON.stringify(run, null, 2)} label="copy" />
-          <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
+          <span className={cn(devClass.mono9, "text-text3")}>
             {open ? "▲" : "▼"}
           </span>
         </div>
@@ -1520,10 +1488,10 @@ const PhaseGraphTab = ({
               >
                 {t.phase}
               </span>
-              <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
+              <span className={cn(devClass.mono9, "text-text3")}>
                 {t.schedulingMode}
               </span>
-              <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
+              <span className={cn(devClass.mono9, "text-text3")}>
                 {t.frontiers.length} frontiers · {t.workers.length} workers
               </span>
             </div>
@@ -1539,7 +1507,7 @@ const PhaseGraphTab = ({
                   >
                     {w.workerId}
                   </span>
-                  <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
+                  <span className={cn(devClass.mono9, "text-text3")}>
                     {w.status}
                   </span>
                 </div>
@@ -1607,17 +1575,17 @@ const ExternalCallsTab = ({
             >
               {c.status.toUpperCase()}
             </span>
-            <span className={cn(devClass.mono9, "text-[var(--text2)]")}>
+            <span className={cn(devClass.mono9, "text-text2")}>
               {c.provider}
             </span>
-            <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
+            <span className={cn(devClass.mono9, "text-text3")}>
               {c.call_type}
             </span>
-            <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
+            <span className={cn(devClass.mono9, "text-text3")}>
               {c.latency_ms}ms
             </span>
             {c.cost_usd != null && (
-              <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
+              <span className={cn(devClass.mono9, "text-text3")}>
                 {fmt.usd(c.cost_usd, 4)}
               </span>
             )}
@@ -1625,9 +1593,7 @@ const ExternalCallsTab = ({
               <span className={cn(devClass.mono9, "text-info")}>cached</span>
             )}
           </div>
-          <div
-            className={cn(devClass.mono9, "mt-1 break-all text-[var(--text3)]")}
-          >
+          <div className={cn(devClass.mono9, "mt-1 break-all text-text3")}>
             {c.endpoint}
           </div>
         </div>
@@ -1847,7 +1813,7 @@ const CaptureFormFields = ({
     </div>
 
     {/* Safety note */}
-    <div className={cn(devClass.mono9, "leading-normal text-[var(--text3)]")}>
+    <div className={cn(devClass.mono9, "leading-normal text-text3")}>
       Secrets are redacted before export. API keys and authorization headers are
       never shown.
     </div>
@@ -1994,7 +1960,7 @@ const Toggle = ({
   onChange: (v: boolean) => void;
 }) => (
   <div className={devClass.toggleRow}>
-    <span className={cn(devClass.mono10, "text-[var(--text2)]")}>{label}</span>
+    <span className={cn(devClass.mono10, "text-text2")}>{label}</span>
     <button
       onClick={() => onChange(!checked)}
       className={devClass.toggleTrackBase}
@@ -2033,7 +1999,7 @@ const ExportResultDrawer = ({
         ✕
       </button>
     </div>
-    <div className={cn(devClass.mono9, "break-all text-[var(--text3)]")}>
+    <div className={cn(devClass.mono9, "break-all text-text3")}>
       {result.path}
     </div>
     <div className={devClass.exportChipRow}>
@@ -2043,7 +2009,7 @@ const ExportResultDrawer = ({
         </span>
       ))}
     </div>
-    <div className={cn(devClass.mono9, "text-[var(--text3)]")}>
+    <div className={cn(devClass.mono9, "text-text3")}>
       {result.redactionCount} field{result.redactionCount !== 1 ? "s" : ""}{" "}
       redacted · {(result.sizeBytes / 1024).toFixed(0)} KB
     </div>
@@ -2124,13 +2090,11 @@ const DataRow = ({
   mono?: boolean;
 }) => (
   <div className={devClass.dataRow}>
-    <span className={cn(devClass.mono9, "shrink-0 text-[var(--text3)]")}>
-      {label}
-    </span>
+    <span className={cn(devClass.mono9, "shrink-0 text-text3")}>{label}</span>
     <span
       className={cn(
         mono && devClass.mono9,
-        "break-all text-right text-[12px] text-[var(--text2)]",
+        "break-all text-right text-caption text-text2",
       )}
     >
       {value}
@@ -2533,11 +2497,11 @@ export const DevPanel = ({
           {/* Stream health badge */}
           <div className="ml-2">
             {dataState.streamHealthy ? (
-              <span className="inline-flex items-center gap-1 rounded-[5px] border border-success-border bg-success-dim px-2 py-[3px] font-mono text-[12px] tracking-[0.08em] text-success">
+              <span className="inline-flex items-center gap-1 rounded-sm border border-success-border bg-success-dim px-2 py-0.5 font-mono text-caption tracking-[0.08em] text-success">
                 <Dot color="var(--color-success)" pulse size={4} /> Live
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-[5px] border border-warning-border bg-warning-dim px-2 py-[3px] font-mono text-[12px] tracking-[0.08em] text-warning">
+              <span className="inline-flex items-center gap-1 rounded-sm border border-warning-border bg-warning-dim px-2 py-0.5 font-mono text-caption tracking-[0.08em] text-warning">
                 <Dot color="var(--color-warning)" pulse size={4} /> Delayed ·
                 polling
               </span>
@@ -2545,7 +2509,7 @@ export const DevPanel = ({
           </div>
 
           {uiState.captureActive && (
-            <span className="inline-flex items-center gap-1 rounded-[5px] border border-market-border bg-market-dim px-2 py-[3px] font-mono text-[12px] tracking-[0.08em] text-market">
+            <span className="inline-flex items-center gap-1 rounded-sm border border-market-border bg-market-dim px-2 py-0.5 font-mono text-caption tracking-[0.08em] text-market">
               <Dot color="var(--color-market)" pulse size={4} />
               Capture active
               {uiState.captureActive.expiresAt
@@ -2639,7 +2603,7 @@ export const DevPanel = ({
 
         {/* Footer */}
         <div className={devClass.devFooter}>
-          <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
+          <span className={cn(devClass.mono9, "text-text3")}>
             {filtered.length} events
           </span>
           <DevOpsFooter />
@@ -2730,7 +2694,7 @@ function DevOpsFooter() {
 
   return (
     <div className="ml-auto flex max-w-[70%] flex-col items-end gap-1">
-      <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
+      <span className={cn(devClass.mono9, "text-text3")}>
         SQLite · last backup{" "}
         {lastBackup ? new Date(lastBackup).toLocaleString() : "never"}
       </span>
@@ -2741,7 +2705,7 @@ function DevOpsFooter() {
             type="button"
             className={cn(
               devClass.mono9,
-              "cursor-pointer rounded border border-[var(--border)] px-1.5 py-0.5 text-[var(--text3)]",
+              "cursor-pointer rounded border border-border px-1.5 py-0.5 text-text3",
             )}
             title={`Trigger test alarm: ${kind}`}
             onClick={async () => {
@@ -2754,7 +2718,7 @@ function DevOpsFooter() {
         ))}
       </div>
       {msg ? (
-        <span className={cn(devClass.mono9, "text-[var(--text3)]")}>{msg}</span>
+        <span className={cn(devClass.mono9, "text-text3")}>{msg}</span>
       ) : null}
     </div>
   );

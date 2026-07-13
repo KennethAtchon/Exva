@@ -751,7 +751,9 @@ export interface ExvaApi {
       sources: import("@electron/shared/domain/experience-inputs/catalog").SourceDefinition[];
     }>;
     get(input: { id: string }): Promise<{
-      source: import("@electron/shared/domain/experience-inputs/catalog").SourceDefinition | null;
+      source:
+        | import("@electron/shared/domain/experience-inputs/catalog").SourceDefinition
+        | null;
     }>;
     setEnabled(input: { id: string; enabled: boolean }): Promise<{
       source: import("@electron/shared/domain/experience-inputs/catalog").SourceDefinition;

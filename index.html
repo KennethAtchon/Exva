@@ -4,24 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!--
-      Content Security Policy: lock down what the renderer can load. The renderer
-      should only fetch local assets, IPC-bridged data, and Google Fonts. All
-      privileged work crosses the contextBridge, not arbitrary network calls.
-      'unsafe-inline' on style-src is required for Tailwind's runtime style
-      injection. Vite dev server adds 'ws:' for HMR; the production build never
-      hits the dev URL because index.html is loaded from file://.
+      Content Security Policy: lock down what the renderer can load. Fonts are
+      bundled locally via @fontsource — no Google Fonts CDN. 'unsafe-inline' on
+      style-src is required for Tailwind's runtime style injection. Vite dev
+      server adds 'ws:' for HMR; the production build never hits the dev URL
+      because index.html is loaded from file://.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' ws: http://localhost:* https://fonts.googleapis.com https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' ws: http://localhost:*; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
     />
     <title>Exva</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
   </head>
   <body>
     <div id="root"></div>

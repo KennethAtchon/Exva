@@ -3,6 +3,7 @@ import { api } from "@/lib/exva";
 import { formatIpcError } from "@/lib/ipc-error";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { fmt } from "@/lib/formatters";
+import { PnL } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
 import { HubQueryError } from "@/hubs/dna";
 
@@ -20,8 +21,12 @@ type Props = {
   className?: string;
 };
 
+const CHART_W = 320;
+const CHART_H = 140;
+const PAD = { top: 12, right: 8, bottom: 22, left: 44 };
+
 /**
- * Portfolio equity curve from equity_snapshots (finish-line 08 T5).
+ * Portfolio equity curve from equity_snapshots.
  */
 export function EquityCurvePanel({ showAiCost = false, className }: Props) {
   const [range, setRange] = useState<Range>("1M");
@@ -57,23 +62,25 @@ export function EquityCurvePanel({ showAiCost = false, className }: Props) {
 
   useEffect(() => {
     load(range);
-    // Intentional: reload when range changes; load closes over range.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range]);
 
   useExvaEvent("equity_snapshot", () => load(range));
 
-  const path = useMemo(() => buildPath(points.map((p) => p.total)), [points]);
-  const aiPath = useMemo(
-    () =>
-      showAiCost
-        ? buildPath(points.map((p) => (p.total ?? 0) - (p.aiSpendUsd ?? 0)))
-        : null,
-    [points, showAiCost],
+  const values = points.map((p) => p.total);
+  const netValues = showAiCost
+    ? points.map((p) => (p.total ?? 0) - (p.aiSpendUsd ?? 0))
+    : null;
+
+  const chart = useMemo(
+    () => buildChartModel(values, netValues),
+    [values, netValues],
   );
 
+  const trendUp = values.length >= 2 && values[values.length - 1] >= values[0];
+
   return (
-    <div className={cn("flex flex-col gap-2 p-3", className)}>
+    <div className={cn("flex flex-col gap-3 p-4", className)}>
       {loadError ? (
         <HubQueryError message={loadError} onRetry={() => load(range)} />
       ) : null}
@@ -85,56 +92,94 @@ export function EquityCurvePanel({ showAiCost = false, className }: Props) {
               type="button"
               onClick={() => setRange(r)}
               className={cn(
-                "rounded border px-2 py-0.5 font-mono text-[11px]",
+                "rounded-sm border px-2 py-0.5 font-mono text-micro transition-colors duration-hover",
                 range === r
-                  ? "border-[var(--accent)] text-[var(--text1)]"
-                  : "border-[var(--border)] text-[var(--text3)]",
+                  ? "border-hairline bg-surface2 text-text1"
+                  : "border-transparent text-text3 hover:text-text2",
               )}
             >
               {r}
             </button>
           ))}
         </div>
-        <div className="flex gap-3 font-mono text-[11px] text-[var(--text3)]">
+        <div className="flex gap-3 font-mono text-micro text-text3">
           <span>
             Day{" "}
-            <span
-              className={(dayPnl ?? 0) >= 0 ? "text-success" : "text-error"}
-            >
-              {dayPnl != null ? fmt.pnl(dayPnl) : "—"}
-            </span>
+            {dayPnl != null ? (
+              <PnL value={dayPnl} size="body" className="inline text-micro" />
+            ) : (
+              "—"
+            )}
           </span>
           <span>
             Week{" "}
-            <span
-              className={(weekPnl ?? 0) >= 0 ? "text-success" : "text-error"}
-            >
-              {weekPnl != null ? fmt.pnl(weekPnl) : "—"}
-            </span>
+            {weekPnl != null ? (
+              <PnL value={weekPnl} size="body" className="inline text-micro" />
+            ) : (
+              "—"
+            )}
           </span>
           {stale ? <span className="text-warning">stale marks</span> : null}
         </div>
       </div>
+
       {points.length < 2 ? (
-        <div className="flex h-[120px] items-center justify-center text-[12px] text-[var(--text3)]">
+        <div className="flex h-36 items-center justify-center rounded-sm border border-border bg-bg font-sans text-caption text-text3">
           No equity snapshots yet — they accumulate hourly and on trade close.
         </div>
       ) : (
-        <svg viewBox="0 0 320 120" className="h-[120px] w-full">
-          <path d={path} fill="none" stroke="var(--accent)" strokeWidth="1.5" />
-          {aiPath ? (
-            <path
-              d={aiPath}
-              fill="none"
-              stroke="var(--color-warning)"
-              strokeWidth="1"
-              strokeDasharray="3 2"
-            />
-          ) : null}
-        </svg>
+        <div className="rounded-sm border border-border bg-bg p-2">
+          <svg
+            viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+            className="h-36 w-full"
+            role="img"
+            aria-label="Equity curve"
+          >
+            {chart.gridLines.map((y, i) => (
+              <line
+                key={i}
+                x1={PAD.left}
+                x2={CHART_W - PAD.right}
+                y1={y}
+                y2={y}
+                stroke="currentColor"
+                className="text-hairline"
+                strokeWidth={1}
+              />
+            ))}
+            {chart.yLabels.map((label) => (
+              <text
+                key={label.y}
+                x={PAD.left - 6}
+                y={label.y + 3}
+                textAnchor="end"
+                className="fill-text3 font-mono text-micro"
+              >
+                {label.text}
+              </text>
+            ))}
+            {chart.path ? (
+              <path
+                d={chart.path}
+                fill="none"
+                strokeWidth={1.5}
+                className={trendUp ? "stroke-success" : "stroke-error"}
+              />
+            ) : null}
+            {showAiCost && chart.netPath ? (
+              <path
+                d={chart.netPath}
+                fill="none"
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                className="stroke-warning"
+              />
+            ) : null}
+          </svg>
+        </div>
       )}
       {showAiCost ? (
-        <div className="font-mono text-[10px] text-[var(--text3)]">
+        <div className="font-mono text-micro text-text3">
           Solid = equity · dashed = net of AI spend
         </div>
       ) : null}
@@ -142,16 +187,53 @@ export function EquityCurvePanel({ showAiCost = false, className }: Props) {
   );
 }
 
-function buildPath(values: number[]): string {
-  if (values.length === 0) return "";
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+function buildChartModel(values: number[], netValues: number[] | null) {
+  const innerW = CHART_W - PAD.left - PAD.right;
+  const innerH = CHART_H - PAD.top - PAD.bottom;
+
+  if (values.length === 0) {
+    return {
+      path: "",
+      netPath: null,
+      gridLines: [] as number[],
+      yLabels: [] as Array<{ y: number; text: string }>,
+    };
+  }
+
+  const allVals = netValues ? [...values, ...netValues] : values;
+  const min = Math.min(...allVals);
+  const max = Math.max(...allVals);
   const span = max - min || 1;
-  return values
-    .map((v, i) => {
-      const x = (i / Math.max(1, values.length - 1)) * 320;
-      const y = 110 - ((v - min) / span) * 100;
-      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
-    })
+
+  const toY = (v: number) => PAD.top + innerH - ((v - min) / span) * innerH;
+  const toX = (i: number) =>
+    PAD.left + (i / Math.max(1, values.length - 1)) * innerW;
+
+  const path = values
+    .map(
+      (v, i) =>
+        `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(v).toFixed(1)}`,
+    )
     .join(" ");
+
+  const netPath =
+    netValues && netValues.length > 0
+      ? netValues
+          .map(
+            (v, i) =>
+              `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(v).toFixed(1)}`,
+          )
+          .join(" ")
+      : null;
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(
+    (t) => PAD.top + innerH * (1 - t),
+  );
+
+  const yLabels = [max, min + span * 0.5, min].map((v) => ({
+    y: toY(v),
+    text: fmt.usd(v, 0),
+  }));
+
+  return { path, netPath, gridLines, yLabels };
 }

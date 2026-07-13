@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, HelpTooltip } from "@/components/ui";
+import { Button, Checkbox, HelpTooltip } from "@/components/ui";
 import { api } from "@/lib/exva";
 import { cn } from "@/lib/utils";
 
@@ -52,6 +52,7 @@ export const LiveReadinessModal = ({
     useState<LiveReadinessReport | null>(null);
   const [testing, setTesting] = useState(false);
   const [acknowledging, setAcknowledging] = useState(false);
+  const [ackChecked, setAckChecked] = useState(false);
   const [testResult, setTestResult] = useState<{
     ok: boolean;
     message: string;
@@ -91,49 +92,44 @@ export const LiveReadinessModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.72)]">
-      <div className="flex max-w-[90vw] w-[520px] flex-col overflow-hidden rounded-2xl border border-error-border bg-[var(--surface)] shadow-[0_24px_64px_rgba(0,0,0,0.48)]">
-        <div className="border-b border-[var(--border)] bg-error-dim px-6 pb-4 pt-5">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
+      <div className="flex max-h-[90vh] w-[520px] max-w-[90vw] flex-col overflow-hidden rounded-sm border border-error-border bg-surface shadow-popover">
+        <div className="border-b border-border bg-error-dim px-6 pb-4 pt-5">
           <div className="flex items-center gap-1.5">
-            <div className="text-base font-bold text-[var(--text1)]">
-              Live Trading Gate
+            <div className="font-sans text-head text-text1">
+              Live trading gate
             </div>
             <HelpTooltip glossaryId="live-readiness-gate" />
           </div>
-          <div className="mt-1 text-[12px] text-[var(--text3)]">
+          <div className="mt-1 font-sans text-caption text-text3">
             All checks must pass before starting a live session
           </div>
         </div>
 
-        <div className="flex max-h-[60vh] flex-col gap-2.5 overflow-y-auto px-6 py-4">
+        <div className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto px-6 py-4">
           {currentReport.checks.map((check) => (
             <div
               key={check.name}
               className={cn(
-                "flex items-start gap-3 rounded-lg px-3 py-2.5",
+                "flex items-start gap-3 rounded-sm px-3 py-2.5",
                 check.passed
                   ? "border border-success-border bg-success-dim"
                   : "border border-error-border bg-error-dim",
               )}
             >
-              <div
+              <span
                 className={cn(
-                  "mt-px flex size-5 shrink-0 items-center justify-center rounded-full text-[12px] font-bold",
-                  check.passed
-                    ? "bg-success-dim text-success"
-                    : "bg-error-dim text-error",
+                  "mt-0.5 inline-block h-2 w-2 shrink-0 rounded-full",
+                  check.passed ? "bg-success" : "bg-error",
                 )}
-              >
-                {check.passed ? "✓" : "✗"}
-              </div>
+                aria-hidden
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1">
                   <div
                     className={cn(
-                      "text-[13px] font-medium",
-                      check.passed
-                        ? "text-[var(--text1)]"
-                        : "text-[var(--text2)]",
+                      "font-sans text-label",
+                      check.passed ? "text-text1" : "text-text2",
                     )}
                   >
                     {CHECK_LABELS[check.name] ?? check.name}
@@ -147,77 +143,77 @@ export const LiveReadinessModal = ({
                     }
                   />
                 </div>
-                <div className="mt-0.5 text-[12px] text-[var(--text3)]">
+                <div className="mt-0.5 font-sans text-caption text-text3">
                   {check.message ?? CHECK_DESCRIPTIONS[check.name]}
                 </div>
               </div>
-              {check.requiresAck && !check.passed && (
-                <span className="shrink-0 rounded border border-warning-border bg-warning-dim px-1.5 py-0.5 font-mono text-[12px] text-warning">
+              {check.requiresAck && !check.passed ? (
+                <span className="shrink-0 rounded-sm border border-warning-border bg-warning-dim px-1.5 py-0.5 font-mono text-micro text-warning">
                   requires consent
                 </span>
-              )}
+              ) : null}
             </div>
           ))}
 
-          {testResult && (
+          {testResult ? (
             <div
               className={cn(
-                "rounded-md px-3 py-2",
+                "rounded-sm px-3 py-2",
                 testResult.ok
                   ? "border border-success-border bg-success-dim text-success"
                   : "border border-error-border bg-error-dim text-error",
               )}
             >
-              <span className="font-mono text-[12px]">
+              <span className="font-mono text-caption">
                 {testResult.ok ? "✓ " : "✗ "}
                 {testResult.message}
               </span>
             </div>
-          )}
+          ) : null}
 
-          {allNonAckPassed && !currentReport.acknowledgedAt && (
-            <div className="mt-1 rounded-lg border border-error-border bg-error-dim px-3.5 py-3">
-              <div className="mb-1.5 text-[13px] font-semibold text-error">
+          {allNonAckPassed && !currentReport.acknowledgedAt ? (
+            <div className="mt-1 rounded-sm border border-error-border bg-error-dim px-3.5 py-3">
+              <div className="mb-1.5 font-sans text-label text-error">
                 Live trading uses real capital
               </div>
-              <div className="text-[12px] leading-[1.6] text-[var(--text2)]">
+              <div className="font-sans text-caption leading-relaxed text-text2">
                 By proceeding, you confirm that this session will execute trades
                 with real money via your connected live broker. Losses incurred
                 are real. This cannot be undone once the session starts.
               </div>
+              <label className="mt-3 flex cursor-pointer items-start gap-2.5">
+                <Checkbox
+                  checked={ackChecked}
+                  onCheckedChange={(v) => setAckChecked(v === true)}
+                  className="mt-0.5 border-error data-[state=checked]:bg-error data-[state=checked]:text-error-dim"
+                />
+                <span className="font-sans text-caption leading-relaxed text-text2">
+                  I understand that live trading uses real capital and losses
+                  are irreversible once the session starts.
+                </span>
+              </label>
             </div>
-          )}
+          ) : null}
         </div>
 
-        <div className="flex items-center justify-between gap-2.5 border-t border-[var(--border)] px-6 py-3.5">
-          <Button
-            variant="outline"
-            onClick={onCancel}
-            className="rounded-lg border border-[var(--border)] bg-transparent px-4 py-[9px] text-[var(--text2)]"
-          >
+        <div className="flex items-center justify-between gap-2.5 border-t border-border px-6 py-3.5">
+          <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
           <div className="flex gap-2">
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => void handleTestConnection()}
               disabled={testing}
-              className="rounded-lg border border-[var(--border)] bg-transparent px-3.5 py-[9px] text-[var(--text2)]"
             >
-              {testing ? "Testing…" : "Test Connection"}
+              {testing ? "Testing…" : "Test connection"}
             </Button>
             <Button
-              variant="ghost"
+              variant="destructive"
               onClick={() => void handleAcknowledge()}
-              disabled={!allNonAckPassed || acknowledging}
-              className={cn(
-                "rounded-lg border-none px-[18px] py-[9px]",
-                allNonAckPassed
-                  ? "bg-error-dim text-error"
-                  : "cursor-not-allowed bg-[var(--surface3)] text-[var(--text3)] opacity-50",
-              )}
+              disabled={!allNonAckPassed || !ackChecked || acknowledging}
             >
-              {acknowledging ? "Confirming…" : "I Understand — Start Live"}
+              {acknowledging ? "Confirming…" : "Start live"}
             </Button>
           </div>
         </div>

@@ -270,9 +270,7 @@ function ScheduledScanEditor({
         <Field label="Scan cadence" error={cadenceError?.message}>
           {isInterval ? (
             <div className="flex items-center gap-2">
-              <span className="shrink-0 text-[12px] text-[var(--text3)]">
-                Every
-              </span>
+              <span className="shrink-0 text-caption text-text3">Every</span>
               <input
                 type="number"
                 min={1}
@@ -473,7 +471,7 @@ export function SessionInputEditor({
         {[0, 1].map((i) => (
           <div
             key={i}
-            className="h-12 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]"
+            className="h-12 animate-pulse rounded-lg border border-border bg-surface"
           />
         ))}
       </div>
@@ -532,7 +530,7 @@ export function SessionInputEditor({
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="h-10 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]"
+              className="h-10 animate-pulse rounded-lg border border-border bg-surface"
             />
           ))}
         </div>
@@ -544,7 +542,7 @@ export function SessionInputEditor({
     return (
       <div className="grid gap-3.5">
         {templatePicker}
-        <div className="rounded-lg border border-error-border bg-error-dim px-3 py-2 text-[12px] text-error">
+        <div className="rounded-lg border border-error-border bg-error-dim px-3 py-2 text-caption text-error">
           {optionsError}
         </div>
       </div>
@@ -671,11 +669,11 @@ export function SessionInputEditor({
                     className="mt-0.5 shrink-0"
                   />
                   <span className="min-w-0">
-                    <span className="block text-[12px] font-semibold text-[var(--text1)]">
+                    <span className="block text-caption font-semibold text-text1">
                       {profile.name}
                     </span>
                     {profile.mode === "scheduled_scan" ? (
-                      <span className="block text-[12px] text-[var(--text3)]">
+                      <span className="block text-caption text-text3">
                         {formatSetLabel(
                           profile.instrumentSetId,
                           options.availableInstrumentSets,
@@ -685,7 +683,7 @@ export function SessionInputEditor({
                           profile.analysisTimeframe}
                       </span>
                     ) : profile.mode === "event_source" ? (
-                      <span className="block text-[12px] text-[var(--text3)]">
+                      <span className="block text-caption text-text3">
                         {formatSourceLabel(
                           profile.sourceDefinitionId,
                           options.availableSourceDefinitions,
@@ -708,10 +706,10 @@ export function SessionInputEditor({
                 className="mt-0.5 shrink-0"
               />
               <span className="min-w-0">
-                <span className="block text-[12px] font-semibold text-[var(--text1)]">
+                <span className="block text-caption font-semibold text-text1">
                   Custom
                 </span>
-                <span className="block text-[12px] text-[var(--text3)]">
+                <span className="block text-caption text-text3">
                   Configure inputs manually.
                 </span>
               </span>
@@ -745,7 +743,7 @@ export function SessionInputEditor({
 
       {/* Unvalidated universe warning */}
       {usesUnvalidatedUniverse ? (
-        <div className="flex items-start gap-2 rounded-xl border border-warning-border bg-warning-dim px-3 py-2.5 text-[12px] text-warning">
+        <div className="flex items-start gap-2 rounded-xl border border-warning-border bg-warning-dim px-3 py-2.5 text-caption text-warning">
           <span className="mt-0.5 shrink-0">⚠</span>
           <span>
             One or more instruments in this configuration are outside the
@@ -759,7 +757,7 @@ export function SessionInputEditor({
       {overallWarnings.map((w, i) => (
         <div
           key={i}
-          className="rounded-xl border border-warning-border bg-warning-dim px-3 py-2 text-[12px] text-warning"
+          className="rounded-xl border border-warning-border bg-warning-dim px-3 py-2 text-caption text-warning"
         >
           {w.message}
         </div>
@@ -771,7 +769,7 @@ export function SessionInputEditor({
         .map((e, i) => (
           <div
             key={i}
-            className="rounded-xl border border-error-border bg-error-dim px-3 py-2 text-[12px] text-error"
+            className="rounded-xl border border-error-border bg-error-dim px-3 py-2 text-caption text-error"
           >
             {e.message}
           </div>
@@ -810,12 +808,12 @@ function Field({
 }) {
   return (
     <div className="grid gap-1.5">
-      <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]">
+      <span className="text-caption font-semibold uppercase tracking-[0.08em] text-text3">
         {label}
       </span>
       {children}
       {error ? (
-        <span className="text-[11px] font-medium text-error">{error}</span>
+        <span className="text-micro font-medium text-error">{error}</span>
       ) : null}
     </div>
   );
@@ -826,11 +824,10 @@ function Field({
 // ---------------------------------------------------------------------------
 
 const inputClass =
-  "rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";
-const hintClass = "text-[12px] text-[var(--text3)]";
+  "rounded-lg border border-border bg-surface2 px-3 py-2 text-body text-text1";
+const hintClass = "text-caption text-text3";
 const profileRowClass =
-  "flex items-start gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2";
+  "flex items-start gap-2 rounded-lg border border-border bg-surface px-2.5 py-2";
 const modeChipClass =
-  "cursor-pointer rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 py-1.5 text-[12px] font-medium text-[var(--text2)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]";
-const modeChipActiveClass =
-  "border-[var(--accent)] bg-[var(--accent-dim,var(--surface2))] text-[var(--accent)]";
+  "cursor-pointer rounded-lg border border-border bg-surface2 px-3 py-1.5 text-caption font-medium text-text2 transition-colors hover:border-accent hover:text-accent";
+const modeChipActiveClass = "border-accent bg-accent-dim text-accent";
