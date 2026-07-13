@@ -23,8 +23,8 @@ export const cadenceSchema = z.discriminatedUnion("kind", [
 ]);
 
 export type IntervalCadence = z.infer<typeof intervalCadenceSchema>;
-export type CronCadence = z.infer<typeof cronCadenceSchema>;
-export type CadenceSpec = z.infer<typeof cadenceSchema>;
+type CronCadence = z.infer<typeof cronCadenceSchema>;
+export type CadenceSpec = IntervalCadence | CronCadence;
 
 // ---------------------------------------------------------------------------
 // Parse

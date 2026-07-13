@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useReducer } from "react";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
+import {
+  experienceCatalogApi,
+  sessionInputsApi,
+} from "@/lib/experience-catalog-api";
 import type { ExperienceSummary } from "@electron/shared/ipc/dto";
+import type {
+  ExperienceTemplateSummary,
+} from "@electron/shared/domain/experience-inputs/catalog";
+import type {
+  SessionInputSubscriptionDraft,
+} from "@electron/shared/domain/experience-inputs/subscription";
+import type { FieldError, FieldWarning } from "@electron/shared/domain/experience-inputs/validation-result";
+import { SessionInputEditor } from "@/components/sessions/SessionInputEditor";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import type {
   BrokerAccountWithState,
@@ -16,40 +28,13 @@ import {
   DialogContent,
   HelpTooltip,
   LabelWithHelp,
-  Switch,
 } from "@/components/ui";
 import { EXPERIENCE_HELP_IDS, type HelpGlossaryId } from "@/lib/help-glossary";
 import { cn } from "@/lib/utils";
 import {
-  buildSearchEverythingScope,
-  isSearchEverythingEnabled,
-  parseSearchEverythingFocusInstrumentClass,
-} from "@electron/shared/instruments/session-instrument-classes";
-import {
   isSessionLaunchable,
   resolveSessionInstrumentClasses,
 } from "@electron/shared/instruments/experience-launchability";
-import {
-  deriveSessionInputModel,
-  deriveSessionReadiness,
-  formatReadinessSummary,
-  formatApproximateTradeHoldLabel,
-  formatSignalScopeSectionCaption,
-  formatSignalSourceTypeLabel,
-  countManualTickers,
-  resolveSelectionModeForInput,
-  resolveSelectorSettingsForInput,
-  showInstrumentScopeControls,
-  sourceIsCompatibleWithExperience,
-} from "@electron/shared/instruments/session-input-model";
-import { formatSignalSourceTimingSubtitle } from "@electron/shared/domain/signal-timing";
-import {
-  MOCK_REHEARSAL_SIGNAL_SOURCE_ID,
-  resolvePreferredSubscribedSourceId,
-  sessionEligibleForMockRehearsal,
-  sessionSubscribedToMockRehearsal,
-  shouldAutoSwitchSignalSubscription,
-} from "@electron/shared/instruments/mock-rehearsal";
 
 interface Props {
   open: boolean;
@@ -70,11 +55,16 @@ type ModalDataState = {
     providers: ProviderAccount[];
     workspaceDefaultSearchProviderId: string | null;
   };
-  signalSources: Awaited<ReturnType<typeof api.listSignalSources>>["sources"];
-  subscribedSourceIds: string[];
-  signalSourcesLoaded: boolean;
   experiences: ExperienceSummary[];
   experiencesLoaded: boolean;
+  /** V2 experience catalog templates (may be empty if backend not yet ready). */
+  v2Templates: ExperienceTemplateSummary[];
+  v2TemplatesLoaded: boolean;
+  /** Active V2 subscription drafts for the selected template. */
+  v2Subscriptions: SessionInputSubscriptionDraft[];
+  v2FieldErrors: FieldError[];
+  v2FieldWarnings: FieldWarning[];
+  v2UnvalidatedUniverse: boolean;
 };
 
 type ModalReqState = {
@@ -98,11 +88,14 @@ export const CreateEditSessionModal = ({
       providers: [],
       workspaceDefaultSearchProviderId: null,
     },
-    signalSources: [],
-    subscribedSourceIds: [],
-    signalSourcesLoaded: false,
     experiences: [],
     experiencesLoaded: false,
+    v2Templates: [],
+    v2TemplatesLoaded: false,
+    v2Subscriptions: [],
+    v2FieldErrors: [],
+    v2FieldWarnings: [],
+    v2UnvalidatedUniverse: false,
   });
   const [req, dispatchReq] = useReducer(mergeReducer<ModalReqState>, {
     saving: false,
@@ -170,45 +163,6 @@ export const CreateEditSessionModal = ({
     };
   }, [open, initialSession, templateInput, environmentMode]);
 
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    dispatchData({ signalSourcesLoaded: false });
-    void api
-      .listSignalSources()
-      .then(async ({ sources }) => {
-        if (cancelled) return;
-        const filtered = sources.filter((source) => source.type !== "manual");
-        if (!initialSession) {
-          dispatchData({
-            signalSources: filtered,
-            subscribedSourceIds: filtered
-              .filter((source) => source.type === "edgar_8k" && source.enabled)
-              .map((source) => source.id),
-            signalSourcesLoaded: true,
-          });
-          return;
-        }
-        const subs = await api.getSessionSignalSubscriptions(initialSession.id);
-        if (cancelled) return;
-        dispatchData({
-          signalSources: filtered,
-          subscribedSourceIds: subs.sourceIds,
-          signalSourcesLoaded: true,
-        });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        dispatchData({
-          signalSources: [],
-          subscribedSourceIds: [],
-          signalSourcesLoaded: true,
-        });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, initialSession]);
 
   useEffect(() => {
     if (!open) return;
@@ -227,6 +181,70 @@ export const CreateEditSessionModal = ({
       cancelled = true;
     };
   }, [open]);
+
+  // Load V2 experience catalog templates (graceful fallback if not yet wired)
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void experienceCatalogApi
+      .listTemplates()
+      .then(({ templates }) => {
+        if (cancelled) return;
+        dispatchData({ v2Templates: templates, v2TemplatesLoaded: true });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        dispatchData({ v2Templates: [], v2TemplatesLoaded: true });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  // Load existing V2 subscriptions for editing
+  useEffect(() => {
+    if (!open || !initialSession) return;
+    let cancelled = false;
+    void sessionInputsApi
+      .get({ sessionId: initialSession.id })
+      .then((config) => {
+        if (cancelled) return;
+        dispatchData({
+          v2Subscriptions: config.subscriptions.map((sub) => {
+            if (sub.mode === "event_source") {
+              return {
+                mode: "event_source",
+                templateId: sub.templateId,
+                templateVersion: sub.templateVersion,
+                sourceDefinitionId: sub.sourceDefinitionId,
+                sourceRevision: sub.sourceRevision,
+                filters: JSON.parse(sub.filtersJson || "{}"),
+                analysisTimeframe: sub.analysisTimeframe,
+                createdFromProfileId: sub.createdFromProfileId,
+              };
+            }
+            return {
+              mode: "scheduled_scan",
+              templateId: sub.templateId,
+              templateVersion: sub.templateVersion,
+              instrumentSetId: sub.instrumentSetId,
+              instrumentSetRevision: sub.instrumentSetRevision,
+              cadence: JSON.parse(sub.cadenceJson),
+              analysisTimeframe: sub.analysisTimeframe,
+              marketCalendarId: sub.marketCalendarId,
+              strategyParameters: JSON.parse(sub.strategyParametersJson || "{}"),
+              createdFromProfileId: sub.createdFromProfileId,
+            };
+          }),
+        });
+      })
+      .catch(() => {
+        // Not yet available — ignore silently
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, initialSession]);
 
   useEffect(() => {
     if (!open) return;
@@ -283,11 +301,14 @@ export const CreateEditSessionModal = ({
     form,
     brokerAccounts,
     searchProviderState,
-    signalSources,
-    subscribedSourceIds,
-    signalSourcesLoaded,
     experiences,
     experiencesLoaded,
+    v2Templates,
+    v2TemplatesLoaded,
+    v2Subscriptions,
+    v2FieldErrors,
+    v2FieldWarnings,
+    v2UnvalidatedUniverse,
   } = data;
 
   const assignedBrokerIds = useMemo(
@@ -319,6 +340,19 @@ export const CreateEditSessionModal = ({
       ) ?? null,
     [experiences, form.experienceId],
   );
+
+  // Look up a template matching the selected experience id
+  const selectedV2Template = useMemo(
+    () =>
+      v2TemplatesLoaded && form.experienceId
+        ? v2Templates.find(
+            (t) =>
+              t.templateId === form.experienceId ||
+              t.templateId.startsWith(form.experienceId + "-"),
+          ) ?? null
+        : null,
+    [v2Templates, v2TemplatesLoaded, form.experienceId],
+  );
   const effectiveInstrumentClasses = useMemo(
     () =>
       resolveSessionInstrumentClasses(
@@ -334,97 +368,6 @@ export const CreateEditSessionModal = ({
   const isLaunchable =
     isSessionLaunchable(assignedActiveModeBrokers) &&
     form.brokerAssignments.length > 0;
-  const requiresSearchProviderSetup = false;
-  const workspaceDefaultSearchProviderName =
-    searchProviderState.providers.find(
-      (provider) =>
-        provider.id === searchProviderState.workspaceDefaultSearchProviderId,
-    )?.name ?? null;
-  const searchEverythingFocusInstrumentClass = useMemo(
-    () => parseSearchEverythingFocusInstrumentClass(form.instrumentScope),
-    [form.instrumentScope],
-  );
-  const searchEverything = isSearchEverythingInput(form);
-  const manualTickerCount = useMemo(
-    () => countManualTickers(form.instrumentScope),
-    [form.instrumentScope],
-  );
-  const mockRehearsalBrokers = useMemo(
-    () =>
-      brokerAccounts.map((broker) => ({
-        id: broker.id,
-        brokerType: broker.brokerType,
-        mockScenarioKind: broker.mockScenarioKind ?? null,
-      })),
-    [brokerAccounts],
-  );
-  const mockRehearsalMode = useMemo(
-    () =>
-      selectedExperience
-        ? sessionEligibleForMockRehearsal({
-            experience: selectedExperience.capabilities,
-            brokerAccounts: mockRehearsalBrokers,
-            brokerAssignmentIds: assignedBrokerIds,
-          })
-        : false,
-    [assignedBrokerIds, mockRehearsalBrokers, selectedExperience],
-  );
-  const compatibleSignalSources = useMemo(() => {
-    const acceptsScanHit = (selectedExperience?.schedules?.length ?? 0) > 0;
-    return (
-      selectedExperience
-        ? signalSources.filter((source) =>
-            sourceIsCompatibleWithExperience(
-              source.type,
-              selectedExperience.capabilities.signalSourceTypes,
-              { acceptsScanHit },
-            ),
-          )
-        : signalSources
-    ).filter((source) => {
-      if (source.type === "web_search") return false;
-      // Schedule identities only for experiences that declare schedules.
-      if (source.type === "timer") {
-        return acceptsScanHit && source.experienceId === selectedExperience?.id;
-      }
-      return true;
-    });
-  }, [selectedExperience, signalSources]);
-  const subscribedSources = useMemo(
-    () =>
-      subscribedSourceIds.flatMap((sourceId) => {
-        const source = signalSources.find((entry) => entry.id === sourceId);
-        return source
-          ? [
-              {
-                id: source.id,
-                name: source.name,
-                type: source.type,
-                enabled: source.enabled,
-              },
-            ]
-          : [];
-      }),
-    [signalSources, subscribedSourceIds],
-  );
-  const inputModel = useMemo(
-    () =>
-      deriveSessionInputModel({
-        subscribedSources,
-        instrumentScope: form.instrumentScope,
-        selectorSettings: form.selectorSettings,
-      }),
-    [form.instrumentScope, form.selectorSettings, subscribedSources],
-  );
-  const readiness = deriveSessionReadiness({
-    subscribedSources,
-    instrumentScope: form.instrumentScope,
-  });
-  const showInstrumentFilter = showInstrumentScopeControls({
-    inputModel,
-    sourcesLoaded: signalSourcesLoaded,
-  });
-  const showSearchProviderField = false;
   const overAllocatedBrokerIds = useMemo(
     () =>
       new Set(
@@ -446,10 +389,10 @@ export const CreateEditSessionModal = ({
   const isValid =
     form.name.trim().length > 0 &&
     form.objective.trim().length > 0 &&
-    (!showInstrumentFilter || form.instrumentScope.trim().length > 0) &&
+    v2Subscriptions.length > 0 &&
+    v2FieldErrors.length === 0 &&
     effectiveInstrumentClasses.length > 0 &&
-    overAllocatedBrokerIds.size === 0 &&
-    readiness !== "no_inputs";
+    overAllocatedBrokerIds.size === 0;
 
   const setForm = (
     updater: (prev: SessionCreateInput) => SessionCreateInput,
@@ -467,78 +410,7 @@ export const CreateEditSessionModal = ({
     dispatchData({ form: { ...form, brokerAssignments: nextAssignments } });
   }, [brokerAccounts, form, form.brokerAssignments, visibleBrokers]);
 
-  useEffect(() => {
-    if (!searchEverythingFocusInstrumentClass) return;
-    if (
-      effectiveInstrumentClasses.includes(searchEverythingFocusInstrumentClass)
-    ) {
-      return;
-    }
-    dispatchData({
-      form: { ...form, instrumentScope: buildSearchEverythingScope() },
-    });
-  }, [effectiveInstrumentClasses, form, searchEverythingFocusInstrumentClass]);
 
-  useEffect(() => {
-    if (!open || !selectedExperience || !signalSourcesLoaded) return;
-    const compatibleSourceIds = compatibleSignalSources.map(
-      (source) => source.id,
-    );
-    const preferredSourceId = resolvePreferredSubscribedSourceId({
-      experience: {
-        id: selectedExperience.id,
-        signalSourceTypes: selectedExperience.capabilities.signalSourceTypes,
-      },
-      compatibleSourceIds,
-      brokerAccounts: mockRehearsalBrokers,
-      brokerAssignmentIds: assignedBrokerIds,
-    });
-    if (
-      !preferredSourceId ||
-      !shouldAutoSwitchSignalSubscription({
-        preferredSourceId,
-        subscribedSourceIds,
-      })
-    ) {
-      return;
-    }
-    const preferredSource = compatibleSignalSources.find(
-      (source) => source.id === preferredSourceId,
-    );
-    const preferredSubscribedSources = preferredSource
-      ? [{ type: preferredSource.type }]
-      : [];
-    const nextInputModel = deriveSessionInputModel({
-      subscribedSources: preferredSubscribedSources,
-      instrumentScope: form.instrumentScope,
-    });
-    dispatchData({ subscribedSourceIds: [preferredSourceId] });
-    dispatchData({
-      form: {
-        ...form,
-        selectionMode: resolveSelectionModeForInput({
-          subscribedSources: preferredSubscribedSources,
-          instrumentScope: form.instrumentScope,
-          selectorSettings: form.selectorSettings,
-        }),
-        instrumentScope:
-          nextInputModel === "listener" ? "" : form.instrumentScope,
-        selectorSettings: resolveSelectorSettingsForInput({
-          inputModel: nextInputModel,
-          selectorSettings: form.selectorSettings,
-        }),
-      },
-    });
-  }, [
-    assignedBrokerIds,
-    compatibleSignalSources,
-    form,
-    mockRehearsalBrokers,
-    open,
-    selectedExperience,
-    signalSourcesLoaded,
-    subscribedSourceIds,
-  ]);
 
   if (!open) return null;
 
@@ -579,86 +451,13 @@ export const CreateEditSessionModal = ({
                       value={form.experienceId ?? experiences[0]?.id ?? ""}
                       onValueChange={(experienceId) => {
                         if (initialSession) return;
-                        const experience = experiences.find(
-                          (entry) => entry.id === experienceId,
-                        );
-                        const matchingSourceIds = experience
-                          ? signalSources
-                              .filter((source) => {
-                                const acceptsScanHit =
-                                  (experience.schedules?.length ?? 0) > 0;
-                                if (
-                                  !sourceIsCompatibleWithExperience(
-                                    source.type,
-                                    experience.capabilities.signalSourceTypes,
-                                    { acceptsScanHit },
-                                  )
-                                ) {
-                                  return false;
-                                }
-                                if (source.type === "timer") {
-                                  return source.experienceId === experience.id;
-                                }
-                                return source.type !== "web_search";
-                              })
-                              .map((source) => source.id)
-                          : [];
-                        const preferredSourceId = experience
-                          ? resolvePreferredSubscribedSourceId({
-                              experience: {
-                                id: experience.id,
-                                signalSourceTypes:
-                                  experience.capabilities.signalSourceTypes,
-                              },
-                              compatibleSourceIds: matchingSourceIds,
-                              brokerAccounts: mockRehearsalBrokers,
-                              brokerAssignmentIds: assignedBrokerIds,
-                            })
-                          : null;
-                        // Mock-rehearsal: single source. Otherwise: all compatible+enabled sources.
-                        const nextSubscribedSourceIds =
-                          preferredSourceId === MOCK_REHEARSAL_SIGNAL_SOURCE_ID
-                            ? [preferredSourceId]
-                            : signalSources
-                                .filter(
-                                  (s) =>
-                                    matchingSourceIds.includes(s.id) &&
-                                    s.enabled,
-                                )
-                                .map((s) => s.id);
-                        const nextSubscribedSources =
-                          nextSubscribedSourceIds.flatMap((id) => {
-                            const s = signalSources.find(
-                              (src) => src.id === id,
-                            );
-                            return s ? [{ type: s.type }] : [];
-                          });
-                        setForm((prev) => {
-                          const nextInputModel = deriveSessionInputModel({
-                            subscribedSources: nextSubscribedSources,
-                            instrumentScope: prev.instrumentScope,
-                          });
-                          return {
-                            ...prev,
-                            experienceId,
-                            selectionMode: resolveSelectionModeForInput({
-                              subscribedSources: nextSubscribedSources,
-                              instrumentScope: prev.instrumentScope,
-                              selectorSettings: prev.selectorSettings,
-                            }),
-                            instrumentScope:
-                              nextInputModel === "listener"
-                                ? ""
-                                : prev.instrumentScope,
-                            selectorSettings: resolveSelectorSettingsForInput({
-                              inputModel: nextInputModel,
-                              selectorSettings: prev.selectorSettings,
-                            }),
-                          };
-                        });
-                        dispatchData({
-                          subscribedSourceIds: nextSubscribedSourceIds,
-                        });
+                        setForm((prev) => ({
+                          ...prev,
+                          experienceId,
+                          selectionMode: "signal_driven",
+                          instrumentScope: "",
+                          selectorSettings: { aiPickerEnabled: false },
+                        }));
                       }}
                       options={experiences.map((experience) => ({
                         value: experience.id,
@@ -669,14 +468,7 @@ export const CreateEditSessionModal = ({
                     {selectedExperience ? (
                       <div className={inlineHintClass}>
                         Signal sources:{" "}
-                        {selectedExperience.capabilities.signalSourceTypes
-                          .length > 0
-                          ? selectedExperience.capabilities.signalSourceTypes.join(
-                              ", ",
-                            )
-                          : (selectedExperience.schedules?.length ?? 0) > 0
-                            ? "schedules (scan_hit)"
-                            : "—"}
+                        {selectedExperience.capabilities.signalSourceTypes.join(", ") || "—"}
                         .
                         {EXPERIENCE_HELP_IDS[
                           selectedExperience.id as keyof typeof EXPERIENCE_HELP_IDS
@@ -729,232 +521,19 @@ export const CreateEditSessionModal = ({
 
             <section className={sectionClass}>
               <SectionHeader
-                title="Signal Sources"
-                caption="Pick the one signal that drives this session."
-                glossaryId="signal-source"
+                title="Experience Inputs"
+                caption="Configure how this session receives signals."
               />
               <div className={sectionBodyClass}>
-                {mockRehearsalMode ? (
-                  <div className={inlineHintClass}>
-                    Mock rehearsal — synthetic filings aligned with your mock
-                    broker scenario. After starting the session, use{" "}
-                    <strong>Fire rehearsal signal</strong> on the session card.
-                  </div>
-                ) : null}
-                {!signalSourcesLoaded ? (
-                  <div className="grid gap-2">
-                    {[0, 1].map((idx) => (
-                      <div
-                        key={idx}
-                        className="h-[52px] animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]"
-                      />
-                    ))}
-                  </div>
-                ) : compatibleSignalSources.length === 0 ? (
-                  <div className={inlineHintClass}>
-                    No compatible signal sources are available for this
-                    experience yet. They are provisioned automatically when the
-                    app loads — try closing and reopening this dialog.
-                  </div>
-                ) : (
-                  <div className="grid gap-2">
-                    {compatibleSignalSources.map((source) => {
-                      const checked = subscribedSourceIds.includes(source.id);
-                      const holdEstimate = formatApproximateTradeHoldLabel({
-                        id: source.id,
-                        type: source.type,
-                      });
-                      return (
-                        <label key={source.id} className={brokerRowClass}>
-                          <Switch
-                            checked={checked}
-                            onCheckedChange={(next) =>
-                              dispatchData({
-                                subscribedSourceIds: next
-                                  ? [...subscribedSourceIds, source.id]
-                                  : subscribedSourceIds.filter(
-                                      (id) => id !== source.id,
-                                    ),
-                              })
-                            }
-                          />
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-center gap-2">
-                              <span className="text-[12px] font-semibold text-[var(--text1)]">
-                                {source.name}
-                              </span>
-                              <span className={kindChipClass}>Listener</span>
-                              <HelpTooltip
-                                topic="Listener source"
-                                body="Listener sources wait for incoming events such as filings or platform events."
-                              />
-                            </span>
-                            <span className="mt-px block text-[12px] text-[var(--text3)]">
-                              {formatSignalSourceTimingSubtitle(source)}
-                              {!source.enabled
-                                ? " · Disabled globally — does not count as a live input"
-                                : ""}
-                            </span>
-                            {holdEstimate ? (
-                              <span className="mt-px block text-[12px] text-[var(--text3)]">
-                                Approx. avg hold: {holdEstimate}
-                              </span>
-                            ) : null}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-                <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[12px] text-[var(--text2)]">
-                  <div className="flex items-start justify-between gap-2">
-                    <span>
-                      {formatReadinessSummary({
-                        readiness,
-                        inputModel,
-                        subscribedSources,
-                        manualTickerCount,
-                      })}
-                    </span>
-                    <HelpTooltip
-                      glossaryId={
-                        readiness === "armed"
-                          ? "source-readiness-armed"
-                          : readiness === "manual_only"
-                            ? "source-readiness-manual-only"
-                            : readiness === "waiting_for_source_enable"
-                              ? "source-readiness-waiting-for-source-enable"
-                              : "source-readiness-no-inputs"
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className={sectionClass}>
-              <SectionHeader
-                title="Signal Scope"
-                caption={formatSignalScopeSectionCaption(inputModel)}
-              />
-              <div className={sectionBodyClass}>
-                {!signalSourcesLoaded ? (
-                  <div className="grid gap-2">
-                    {[0, 1].map((idx) => (
-                      <div
-                        key={idx}
-                        className="h-[52px] animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]"
-                      />
-                    ))}
-                  </div>
-                ) : showInstrumentFilter ? (
-                  <>
-                    {showSearchProviderField ? (
-                      <div className={twoColumnGridClass}>
-                        <Field
-                          label="Search provider override"
-                          glossaryId="search-provider-override"
-                        >
-                          <ShadcnSelect
-                            value={
-                              form.defaultSearchProviderId ??
-                              "__workspace_default__"
-                            }
-                            onValueChange={(value) =>
-                              setForm((prev) => ({
-                                ...prev,
-                                defaultSearchProviderId:
-                                  value === "__workspace_default__"
-                                    ? null
-                                    : value,
-                              }))
-                            }
-                            options={[
-                              {
-                                value: "__workspace_default__",
-                                label: workspaceDefaultSearchProviderName
-                                  ? `Workspace default (${workspaceDefaultSearchProviderName})`
-                                  : "Workspace default (not set)",
-                              },
-                              ...searchProviderState.providers.map(
-                                (provider) => ({
-                                  value: provider.id,
-                                  label: provider.name,
-                                }),
-                              ),
-                            ]}
-                          />
-                        </Field>
-                      </div>
-                    ) : null}
-                    {searchEverything &&
-                    effectiveInstrumentClasses.length > 1 ? (
-                      <Field label="Research focus" glossaryId="research-focus">
-                        <ShadcnSelect
-                          value={
-                            searchEverythingFocusInstrumentClass ?? "__all__"
-                          }
-                          onValueChange={(value) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              instrumentScope: buildSearchEverythingScope(
-                                value === "__all__"
-                                  ? null
-                                  : (value as InstrumentClass),
-                              ),
-                            }))
-                          }
-                          options={[
-                            {
-                              value: "__all__",
-                              label: "All enabled classes",
-                            },
-                            ...effectiveInstrumentClasses.map(
-                              (instrumentClass) => ({
-                                value: instrumentClass,
-                                label: `Focus ${formatInstrumentClass(instrumentClass)}`,
-                              }),
-                            ),
-                          ]}
-                        />
-                        <div className={inlineHintClass}>
-                          Keeps the broader broker-backed universe available,
-                          but tells the selector which class to prioritize
-                          first.
-                        </div>
-                      </Field>
-                    ) : null}
-                    <Field label="Manual tickers" glossaryId="manual-tickers">
-                      <textarea
-                        value={form.instrumentScope}
-                        onChange={(event) =>
-                          setForm((prev) => ({
-                            ...prev,
-                            instrumentScope: event.target.value,
-                          }))
-                        }
-                        placeholder="SPY, QQQ, NVDA"
-                        rows={4}
-                        className={textareaClass}
-                      />
-                    </Field>
-                  </>
-                ) : (
-                  <div className={inlineHintClass}>
-                    {sessionSubscribedToMockRehearsal(subscribedSources)
-                      ? "Mock rehearsal listens via synthetic filings. Instruments come from the fired signal — not from a manual ticker list."
-                      : selectedExperience
-                        ? `${selectedExperience.displayName} listens via ${
-                            (selectedExperience.schedules?.length ?? 0) > 0
-                              ? "schedules (scan_hit)"
-                              : formatSignalSourceTypeLabel(
-                                  selectedExperience.capabilities
-                                    .signalSourceTypes[0] ?? "manual",
-                                )
-                          }. Instruments come from the signal feed — not from a manual ticker list.`
-                        : "Automatic listener — nothing to configure."}
-                  </div>
-                )}
+                <SessionInputEditor
+                  templateId={selectedV2Template?.templateId ?? null}
+                  subscriptions={v2Subscriptions}
+                  onChange={(subs) => dispatchData({ v2Subscriptions: subs })}
+                  fieldErrors={v2FieldErrors}
+                  fieldWarnings={v2FieldWarnings}
+                  usesUnvalidatedUniverse={v2UnvalidatedUniverse}
+                  locked={Boolean(initialSession)}
+                />
               </div>
             </section>
 
@@ -1143,12 +722,9 @@ export const CreateEditSessionModal = ({
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
             <div className="text-[12px] text-[var(--text3)]">
-              {formatReadinessSummary({
-                readiness,
-                inputModel,
-                subscribedSources,
-                manualTickerCount,
-              })}
+              {v2Subscriptions.length === 0
+                ? "Configure at least one input subscription."
+                : `${v2Subscriptions.length} input subscription${v2Subscriptions.length === 1 ? "" : "s"} configured.`}
             </div>
             <div className="flex justify-end gap-2.5">
               <Button
@@ -1162,24 +738,58 @@ export const CreateEditSessionModal = ({
                 onClick={async () => {
                   dispatchReq({ saving: true, error: null });
                   try {
-                    await onSubmit(
+                    // Validate subscriptions before submitting
+                    if (selectedV2Template && v2Subscriptions.length > 0) {
+                      try {
+                        const validation = await experienceCatalogApi.validateDraft({
+                          templateId: selectedV2Template.templateId,
+                          templateVersion: selectedV2Template.latestVersion,
+                          subscriptions: v2Subscriptions.map((s) => {
+                            if (s.mode === "event_source") {
+                              return {
+                                mode: "event_source" as const,
+                                sourceDefinitionId: s.sourceDefinitionId,
+                                sourceRevision: s.sourceRevision,
+                                filters: s.filters,
+                                analysisTimeframe: s.analysisTimeframe,
+                              };
+                            }
+                            return {
+                              mode: "scheduled_scan" as const,
+                              instrumentSetId: s.instrumentSetId,
+                              instrumentSetRevision: s.instrumentSetRevision,
+                              cadence: s.cadence,
+                              analysisTimeframe: s.analysisTimeframe,
+                              marketCalendarId: s.marketCalendarId,
+                              strategyParameters: s.strategyParameters,
+                            };
+                          }),
+                        });
+                        if (!validation.overall.valid) {
+                          dispatchData({
+                            v2FieldErrors: validation.overall.errors,
+                            v2FieldWarnings: validation.overall.warnings,
+                            v2UnvalidatedUniverse: validation.usesUnvalidatedUniverse,
+                          });
+                          dispatchReq({ saving: false });
+                          return;
+                        }
+                        dispatchData({
+                          v2FieldErrors: [],
+                          v2FieldWarnings: validation.overall.warnings,
+                          v2UnvalidatedUniverse: validation.usesUnvalidatedUniverse,
+                        });
+                      } catch {
+                        // Backend not yet ready — proceed anyway
+                      }
+                    }
+
+                    const sessionId = await onSubmit(
                       {
                         ...form,
-                        instrumentScope: showInstrumentFilter
-                          ? form.instrumentScope
-                          : "",
-                        selectionMode: resolveSelectionModeForInput({
-                          subscribedSources,
-                          instrumentScope: showInstrumentFilter
-                            ? form.instrumentScope
-                            : "",
-                          selectorSettings: form.selectorSettings,
-                        }),
-                        selectorSettings: resolveSelectorSettingsForInput({
-                          inputModel,
-                          selectorSettings: form.selectorSettings,
-                        }),
-                        subscribedSourceIds,
+                        instrumentScope: "",
+                        selectionMode: "signal_driven",
+                        selectorSettings: { aiPickerEnabled: false },
                         brokerAssignments: form.brokerAssignments.filter(
                           (assignment) =>
                             brokerById.has(assignment.brokerAccountId),
@@ -1187,7 +797,27 @@ export const CreateEditSessionModal = ({
                         brokerOverridesByInstrumentClass: {},
                       },
                       initialSession?.id,
-                    );
+                    ) as unknown as string | void;
+
+                    // Persist subscriptions
+                    if (v2Subscriptions.length > 0) {
+                      const resolvedId =
+                        typeof sessionId === "string"
+                          ? sessionId
+                          : initialSession?.id;
+                      if (resolvedId) {
+                        try {
+                          await sessionInputsApi.replace({
+                            sessionId: resolvedId,
+                            inputRevision: 0,
+                            subscriptions: v2Subscriptions,
+                          });
+                        } catch {
+                          // Backend not yet ready — proceed anyway
+                        }
+                      }
+                    }
+
                     onClose();
                   } catch (submitError) {
                     dispatchReq({
@@ -1201,12 +831,7 @@ export const CreateEditSessionModal = ({
                   }
                 }}
                 className="bg-[var(--accent)] text-white"
-                disabled={
-                  req.saving ||
-                  !isValid ||
-                  !isLaunchable ||
-                  requiresSearchProviderSetup
-                }
+                disabled={req.saving || !isValid || !isLaunchable}
               >
                 {req.saving
                   ? "Saving..."
@@ -1279,7 +904,6 @@ function defaultInput(): SessionCreateInput {
     executionMode: "paper_only",
     brokerAssignments: [],
     brokerOverridesByInstrumentClass: {},
-    subscribedSourceIds: [],
   };
 }
 
@@ -1300,7 +924,6 @@ function payloadToInput(
       (assignment) => assignment.brokerAccountId,
     ),
     brokerOverridesByInstrumentClass: payload.brokerOverridesByInstrumentClass,
-    subscribedSourceIds: [],
   };
 }
 
@@ -1319,7 +942,6 @@ function summaryToInput(session: SessionSummary): SessionCreateInput {
     executionMode: session.executionMode,
     brokerAssignments: [],
     brokerOverridesByInstrumentClass: {},
-    subscribedSourceIds: [],
   };
 }
 
@@ -1390,9 +1012,6 @@ function formatInstrumentClass(value: InstrumentClass): string {
           : "Prediction Markets";
 }
 
-function isSearchEverythingInput(input: SessionCreateInput): boolean {
-  return isSearchEverythingEnabled(input);
-}
 
 const panelClass =
   "max-h-[92vh] w-[900px] max-w-[96vw] overflow-auto rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-[22px] shadow-[0_26px_60px_rgba(2,6,23,0.28)]";

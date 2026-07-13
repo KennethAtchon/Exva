@@ -1,11 +1,7 @@
 import type { ProcessingMode } from "@electron/shared/domain/enums";
 import type { ExperienceCapabilities } from "@electron/shared/domain/experience";
 import type { ExperienceResearchContract } from "@electron/shared/domain/research-contract";
-import type {
-  ExperiencePresetIds,
-  ScheduledScanDescriptor,
-  SignalDescriptor,
-} from "@electron/shared/domain/signal-descriptor";
+import type { ExperiencePresetIds } from "@electron/shared/domain/signal-descriptor";
 
 export type {
   ExperienceCapabilities,
@@ -18,13 +14,12 @@ export interface ExperienceDescriptor {
   description: string;
   capabilities: ExperienceCapabilities;
   pipelineId: string;
-  /** Event-driven signal sources (edgar_8k, prediction_event, …). */
-  signals: SignalDescriptor[];
   /**
-   * Clock-driven scans owned by SessionScheduler. Not SignalSourceTypes.
-   * When non-empty, the experience accepts MarketSignal kind `scan_hit`.
+   * True when the experience accepts MarketSignal kind `scan_hit` from
+   * ScheduleCoordinator. False (default) for event-driven experiences that
+   * receive signals via subscription fan-out.
    */
-  schedules?: ScheduledScanDescriptor[];
+  acceptsScanHit?: boolean;
   defaultPresets: ExperiencePresetIds;
   promptVariantKey: ProcessingMode;
   /**
@@ -35,9 +30,9 @@ export interface ExperienceDescriptor {
   researchContract: ExperienceResearchContract;
 }
 
-/** True when the experience runs SessionScheduler scans and accepts scan_hit. */
+/** True when the experience runs ScheduleCoordinator scans and accepts scan_hit. */
 export function experienceAcceptsScanHit(
-  experience: Pick<ExperienceDescriptor, "schedules">,
+  experience: Pick<ExperienceDescriptor, "acceptsScanHit">,
 ): boolean {
-  return (experience.schedules?.length ?? 0) > 0;
+  return experience.acceptsScanHit ?? false;
 }

@@ -1,4 +1,3 @@
-import type { DbClient } from "../../db/client";
 import type {
   InstrumentSetRevision,
   InstrumentSetMember,
@@ -66,12 +65,4 @@ export class InstrumentSetService {
   seed(): void {
     seedInstrumentSets(this.repo);
   }
-}
-
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
-
-export function createInstrumentSetService(db: DbClient): InstrumentSetService {
-  return new InstrumentSetService(new InstrumentSetRepo(db));
 }

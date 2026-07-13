@@ -21,7 +21,6 @@ export const SIGNAL_SOURCE_CAPABILITIES: Record<
 > = {
   edgar_8k: { emittedInstrumentClasses: ["stock"] },
   mock: { emittedInstrumentClasses: "from_config" },
-  timer: { emittedInstrumentClasses: "from_config" },
   web_search: { emittedInstrumentClasses: "from_config" },
   manual: { emittedInstrumentClasses: "from_config" },
   prediction_event: { emittedInstrumentClasses: ["prediction_market"] },

@@ -9,8 +9,6 @@ import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/sessions/
 import { SessionRepo } from "../../../db/repositories/sessions/session-repo";
 import { BrokerAccountsRepo } from "../../../db/repositories/brokers/broker-accounts-repo";
 import { SignalSourcesRepo } from "../../signals/repos/signal-sources-repo";
-import { ensureMockRehearsalSignalSource } from "../../../experiences/ensure-mock-rehearsal-signal-source";
-import { MOCK_REHEARSAL_SIGNAL_SOURCE_ID } from "@electron/shared/instruments/mock-rehearsal";
 import { SessionListingService } from "../listing-service";
 
 function createListing(deps: {
@@ -24,7 +22,6 @@ function createListing(deps: {
     sessionRepo: deps.sessions,
     assignments: deps.assignments,
     signalSources: new SignalSourcesRepo(deps.db),
-    signalRegistry: { snapshot: () => null } as never,
     brokerAccounts: new BrokerAccountsRepo(deps.db),
     trades: (deps.trades ?? { listOpenAndPending: () => [] }) as never,
     runtimeManager: (deps.runtimeManager ?? { get: () => null }) as never,
@@ -181,11 +178,9 @@ describe("SessionListingService", () => {
     expect(listing.computeUptimeMin(session.id)).toBe(0);
   });
 
-  it("sets rehearsalMode and canFireRehearsalSignal for active mock-rehearsal sessions", () => {
+  it("rehearsalMode is false when no V2 mock rehearsal source is active", () => {
     const sessions = new SessionRepo(db);
     const assignments = new SessionBrokerAssignmentsRepo(db);
-    const signalSources = new SignalSourcesRepo(db);
-    ensureMockRehearsalSignalSource(signalSources, "NVDA");
 
     const session = createMinimalSession(db, {
       experienceId: "edgar-catalyst",
@@ -194,47 +189,6 @@ describe("SessionListingService", () => {
     insertBrokerAccount(db, { id: "mock-broker", brokerType: "mock" });
     assignments.replaceAssignments(session.id, [
       { brokerAccountId: "mock-broker", allocatedUsd: 1000 },
-    ]);
-    signalSources.replaceSessionSubscriptions(session.id, [
-      MOCK_REHEARSAL_SIGNAL_SOURCE_ID,
-    ]);
-    sessions.setStatus("active", session.id);
-
-    const listing = createListing({ db, sessions, assignments });
-    const summary = listing
-      .list()
-      .sessions.find((row) => row.id === session.id);
-
-    expect(summary).toMatchObject({
-      rehearsalMode: true,
-      rehearsalEligible: true,
-      canFireRehearsalSignal: true,
-      status: "active",
-    });
-  });
-
-  it("does not allow firing rehearsal signals for mixed broker assignments", () => {
-    const sessions = new SessionRepo(db);
-    const assignments = new SessionBrokerAssignmentsRepo(db);
-    const signalSources = new SignalSourcesRepo(db);
-    ensureMockRehearsalSignalSource(signalSources, "NVDA");
-
-    const session = createMinimalSession(db, {
-      experienceId: "edgar-catalyst",
-      instrumentClasses: ["stock"],
-    });
-    insertBrokerAccount(db, { id: "mock-broker", brokerType: "mock" });
-    insertBrokerAccount(db, {
-      id: "live-broker",
-      brokerType: "alpaca",
-      secretRef: "secret:live-broker",
-    });
-    assignments.replaceAssignments(session.id, [
-      { brokerAccountId: "mock-broker", allocatedUsd: 1000 },
-      { brokerAccountId: "live-broker", allocatedUsd: 1000 },
-    ]);
-    signalSources.replaceSessionSubscriptions(session.id, [
-      MOCK_REHEARSAL_SIGNAL_SOURCE_ID,
     ]);
     sessions.setStatus("active", session.id);
 
@@ -245,8 +199,7 @@ describe("SessionListingService", () => {
 
     expect(summary).toMatchObject({
       rehearsalMode: false,
-      rehearsalEligible: false,
-      canFireRehearsalSignal: false,
+      status: "active",
     });
   });
 });

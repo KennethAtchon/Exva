@@ -176,12 +176,3 @@ export interface SessionConfigurationDraft {
   subscriptions: SessionInputSubscriptionDraftItem[];
 }
 
-export interface SessionCreateInputV2 {
-  templateId: string;
-  templateVersion: number;
-  subscriptions: SessionInputSubscriptionDraftItem[];
-  /** Broker account IDs indexed by InstrumentClass. */
-  brokerAssignments: Partial<Record<InstrumentClass, string>>;
-  displayName?: string;
-}
-

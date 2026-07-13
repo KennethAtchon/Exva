@@ -1,7 +1,30 @@
-import {
-  isMarketOpen,
-  type MarketHoursMode,
-} from "../signals/scheduler/session-scheduler";
+export type MarketHoursMode = "regular" | "extended" | "24_7";
+
+/** US equity regular session rough check (America/New_York wall clock). */
+export function isMarketOpen(
+  mode: MarketHoursMode,
+  now: Date = new Date(),
+): boolean {
+  if (mode === "24_7") return true;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  }).formatToParts(now);
+  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "";
+  if (weekday === "Sat" || weekday === "Sun") return false;
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+  const mins = hour * 60 + minute;
+  if (mode === "regular") {
+    // 09:30–16:00 ET
+    return mins >= 9 * 60 + 30 && mins < 16 * 60;
+  }
+  // extended: 04:00–20:00 ET
+  return mins >= 4 * 60 && mins < 20 * 60;
+}
 
 export interface MarketCalendar {
   id: string;

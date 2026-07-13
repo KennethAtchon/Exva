@@ -5,7 +5,7 @@ export type LiveSignalSourceType =
   | "prediction_event";
 
 /** Persisted identity / dual-read only — not creatable or startable. */
-export type DeprecatedSignalSourceType = "timer" | "web_search";
+export type DeprecatedSignalSourceType = "web_search";
 
 /** Persisted + dual-read; includes deprecated DB values. */
 export type SignalSourceType =
@@ -19,7 +19,7 @@ const LIVE_SIGNAL_SOURCE_TYPES = new Set<string>([
   "prediction_event",
 ]);
 
-const DEPRECATED_SIGNAL_SOURCE_TYPES = new Set<string>(["timer", "web_search"]);
+const DEPRECATED_SIGNAL_SOURCE_TYPES = new Set<string>(["web_search"]);
 
 export function isLiveSignalSourceType(t: string): t is LiveSignalSourceType {
   return LIVE_SIGNAL_SOURCE_TYPES.has(t);
@@ -97,16 +97,6 @@ export interface SignalSourceRecord {
   name: string;
   description: string | null;
   enabled: boolean;
-  /** Null for ad-hoc/user sources; set for experience-owned signal sources. */
-  experienceId?: string | null;
-  /** Instrument class this source produces; null for self-describing sources. */
-  instrumentClass?: string | null;
-  /** Timer poll gap (e.g. "15m"); how often the source re-evaluates — not the bar timeframe traded on. */
-  pollCadence?: string | null;
-  /** Bar timeframe the strategy trades on; drives OHLCV fetches for rules engines. */
-  analysisTimeframe?: string | null;
-  /** Denormalized from the owning experience's pipelineId. */
-  pipelineId?: string | null;
   configJson: string;
   createdAt: string;
   updatedAt: string;
@@ -116,7 +106,7 @@ export interface SessionSignalDelivery {
   id: string;
   sessionId: string;
   signalEventId: string;
-  sourceId: string;
+  sourceId: string | null;
   queuePositionAtEnqueue: number;
   status:
     | "queued"

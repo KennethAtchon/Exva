@@ -51,7 +51,7 @@ describe("selector-as-ordinary-phase decoupling", () => {
         "web-scout",
       ]);
       expect(
-        discoveryWorkerIds("default-trade-cycle", { sourceType: "timer" }),
+        discoveryWorkerIds("default-trade-cycle", { sourceType: "mock" }),
       ).toEqual(["web-scout"]);
 
       // mean-reversion has no selector workers: empty, even with a trigger that

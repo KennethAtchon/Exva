@@ -11,7 +11,6 @@ const SOURCE_TYPE_TO_KIND: Partial<Record<SignalSourceType, MarketSignalKind>> =
   {
     edgar_8k: "filing",
     prediction_event: "market_dislocation",
-    timer: "scan_hit",
     manual: "manual",
     mock: "manual",
     web_search: "news",

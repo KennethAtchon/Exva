@@ -86,30 +86,6 @@ export function registerSignalHandlers(services: AppServices): void {
     return services.signals.replayDeadLetter(input.deadLetterId);
   });
 
-  handle(
-    ipcMain,
-    channels.signals.sessions.getSubscriptions,
-    async (payload) => {
-      const input = payload as { sessionId: string };
-      return {
-        sourceIds: services.signals.listSubscribedSourceIds(input.sessionId),
-      };
-    },
-  );
-
-  handle(
-    ipcMain,
-    channels.signals.sessions.setSubscriptions,
-    async (payload) => {
-      const input = payload as { sessionId: string; sourceIds: string[] };
-      services.signals.replaceSessionSubscriptions(
-        input.sessionId,
-        input.sourceIds,
-      );
-      return { ok: true };
-    },
-  );
-
   handle(ipcMain, channels.signals.sessions.getReadiness, async (payload) => {
     const input = payload as { sessionId: string; instrumentScope: string };
     return {

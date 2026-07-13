@@ -32,7 +32,6 @@ describe("SignalService", () => {
       eventsRepo,
       deliveriesRepo,
       deadLettersRepo,
-      sourcesRepo,
       {
         get: () => null,
         getStatus: () => "active",
@@ -77,40 +76,10 @@ describe("SignalService", () => {
   });
 
   it("derives session readiness from subscriptions and manual scope", () => {
-    const { service, sourcesRepo } = createService();
-    const session = createMinimalSession(db);
-    const enabledSource = sourcesRepo.create({
-      id: "enabled-source",
-      type: "mock",
-      name: "Mock",
-      description: null,
-      enabled: true,
-      configJson: "{}",
-    });
-    sourcesRepo.create({
-      id: "disabled-source",
-      type: "mock",
-      name: "Disabled",
-      description: null,
-      enabled: false,
-      configJson: "{}",
-    });
-
-    service.replaceSessionSubscriptions(session.id, [
-      enabledSource.id,
-      "disabled-source",
-    ]);
-    expect(service.deriveReadiness(session.id, "AAPL,MSFT")).toBe("armed");
-
-    const disabledOnly = createMinimalSession(db);
-    service.replaceSessionSubscriptions(disabledOnly.id, ["disabled-source"]);
-    expect(service.deriveReadiness(disabledOnly.id, "")).toBe(
-      "waiting_for_source_enable",
-    );
-
-    const manualOnly = createMinimalSession(db);
-    expect(service.deriveReadiness(manualOnly.id, "TSLA")).toBe("manual_only");
-    expect(service.deriveReadiness(manualOnly.id, "")).toBe("no_inputs");
+    const { service } = createService();
+    // V2: readiness is based on instrumentScope only (legacy session_signal_sources removed).
+    expect(service.deriveReadiness("any-session", "AAPL,MSFT")).toBe("manual_only");
+    expect(service.deriveReadiness("any-session", "")).toBe("no_inputs");
   });
 
   it("bootstraps manual source and replays paused deliveries on resume", async () => {

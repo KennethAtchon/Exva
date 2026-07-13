@@ -5,7 +5,6 @@ import {
   type MockScenarioKind,
   MOCK_SCENARIO_PRIMARY_SYMBOLS,
 } from "@electron/shared/domain/mock-scenario";
-import { experienceSignalSourceId } from "./session-input-model";
 
 export const MOCK_REHEARSAL_SIGNAL_SOURCE_ID = "mock-rehearsal-signal";
 
@@ -87,46 +86,4 @@ export function resolveMockRehearsalTickerFromBrokers(
     .map((id) => brokerAccounts.find((account) => account.id === id))
     .find((broker): broker is MockRehearsalBrokerSnapshot => Boolean(broker));
   return resolveMockRehearsalTicker(firstAssigned?.mockScenarioKind);
-}
-
-export function resolvePreferredSubscribedSourceId(input: {
-  experience: Pick<
-    ExperienceCapabilities,
-    "signalSourceTypes" | "mockRehearsalEligible"
-  > & {
-    id: string;
-  };
-  compatibleSourceIds: readonly string[];
-  brokerAccounts: readonly MockRehearsalBrokerSnapshot[];
-  brokerAssignmentIds: readonly string[];
-}): string | null {
-  if (
-    sessionEligibleForMockRehearsal({
-      experience: input.experience,
-      brokerAccounts: input.brokerAccounts,
-      brokerAssignmentIds: input.brokerAssignmentIds,
-    }) &&
-    input.compatibleSourceIds.includes(MOCK_REHEARSAL_SIGNAL_SOURCE_ID)
-  ) {
-    return MOCK_REHEARSAL_SIGNAL_SOURCE_ID;
-  }
-
-  const experienceSourceId = experienceSignalSourceId(input.experience.id);
-  if (input.compatibleSourceIds.includes(experienceSourceId)) {
-    return experienceSourceId;
-  }
-
-  return input.compatibleSourceIds[0] ?? null;
-}
-
-export function shouldAutoSwitchSignalSubscription(input: {
-  preferredSourceId: string | null;
-  subscribedSourceIds: readonly string[];
-}): boolean {
-  if (!input.preferredSourceId) return false;
-  if (input.subscribedSourceIds[0] === input.preferredSourceId) return false;
-  return (
-    input.preferredSourceId === MOCK_REHEARSAL_SIGNAL_SOURCE_ID ||
-    input.subscribedSourceIds.includes(MOCK_REHEARSAL_SIGNAL_SOURCE_ID)
-  );
 }

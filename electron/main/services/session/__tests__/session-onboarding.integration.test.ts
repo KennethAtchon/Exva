@@ -3,7 +3,6 @@ import type { InstrumentClass } from "@/lib/types";
 import type { DbClient } from "../../../db/client";
 import { createTestDb } from "../../../db/test-helpers";
 import { requireExperience } from "../../../experiences/index";
-import { sessionRequiresInstrumentScope } from "@electron/shared/domain";
 import { AgentMessagesRepo } from "../../../db/repositories/agents/agent-messages-repo";
 import { AgentRunsRepo } from "../../../db/repositories/agents/agent-runs-repo";
 import { BrokerAccountsRepo } from "../../../db/repositories/brokers/broker-accounts-repo";
@@ -188,29 +187,29 @@ describe("session onboarding integration", () => {
   });
 
   it.each([
-    ["edgar-catalyst", "broker-stock", ["stock"]],
-    ["rules-mean-reversion", "broker-stock", ["stock"]],
-    ["rules-trend-following", "broker-futures", ["futures"]],
-    ["rules-breakout", "broker-crypto", ["crypto"]],
-    ["prediction-event-edge", "broker-pm", ["prediction_market"]],
+    ["edgar-catalyst", "broker-stock", ["stock"], false],
+    ["rules-mean-reversion", "broker-stock", ["stock"], true],
+    ["rules-trend-following", "broker-futures", ["futures"], true],
+    ["rules-breakout", "broker-crypto", ["crypto"], true],
+    ["prediction-event-edge", "broker-pm", ["prediction_market"], false],
   ] as const)(
     "onboards %s through preflight and start",
-    async (experienceId, brokerId, instrumentClasses) => {
+    async (experienceId, brokerId, instrumentClasses, acceptsScanHit) => {
       const harness = createHarness(db);
       harness.insertExperienceBrokers();
       harness.configureDefaultAiProvider();
 
       const experience = requireExperience(experienceId);
-      harness.ensureExperienceSignalSource(experienceId);
-      const first = experience.signals[0] ?? experience.schedules?.[0] ?? null;
-      if (!first)
-        throw new Error(`${experienceId} has no signals or schedules`);
-      const signalSourceIds = [`${experienceId}/${first.id}`];
+
+      // For scan_hit experiences (rules/options), SPY is the instrument scope.
+      // For event-driven experiences, leave scope empty (subscriptions come from catalog seeds).
+      const instrumentScope = acceptsScanHit ? "SPY" : "";
+
       const { id: sessionId } = harness.sessionWrites.create({
         name: `${experience.displayName} Session`,
         objective: `Run ${experience.displayName}`,
         selectionMode: "manual_shortlist",
-        instrumentScope: "",
+        instrumentScope,
         selectorSettings: { aiPickerEnabled: false },
         executionMode: "paper_only",
         experienceId,
@@ -218,7 +217,6 @@ describe("session onboarding integration", () => {
         brokerOverridesByInstrumentClass: {
           [instrumentClasses[0] as InstrumentClass]: brokerId,
         },
-        subscribedSourceIds: signalSourceIds,
       });
 
       await expect(harness.session.start(sessionId)).resolves.toBe("active");
@@ -354,7 +352,6 @@ describe("session onboarding integration", () => {
       trades: new TradesRepo(db),
       runtimeManager: harness.runtimeManager,
       signalSources: harness.signalSourcesRepo,
-      signalRegistry: { snapshot: () => null } as never,
       brokerAccounts: harness.brokers,
     });
     expect(listing.list().sessions.map((row) => row.id)).not.toContain(
@@ -392,7 +389,6 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     providerAccountsRepo: providerAccounts,
     workspacePrefsRepo: workspacePreferences,
     sessionAiPhasesRepo,
-    signalSourceTypes: signalSourcesRepo,
   });
   const templateService = new SessionTemplateService({
     templates: new SessionTemplatesRepo(db),
@@ -526,19 +522,6 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
       assignments: sessionBrokerAssignments,
       brokerRouting: brokerRoutingRepo,
       brokerAccounts: brokers,
-      signals: {
-        replaceSessionSubscriptions: (sessionId, sourceIds) => {
-          signalSourcesRepo.replaceSessionSubscriptions(sessionId, sourceIds);
-        },
-        requiresInstrumentScopeForSourceIds: (sourceIds) => {
-          const subscribedSources = sourceIds.flatMap((sourceId) => {
-            const source = signalSourcesRepo.get(sourceId);
-            return source ? [{ type: source.type }] : [];
-          });
-          return sessionRequiresInstrumentScope(subscribedSources);
-        },
-        getSource: (sourceId) => signalSourcesRepo.get(sourceId),
-      },
     }),
     strategyContext: strategyContextService,
     templateService,
@@ -629,51 +612,32 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
         mode: "paper",
       });
     },
-    ensureExperienceSignalSource(experienceId: string) {
+    ensureExperienceSignalSource(experienceId: string): string {
+      // Signals are now defined in catalog seeds rather than on the descriptor.
+      // This helper creates a representative source for event-driven experiences
+      // using the first signalSourceType declared in capabilities.
       const experience = requireExperience(experienceId);
-      for (const signal of experience.signals) {
-        const sourceId = `${experienceId}/${signal.id}`;
-        if (!signalSourcesRepo.get(sourceId)) {
-          signalSourcesRepo.create({
-            id: sourceId,
-            type: signal.sourceType,
-            name: experience.displayName,
-            description: null,
-            enabled: true,
-            experienceId,
-            configJson: JSON.stringify({
-              signalId: signal.id,
-              symbol: signal.symbol,
-            }),
-          });
-        }
+      const sourceType = experience.capabilities.signalSourceTypes[0];
+      if (!sourceType) {
+        throw new Error(
+          `${experienceId} is a scan_hit experience — use acceptsScanHit: true and no source subscription`,
+        );
       }
-      for (const schedule of experience.schedules ?? []) {
-        const sourceId = `${experienceId}/${schedule.id}`;
-        if (!signalSourcesRepo.get(sourceId)) {
-          signalSourcesRepo.create({
-            id: sourceId,
-            type: "timer",
-            name: experience.displayName,
-            description: null,
-            enabled: true,
-            experienceId,
-            configJson: JSON.stringify({
-              signalId: schedule.id,
-              symbol: schedule.symbol,
-              cadence: schedule.cadence,
-            }),
-          });
-        }
+      const sourceId = `${experienceId}/default`;
+      if (!signalSourcesRepo.get(sourceId)) {
+        signalSourcesRepo.create({
+          id: sourceId,
+          type: sourceType,
+          name: experience.displayName,
+          description: null,
+          enabled: true,
+          configJson: JSON.stringify({ experienceId }),
+        });
       }
+      return sourceId;
     },
-    subscribeExperienceSignal(sessionId: string, experienceId: string) {
+    subscribeExperienceSignal(_sessionId: string, experienceId: string) {
       this.ensureExperienceSignalSource(experienceId);
-      const experience = requireExperience(experienceId);
-      signalSourcesRepo.replaceSessionSubscriptions(sessionId, [
-        ...experience.signals.map((s) => `${experienceId}/${s.id}`),
-        ...(experience.schedules ?? []).map((s) => `${experienceId}/${s.id}`),
-      ]);
     },
   };
 }

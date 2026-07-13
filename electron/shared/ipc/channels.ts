@@ -123,8 +123,6 @@ export const channels = {
       replay: "signals:dead-letters:replay",
     },
     sessions: {
-      getSubscriptions: "signals:sessions:get-subscriptions",
-      setSubscriptions: "signals:sessions:set-subscriptions",
       getReadiness: "signals:sessions:get-readiness",
     },
   },
@@ -180,6 +178,27 @@ export const channels = {
     exportDebugBundle: "developer:export-debug-bundle",
     openPath: "developer:open-path",
     listEventsV2: "events:list-v2",
+  },
+  experienceCatalog: {
+    templates: {
+      list: "experience-catalog:templates:list",
+    },
+    configurationOptions: "experience-catalog:configuration-options",
+    validateDraft: "experience-catalog:validate-draft",
+  },
+  instrumentSets: {
+    list: "instrument-sets:list",
+    get: "instrument-sets:get",
+    createRevision: "instrument-sets:create-revision",
+  },
+  sourceDefinitions: {
+    list: "source-definitions:list",
+    get: "source-definitions:get",
+  },
+  sessionInputs: {
+    get: "session-inputs:get",
+    replace: "session-inputs:replace",
+    migrate: "session-inputs:migrate",
   },
 } as const;
 

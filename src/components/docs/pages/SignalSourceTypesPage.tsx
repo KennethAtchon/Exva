@@ -4,12 +4,10 @@ export function SignalSourceTypesPage() {
   return (
     <>
       <DocParagraph>
-        Signal sources are global resources. Create them on the Signals page,
-        enable them, then subscribe sessions during session creation or editing.
+        Signal sources are global resources. Create them on the Signal Sources
+        page and configure sessions to use them via the Experience Inputs editor.
         Disabling a source keeps subscriptions intact but moves subscribed
-        sessions to a waiting state. Rules experiences use{" "}
-        <DocLink to="timer-signals">schedules</DocLink> (SessionScheduler), not
-        a creatable timer source type.
+        sessions to a waiting state.
       </DocParagraph>
       <DocTable
         headers={["Type", "Description", "Typical use"]}
@@ -48,14 +46,6 @@ export function SignalSourceTypesPage() {
               <DocLink to="experiences">Prediction Event Edge</DocLink>{" "}
               experience.
             </>,
-          ],
-          [
-            "timer",
-            <>
-              Deprecated DB identity for schedules — not a creatable source. See{" "}
-              <DocLink to="timer-signals">Schedules (was timer)</DocLink>.
-            </>,
-            "Rules experiences via SessionScheduler.",
           ],
           [
             "web_search",

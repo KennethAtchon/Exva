@@ -232,10 +232,6 @@ const exva: ExvaApi = {
       invoke(channels.signals.deadLetters.list, input),
     replaySignalDeadLetter: (input) =>
       invoke(channels.signals.deadLetters.replay, input),
-    getSessionSubscriptions: (sessionId) =>
-      invoke(channels.signals.sessions.getSubscriptions, { sessionId }),
-    setSessionSubscriptions: (input) =>
-      invoke(channels.signals.sessions.setSubscriptions, input),
     getSessionReadiness: (input) =>
       invoke(channels.signals.sessions.getReadiness, input),
   },
@@ -338,6 +334,30 @@ const exva: ExvaApi = {
     cancel: (conversationId) =>
       invoke(channels.control.cancel, { conversationId }),
     getActivity: () => invoke(channels.control.getActivity),
+  },
+  experienceCatalog: {
+    listTemplates: () => invoke("experience-catalog:templates:list"),
+    getConfigurationOptions: (input: {
+      templateId: string;
+      templateVersion?: number;
+    }) => invoke("experience-catalog:configuration-options", input),
+    validateDraft: (input: unknown) =>
+      invoke("experience-catalog:validate-draft", input),
+  },
+  instrumentSets: {
+    list: () => invoke("instrument-sets:list"),
+    get: (input: { setId: string }) => invoke("instrument-sets:get", input),
+    createRevision: (input: unknown) =>
+      invoke("instrument-sets:create-revision", input),
+  },
+  sourceDefinitions: {
+    list: () => invoke("source-definitions:list"),
+    get: (input: { id: string }) => invoke("source-definitions:get", input),
+  },
+  sessionInputs: {
+    get: (input: { sessionId: string }) =>
+      invoke("session-inputs:get", input),
+    replace: (input: unknown) => invoke("session-inputs:replace", input),
   },
   developer: {
     getSettings: () => invoke(channels.developer.getSettings),

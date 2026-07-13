@@ -20,7 +20,6 @@ function insertSession(db: DbClient, id: string): void {
       executionMode: "paper_only",
       experienceId: "edgar-catalyst",
       sessionInputRevision: 0,
-      inputMigrationState: "v2",
       createdAt: now,
       updatedAt: now,
     })

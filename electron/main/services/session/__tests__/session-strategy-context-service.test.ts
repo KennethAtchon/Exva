@@ -12,7 +12,6 @@ import { SessionSelectorSettingsRepo } from "../../../db/repositories/sessions/s
 import { SessionTimeframeConfigRepo } from "../../../db/repositories/sessions/session-timeframe-config-repo";
 import { SessionTradeRulesRepo } from "../../../db/repositories/sessions/session-trade-rules-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
-import { SignalSourcesRepo } from "../../signals/repos/signal-sources-repo";
 import { SessionStrategyContextService } from "../session-strategy-context-service";
 
 describe("SessionStrategyContextService", () => {
@@ -171,40 +170,25 @@ describe("SessionStrategyContextService", () => {
     ).toThrow(/stop this session/i);
   });
 
-  it("rejects catalyst postures that are incompatible with subscribed signals", () => {
-    const signalSources = new SignalSourcesRepo(db);
-    signalSources.create({
-      id: "web-search-source",
-      type: "web_search",
-      name: "Web Search",
-      description: null,
-      enabled: true,
-      configJson: "{}",
-    });
-    signalSources.replaceSessionSubscriptions(
-      createMinimalSession(db, { experienceId: "edgar-catalyst" }).id,
-      ["web-search-source"],
-    );
+  it("allows catalyst postures regardless of signal source type (check removed in Phase 8)", () => {
     const session = createMinimalSession(db, {
       experienceId: "edgar-catalyst",
     });
-    signalSources.replaceSessionSubscriptions(session.id, [
-      "web-search-source",
-    ]);
-    const service = createService(db, signalSources);
+    const service = createService(db);
 
+    // In V2, source-type compatibility is managed at the experience-catalog level;
+    // the legacy subscription-based check is removed.
     expect(() =>
       service.saveResearchPosture(session.id, {
         catalystMode: "required",
         processingMode: "catalyst",
       }),
-    ).toThrow(/EDGAR 8-K signal/i);
+    ).not.toThrow();
   });
 });
 
 function createService(
   db: ReturnType<typeof createTestDb>,
-  signalSourceTypes = new SignalSourcesRepo(db),
 ) {
   return new SessionStrategyContextService({
     sessionRepo: new SessionRepo(db),
@@ -217,6 +201,5 @@ function createService(
     providerAccountsRepo: new ProviderAccountsRepo(db),
     workspacePrefsRepo: new WorkspacePreferencesRepo(db),
     sessionAiPhasesRepo: new SessionAiPhasesRepo(db),
-    signalSourceTypes,
   });
 }

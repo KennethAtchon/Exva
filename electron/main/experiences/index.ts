@@ -51,15 +51,7 @@ export function validateExperienceRegistry(): void {
       throw new Error(`Experience '${experience.id}' has no pipelineId.`);
     }
 
-    const pipeline = requirePipelineDescriptor(experience.pipelineId);
-    const signals = experience.signals ?? [];
-    const schedules = experience.schedules ?? [];
-
-    if (signals.length === 0 && schedules.length === 0) {
-      throw new Error(
-        `Experience '${experience.id}' must declare at least one signal or schedule.`,
-      );
-    }
+    requirePipelineDescriptor(experience.pipelineId);
 
     // P0: every experience must declare a falsifiable research contract.
     const contract = experience.researchContract;
@@ -74,49 +66,14 @@ export function validateExperienceRegistry(): void {
       );
     }
 
-    // I1: every signal.sourceType ∈ pipeline.signalSources (schedules excluded)
-    for (const signal of signals) {
-      if (!pipeline.signalSources.includes(signal.sourceType)) {
-        throw new Error(
-          `Experience '${experience.id}' signal '${signal.id}' has sourceType '${signal.sourceType}' ` +
-            `not in pipeline '${pipeline.id}' signalSources [${pipeline.signalSources.join(", ")}].`,
-        );
-      }
-    }
-
-    for (const schedule of schedules) {
-      if (!schedule.symbol?.trim()) {
-        throw new Error(
-          `Experience '${experience.id}' schedule '${schedule.id}' must declare a non-null symbol.`,
-        );
-      }
-    }
-
-    const hasSchedules = schedules.length > 0;
-    if (!experience.capabilities.signalSourceTypes.length && !hasSchedules) {
+    // C1: either declares known signal source types or accepts scan_hit — not neither.
+    const hasSourceTypes = experience.capabilities.signalSourceTypes.length > 0;
+    const hasScanHit = experience.acceptsScanHit === true;
+    if (!hasSourceTypes && !hasScanHit) {
       throw new Error(
-        `Experience '${experience.id}' must declare at least one signal source type ` +
-          `(or schedules for scan_hit delivery).`,
+        `Experience '${experience.id}' must declare at least one capabilities.signalSourceTypes ` +
+          `or set acceptsScanHit: true for scan_hit delivery.`,
       );
-    }
-
-    // I3: capabilities.signalSourceTypes == union of signals[].sourceType
-    const signalSourceTypeUnion = new Set(signals.map((s) => s.sourceType));
-    for (const t of experience.capabilities.signalSourceTypes) {
-      if (!signalSourceTypeUnion.has(t)) {
-        throw new Error(
-          `Experience '${experience.id}' capabilities.signalSourceTypes includes '${t}' ` +
-            `which is not in its signals' sourceTypes.`,
-        );
-      }
-    }
-    for (const t of signalSourceTypeUnion) {
-      if (!experience.capabilities.signalSourceTypes.includes(t)) {
-        throw new Error(
-          `Experience '${experience.id}' signal sourceType '${t}' ` +
-            `is missing from capabilities.signalSourceTypes.`,
-        );
-      }
     }
 
     // I5: no experience whose id contains trend/breakout runs mean-reversion pipeline

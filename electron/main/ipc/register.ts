@@ -17,8 +17,10 @@ import { registerWorkspaceHandlers } from "./workspace/workspace";
 import { registerExperienceHandlers } from "./experiences";
 import { registerAnalyticsHandlers } from "./analytics";
 import { registerControlHandlers } from "./control";
+import { registerExperienceCatalogHandlers } from "./experience-catalog";
 
 export function registerIpcHandlers(services: AppServices): void {
+  registerExperienceCatalogHandlers(services);
   registerExperienceHandlers(services);
   registerAnalyticsHandlers(services);
   registerDashboardHandlers(services);

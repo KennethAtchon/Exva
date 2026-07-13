@@ -42,8 +42,7 @@ export function SignalSourcesPage() {
         next.sources.filter(
           (source) =>
             source.type !== "manual" &&
-            source.type !== "web_search" &&
-            source.type !== "timer",
+            source.type !== "web_search",
         ),
       );
     } catch (err) {
@@ -65,12 +64,12 @@ export function SignalSourcesPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
-            SOURCES &amp; SCHEDULES
+            SOURCES
           </div>
           <h1 className="m-0 mt-2.5 text-[28px]">Signal Sources</h1>
           <p className="mt-2 text-[13px] text-[var(--text3)]">
-            Connect real-time data feeds and schedules to drive the trading
-            pipeline.
+            Connect real-time data feeds to drive the trading pipeline. For
+            scheduled scan feeds, see Event Sources.
           </p>
           <div className="mt-2">
             <HelpTooltip
@@ -820,9 +819,6 @@ function describeSourceType(type: Source["type"]): string {
   }
   if (type === "mock") {
     return "Synthetic filing-style signals for rehearsal.";
-  }
-  if (type === "timer") {
-    return "Schedule identity (deprecated) — SessionScheduler owns cadence.";
   }
   if (type === "prediction_event") {
     return "Prediction-market odds and volume dislocations.";

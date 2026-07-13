@@ -1,4 +1,3 @@
-import { scriptedWorkerOutputsForScenario } from "../../services/broker/mock/mock-scenario-worker-outputs";
 import type { ExperienceDescriptor } from "../types";
 
 export const EDGAR_CATALYST_EXPERIENCE: ExperienceDescriptor = {
@@ -35,20 +34,4 @@ export const EDGAR_CATALYST_EXPERIENCE: ExperienceDescriptor = {
     },
     costs: { spreadBps: 3, slippageBps: 5, commissionBps: 0 },
   },
-  signals: [
-    {
-      id: "edgar-8k-catalyst",
-      sourceType: "edgar_8k",
-      instrumentClass: "stock",
-      symbol: null,
-      pollCadence: null,
-      defaultAnalysisTimeframe: "1d",
-      enabledByDefault: true,
-      mockFixtures: {
-        defaultScenario: "clean_breakout",
-        scriptedWorkerOutputs:
-          scriptedWorkerOutputsForScenario("clean_breakout"),
-      },
-    },
-  ],
 };

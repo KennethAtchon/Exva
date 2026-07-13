@@ -13,7 +13,7 @@ export class SignalDeliveriesRepo {
   enqueue(input: {
     sessionId: string;
     signalEventId: string;
-    sourceId: string;
+    sourceId: string | null;
     queuePositionAtEnqueue: number;
   }): SessionSignalDelivery {
     const row: SessionSignalDelivery = {
@@ -39,11 +39,13 @@ export class SignalDeliveriesRepo {
   enqueueWithStatus(input: {
     sessionId: string;
     signalEventId: string;
-    sourceId: string;
+    sourceId: string | null;
     queuePositionAtEnqueue: number;
     status: SessionSignalDelivery["status"];
     statusBucket: SessionSignalDelivery["statusBucket"];
     expiresAt?: string | null;
+    /** V2: which session input subscription triggered this delivery. */
+    subscriptionId?: string | null;
   }): SessionSignalDelivery {
     const row: SessionSignalDelivery = {
       id: crypto.randomUUID(),
@@ -61,7 +63,10 @@ export class SignalDeliveriesRepo {
       dropReason: null,
       notesJson: null,
     };
-    this.db.db.insert(sessionSignalDeliveries).values(row).run();
+    this.db.db
+      .insert(sessionSignalDeliveries)
+      .values({ ...row, subscriptionId: input.subscriptionId ?? null })
+      .run();
     return row;
   }
 
@@ -88,7 +93,7 @@ export class SignalDeliveriesRepo {
   listBySession(sessionId: string): Array<{
     delivery: SessionSignalDelivery;
     event: typeof signalEvents.$inferSelect;
-    source: typeof signalSources.$inferSelect;
+    source: typeof signalSources.$inferSelect | null;
   }> {
     const rows = this.db.db
       .select()
@@ -97,7 +102,7 @@ export class SignalDeliveriesRepo {
         signalEvents,
         eq(sessionSignalDeliveries.signalEventId, signalEvents.id),
       )
-      .innerJoin(
+      .leftJoin(
         signalSources,
         eq(sessionSignalDeliveries.sourceId, signalSources.id),
       )
@@ -107,14 +112,14 @@ export class SignalDeliveriesRepo {
     return rows.map((row) => ({
       delivery: row.session_signal_deliveries as SessionSignalDelivery,
       event: row.signal_events,
-      source: row.signal_sources,
+      source: row.signal_sources ?? null,
     }));
   }
 
   getDetailedById(deliveryId: string): {
     delivery: SessionSignalDelivery;
     event: typeof signalEvents.$inferSelect;
-    source: typeof signalSources.$inferSelect;
+    source: typeof signalSources.$inferSelect | null;
   } | null {
     const row =
       this.db.db
@@ -124,7 +129,7 @@ export class SignalDeliveriesRepo {
           signalEvents,
           eq(sessionSignalDeliveries.signalEventId, signalEvents.id),
         )
-        .innerJoin(
+        .leftJoin(
           signalSources,
           eq(sessionSignalDeliveries.sourceId, signalSources.id),
         )
@@ -134,7 +139,7 @@ export class SignalDeliveriesRepo {
     return {
       delivery: row.session_signal_deliveries as SessionSignalDelivery,
       event: row.signal_events,
-      source: row.signal_sources,
+      source: row.signal_sources ?? null,
     };
   }
 
@@ -145,7 +150,7 @@ export class SignalDeliveriesRepo {
   }): Array<{
     delivery: SessionSignalDelivery;
     event: typeof signalEvents.$inferSelect;
-    source: typeof signalSources.$inferSelect;
+    source: typeof signalSources.$inferSelect | null;
   }> {
     const clauses = [eq(sessionSignalDeliveries.sessionId, input.sessionId)];
     if (input.statusBucket) {
@@ -160,7 +165,7 @@ export class SignalDeliveriesRepo {
         signalEvents,
         eq(sessionSignalDeliveries.signalEventId, signalEvents.id),
       )
-      .innerJoin(
+      .leftJoin(
         signalSources,
         eq(sessionSignalDeliveries.sourceId, signalSources.id),
       )
@@ -171,7 +176,7 @@ export class SignalDeliveriesRepo {
     return rows.map((row) => ({
       delivery: row.session_signal_deliveries as SessionSignalDelivery,
       event: row.signal_events,
-      source: row.signal_sources,
+      source: row.signal_sources ?? null,
     }));
   }
 

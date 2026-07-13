@@ -13,6 +13,8 @@ import { PeriodAutopsyPage } from "./pages/PeriodAutopsyPage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { StrategyConfig } from "./pages/StrategyConfig";
 import { SignalSourcesPage } from "./pages/SignalSourcesPage";
+import { InstrumentSetsPage } from "./pages/InstrumentSetsPage";
+import { EventSourcesPage } from "./pages/EventSourcesPage";
 import { CostBreakdownPage } from "./pages/CostBreakdown";
 import { DevPanel, type DevPanelFocus } from "./pages/DevPanel";
 import { AccountsPage } from "./pages/AccountsPage";
@@ -313,6 +315,10 @@ export default function App() {
         return <CostBreakdownPage />;
       case "signals":
         return <SignalSourcesPage />;
+      case "instrument-sets":
+        return <InstrumentSetsPage />;
+      case "event-sources":
+        return <EventSourcesPage />;
       case "devpanel":
         return (
           <DevPanel

@@ -30,14 +30,6 @@ export type SubscribedSourceSnapshot = {
   analysisTimeframe?: string | null;
 };
 
-export function experienceSignalSourceId(experienceId: string): string {
-  return `${experienceId}-signal`;
-}
-
-export function signalSourceId(experienceId: string, signalId: string): string {
-  return `${experienceId}/${signalId}`;
-}
-
 export function formatSignalSourceTypeLabel(type: SignalSourceType): string {
   switch (type) {
     case "edgar_8k":
@@ -48,8 +40,6 @@ export function formatSignalSourceTypeLabel(type: SignalSourceType): string {
       return "Manual";
     case "mock":
       return "Mock";
-    case "timer":
-      return "Schedule identity (deprecated)";
     case "prediction_event":
       return "Prediction Event";
     default:
@@ -57,20 +47,11 @@ export function formatSignalSourceTypeLabel(type: SignalSourceType): string {
   }
 }
 
-const APPROXIMATE_TRADE_HOLD_LABELS: Record<string, string> = {
-  [signalSourceId("rules-mean-reversion", "spy-15m-meanrev")]: "~1 trading day",
-  [signalSourceId("rules-mean-reversion", "qqq-15m-meanrev")]: "~1 trading day",
-  [signalSourceId("rules-trend-following", "gc-4h-trend")]: "~1-2 weeks",
-  [signalSourceId("rules-trend-following", "cl-4h-trend")]: "~4-7 days",
-  [signalSourceId("rules-breakout", "btc-1h-breakout")]: "~2-5 days",
-};
-
-export function formatApproximateTradeHoldLabel(source: {
+export function formatApproximateTradeHoldLabel(_source: {
   id: string;
   type: SignalSourceType;
 }): string | null {
-  if (source.type !== "timer") return null;
-  return APPROXIMATE_TRADE_HOLD_LABELS[source.id] ?? null;
+  return null;
 }
 
 export function countManualTickers(instrumentScope: string): number {
@@ -158,16 +139,6 @@ export function resolveSelectionModeForInput(input: {
   return "manual_shortlist";
 }
 
-export function resolveSelectorSettingsForInput(input: {
-  inputModel: SessionInputModel;
-  selectorSettings: { aiPickerEnabled: boolean };
-}): { aiPickerEnabled: boolean } {
-  if (input.inputModel === "listener") {
-    return { aiPickerEnabled: false };
-  }
-  return input.selectorSettings;
-}
-
 export function formatReadinessSummary(input: {
   readiness: SessionReadinessState;
   inputModel: SessionInputModel;
@@ -202,36 +173,14 @@ export function formatReadinessSummary(input: {
   }
 }
 
-export function formatSignalScopeSectionCaption(
-  inputModel: SessionInputModel,
-): string {
-  switch (inputModel) {
-    case "search_scoped":
-      return "Tell the web search what to look at.";
-    case "search_universe":
-      return "Configure full-universe discovery for web search.";
-    case "manual_only":
-      return "Enter the tickers this session should evaluate.";
-    case "listener":
-      return "Automatic listener — nothing to configure.";
-  }
-}
-
 export function formatInstrumentOriginLabel(input: {
   inputModel: SessionInputModel;
   experienceDisplayName?: string | null;
   experienceSignalSourceType?: SignalSourceType | null;
-  timerSymbol?: string | null;
-  timerCadence?: string | null;
   instrumentScope: string;
 }): string {
   switch (input.inputModel) {
     case "listener":
-      if (input.experienceSignalSourceType === "timer" && input.timerSymbol) {
-        return input.timerCadence
-          ? `${input.timerSymbol} @ ${input.timerCadence} (schedule)`
-          : `${input.timerSymbol} (schedule)`;
-      }
       if (input.experienceSignalSourceType) {
         return `From ${formatSignalSourceTypeLabel(input.experienceSignalSourceType)}`;
       }
@@ -279,27 +228,6 @@ export function formatSelectionModeChip(input: {
   };
 }
 
-export function parseTimerSourceConfig(configJson: string): {
-  symbol: string | null;
-  cadence: string | null;
-  instrumentClass: InstrumentClass | null;
-} {
-  try {
-    const parsed = JSON.parse(configJson) as {
-      symbol?: string;
-      cadence?: string;
-      instrumentClass?: InstrumentClass;
-    };
-    return {
-      symbol: parsed.symbol ?? null,
-      cadence: parsed.cadence ?? null,
-      instrumentClass: parsed.instrumentClass ?? null,
-    };
-  } catch {
-    return { symbol: null, cadence: null, instrumentClass: null };
-  }
-}
-
 function formatInstrumentClass(value: InstrumentClass): string {
   return value === "stock"
     ? "stocks"
@@ -308,13 +236,4 @@ function formatInstrumentClass(value: InstrumentClass): string {
       : value === "futures"
         ? "futures"
         : "prediction markets";
-}
-
-export function sourceIsCompatibleWithExperience(
-  sourceType: SignalSourceType,
-  allowedTypes: readonly SignalSourceType[],
-  options?: { acceptsScanHit?: boolean },
-): boolean {
-  if (options?.acceptsScanHit && sourceType === "timer") return true;
-  return allowedTypes.includes(sourceType);
 }

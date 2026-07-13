@@ -1,6 +1,6 @@
 import type { DbClient } from "../../../db/client";
 import { signalEvents } from "../../../db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { SignalEvent } from "@electron/shared/domain";
 
 export class SignalEventsRepo {
@@ -11,7 +11,7 @@ export class SignalEventsRepo {
       .insert(signalEvents)
       .values({
         id: event.id,
-        sourceId: event.sourceId,
+        sourceId: event.sourceId ?? null,
         sourceType: event.sourceType,
         ticker: event.ticker,
         companyName: event.companyName,
@@ -26,6 +26,44 @@ export class SignalEventsRepo {
         dedupeKey: event.dedupeKey ?? null,
         ttl: event.ttl ?? null,
         occurredAt: event.occurredAt ?? null,
+      })
+      .run();
+  }
+
+  /**
+   * Insert a V2 scheduled-scan event that carries additional origin metadata.
+   * sourceId is null for scheduled-scan events (no real signal_sources row).
+   */
+  insertScheduledEvent(
+    event: SignalEvent,
+    v2: {
+      originKind: string;
+      originId: string;
+      scheduleGroupKey: string;
+    },
+  ): void {
+    this.db.db
+      .insert(signalEvents)
+      .values({
+        id: event.id,
+        sourceId: null,
+        sourceType: event.sourceType,
+        ticker: event.ticker,
+        companyName: event.companyName,
+        documentUrl: event.documentUrl,
+        accessionNumber: event.accessionNumber,
+        payloadJson: JSON.stringify(event.payloadJson),
+        filedAt: event.filedAt,
+        detectedAt: event.detectedAt,
+        dispatchStatus: "new",
+        kind: event.kind ?? null,
+        payloadV2: event.payloadV2 ? JSON.stringify(event.payloadV2) : null,
+        dedupeKey: event.dedupeKey ?? null,
+        ttl: event.ttl ?? null,
+        occurredAt: event.occurredAt ?? null,
+        originKind: v2.originKind,
+        originId: v2.originId,
+        scheduleGroupKey: v2.scheduleGroupKey,
       })
       .run();
   }
@@ -54,6 +92,25 @@ export class SignalEventsRepo {
       .where(
         and(
           eq(signalEvents.sourceId, sourceId),
+          eq(signalEvents.dedupeKey, dedupeKey),
+        ),
+      )
+      .get();
+    return Boolean(row);
+  }
+
+  /** Dedupe check for scheduled-scan events (null sourceId); matches by scheduleGroupKey + dedupeKey. */
+  existsByGroupAndDedupeKey(
+    scheduleGroupKey: string,
+    dedupeKey: string,
+  ): boolean {
+    const row = this.db.db
+      .select({ id: signalEvents.id })
+      .from(signalEvents)
+      .where(
+        and(
+          isNull(signalEvents.sourceId),
+          eq(signalEvents.scheduleGroupKey, scheduleGroupKey),
           eq(signalEvents.dedupeKey, dedupeKey),
         ),
       )
@@ -107,7 +164,7 @@ export class SignalEventsRepo {
     if (!row) return null;
     return {
       id: row.id,
-      sourceId: row.sourceId,
+      sourceId: row.sourceId ?? "",
       sourceType: row.sourceType as SignalEvent["sourceType"],
       ticker: row.ticker,
       companyName: row.companyName,

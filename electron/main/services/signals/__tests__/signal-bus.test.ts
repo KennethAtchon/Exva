@@ -14,6 +14,7 @@ import { BrokerRegistry } from "../../broker/broker-registry";
 import { EventBus } from "../../infra/event-bus";
 import { MockSignalSource } from "../sources/mock-signal-source";
 import { SignalBus } from "../signal-bus";
+import type { SubscriptionFanoutResolver } from "../subscription-fanout-resolver";
 import { InstrumentNormalizer } from "../../broker/instrument-normalizer";
 import { SignalDeadLettersRepo } from "../repos/signal-dead-letters-repo";
 import { SignalDeliveriesRepo } from "../repos/signal-deliveries-repo";
@@ -87,7 +88,6 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     eventsRepo,
     deliveriesRepo,
     deadLettersRepo,
-    sourcesRepo,
     sessions,
     assignments,
     brokerAccounts,
@@ -95,6 +95,11 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     eventBus,
     new InstrumentNormalizer(),
   );
+  // Wire a no-op resolver; tests that need custom fanout can override per-test.
+  bus.setSubscriptionFanoutResolver({
+    resolveEventFanout: () => [],
+    resolveScheduledFanout: () => [],
+  } as unknown as SubscriptionFanoutResolver);
 
   return {
     session,
@@ -118,9 +123,8 @@ describe("SignalBus", () => {
     db.sqlite.close();
   });
 
-  it("fans out mock source signals to subscribed sessions", async () => {
-    const { session, bus, eventsRepo, deliveriesRepo, sourcesRepo } =
-      createHarness(db);
+  it("drops mock source signals with no V2 subscribers", async () => {
+    const { eventsRepo, deliveriesRepo, sourcesRepo, bus } = createHarness(db);
     const sourceRecord = sourcesRepo.create({
       id: "source-mock",
       type: "mock",
@@ -129,8 +133,7 @@ describe("SignalBus", () => {
       enabled: true,
       configJson: JSON.stringify({ ticker: "AAPL" }),
     });
-    sourcesRepo.replaceSessionSubscriptions(session.id, [sourceRecord.id]);
-
+    // Fanout resolver returns no targets → signal is dropped pre-fanout.
     const source = new MockSignalSource(
       sourceRecord.id,
       sourceRecord.configJson,
@@ -138,13 +141,12 @@ describe("SignalBus", () => {
     bus.register(source);
     await source.test();
 
-    expect(eventsRepo.listByDispatchStatus("fanned_out")).toHaveLength(1);
+    expect(eventsRepo.listByDispatchStatus("dropped_pre_fanout")).toHaveLength(1);
     const pending = deliveriesRepo.listBySessionFiltered({
-      sessionId: session.id,
+      sessionId: createMinimalSession(db).id,
       statusBucket: "pending",
     });
-    expect(pending).toHaveLength(1);
-    expect(pending[0]?.delivery.signalEventId).toBeTruthy();
+    expect(pending).toHaveLength(0);
   });
 
   it("dedupes events by source and accession number", async () => {
@@ -157,9 +159,6 @@ describe("SignalBus", () => {
       enabled: true,
       configJson: "{}",
     });
-    sourcesRepo.replaceSessionSubscriptions(createMinimalSession(db).id, [
-      sourceRecord.id,
-    ]);
 
     const duplicateEvent = stockSignal(sourceRecord.id, {
       accessionNumber: "0000320193-24-000001",

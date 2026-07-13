@@ -65,11 +65,6 @@ export class SessionStrategyContextService {
       providerAccountsRepo: ProviderAccountsRepo;
       workspacePrefsRepo: WorkspacePreferencesRepo;
       sessionAiPhasesRepo: import("../../db/repositories/sessions/session-ai-phases-repo").SessionAiPhasesRepo;
-      /** Reads the session's single subscribed signal source type, used to
-       *  keep a catalyst-required posture consistent with its signal. */
-      signalSourceTypes: {
-        subscribedSourceTypesForSession(sessionId: string): string[];
-      };
     },
   ) {}
 
@@ -159,7 +154,6 @@ export class SessionStrategyContextService {
       researchPosture: { ...current.researchPosture, ...patch, sessionId },
     };
     this.validate(next);
-    this.assertPostureSignalCompatible(sessionId, next.researchPosture);
     const saved = this.deps.researchPostureRepo.upsert(
       sessionId,
       next.researchPosture,
@@ -317,28 +311,6 @@ export class SessionStrategyContextService {
         sessionId: context.researchPosture.sessionId,
       });
     }
-  }
-
-  /**
-   * A catalyst-required posture hunts for a material EDGAR 8-K filing and the
-   * decision phase skips when none exists. That only makes sense when the
-   * session's single signal is the EDGAR listener — a web_search-driven session
-   * can never produce an 8-K, so the combination is rejected up front rather
-   * than silently skipping every cycle.
-   * See docs/reviews/mock-no-trade-investigation.md.
-   */
-  private assertPostureSignalCompatible(
-    sessionId: string,
-    posture: SessionResearchPosture,
-  ): void {
-    const signalTypes =
-      this.deps.signalSourceTypes.subscribedSourceTypesForSession(sessionId);
-    if (postureSignalCompatible(posture, signalTypes)) return;
-    throw new AppError(
-      "This posture requires an EDGAR catalyst, so the session must be driven by the EDGAR 8-K signal. Switch the signal to EDGAR 8-K, or choose a posture that does not require a catalyst.",
-      "VALIDATION_FAILED",
-      { sessionId, field: "researchPosture" },
-    );
   }
 
   private hasSearchProvider(sessionId: string): boolean {

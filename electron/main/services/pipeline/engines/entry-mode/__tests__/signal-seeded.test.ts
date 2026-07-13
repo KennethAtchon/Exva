@@ -60,10 +60,10 @@ describe("signal-seeded entry engine", () => {
     });
   });
 
-  it("passes timer metadata through to the instrument for rules pipelines", () => {
+  it("passes scan_hit metadata through to the instrument for rules pipelines", () => {
     const ctx = buildCtx(
       {
-        sourceType: "timer",
+        sourceType: "mock",
         ticker: "SPY",
         payloadJson: {
           cadence: "15m",

@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Badge } from "@/components/custom-ui";
 import { Button, HelpTooltip } from "@/components/ui";
 import type { SessionSummary } from "@/lib/exva";
@@ -9,7 +8,6 @@ import { getSearchProviderDisplayName } from "@electron/shared/instruments/searc
 import {
   formatInstrumentOriginLabel,
   formatSelectionModeChip,
-  parseTimerSourceConfig,
   sessionIsWaitingForLiveInputs,
 } from "@electron/shared/instruments/session-input-model";
 import {
@@ -22,28 +20,6 @@ type LifecycleAction = "start" | "pause" | "resume" | "stop" | "forceStop";
 const FORCE_STOP_CONFIRM_MESSAGE =
   "Force stop will end automated exit management for open positions. Continue?";
 
-function formatCountdown(ms: number): string {
-  if (ms <= 0) return "now";
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
-  return `${s}s`;
-}
-
-/** Live countdown to the session's soonest next timer-source fire. */
-const TimerFireCountdown = ({ nextFireAt }: { nextFireAt: string }) => {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  const target = Date.parse(nextFireAt);
-  if (Number.isNaN(target)) return null;
-  return <>Next timer fire in {formatCountdown(target - now)}</>;
-};
 
 // ---------------------------------------------------------------------------
 // SessionControls — lifecycle action button group within each card
@@ -334,17 +310,9 @@ const SessionCard = ({
     inputModel: session.inputModel,
     experienceSignalSourceType: session.subscribedSources[0]?.type ?? null,
   });
-  const timerSource = session.subscribedSources.find(
-    (source) => source.type === "timer",
-  );
-  const timerConfig = timerSource?.configJson
-    ? parseTimerSourceConfig(timerSource.configJson)
-    : null;
   const instrumentOrigin = formatInstrumentOriginLabel({
     inputModel: session.inputModel,
     experienceSignalSourceType: session.subscribedSources[0]?.type ?? null,
-    timerSymbol: timerConfig?.symbol ?? null,
-    timerCadence: timerConfig?.cadence ?? null,
     instrumentScope: session.instrumentScope,
   });
   const showOrphanWarning =
@@ -460,11 +428,7 @@ const SessionCard = ({
           "Waiting — no live inputs"
         ) : session.status === "active" &&
           session.subscribedSources.some((source) => source.enabled) ? (
-          session.nextTimerFireAt ? (
-            <TimerFireCountdown nextFireAt={session.nextTimerFireAt} />
-          ) : (
-            "Listening for signals"
-          )
+          "Listening for signals"
         ) : (
           ""
         )}

@@ -101,11 +101,12 @@ export function bootstrapMockRehearsal(deps: {
   if (!isMockRehearsalEnabled()) return [];
 
   bootstrapMockRehearsalSignalSource(deps.sourcesRepo, deps.registry);
+  // V2: session subscriptions are managed via session_input_subscriptions.
+  // migrateEligibleSessionsToMockRehearsal is a no-op stub that always returns [].
   return migrateEligibleSessionsToMockRehearsal({
     sessions: deps.sessions,
     listAssignments: deps.listAssignments,
     brokerAccounts: deps.brokerAccounts,
-    signalSources: deps.sourcesRepo,
     syncTicker: (ticker) => {
       syncMockRehearsalRuntimeTicker(deps.sourcesRepo, deps.registry, ticker);
     },

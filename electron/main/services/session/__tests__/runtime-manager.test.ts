@@ -134,7 +134,6 @@ function createManager(
     providerAccountsRepo,
     workspacePrefsRepo: workspacePreferencesRepo,
     sessionAiPhasesRepo,
-    signalSourceTypes: new SignalSourcesRepo(db),
   });
 
   return new SessionRuntimeManager({

@@ -13,6 +13,8 @@ import {
   Sparkles,
   Trophy,
   Wallet,
+  Boxes,
+  Zap,
 } from "lucide-react";
 
 export type PageKey =
@@ -25,6 +27,8 @@ export type PageKey =
   | "leaderboard"
   | "strategy"
   | "signals"
+  | "instrument-sets"
+  | "event-sources"
   | "costs"
   | "devpanel"
   | "accounts"
@@ -44,6 +48,8 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "leaderboard", label: "Leaderboard", icon: Trophy },
   { id: "strategy", label: "Strategy", icon: SlidersHorizontal },
   { id: "signals", label: "Signals", icon: Radio },
+  { id: "instrument-sets", label: "Instrument Sets", icon: Boxes },
+  { id: "event-sources", label: "Event Sources", icon: Zap },
   { id: "costs", label: "API Usage", icon: BarChart3 },
   { id: "devpanel", label: "Developer", icon: Code2 },
   { id: "accounts", label: "Accounts", icon: Wallet },
@@ -85,7 +91,15 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     id: "settings",
     label: "Settings",
-    itemIds: ["brokers", "strategy", "accounts", "docs", "devpanel"],
+    itemIds: [
+      "instrument-sets",
+      "event-sources",
+      "brokers",
+      "strategy",
+      "accounts",
+      "docs",
+      "devpanel",
+    ],
   },
 ];
 

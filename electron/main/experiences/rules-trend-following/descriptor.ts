@@ -33,33 +33,5 @@ export const RULES_TREND_FOLLOWING_EXPERIENCE: ExperienceDescriptor = {
     },
     costs: { spreadBps: 2, slippageBps: 3, commissionBps: 1 },
   },
-  signals: [],
-  schedules: [
-    {
-      id: "gc-4h-trend",
-      instrumentClass: "futures",
-      symbol: "GC",
-      cadence: "4h",
-      defaultAnalysisTimeframe: "4h",
-      enabledByDefault: true,
-      marketHours: "24_7",
-      mockFixtures: {
-        defaultScenario: "clean_breakout",
-        scriptedWorkerOutputs: {},
-      },
-    },
-    {
-      id: "cl-4h-trend",
-      instrumentClass: "futures",
-      symbol: "CL",
-      cadence: "4h",
-      defaultAnalysisTimeframe: "4h",
-      enabledByDefault: true,
-      marketHours: "24_7",
-      mockFixtures: {
-        defaultScenario: "clean_breakout",
-        scriptedWorkerOutputs: {},
-      },
-    },
-  ],
+  acceptsScanHit: true,
 };

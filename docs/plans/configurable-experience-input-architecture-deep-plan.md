@@ -1,7 +1,7 @@
 # Configurable Experience Input Architecture - Deep Plan
 
 > **Date:** 2026-07-12
-> **Status:** Implemented
+> **Status:** Complete (hard cutover; no V1 paths remain)
 > **Owner:** Kenneth
 > **Audience:** Engineers, reviewers, and future maintainers
 > **Scope:** Replace code-defined per-combination experience signals and schedules with configurable, versioned experience templates, event sources, instrument sets, input profiles, and session input subscriptions. This covers persistence, validation, scheduling, fanout, IPC, UI, migration, testing, and removal of legacy timer identities.

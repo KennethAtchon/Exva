@@ -1,5 +1,6 @@
 import type { WorkspaceSession } from "@/lib/types";
 import { sessionRequiresInstrumentScope } from "@electron/shared/domain";
+import { listExperiences } from "@electron/main/experiences";
 import type { OrchestratorDeps, PreflightStepFailure } from "../session-types";
 
 type StepResult = { ok: true } | PreflightStepFailure;
@@ -19,10 +20,10 @@ export async function instrumentConflictCheck(
   if (session.selectionMode !== "manual_shortlist") return { ok: true };
 
   const symbols = parseInstrumentScopeSymbols(session.instrumentScope);
-  const subscribedSourceTypes =
-    deps.signalSourcesRepo.subscribedSourceTypesForSession(session.id);
+  const experience = listExperiences().find((e) => e.id === session.experienceId);
+  const experienceSourceTypes = experience?.capabilities.signalSourceTypes ?? [];
   const requiresInstrumentScope = sessionRequiresInstrumentScope(
-    subscribedSourceTypes.map((type) => ({ type })),
+    experienceSourceTypes.map((type) => ({ type })),
   );
   if (symbols.length === 0) {
     if (!requiresInstrumentScope) {

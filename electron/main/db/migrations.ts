@@ -38,5 +38,5 @@ export function runMigrations(
 
   const db = drizzle(sqlite, { schema });
   migrate(db, { migrationsFolder: resolveMigrationsFolder() });
-  runSeed(db);
+  runSeed(db, { sqlite, db });
 }

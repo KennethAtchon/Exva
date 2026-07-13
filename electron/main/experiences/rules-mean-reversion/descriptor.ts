@@ -33,33 +33,5 @@ export const RULES_MEAN_REVERSION_EXPERIENCE: ExperienceDescriptor = {
     },
     costs: { spreadBps: 1, slippageBps: 2, commissionBps: 0 },
   },
-  signals: [],
-  schedules: [
-    {
-      id: "spy-15m-meanrev",
-      instrumentClass: "stock",
-      symbol: "SPY",
-      cadence: "15m",
-      defaultAnalysisTimeframe: "1h",
-      enabledByDefault: true,
-      marketHours: "regular",
-      mockFixtures: {
-        defaultScenario: "clean_breakout",
-        scriptedWorkerOutputs: {},
-      },
-    },
-    {
-      id: "qqq-15m-meanrev",
-      instrumentClass: "stock",
-      symbol: "QQQ",
-      cadence: "15m",
-      defaultAnalysisTimeframe: "1h",
-      enabledByDefault: true,
-      marketHours: "regular",
-      mockFixtures: {
-        defaultScenario: "clean_breakout",
-        scriptedWorkerOutputs: {},
-      },
-    },
-  ],
+  acceptsScanHit: true,
 };

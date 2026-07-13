@@ -17,8 +17,9 @@ import type { ISignalSource } from "./ISignalSource";
 import { SignalDeadLettersRepo } from "./repos/signal-dead-letters-repo";
 import { SignalDeliveriesRepo } from "./repos/signal-deliveries-repo";
 import { SignalEventsRepo } from "./repos/signal-events-repo";
-import { SignalSourcesRepo } from "./repos/signal-sources-repo";
 import { evaluateSignalDeliveryGate } from "./signal-delivery-gate";
+import { mapLegacySourceToDefinitionId } from "./legacy-source-definition-map";
+import type { SubscriptionFanoutResolver } from "./subscription-fanout-resolver";
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { BrokerRoutingService } from "../broker/broker-routing-service";
@@ -82,12 +83,12 @@ export function pickDebugInstrument(
 
 export class SignalBus {
   private subscriptions = new Map<string, (event: SignalEvent) => void>();
+  private fanoutResolver: SubscriptionFanoutResolver | null = null;
 
   constructor(
     private readonly eventsRepo: SignalEventsRepo,
     private readonly deliveriesRepo: SignalDeliveriesRepo,
     private readonly deadLettersRepo: SignalDeadLettersRepo,
-    private readonly sourcesRepo: SignalSourcesRepo,
     private readonly sessionRepo: SessionRepo,
     private readonly sessionBrokerAssignmentsRepo: SessionBrokerAssignmentsRepo,
     private readonly brokerAccountsRepo: BrokerAccountsRepo,
@@ -95,6 +96,11 @@ export class SignalBus {
     private readonly eventBus: EventBus,
     private readonly instrumentNormalizer: InstrumentNormalizer,
   ) {}
+
+  /** Must be called before any signals are processed. */
+  setSubscriptionFanoutResolver(resolver: SubscriptionFanoutResolver): void {
+    this.fanoutResolver = resolver;
+  }
 
   register(source: ISignalSource): void {
     const handler = (event: SignalEvent) => {
@@ -137,10 +143,33 @@ export class SignalBus {
       if (isUniqueConstraintError(error)) return;
       throw error;
     }
-    const sessionIds = this.sourcesRepo.subscribedSessionsForSource(
+
+    if (!this.fanoutResolver) {
+      throw new Error(
+        "SignalBus.fanoutResolver is not set — call setSubscriptionFanoutResolver before processing signals",
+      );
+    }
+
+    const deliveredSessionIds = new Set<string>();
+
+    // V2 event fanout via subscription-aware resolver.
+    const sourceDefId = mapLegacySourceToDefinitionId(
       enriched.sourceId,
+      enriched.sourceType,
     );
-    if (sessionIds.length === 0) {
+    if (sourceDefId) {
+      const v2Targets = this.fanoutResolver.resolveEventFanout(sourceDefId);
+      for (const target of v2Targets) {
+        deliveredSessionIds.add(target.sessionId);
+        await this.deliverOrDeadLetter(
+          target.sessionId,
+          enriched,
+          target.subscriptionId,
+        );
+      }
+    }
+
+    if (deliveredSessionIds.size === 0) {
       this.eventsRepo.markDispatchStatus(
         enriched.id,
         "dropped_pre_fanout",
@@ -148,9 +177,7 @@ export class SignalBus {
       );
       return;
     }
-    for (const sessionId of sessionIds) {
-      await this.deliverOrDeadLetter(sessionId, enriched);
-    }
+
     this.eventsRepo.markDispatchStatus(enriched.id, "fanned_out");
     this.eventBus.emit("signal_received", {
       signalId: enriched.id,
@@ -165,6 +192,7 @@ export class SignalBus {
   async deliverOrDeadLetter(
     sessionId: string,
     event: SignalEvent,
+    subscriptionId?: string | null,
   ): Promise<
     | { kind: "delivery"; deliveryId: string }
     | { kind: "dead_letter"; deadLetterId: string }
@@ -215,6 +243,7 @@ export class SignalBus {
       status: isPaused ? "waiting_for_resume" : "queued",
       statusBucket: "pending",
       expiresAt: isPaused ? signalExpiresAt(event.detectedAt, ttl) : null,
+      subscriptionId: subscriptionId ?? null,
     });
     this.eventBus.emit("signal_delivery_updated", {
       deliveryId: delivery.id,
@@ -337,6 +366,136 @@ export class SignalBus {
     sourceType: SignalSourceType,
   ): Promise<void> {
     await this.handleSignal(marketSignalToLegacyEvent(signal, sourceType));
+  }
+
+  /**
+   * V2 scheduled-scan fanout path.
+   *
+   * Persists each signal with `sourceId=null`, `originKind=scheduled_scan`,
+   * `originId=groupKey`, `scheduleGroupKey=groupKey`. Delivers to the
+   * pre-resolved subscription set via `session_input_subscriptions`.
+   */
+  async ingestScheduledGroupHit(
+    signals: MarketSignal[],
+    groupKey: string,
+    subscriptions: Array<{ sessionId: string; subscriptionId: string }>,
+  ): Promise<void> {
+    for (const signal of signals) {
+      const legacyEvent = marketSignalToLegacyEvent(signal, "mock");
+      const enriched = enrichSignalEvent(legacyEvent);
+
+      // Dedupe check by groupKey + dedupeKey (sourceId is null for scheduled events).
+      if (
+        enriched.dedupeKey &&
+        this.eventsRepo.existsByGroupAndDedupeKey(groupKey, enriched.dedupeKey)
+      ) {
+        continue;
+      }
+
+      try {
+        this.eventsRepo.insertScheduledEvent(enriched, {
+          originKind: "scheduled_scan",
+          originId: groupKey,
+          scheduleGroupKey: groupKey,
+        });
+      } catch (error) {
+        if (isUniqueConstraintError(error)) continue;
+        throw error;
+      }
+
+      if (subscriptions.length === 0) {
+        this.eventsRepo.markDispatchStatus(
+          enriched.id,
+          "dropped_pre_fanout",
+          "no_subscribers",
+        );
+        continue;
+      }
+
+      for (const { sessionId, subscriptionId } of subscriptions) {
+        await this.deliverOrDeadLetter(sessionId, enriched, subscriptionId);
+      }
+
+      this.eventsRepo.markDispatchStatus(enriched.id, "fanned_out");
+      this.eventBus.emit("signal_received", {
+        signalId: enriched.id,
+        sourceId: enriched.sourceId,
+        sourceType: enriched.sourceType,
+        ticker: enriched.ticker,
+        companyName: enriched.companyName,
+        detectedAt: enriched.detectedAt,
+      });
+    }
+  }
+
+  /**
+   * V2 event-source fanout path.
+   *
+   * Ingest a signal from a known source definition and fan out to all
+   * sessions subscribed via `session_input_subscriptions` (event_source mode).
+   * The caller resolves `subscriptions` from `SubscriptionFanoutResolver`.
+   */
+  async ingestFromSourceDefinition(
+    signal: MarketSignal,
+    sourceType: SignalSourceType,
+    subscriptions: Array<{
+      sessionId: string;
+      subscriptionId: string;
+      templateId: string;
+      templateVersion: number;
+    }>,
+  ): Promise<void> {
+    const legacyEvent = marketSignalToLegacyEvent(signal, sourceType);
+    const enriched = enrichSignalEvent(legacyEvent);
+
+    if (
+      enriched.dedupeKey &&
+      this.eventsRepo.existsBySourceAndDedupeKey(
+        enriched.sourceId,
+        enriched.dedupeKey,
+      )
+    ) {
+      return;
+    }
+    if (
+      enriched.accessionNumber &&
+      this.eventsRepo.existsBySourceAndAccession(
+        enriched.sourceId,
+        enriched.accessionNumber,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      this.eventsRepo.insert(enriched);
+    } catch (error) {
+      if (isUniqueConstraintError(error)) return;
+      throw error;
+    }
+
+    if (subscriptions.length === 0) {
+      this.eventsRepo.markDispatchStatus(
+        enriched.id,
+        "dropped_pre_fanout",
+        "no_subscribers",
+      );
+      return;
+    }
+
+    for (const { sessionId, subscriptionId } of subscriptions) {
+      await this.deliverOrDeadLetter(sessionId, enriched, subscriptionId);
+    }
+
+    this.eventsRepo.markDispatchStatus(enriched.id, "fanned_out");
+    this.eventBus.emit("signal_received", {
+      signalId: enriched.id,
+      sourceId: enriched.sourceId,
+      sourceType: enriched.sourceType,
+      ticker: enriched.ticker,
+      companyName: enriched.companyName,
+      detectedAt: enriched.detectedAt,
+    });
   }
 
   emitDeliveryUpdated(payload: {

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { createTestDb } from "../../../../db/test-helpers";
-import { createMinimalSession } from "../../../../db/test-fixtures";
 import { SignalSourcesRepo } from "../signal-sources-repo";
 
 describe("SignalSourcesRepo", () => {
@@ -25,11 +24,6 @@ describe("SignalSourcesRepo", () => {
       name: "EDGAR 8-K Updated",
       enabled: false,
     });
-
-    const session = createMinimalSession(db);
-    repo.replaceSessionSubscriptions(session.id, [source.id]);
-    expect(repo.subscribedSourceIdsForSession(session.id)).toEqual([source.id]);
-    expect(repo.attachedSessionCount(source.id)).toBe(1);
 
     repo.delete(source.id);
     expect(repo.get(source.id)).toBeNull();

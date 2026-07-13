@@ -29,7 +29,7 @@ function stockSignal(overrides?: Partial<SignalEvent>): SignalEvent {
 
 function scanHitSignal(overrides?: Partial<SignalEvent>): SignalEvent {
   return stockSignal({
-    sourceType: "timer",
+    sourceType: "mock",
     kind: "scan_hit",
     payloadJson: {
       instrumentClass: "stock",
@@ -51,21 +51,7 @@ describe("evaluateSignalDeliveryGate", () => {
           signalSourceTypes: [],
           brokerRequirement: "any_supported_class",
         },
-        signals: [],
-        schedules: [
-          {
-            id: "es-15m-test",
-            instrumentClass: "stock",
-            symbol: "ES",
-            cadence: "15m",
-            defaultAnalysisTimeframe: "1h",
-            enabledByDefault: true,
-            mockFixtures: {
-              defaultScenario: "clean_breakout",
-              scriptedWorkerOutputs: {},
-            },
-          },
-        ],
+        acceptsScanHit: true,
       });
     } catch {
       // already registered in this worker
@@ -121,7 +107,7 @@ describe("evaluateSignalDeliveryGate", () => {
     db.sqlite.close();
   });
 
-  it("accepts scan_hit when experience has schedules", () => {
+  it("accepts scan_hit when experience has acceptsScanHit: true", () => {
     const db = createTestDb();
     const brokerAccounts = new BrokerAccountsRepo(db);
     brokerAccounts.insert({

@@ -38,19 +38,4 @@ export const PREDICTION_EVENT_EDGE_EXPERIENCE: ExperienceDescriptor = {
     },
     costs: { spreadBps: 50, slippageBps: 10, commissionBps: 0 },
   },
-  signals: [
-    {
-      id: "prediction-event-edge",
-      sourceType: "prediction_event",
-      instrumentClass: "prediction_market",
-      symbol: null,
-      pollCadence: "15m",
-      defaultAnalysisTimeframe: "1h",
-      enabledByDefault: true,
-      mockFixtures: {
-        defaultScenario: "clean_breakout",
-        scriptedWorkerOutputs: {},
-      },
-    },
-  ],
 };

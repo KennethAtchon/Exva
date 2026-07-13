@@ -71,7 +71,7 @@ describe("session-input-model", () => {
   it("resolves signal_driven selection mode for listener sessions", () => {
     expect(
       resolveSelectionModeForInput({
-        subscribedSources: [{ type: "timer" }],
+        subscribedSources: [{ type: "edgar_8k" }],
         instrumentScope: "",
         selectorSettings: { aiPickerEnabled: true },
       }),
@@ -90,47 +90,26 @@ describe("session-input-model", () => {
     });
   });
 
-  it("formats timer instrument origin labels", () => {
+  it("formats instrument origin label for listener sessions", () => {
     expect(
       formatInstrumentOriginLabel({
         inputModel: "listener",
-        experienceSignalSourceType: "timer",
-        timerSymbol: "SPY",
-        timerCadence: "15m",
+        experienceSignalSourceType: "edgar_8k",
         instrumentScope: "",
       }),
-    ).toBe("SPY @ 15m (schedule)");
+    ).toBe("From EDGAR 8-K");
   });
 
   it("labels all signal source types", () => {
     expect(formatSignalSourceTypeLabel("prediction_event")).toBe(
       "Prediction Event",
     );
-    expect(formatSignalSourceTypeLabel("timer")).toBe(
-      "Schedule identity (deprecated)",
-    );
+    expect(formatSignalSourceTypeLabel("edgar_8k")).toBe("EDGAR 8-K");
   });
 
-  it("formats research-based hold estimates for known timer signals", () => {
+  it("formatApproximateTradeHoldLabel always returns null", () => {
     expect(
-      formatApproximateTradeHoldLabel({
-        id: "rules-mean-reversion/spy-15m-meanrev",
-        type: "timer",
-      }),
-    ).toBe("~1 trading day");
-
-    expect(
-      formatApproximateTradeHoldLabel({
-        id: "rules-trend-following/gc-4h-trend",
-        type: "timer",
-      }),
-    ).toBe("~1-2 weeks");
-
-    expect(
-      formatApproximateTradeHoldLabel({
-        id: "rules-breakout/btc-1h-breakout",
-        type: "timer",
-      }),
-    ).toBe("~2-5 days");
+      formatApproximateTradeHoldLabel({ id: "any-id", type: "edgar_8k" }),
+    ).toBeNull();
   });
 });

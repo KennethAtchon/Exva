@@ -68,7 +68,7 @@ const getSessionStatus = defineCapability<{ session: string }>({
   label: "Get session status",
   kind: "read",
   description:
-    "Get detailed status for one session: lifecycle state, execution mode, assigned brokers, subscribed signal sources, and open trades.",
+    "Get detailed status for one session: lifecycle state, execution mode, assigned brokers, active input subscriptions, and open trades.",
   inputSchema: sessionRefSchema,
   describe: (input) => `Read status of session "${input.session}".`,
   execute: (input, services) => {
@@ -77,9 +77,10 @@ const getSessionStatus = defineCapability<{ session: string }>({
     const trades = services.repos.trades
       .listAllFiltered({ sessionId: session.id })
       .filter((t) => OPEN_TRADE_STATUSES.has(t.status));
-    const subscribedSourceIds = services.signals.listSubscribedSourceIds(
+    const config = services.sessionInputConfiguration.getConfiguration(
       session.id,
     );
+    const subscriptionIds = config.subscriptions.map((s) => s.id);
     return {
       id: session.id,
       name: session.name,
@@ -92,7 +93,7 @@ const getSessionStatus = defineCapability<{ session: string }>({
         side: t.side,
         notionalUsd: t.position_size_usd,
       })),
-      subscribedSourceIds,
+      subscriptionIds,
     };
   },
 });
@@ -172,10 +173,13 @@ const getSignalReadiness = defineCapability<{ session: string }>({
       session.id,
       session.instrumentScope,
     );
+    const readinessConfig = services.sessionInputConfiguration.getConfiguration(
+      session.id,
+    );
     return {
       sessionId: session.id,
       readiness,
-      subscribedSourceIds: services.signals.listSubscribedSourceIds(session.id),
+      subscriptionIds: readinessConfig.subscriptions.map((s) => s.id),
     };
   },
 });

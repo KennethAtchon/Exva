@@ -104,15 +104,15 @@ describe("promotion-ladder", () => {
 describe("signals helpers", () => {
   it("classifies live vs deprecated and self-describing sources", () => {
     expect(isLiveSignalSourceType("edgar_8k")).toBe(true);
-    expect(isLiveSignalSourceType("timer")).toBe(false);
-    expect(isDeprecatedSignalSourceType("timer")).toBe(true);
+    expect(isLiveSignalSourceType("web_search")).toBe(false);
     expect(isDeprecatedSignalSourceType("web_search")).toBe(true);
+    expect(isDeprecatedSignalSourceType("mock")).toBe(false);
     // web_search is deprecated; search-style is always false.
     expect(isSearchStyleSignalSourceType("web_search")).toBe(false);
     expect(isSearchStyleSignalSourceType("edgar_8k")).toBe(false);
     expect(isSelfDescribingSignalSourceType("edgar_8k")).toBe(true);
     expect(isSelfDescribingSignalSourceType("web_search")).toBe(false);
-    expect(isSelfDescribingSignalSourceType("timer")).toBe(false);
+    expect(isSelfDescribingSignalSourceType("prediction_event")).toBe(false);
     expect(isSelfDescribingSignalSourceType("manual")).toBe(false);
   });
 

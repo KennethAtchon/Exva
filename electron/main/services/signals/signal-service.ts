@@ -1,15 +1,10 @@
 import {
   enrichSignalEvent,
   isSignalExpired,
-  sessionRequiresInstrumentScope,
   type SignalSourceRecord,
 } from "@electron/shared/domain";
 import type { SignalDeadLetterReason } from "@electron/shared/domain/signal-dead-letters";
 import { AppError } from "@electron/shared/infra/errors";
-import {
-  ensureAllExperienceSignalSources,
-  ensureExperienceSignalSources,
-} from "../../experiences/ensure-experience-signal-sources";
 import { SignalDeadLettersRepo } from "./repos/signal-dead-letters-repo";
 import { SignalDeliveriesRepo } from "./repos/signal-deliveries-repo";
 import { SignalEventsRepo } from "./repos/signal-events-repo";
@@ -46,7 +41,6 @@ export class SignalService {
       attachedSessionCount: number;
     }
   > {
-    this.ensureAllExperienceSignalSources();
     return this.sourcesRepo.list().map((source) => {
       const runtime = this.registry.status(source.id);
       const snapshot = this.registry.snapshot(source.id);
@@ -54,8 +48,8 @@ export class SignalService {
         ...source,
         runtimeStatus: runtime?.status ?? "idle",
         runtimeLastError: runtime?.lastError ?? null,
-        attachedSessionCount: this.sourcesRepo.attachedSessionCount(source.id),
-        attachedSessionNames: this.sourcesRepo.attachedSessionNames(source.id),
+        attachedSessionCount: 0,
+        attachedSessionNames: [] as string[],
         lastPollAt: snapshot?.lastPollAt ?? null,
         lastPollResult: snapshot?.lastPollResult ?? null,
         lastSignalAt: snapshot?.lastSignalAt ?? null,
@@ -71,9 +65,9 @@ export class SignalService {
     description?: string | null;
     config?: Record<string, unknown>;
   }): Promise<SignalSourceRecord> {
-    if (input.type === "web_search" || input.type === "timer") {
+    if (input.type === "web_search") {
       throw new AppError(
-        "Cannot create deprecated signal sources; use edgar_8k, mock, manual, or prediction_event. Timers are schedules, not sources.",
+        "Cannot create deprecated signal sources; use edgar_8k, mock, manual, or prediction_event.",
         "VALIDATION_FAILED",
       );
     }
@@ -90,51 +84,8 @@ export class SignalService {
     return source;
   }
 
-  ensureExperienceSignalSource(experienceId: string): SignalSourceRecord[] {
-    const sources = ensureExperienceSignalSources(
-      this.sourcesRepo,
-      experienceId,
-    );
-    for (const source of sources) {
-      // Defense: timers are owned by SessionScheduler, never start here.
-      if (source.type === "timer") continue;
-      if (!this.registry.get(source.id)) {
-        this.registry.create(source);
-        if (source.enabled) {
-          void this.registry.start(source.id);
-        }
-      }
-    }
-    return sources;
-  }
-
-  ensureAllExperienceSignalSources(): SignalSourceRecord[] {
-    const sources = ensureAllExperienceSignalSources(this.sourcesRepo);
-    for (const source of sources) {
-      if (source.type === "timer") continue;
-      if (!this.registry.get(source.id)) {
-        this.registry.create(source);
-        if (source.enabled) {
-          void this.registry.start(source.id);
-        }
-      }
-    }
-    return sources;
-  }
-
   getSource(sourceId: string): SignalSourceRecord | null {
     return this.sourcesRepo.get(sourceId);
-  }
-
-  listSubscribedSourcesForSession(
-    sessionId: string,
-  ): Array<SignalSourceRecord & { enabled: boolean }> {
-    return this.sourcesRepo
-      .subscribedSourceStatesForSession(sessionId)
-      .flatMap(({ sourceId, enabled }) => {
-        const source = this.sourcesRepo.get(sourceId);
-        return source ? [{ ...source, enabled }] : [];
-      });
   }
 
   async updateSource(
@@ -166,14 +117,8 @@ export class SignalService {
 
   async deleteSource(
     sourceId: string,
-    options?: { forceDetach?: boolean },
+    _options?: { forceDetach?: boolean },
   ): Promise<void> {
-    if (
-      this.sourcesRepo.attachedSessionCount(sourceId) > 0 &&
-      !options?.forceDetach
-    ) {
-      throw new AppError("Source is attached to sessions", "VALIDATION_FAILED");
-    }
     await this.registry.remove(sourceId);
     this.sourcesRepo.delete(sourceId);
   }
@@ -271,9 +216,6 @@ export class SignalService {
     }
     for (const source of this.sourcesRepo.list()) {
       if (source.type === "manual") continue;
-      // SessionScheduler owns timer cadence; leave DB rows but do not start
-      // TimerSignalSource runtimes (avoids duplicate quiet ticks).
-      if (source.type === "timer") continue;
       this.registry.create(source);
       if (source.enabled) {
         void this.registry.start(source.id);
@@ -282,48 +224,16 @@ export class SignalService {
   }
 
   debugInjectSignal(sessionId: string): void {
-    const subscribedSourceIds =
-      this.sourcesRepo.subscribedSourceIdsForSession(sessionId);
-    const source = subscribedSourceIds
-      .map((id) => this.sourcesRepo.get(id))
-      .find(
-        (s): s is NonNullable<typeof s> =>
-          s != null && s.type !== "mock" && s.type !== "manual",
-      );
-
-    let ticker = "SPY";
-    let instrumentClass = "stock";
-    let sourceId = MANUAL_SOURCE_ID;
-    let sourceType: import("@electron/shared/domain").SignalSourceType =
-      "manual";
-
-    if (source) {
-      sourceId = source.id;
-      sourceType = source.type;
-      if (source.instrumentClass) instrumentClass = source.instrumentClass;
-      try {
-        const cfg = JSON.parse(source.configJson) as Record<string, unknown>;
-        if (typeof cfg.symbol === "string" && cfg.symbol.length > 0) {
-          ticker = cfg.symbol;
-        }
-        if (typeof cfg.instrumentClass === "string") {
-          instrumentClass = cfg.instrumentClass;
-        }
-      } catch {
-        // unparseable configJson — keep defaults
-      }
-    }
-
     this.signalBus.injectManual(
       {
         id: crypto.randomUUID(),
-        sourceId,
-        sourceType,
-        ticker,
+        sourceId: MANUAL_SOURCE_ID,
+        sourceType: "manual",
+        ticker: "SPY",
         companyName: null,
         documentUrl: null,
         accessionNumber: null,
-        payloadJson: { instrumentClass },
+        payloadJson: { instrumentClass: "stock" },
         filedAt: new Date().toISOString(),
         detectedAt: new Date().toISOString(),
       },
@@ -411,71 +321,33 @@ export class SignalService {
       });
     }
 
-    // TTL-aware re-fan-out: re-deliver unexpired undispatched events; drop expired.
+    // V2: undispatched events with no session_signal_sources are dropped on startup.
     for (const row of this.eventsRepo.listByDispatchStatus("new")) {
       const event = this.eventsRepo.getById(row.id);
       if (!event) continue;
       const enriched = enrichSignalEvent(event);
       const ttl = enriched.ttl ?? "PT4H";
-      if (isSignalExpired(enriched.detectedAt, ttl)) {
-        this.eventsRepo.markDispatchStatus(
-          event.id,
-          "dropped_pre_fanout",
-          "ttl_expired_at_startup",
-        );
-        continue;
-      }
-      const sessionIds = this.sourcesRepo.subscribedSessionsForSource(
-        event.sourceId,
+      this.eventsRepo.markDispatchStatus(
+        event.id,
+        isSignalExpired(enriched.detectedAt, ttl)
+          ? "dropped_pre_fanout"
+          : "dropped_pre_fanout",
+        isSignalExpired(enriched.detectedAt, ttl)
+          ? "ttl_expired_at_startup"
+          : "no_subscribers_at_startup",
       );
-      if (sessionIds.length === 0) {
-        this.eventsRepo.markDispatchStatus(
-          event.id,
-          "dropped_pre_fanout",
-          "no_subscribers",
-        );
-        continue;
-      }
-      for (const sessionId of sessionIds) {
-        void this.signalBus.deliverOrDeadLetter(sessionId, enriched);
-      }
-      this.eventsRepo.markDispatchStatus(event.id, "fanned_out");
     }
   }
 
   deriveReadiness(
-    sessionId: string,
+    _sessionId: string,
     instrumentScope: string,
   ): SessionReadiness {
     const manualTickers = instrumentScope
       .split(/[\n,]/)
       .map((part) => part.trim())
       .filter(Boolean).length;
-    const subscriptions =
-      this.sourcesRepo.subscribedSourceStatesForSession(sessionId);
-    const hasManual = manualTickers > 0;
-    const enabledSources = subscriptions.filter((row) => row.enabled).length;
-    const anySources = subscriptions.length > 0;
-    if (enabledSources > 0 || hasManual) {
-      return hasManual && enabledSources === 0 ? "manual_only" : "armed";
-    }
-    if (anySources) return "waiting_for_source_enable";
-    return "no_inputs";
+    return manualTickers > 0 ? "manual_only" : "no_inputs";
   }
 
-  listSubscribedSourceIds(sessionId: string): string[] {
-    return this.sourcesRepo.subscribedSourceIdsForSession(sessionId);
-  }
-
-  replaceSessionSubscriptions(sessionId: string, sourceIds: string[]): void {
-    this.sourcesRepo.replaceSessionSubscriptions(sessionId, sourceIds);
-  }
-
-  requiresInstrumentScopeForSourceIds(sourceIds: string[]): boolean {
-    const subscribedSources = sourceIds.flatMap((sourceId) => {
-      const source = this.sourcesRepo.get(sourceId);
-      return source ? [{ type: source.type }] : [];
-    });
-    return sessionRequiresInstrumentScope(subscribedSources);
-  }
 }

@@ -11,14 +11,16 @@ import {
 export function TimerSignalPage() {
   return (
     <>
+      <DocCallout variant="info" title="Removed from product surface">
+        The <DocInlineCode>timer</DocInlineCode> source type has been removed.
+        Scheduled scans are now owned by the SessionScheduler via the
+        Experience Inputs editor. Legacy DB rows are no longer instantiated.
+      </DocCallout>
       <DocParagraph>
-        Timers are <DocStrong>schedules</DocStrong>, not signal sources. Rules
-        experiences declare <DocInlineCode>schedules</DocInlineCode> on the
-        experience descriptor; <DocInlineCode>SessionScheduler</DocInlineCode>{" "}
-        owns cadence and emits <DocInlineCode>scan_hit</DocInlineCode>{" "}
-        MarketSignals when a setup fires. The deprecated DB type{" "}
-        <DocInlineCode>timer</DocInlineCode> remains only as a subscription
-        identity row for fan-out — it cannot be created or started as a source.
+        Schedules are declared on experience descriptors;{" "}
+        <DocInlineCode>SessionScheduler</DocInlineCode> owns cadence and emits{" "}
+        <DocInlineCode>scan_hit</DocInlineCode> MarketSignals when a setup
+        fires.
       </DocParagraph>
 
       <DocHeading id="configuration">Schedule fields</DocHeading>
@@ -83,12 +85,6 @@ export function TimerSignalPage() {
         ]}
       />
 
-      <DocCallout variant="info" title="Not a creatable source">
-        Do not create <DocInlineCode>timer</DocInlineCode> sources from the UI
-        or IPC. Legacy rows are schedule identities only;{" "}
-        <DocInlineCode>web_search</DocInlineCode> is similarly deleted as a
-        source and kept for DB compatibility.
-      </DocCallout>
     </>
   );
 }

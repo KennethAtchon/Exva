@@ -84,7 +84,6 @@ const JITTER_PCT = 0.05;
  *  - Overlap prevention — a group that is still executing skips the next tick.
  *  - Exponential backoff — consecutive failures double the delay (capped).
  *  - DB persistence — `schedule_runtime_states` is written after each run.
- *  - Synthetic source row — ensures `signal_sources` FK compat on first use.
  */
 export class ScheduleCoordinator {
   private readonly groups = new Map<string, GroupEntry>();

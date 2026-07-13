@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { channels } from "@electron/shared/ipc/channels";
 import { createMinimalSession } from "../../db/test-fixtures";
 import { createTestDb } from "../../db/test-helpers";
-import { SignalSourcesRepo } from "../../services/signals/repos/signal-sources-repo";
 import {
   createIpcTestServices,
   invokeIpc,
@@ -28,22 +27,10 @@ describe("strategy IPC handlers", () => {
   });
 
   function subscribeEdgarSignal(
-    testDb: ReturnType<typeof createTestDb>,
-    targetSessionId: string,
+    _testDb: ReturnType<typeof createTestDb>,
+    _targetSessionId: string,
   ) {
-    const signalSourcesRepo = new SignalSourcesRepo(testDb);
-    const sourceId = "edgar-source";
-    if (!signalSourcesRepo.get(sourceId)) {
-      signalSourcesRepo.create({
-        id: sourceId,
-        type: "edgar_8k",
-        name: "EDGAR 8-K",
-        description: null,
-        enabled: true,
-        configJson: "{}",
-      });
-    }
-    signalSourcesRepo.replaceSessionSubscriptions(targetSessionId, [sourceId]);
+    // V2: signal source subscriptions managed via session-inputs API
   }
 
   afterEach(() => {

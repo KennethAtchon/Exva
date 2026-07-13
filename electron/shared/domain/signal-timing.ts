@@ -1,8 +1,4 @@
 import { isTradingTimeframe, type TradingTimeframe } from "./enums";
-import type {
-  ScheduledScanDescriptor,
-  SignalDescriptor,
-} from "./signal-descriptor";
 import type { SignalSourceRecord, SignalSourceType } from "./signals";
 
 export type OhlcvTimeframe = TradingTimeframe;
@@ -106,11 +102,6 @@ export function summarizeSignalTiming(input: {
   );
 
   switch (input.sourceType) {
-    case "timer":
-      return {
-        pollLabel: pollCadence ? `polls every ${pollCadence}` : "timer-driven",
-        tradingTimeframeLabel,
-      };
     case "edgar_8k":
       return {
         pollLabel: "on 8-K filing (~5m market / ~30m off-hours poll)",
@@ -157,25 +148,11 @@ export function formatSignalTimingLabel(input: {
   return `${symbol} · ${timing.pollLabel} · ${timing.tradingTimeframeLabel}`;
 }
 
-export function signalDisplayName(signal: SignalDescriptor): string {
-  return formatSignalTimingLabel({
-    sourceType: signal.sourceType,
-    symbol: signal.symbol,
-    pollCadence: signal.pollCadence,
-    analysisTimeframe: signal.defaultAnalysisTimeframe,
-  });
-}
-
-export function scheduleDisplayName(schedule: ScheduledScanDescriptor): string {
-  const symbol = schedule.symbol.trim() || "Schedule";
-  return `${symbol} · polls every ${schedule.cadence} · trades on ${schedule.defaultAnalysisTimeframe} bars`;
-}
-
 export function formatSignalSourceTimingSubtitle(
-  source: Pick<
-    SignalSourceRecord,
-    "type" | "pollCadence" | "analysisTimeframe"
-  >,
+  source: Pick<SignalSourceRecord, "type"> & {
+    pollCadence?: string | null;
+    analysisTimeframe?: string | null;
+  },
 ): string {
   const timing = summarizeSignalTiming({
     sourceType: source.type,

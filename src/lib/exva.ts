@@ -378,12 +378,6 @@ export const api = {
   }) => bridge().signals.listSessionDeadLetters(input),
   replaySessionSignalDeadLetter: (deadLetterId: string) =>
     bridge().signals.replaySignalDeadLetter({ deadLetterId }),
-  getSessionSignalSubscriptions: (sessionId: string) =>
-    bridge().signals.getSessionSubscriptions(sessionId),
-  setSessionSignalSubscriptions: (input: {
-    sessionId: string;
-    sourceIds: string[];
-  }) => bridge().signals.setSessionSubscriptions(input),
   getSessionSignalReadiness: (input: {
     sessionId: string;
     instrumentScope: string;

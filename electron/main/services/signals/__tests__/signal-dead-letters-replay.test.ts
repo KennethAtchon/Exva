@@ -31,21 +31,7 @@ describe("SignalService replayDeadLetter", () => {
           signalSourceTypes: [],
           brokerRequirement: "any_supported_class",
         },
-        signals: [],
-        schedules: [
-          {
-            id: "es-15m-test",
-            instrumentClass: "stock",
-            symbol: "ES",
-            cadence: "15m",
-            defaultAnalysisTimeframe: "1h",
-            enabledByDefault: true,
-            mockFixtures: {
-              defaultScenario: "clean_breakout",
-              scriptedWorkerOutputs: {},
-            },
-          },
-        ],
+        acceptsScanHit: true,
       });
     } catch {
       // already registered in this worker
@@ -91,9 +77,9 @@ describe("SignalService replayDeadLetter", () => {
     // exist before the event (and its dead letter) can be inserted.
     const sourcesRepo = new SignalSourcesRepo(db);
     sourcesRepo.create({
-      id: "timer-source",
-      type: "timer",
-      name: "Timer Source",
+      id: "mock-source",
+      type: "mock",
+      name: "Mock Source",
       description: null,
       enabled: true,
       configJson: "{}",
@@ -102,8 +88,8 @@ describe("SignalService replayDeadLetter", () => {
     const eventsRepo = new SignalEventsRepo(db);
     const signal = {
       id: crypto.randomUUID(),
-      sourceId: "timer-source",
-      sourceType: "timer" as const,
+      sourceId: "mock-source",
+      sourceType: "mock" as const,
       ticker: "ES",
       companyName: null,
       documentUrl: null,
@@ -146,7 +132,6 @@ describe("SignalService replayDeadLetter", () => {
       eventsRepo,
       deliveriesRepo,
       deadLettersRepo,
-      new SignalSourcesRepo(db),
       sessions,
       assignments,
       brokerAccounts,

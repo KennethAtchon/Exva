@@ -14,9 +14,6 @@ import { SessionTimeframeConfigRepo } from "../../../db/repositories/sessions/se
 import { SessionTradeRulesRepo } from "../../../db/repositories/sessions/session-trade-rules-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
 import { SessionWriteService } from "../write-service";
-import { SignalSourcesRepo } from "../../signals/repos/signal-sources-repo";
-import { sessionRequiresInstrumentScope } from "@electron/shared/domain";
-import { requireExperience } from "../../../experiences/index";
 
 describe("SessionWriteService", () => {
   let db = createTestDb();
@@ -127,11 +124,7 @@ describe("SessionWriteService", () => {
   });
 
   it("allows any broker with edgar-catalyst (no experience instrument class constraint)", () => {
-    const { signalSourcesRepo, sourceId } = insertExperienceSignal(
-      db,
-      "edgar-catalyst",
-    );
-    const service = createService(db, { signalSourcesRepo });
+    const service = createService(db);
     insertBroker(db, {
       id: "broker-pm",
       name: "Polymarket Only",
@@ -140,7 +133,7 @@ describe("SessionWriteService", () => {
       mode: "paper",
     });
 
-    // No instrument class constraint on experiences — any broker is accepted
+    // edgar-catalyst is event-driven — empty instrumentScope is valid
     const result = service.create({
       name: "EDGAR Session",
       objective: "Trade filings",
@@ -149,18 +142,13 @@ describe("SessionWriteService", () => {
       selectorSettings: { aiPickerEnabled: false },
       executionMode: "paper_only",
       experienceId: "edgar-catalyst",
-      subscribedSourceIds: [sourceId],
       brokerAssignments: [{ brokerAccountId: "broker-pm", allocatedUsd: 2500 }],
     });
     expect(result.status).toBe("draft");
   });
 
   it("creates edgar-catalyst with an Alpaca stock broker", () => {
-    const { signalSourcesRepo, sourceId } = insertExperienceSignal(
-      db,
-      "edgar-catalyst",
-    );
-    const service = createService(db, { signalSourcesRepo });
+    const service = createService(db);
     insertBroker(db, {
       id: "broker-stock",
       name: "Alpaca Stock",
@@ -169,6 +157,7 @@ describe("SessionWriteService", () => {
       mode: "paper",
     });
 
+    // edgar-catalyst is event-driven — empty instrumentScope is valid
     const result = service.create({
       name: "EDGAR Stock Session",
       objective: "Trade filings",
@@ -177,7 +166,6 @@ describe("SessionWriteService", () => {
       selectorSettings: { aiPickerEnabled: false },
       executionMode: "paper_only",
       experienceId: "edgar-catalyst",
-      subscribedSourceIds: [sourceId],
       brokerAssignments: [
         { brokerAccountId: "broker-stock", allocatedUsd: 2500 },
       ],
@@ -189,11 +177,7 @@ describe("SessionWriteService", () => {
   });
 
   it("creates prediction-event-edge with a Polymarket broker", () => {
-    const { signalSourcesRepo, sourceId } = insertExperienceSignal(
-      db,
-      "prediction-event-edge",
-    );
-    const service = createService(db, { signalSourcesRepo });
+    const service = createService(db);
     insertBroker(db, {
       id: "broker-pm",
       name: "Polymarket Paper",
@@ -202,6 +186,7 @@ describe("SessionWriteService", () => {
       mode: "paper",
     });
 
+    // prediction-event-edge is event-driven — empty instrumentScope is valid
     const result = service.create({
       name: "PM Event Session",
       objective: "Trade prediction events",
@@ -210,7 +195,6 @@ describe("SessionWriteService", () => {
       selectorSettings: { aiPickerEnabled: false },
       executionMode: "paper_only",
       experienceId: "prediction-event-edge",
-      subscribedSourceIds: [sourceId],
       brokerAssignments: [{ brokerAccountId: "broker-pm", allocatedUsd: 2500 }],
     });
 
@@ -220,11 +204,7 @@ describe("SessionWriteService", () => {
   });
 
   it("rejects prediction-event-edge without a Polymarket broker", () => {
-    const { signalSourcesRepo, sourceId } = insertExperienceSignal(
-      db,
-      "prediction-event-edge",
-    );
-    const service = createService(db, { signalSourcesRepo });
+    const service = createService(db);
     insertBroker(db, {
       id: "broker-stock",
       name: "Stock Only",
@@ -242,7 +222,6 @@ describe("SessionWriteService", () => {
         selectorSettings: { aiPickerEnabled: false },
         executionMode: "paper_only",
         experienceId: "prediction-event-edge",
-        subscribedSourceIds: [sourceId],
         brokerAssignments: [
           { brokerAccountId: "broker-stock", allocatedUsd: 2500 },
         ],
@@ -285,11 +264,7 @@ describe("SessionWriteService", () => {
   });
 
   it("allows crypto-only broker for edgar-catalyst (no experience instrument class constraint)", () => {
-    const { signalSourcesRepo, sourceId } = insertExperienceSignal(
-      db,
-      "edgar-catalyst",
-    );
-    const service = createService(db, { signalSourcesRepo });
+    const service = createService(db);
     insertBroker(db, {
       id: "broker-crypto",
       name: "Crypto Only",
@@ -298,7 +273,6 @@ describe("SessionWriteService", () => {
       mode: "paper",
     });
 
-    // Experience no longer restricts instrument classes — any broker is accepted
     const result = service.create({
       name: "EDGAR Crypto Broker Session",
       objective: "Crypto broker, EDGAR experience",
@@ -307,7 +281,6 @@ describe("SessionWriteService", () => {
       selectorSettings: { aiPickerEnabled: false },
       executionMode: "paper_only",
       experienceId: "edgar-catalyst",
-      subscribedSourceIds: [sourceId],
       brokerAssignments: [
         { brokerAccountId: "broker-crypto", allocatedUsd: 2500 },
       ],
@@ -315,85 +288,7 @@ describe("SessionWriteService", () => {
     expect(result.status).toBe("draft");
   });
 
-  it("allows empty instrument scope for listener-only signal subscriptions", () => {
-    const signalSourcesRepo = new SignalSourcesRepo(db);
-    const edgarSourceId = "edgar-source-1";
-    signalSourcesRepo.create({
-      id: edgarSourceId,
-      type: "edgar_8k",
-      name: "EDGAR 8-K",
-      description: null,
-      enabled: true,
-      configJson: "{}",
-    });
-    const service = createService(db, {
-      signalSourcesRepo,
-    });
-    insertBroker(db, {
-      id: "broker-stock",
-      name: "Stock Mock",
-      brokerType: "mock",
-      supportedInstrumentClasses: ["stock"],
-      mode: "paper",
-    });
-
-    const result = service.create({
-      name: "EDGAR Listener Session",
-      objective: "React to filings automatically",
-      selectionMode: "manual_shortlist",
-      instrumentScope: "",
-      selectorSettings: { aiPickerEnabled: true },
-      executionMode: "paper_only",
-      brokerAssignments: [
-        { brokerAccountId: "broker-stock", allocatedUsd: 1000 },
-      ],
-      subscribedSourceIds: [edgarSourceId],
-    });
-
-    const session = new SessionRepo(db).requireById(result.id);
-    expect(session.instrumentScope).toBe("");
-  });
-
-  it("subscribes a session to multiple signal sources", () => {
-    const signalSourcesRepo = new SignalSourcesRepo(db);
-    for (const id of ["edgar-source-1", "edgar-source-2"]) {
-      signalSourcesRepo.create({
-        id,
-        type: "edgar_8k",
-        name: id,
-        description: null,
-        enabled: true,
-        configJson: "{}",
-      });
-    }
-    const service = createService(db, { signalSourcesRepo });
-    insertBroker(db, {
-      id: "broker-stock",
-      name: "Stock Mock",
-      brokerType: "mock",
-      supportedInstrumentClasses: ["stock"],
-      mode: "paper",
-    });
-
-    const session = service.create({
-      name: "Two Signal Session",
-      objective: "Should subscribe to both sources",
-      selectionMode: "manual_shortlist",
-      instrumentScope: "AAPL",
-      selectorSettings: { aiPickerEnabled: true },
-      executionMode: "paper_only",
-      brokerAssignments: [
-        { brokerAccountId: "broker-stock", allocatedUsd: 1000 },
-      ],
-      subscribedSourceIds: ["edgar-source-1", "edgar-source-2"],
-    });
-
-    expect(signalSourcesRepo.subscribedSourceIdsForSession(session.id)).toEqual(
-      ["edgar-source-1", "edgar-source-2"],
-    );
-  });
-
-  it("rejects empty instrument scope when no signal subscriptions exist", () => {
+  it("allows empty instrument scope for event-driven (listener) experiences", () => {
     const service = createService(db);
     insertBroker(db, {
       id: "broker-stock",
@@ -403,14 +298,44 @@ describe("SessionWriteService", () => {
       mode: "paper",
     });
 
+    // edgar-catalyst declares signalSourceTypes → event-driven → empty scope is valid
+    const result = service.create({
+      name: "EDGAR Listener Session",
+      objective: "React to filings automatically",
+      selectionMode: "manual_shortlist",
+      instrumentScope: "",
+      selectorSettings: { aiPickerEnabled: true },
+      executionMode: "paper_only",
+      experienceId: "edgar-catalyst",
+      brokerAssignments: [
+        { brokerAccountId: "broker-stock", allocatedUsd: 1000 },
+      ],
+    });
+
+    const session = new SessionRepo(db).requireById(result.id);
+    expect(session.instrumentScope).toBe("");
+  });
+
+  it("rejects empty instrument scope for scan-hit experiences that require a scope", () => {
+    const service = createService(db);
+    insertBroker(db, {
+      id: "broker-stock",
+      name: "Stock Mock",
+      brokerType: "mock",
+      supportedInstrumentClasses: ["stock"],
+      mode: "paper",
+    });
+
+    // rules-mean-reversion has no signalSourceTypes (scan_hit) → scope is required
     expect(() =>
       service.create({
-        name: "Manual Session",
+        name: "Rules No-Scope Session",
         objective: "Needs tickers",
         selectionMode: "manual_shortlist",
         instrumentScope: "",
         selectorSettings: { aiPickerEnabled: false },
         executionMode: "paper_only",
+        experienceId: "rules-mean-reversion",
         brokerAssignments: [
           { brokerAccountId: "broker-stock", allocatedUsd: 1000 },
         ],
@@ -419,52 +344,9 @@ describe("SessionWriteService", () => {
   });
 });
 
-function insertExperienceSignal(
-  db: ReturnType<typeof createTestDb>,
-  experienceId: string,
-): { signalSourcesRepo: SignalSourcesRepo; sourceId: string } {
-  const signalSourcesRepo = new SignalSourcesRepo(db);
-  const experience = requireExperience(experienceId);
-  const signal = experience.signals[0];
-  const schedule = experience.schedules?.[0];
-  const entry = signal ?? schedule;
-  if (!entry) throw new Error(`${experienceId} has no signals or schedules`);
-  const sourceId = `${experienceId}/${entry.id}`;
-  signalSourcesRepo.create({
-    id: sourceId,
-    type: signal?.sourceType ?? "timer",
-    name: experience.displayName,
-    description: null,
-    enabled: true,
-    experienceId,
-    configJson: JSON.stringify({
-      signalId: entry.id,
-      symbol: entry.symbol,
-    }),
-  });
-  return { signalSourcesRepo, sourceId };
-}
-
 function createService(
   db: ReturnType<typeof createTestDb>,
-  options?: { signalSourcesRepo?: SignalSourcesRepo },
 ): SessionWriteService {
-  const signalSourcesRepo = options?.signalSourcesRepo;
-  const signals = signalSourcesRepo
-    ? {
-        replaceSessionSubscriptions: (sessionId: string, sourceIds: string[]) =>
-          signalSourcesRepo.replaceSessionSubscriptions(sessionId, sourceIds),
-        requiresInstrumentScopeForSourceIds: (sourceIds: string[]) => {
-          const subscribedSources = sourceIds.flatMap((sourceId) => {
-            const source = signalSourcesRepo.get(sourceId);
-            return source ? [{ type: source.type }] : [];
-          });
-          return sessionRequiresInstrumentScope(subscribedSources);
-        },
-        getSource: (sourceId: string) => signalSourcesRepo.get(sourceId),
-      }
-    : undefined;
-
   return new SessionWriteService({
     sessions: new SessionRepo(db),
     events: new EventsRepo(db),
@@ -472,7 +354,6 @@ function createService(
     assignments: new SessionBrokerAssignmentsRepo(db),
     brokerRouting: new BrokerRoutingRepo(db),
     brokerAccounts: new BrokerAccountsRepo(db),
-    signals,
   });
 }
 

@@ -217,9 +217,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
           configJson: "{}",
         });
       }
-      signalSourcesRepo.replaceSessionSubscriptions(session.id, [
-        edgarSourceId,
-      ]);
+      // V2: signal subscriptions managed via session-inputs API, not signal_sources
       return sessions.requireById(session.id);
     },
     clearAiProvider(sessionId: string) {

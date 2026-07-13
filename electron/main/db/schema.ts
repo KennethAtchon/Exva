@@ -68,6 +68,10 @@ export const sessions = sqliteTable(
     strategyConfigJson: text("strategy_config_json"),
     overridesJson: text("overrides_json"),
     liveReadinessAcknowledgedAt: text("live_readiness_acknowledged_at"),
+    /** V2 session input revision for optimistic concurrency. */
+    sessionInputRevision: integer("session_input_revision")
+      .notNull()
+      .default(0),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -83,11 +87,6 @@ export const signalSources = sqliteTable("signal_sources", {
   name: text("name").notNull(),
   description: text("description"),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
-  experienceId: text("experience_id"),
-  instrumentClass: text("instrument_class"),
-  pollCadence: text("poll_cadence"),
-  analysisTimeframe: text("analysis_timeframe"),
-  pipelineId: text("pipeline_id"),
   configJson: text("config_json").notNull().default("{}"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
@@ -97,9 +96,7 @@ export const signalEvents = sqliteTable(
   "signal_events",
   {
     id: text("id").primaryKey(),
-    sourceId: text("source_id")
-      .notNull()
-      .references(() => signalSources.id, { onDelete: "cascade" }),
+    sourceId: text("source_id"),
     sourceType: text("source_type").notNull(),
     ticker: text("ticker").notNull(),
     companyName: text("company_name"),
@@ -121,6 +118,10 @@ export const signalEvents = sqliteTable(
     ttl: text("ttl"),
     /** When the information came into being (may differ from detectedAt). */
     occurredAt: text("occurred_at"),
+    /** V2 origin: source_definition | scheduled_scan | manual | legacy */
+    originKind: text("origin_kind"),
+    originId: text("origin_id"),
+    scheduleGroupKey: text("schedule_group_key"),
   },
   (table) => ({
     sourceIdx: index("idx_signal_events_source").on(table.sourceId),
@@ -130,6 +131,10 @@ export const signalEvents = sqliteTable(
     sourceDedupeUnique: uniqueIndex("idx_signal_events_dedupe")
       .on(table.sourceId, table.dedupeKey)
       .where(sql`${table.dedupeKey} is not null`),
+    originIdx: index("idx_signal_events_origin").on(
+      table.originKind,
+      table.originId,
+    ),
   }),
 );
 
@@ -143,7 +148,7 @@ export const sessionSignalDeliveries = sqliteTable(
     signalEventId: text("signal_event_id")
       .notNull()
       .references(() => signalEvents.id, { onDelete: "cascade" }),
-    sourceId: text("source_id").notNull(),
+    sourceId: text("source_id"),
     queuePositionAtEnqueue: integer("queue_position_at_enqueue").notNull(),
     status: text("status").notNull(),
     statusBucket: text("status_bucket").notNull(),
@@ -154,10 +159,13 @@ export const sessionSignalDeliveries = sqliteTable(
     tradeId: text("trade_id"),
     dropReason: text("drop_reason"),
     notesJson: text("notes_json"),
+    /** V2: which session input subscription caused this delivery. */
+    subscriptionId: text("subscription_id"),
   },
   (table) => ({
     sessionIdx: index("idx_ssd_session").on(table.sessionId),
     statusIdx: index("idx_ssd_status").on(table.sessionId, table.statusBucket),
+    subscriptionIdx: index("idx_ssd_subscription").on(table.subscriptionId),
   }),
 );
 
@@ -189,20 +197,6 @@ export const signalDeadLetters = sqliteTable(
   }),
 );
 
-export const sessionSignalSources = sqliteTable(
-  "session_signal_sources",
-  {
-    sessionId: text("session_id")
-      .notNull()
-      .references(() => sessions.id, { onDelete: "cascade" }),
-    sourceId: text("source_id")
-      .notNull()
-      .references(() => signalSources.id, { onDelete: "cascade" }),
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.sessionId, table.sourceId] }),
-  }),
-);
 
 export const cikTickerCache = sqliteTable("cik_ticker_cache", {
   cik: text("cik").primaryKey(),
@@ -1245,3 +1239,210 @@ export const dataCoverage = sqliteTable(
     ),
   }),
 );
+
+/** Configurable experience-input catalog (V2). */
+
+export const experienceTemplates = sqliteTable("experience_templates", {
+  id: text("id").primaryKey(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const experienceTemplateRevisions = sqliteTable(
+  "experience_template_revisions",
+  {
+    templateId: text("template_id")
+      .notNull()
+      .references(() => experienceTemplates.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    status: text("status").notNull(),
+    displayName: text("display_name").notNull(),
+    description: text("description").notNull(),
+    pipelineId: text("pipeline_id").notNull(),
+    strategyId: text("strategy_id"),
+    promptVariantKey: text("prompt_variant_key").notNull(),
+    brokerRequirement: text("broker_requirement").notNull(),
+    inputContractJson: text("input_contract_json").notNull(),
+    defaultPresetIdsJson: text("default_preset_ids_json").notNull(),
+    researchContractJson: text("research_contract_json").notNull(),
+    universePolicy: text("universe_policy").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.templateId, table.version] }),
+    statusIdx: index("idx_experience_template_revisions_status").on(
+      table.templateId,
+      table.status,
+    ),
+  }),
+);
+
+export const sourceDefinitions = sqliteTable("source_definitions", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  integrationId: text("integration_id"),
+  outputContractId: text("output_contract_id").notNull(),
+  configSchemaVersion: integer("config_schema_version").notNull().default(1),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const sourceDefinitionRevisions = sqliteTable(
+  "source_definition_revisions",
+  {
+    sourceDefinitionId: text("source_definition_id")
+      .notNull()
+      .references(() => sourceDefinitions.id, { onDelete: "cascade" }),
+    revision: integer("revision").notNull(),
+    configJson: text("config_json").notNull().default("{}"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({
+      columns: [table.sourceDefinitionId, table.revision],
+    }),
+  }),
+);
+
+export const instrumentSets = sqliteTable("instrument_sets", {
+  id: text("id").primaryKey(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const instrumentSetRevisions = sqliteTable(
+  "instrument_set_revisions",
+  {
+    setId: text("set_id")
+      .notNull()
+      .references(() => instrumentSets.id, { onDelete: "cascade" }),
+    revision: integer("revision").notNull(),
+    status: text("status").notNull(),
+    name: text("name").notNull(),
+    instrumentClass: text("instrument_class").notNull(),
+    mode: text("mode").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.setId, table.revision] }),
+    statusIdx: index("idx_instrument_set_revisions_status").on(
+      table.setId,
+      table.status,
+    ),
+  }),
+);
+
+export const instrumentSetMembers = sqliteTable(
+  "instrument_set_members",
+  {
+    setId: text("set_id").notNull(),
+    setRevision: integer("set_revision").notNull(),
+    canonicalId: text("canonical_id").notNull(),
+    displaySymbol: text("display_symbol").notNull(),
+    venue: text("venue"),
+  },
+  (table) => ({
+    pk: primaryKey({
+      columns: [table.setId, table.setRevision, table.canonicalId],
+    }),
+    setRevIdx: index("idx_instrument_set_members_set_rev").on(
+      table.setId,
+      table.setRevision,
+    ),
+  }),
+);
+
+export const experienceInputProfiles = sqliteTable(
+  "experience_input_profiles",
+  {
+    id: text("id").primaryKey(),
+    templateId: text("template_id").notNull(),
+    templateVersion: integer("template_version").notNull(),
+    mode: text("mode").notNull(),
+    name: text("name").notNull(),
+    revision: integer("revision").notNull().default(1),
+    /** Mode-specific payload JSON (source/set/cadence/params). */
+    payloadJson: text("payload_json").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => ({
+    templateIdx: index("idx_experience_input_profiles_template").on(
+      table.templateId,
+      table.templateVersion,
+    ),
+  }),
+);
+
+export const sessionInputSubscriptions = sqliteTable(
+  "session_input_subscriptions",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    templateId: text("template_id").notNull(),
+    templateVersion: integer("template_version").notNull(),
+    mode: text("mode").notNull(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    createdFromProfileId: text("created_from_profile_id"),
+    revision: integer("revision").notNull().default(1),
+    /** Event: sourceDefinitionId; Scheduled: instrumentSetId — typed cols below. */
+    sourceDefinitionId: text("source_definition_id"),
+    sourceRevision: integer("source_revision"),
+    instrumentSetId: text("instrument_set_id"),
+    instrumentSetRevision: integer("instrument_set_revision"),
+    cadenceJson: text("cadence_json"),
+    analysisTimeframe: text("analysis_timeframe").notNull(),
+    marketCalendarId: text("market_calendar_id"),
+    strategyParametersJson: text("strategy_parameters_json"),
+    filtersJson: text("filters_json"),
+    usesUnvalidatedUniverse: integer("uses_unvalidated_universe", {
+      mode: "boolean",
+    })
+      .notNull()
+      .default(false),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => ({
+    sessionIdx: index("idx_session_input_subscriptions_session").on(
+      table.sessionId,
+    ),
+    sourceIdx: index("idx_session_input_subscriptions_source").on(
+      table.sourceDefinitionId,
+      table.enabled,
+    ),
+    setIdx: index("idx_session_input_subscriptions_set").on(
+      table.instrumentSetId,
+      table.enabled,
+    ),
+  }),
+);
+
+export const scheduleRuntimeStates = sqliteTable("schedule_runtime_states", {
+  groupKey: text("group_key").primaryKey(),
+  nextRunAt: text("next_run_at"),
+  lastStartedAt: text("last_started_at"),
+  lastFinishedAt: text("last_finished_at"),
+  lastSuccessAt: text("last_success_at"),
+  lastDurationMs: integer("last_duration_ms"),
+  consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+  lastError: text("last_error"),
+  subscriptionIdsJson: text("subscription_ids_json").notNull().default("[]"),
+  instrumentCount: integer("instrument_count").notNull().default(0),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const migrationQuarantine = sqliteTable("migration_quarantine", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull(),
+  sessionId: text("session_id"),
+  sourceId: text("source_id"),
+  reason: text("reason").notNull(),
+  detailJson: text("detail_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull(),
+});

@@ -3,7 +3,6 @@ import { getSearchProviderDisplayName } from "@electron/shared/instruments/searc
 import {
   formatInstrumentOriginLabel,
   formatSignalSourceTypeLabel,
-  parseTimerSourceConfig,
 } from "@electron/shared/instruments/session-input-model";
 import { formatSignalSourceTimingSubtitle } from "@electron/shared/domain/signal-timing";
 import { Badge } from "@/components/custom-ui";
@@ -55,16 +54,10 @@ const SessionInfoGrid = ({
   onClearCache: () => void;
 }) => {
   const subscribedSource = session.subscribedSources[0] ?? null;
-  const timerConfig =
-    subscribedSource?.type === "timer" && subscribedSource.configJson
-      ? parseTimerSourceConfig(subscribedSource.configJson)
-      : null;
   const instrumentOrigin = formatInstrumentOriginLabel({
     inputModel: session.inputModel,
     experienceDisplayName,
     experienceSignalSourceType: subscribedSource?.type ?? null,
-    timerSymbol: timerConfig?.symbol ?? null,
-    timerCadence: timerConfig?.cadence ?? null,
     instrumentScope: session.instrumentScope,
   });
   const showManualTickers =

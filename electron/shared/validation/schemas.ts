@@ -138,7 +138,6 @@ export const sessionCreateInputSchema = z.object({
   brokerOverridesByInstrumentClass: z
     .record(instrumentClassSchema, z.string().nullable())
     .optional(),
-  subscribedSourceIds: z.array(z.string().min(1)).optional(),
   experienceId: z.string().min(1).default("edgar-catalyst"),
 });
 

@@ -48,33 +48,5 @@ export const OPTIONS_FLOW_EDGE_EXPERIENCE: ExperienceDescriptor = {
     // low, but the signal still has to clear a real hurdle.
     costs: { spreadBps: 2, slippageBps: 3, commissionBps: 0 },
   },
-  signals: [],
-  schedules: [
-    {
-      id: "aapl-options-flow",
-      instrumentClass: "stock",
-      symbol: "AAPL",
-      cadence: "15m",
-      defaultAnalysisTimeframe: "1d",
-      enabledByDefault: false,
-      marketHours: "regular",
-      mockFixtures: {
-        defaultScenario: "clean_breakout",
-        scriptedWorkerOutputs: {},
-      },
-    },
-    {
-      id: "nvda-options-flow",
-      instrumentClass: "stock",
-      symbol: "NVDA",
-      cadence: "15m",
-      defaultAnalysisTimeframe: "1d",
-      enabledByDefault: false,
-      marketHours: "regular",
-      mockFixtures: {
-        defaultScenario: "clean_breakout",
-        scriptedWorkerOutputs: {},
-      },
-    },
-  ],
+  acceptsScanHit: true,
 };

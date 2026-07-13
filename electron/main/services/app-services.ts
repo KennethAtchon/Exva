@@ -85,19 +85,7 @@ import {
 } from "./research/ladder-automation";
 import { evaluatePromotion } from "./research/promotion-gate";
 import { listExperiences, requireExperience } from "../experiences/index";
-import { SessionScheduler } from "./signals/scheduler/session-scheduler";
-import {
-  asTradingTimeframe,
-  createRulesScheduledScan,
-} from "./signals/scheduler/rules-scheduled-scan";
-import { signalSourceId } from "@electron/shared/instruments/session-input-model";
-import { scheduleDisplayName } from "@electron/shared/domain/signal-descriptor";
-import { RULES_MEAN_REVERSION_EXPERIENCE } from "../experiences/rules-mean-reversion/descriptor";
-import { RULES_BREAKOUT_EXPERIENCE } from "../experiences/rules-breakout/descriptor";
-import { RULES_TREND_FOLLOWING_EXPERIENCE } from "../experiences/rules-trend-following/descriptor";
-import { OPTIONS_FLOW_EDGE_EXPERIENCE } from "../experiences/options-flow-edge/descriptor";
-import type { ExperienceDescriptor } from "../experiences/types";
-import type { RulesStrategyId } from "./signals/scheduler/rules-scheduled-scan";
+import type { InstrumentClass, TradingTimeframe } from "@electron/shared/domain/enums";
 import { AgentOrchestrator } from "./orchestration/cycle/agent-orchestrator";
 import { registerDefaultEngines } from "./pipeline/engines/signal-registry/register-default-engines";
 import { assertValidPipelineDefinitionCatalog } from "./pipeline/effective-ai-phase-config";
@@ -147,11 +135,25 @@ import { SignalSourceRegistry } from "./signals/signal-source-registry";
 import { SignalService } from "./signals/signal-service";
 import { ControlRepo } from "../db/repositories/control/control-repo";
 import { ControlAgentService } from "./control/control-agent-service";
-import {
-  bootstrapMockRehearsal,
-  isMockRehearsalEnabled,
-  syncMockRehearsalRuntimeTicker,
-} from "../experiences/mock-rehearsal-bootstrap";
+import { bootstrapMockRehearsal } from "../experiences/mock-rehearsal-bootstrap";
+import { seedExperienceCatalog } from "./experience-catalog/seed-experience-catalog";
+import { createExperienceTemplateService } from "./experience-catalog/experience-template-service";
+import { InstrumentSetService } from "./instruments/instrument-set-service";
+import { InstrumentSetRepo } from "./instruments/instrument-set-repo";
+import { SourceDefinitionService } from "./signals/source-definition-service";
+import { SourceDefinitionRepo } from "./signals/source-definition-repo";
+import { SessionInputConfigurationService } from "./session-inputs/session-input-configuration-service";
+import { getStrategyDefinitionRegistry } from "./strategies/index";
+import { createSourceAdapterRegistry } from "./signals/adapters/source-adapter-registry";
+import { CikTickerCache } from "./signals/cache/cik-ticker-cache";
+import { ScheduleCoordinator } from "./scheduling/schedule-coordinator";
+import { SessionInputRuntimePlanner } from "./scheduling/session-input-runtime-planner";
+import { ScheduledStrategyExecutor } from "./scheduling/scheduled-strategy-executor";
+import { MarketCalendarRegistry } from "./scheduling/market-calendar-registry";
+import { SubscriptionFanoutResolver } from "./signals/subscription-fanout-resolver";
+import type { ExperienceTemplateService } from "./experience-catalog/experience-template-service";
+import { INPUT_PROFILE_IDS } from "./experience-catalog/input-profile-seeds";
+import { TEMPLATE_IDS } from "./experience-catalog/experience-template-seeds";
 
 export interface AppServices {
   /** Shared deps shape for IPC helpers (e.g. instrument cache fingerprint). */
@@ -235,7 +237,6 @@ export interface AppServices {
   tradeAutopsy: TradeAutopsyService;
   autopsyExport: AutopsyExportService;
   signals: SignalService;
-  sessionScheduler: SessionScheduler;
   controlRepo: ControlRepo;
   control: ControlAgentService;
   /** In-memory promotion ladder states (experienceId → state). */
@@ -244,6 +245,12 @@ export interface AppServices {
   approveLadderUpgrade: (experienceId: string) => LadderState | null;
   /** Tick ladder automation for all known experiences (also runs nightly). */
   tickLadderAutomation: () => void;
+  // V2 configurable session inputs
+  experienceTemplateService: ExperienceTemplateService;
+  instrumentSetService: InstrumentSetService;
+  sourceDefinitionService: SourceDefinitionService;
+  sessionInputConfiguration: SessionInputConfigurationService;
+  scheduleCoordinator: ScheduleCoordinator;
 }
 
 export async function createAppServices(app: App): Promise<AppServices> {
@@ -425,7 +432,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     providerAccountsRepo: repos.providerAccounts,
     workspacePrefsRepo: repos.workspacePreferences,
     sessionAiPhasesRepo: repos.sessionAiPhases,
-    signalSourceTypes: signalSourcesRepo,
   });
   const cyclePlanServicesDeps = {
     sessionSelectorSettingsRepo: repos.sessionSelectorSettings,
@@ -702,7 +708,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     signalEventsRepo,
     signalDeliveriesRepo,
     signalDeadLettersRepo,
-    signalSourcesRepo,
     repos.session,
     repos.sessionBrokerAssignments,
     repos.brokerAccounts,
@@ -710,19 +715,60 @@ export async function createAppServices(app: App): Promise<AppServices> {
     eventBus,
     instrumentNormalizer,
   );
-  const sessionScheduler = new SessionScheduler(async (signals) => {
-    for (const sig of signals) {
-      // Legacy sourceType "timer" matches schedule identity rows / subscriptions.
-      // Delivery gate accepts scan_hit by kind when experience.schedules is set.
-      await signalBus.ingestMarketSignal(sig, "timer");
-    }
+
+  // -------------------------------------------------------------------------
+  // V2 scheduler setup (always enabled)
+  // -------------------------------------------------------------------------
+
+  // Seed catalog (idempotent).
+  seedExperienceCatalog(db);
+
+  // Build V2 services.
+  const experienceTemplateService = createExperienceTemplateService(db);
+  const instrumentSetService = new InstrumentSetService(new InstrumentSetRepo(db));
+  const sourceDefinitionService = new SourceDefinitionService(new SourceDefinitionRepo(db));
+
+  const strategyRegistry = getStrategyDefinitionRegistry();
+  const cikCache = new CikTickerCache(db);
+  const adapterRegistry = createSourceAdapterRegistry({ cikCache });
+
+  const sessionInputConfiguration = new SessionInputConfigurationService(
+    db,
+    strategyRegistry,
+    adapterRegistry,
+  );
+
+  const calendarRegistry = new MarketCalendarRegistry();
+  const fanoutResolver = new SubscriptionFanoutResolver(db);
+  const executor = new ScheduledStrategyExecutor({
+    db,
+    strategyRegistry,
+    getBars: async (symbol, timeframe, barCount, instrumentClass) => {
+      return marketData.getBars({
+        symbol,
+        instrumentClass: instrumentClass as InstrumentClass,
+        timeframe: timeframe as TradingTimeframe,
+        barCount,
+      });
+    },
   });
-  registerRulesScheduledScans({
-    scheduler: sessionScheduler,
-    marketData,
-    sourcesRepo: signalSourcesRepo,
+
+  const scheduleCoordinator = new ScheduleCoordinator({
+    db,
+    executor,
+    calendarRegistry,
+    emitSignals: (signals, groupKey, subscriptions) =>
+      signalBus.ingestScheduledGroupHit(signals, groupKey, subscriptions),
+    resolveScheduledFanout: (ids) =>
+      fanoutResolver.resolveScheduledFanout(ids),
   });
-  sessionScheduler.start();
+
+  const planner = new SessionInputRuntimePlanner({ db, strategyRegistry });
+  const plans = planner.buildPlans();
+  scheduleCoordinator.reconcile(plans);
+  scheduleCoordinator.start();
+
+  signalBus.setSubscriptionFanoutResolver(fanoutResolver);
   const signalRegistry = new SignalSourceRegistry(db, signalBus);
   const sessionListing = new SessionListingService({
     sessionRepo: repos.session,
@@ -730,7 +776,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     trades: repos.trades,
     runtimeManager,
     signalSources: signalSourcesRepo,
-    signalRegistry,
     brokerAccounts: repos.brokerAccounts,
   });
   const signals = new SignalService(
@@ -751,14 +796,28 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerRouting: repos.brokerRouting,
     brokerAccounts: repos.brokerAccounts,
     liveReadiness,
-    signals,
-    syncMockRehearsalSignalSourceTicker: (ticker) => {
-      if (!isMockRehearsalEnabled()) return;
-      syncMockRehearsalRuntimeTicker(signalSourcesRepo, signalRegistry, ticker);
+    provisionDefaultInputs: (sessionId, experienceId) => {
+      const profileMap: Record<string, string> = {
+        [TEMPLATE_IDS.MEAN_REVERSION]: INPUT_PROFILE_IDS.MEAN_REVERSION_DEFAULT,
+        [TEMPLATE_IDS.BREAKOUT]: INPUT_PROFILE_IDS.BREAKOUT_DEFAULT,
+        [TEMPLATE_IDS.TREND_FOLLOWING]: INPUT_PROFILE_IDS.TREND_DEFAULT,
+        [TEMPLATE_IDS.OPTIONS_FLOW]: INPUT_PROFILE_IDS.OPTIONS_FLOW_DEFAULT,
+        [TEMPLATE_IDS.EDGAR_CATALYST]: INPUT_PROFILE_IDS.EDGAR_DEFAULT,
+        [TEMPLATE_IDS.PREDICTION_EVENT]: INPUT_PROFILE_IDS.PREDICTION_DEFAULT,
+      };
+      const profileId = profileMap[experienceId];
+      if (!profileId) return;
+      sessionInputConfiguration.createFromProfile(sessionId, profileId, 0);
+    },
+    reconcileScheduleCoordinator: () => {
+      const reconcilePlanner = new SessionInputRuntimePlanner({
+        db,
+        strategyRegistry: getStrategyDefinitionRegistry(),
+      });
+      scheduleCoordinator.reconcile(reconcilePlanner.buildPlans());
     },
   });
   signals.bootstrapFromDb();
-  signals.ensureAllExperienceSignalSources();
   bootstrapMockRehearsal({
     sourcesRepo: signalSourcesRepo,
     registry: signalRegistry,
@@ -825,12 +884,17 @@ export async function createAppServices(app: App): Promise<AppServices> {
     tradeAutopsy,
     autopsyExport,
     signals,
-    sessionScheduler,
     controlRepo,
     control,
     ladderStates,
     approveLadderUpgrade: approveLadderUpgradeForExperience,
     tickLadderAutomation: tickAllLadders,
+    // V2 configurable session inputs
+    experienceTemplateService,
+    instrumentSetService,
+    sourceDefinitionService,
+    sessionInputConfiguration,
+    scheduleCoordinator,
   };
   return appServices;
 }
@@ -888,92 +952,6 @@ function extractPredictedProbability(
   }
 }
 
-function registerRulesScheduledScans(input: {
-  scheduler: SessionScheduler;
-  marketData: MarketDataService;
-  sourcesRepo: import("./signals/repos/signal-sources-repo").SignalSourcesRepo;
-}): void {
-  const specs: Array<{
-    experience: ExperienceDescriptor;
-    strategyId: RulesStrategyId;
-    marketHours: "regular" | "extended" | "24_7";
-  }> = [
-    {
-      experience: RULES_MEAN_REVERSION_EXPERIENCE,
-      strategyId: "mean-reversion",
-      marketHours: "regular",
-    },
-    {
-      experience: RULES_BREAKOUT_EXPERIENCE,
-      strategyId: "breakout",
-      marketHours: "24_7",
-    },
-    {
-      experience: RULES_TREND_FOLLOWING_EXPERIENCE,
-      strategyId: "trend-following",
-      marketHours: "24_7",
-    },
-    {
-      experience: OPTIONS_FLOW_EDGE_EXPERIENCE,
-      strategyId: "options-flow",
-      marketHours: "regular",
-    },
-  ];
-
-  for (const { experience, strategyId, marketHours } of specs) {
-    for (const schedule of experience.schedules ?? []) {
-      if (!schedule.symbol || !schedule.cadence) continue;
-      const sourceId = signalSourceId(experience.id, schedule.id);
-      // Deprecated persisted identity only — type "timer" for subscription/
-      // fan-out compat. SessionScheduler owns cadence; never start as a source.
-      if (!input.sourcesRepo.get(sourceId)) {
-        input.sourcesRepo.create({
-          id: sourceId,
-          type: "timer",
-          name: scheduleDisplayName(schedule),
-          description: `${experience.displayName} schedule identity (SessionScheduler)`,
-          enabled: schedule.enabledByDefault,
-          experienceId: experience.id,
-          instrumentClass: schedule.instrumentClass,
-          pollCadence: schedule.cadence,
-          analysisTimeframe: schedule.defaultAnalysisTimeframe,
-          pipelineId: experience.pipelineId,
-          configJson: JSON.stringify({
-            signalId: schedule.id,
-            symbol: schedule.symbol,
-            cadence: schedule.cadence,
-            pollCadence: schedule.cadence,
-            analysisTimeframe: schedule.defaultAnalysisTimeframe,
-            instrumentClass: schedule.instrumentClass,
-          }),
-        });
-      }
-
-      input.scheduler.register(
-        createRulesScheduledScan({
-          id: sourceId,
-          experienceId: experience.id,
-          strategyId,
-          symbol: schedule.symbol,
-          instrumentClass: schedule.instrumentClass,
-          analysisTimeframe: schedule.defaultAnalysisTimeframe ?? "1h",
-          schedule: {
-            cadence: schedule.cadence,
-            marketHours: schedule.marketHours ?? marketHours,
-            jitterPct: 0.05,
-          },
-          getBars: async (symbol, tf, count) =>
-            input.marketData.getBars({
-              symbol,
-              instrumentClass: schedule.instrumentClass,
-              timeframe: asTradingTimeframe(tf),
-              barCount: count,
-            }),
-        }),
-      );
-    }
-  }
-}
 
 async function seedEnvBackedAccountSecrets(
   repos: AppServices["repos"],

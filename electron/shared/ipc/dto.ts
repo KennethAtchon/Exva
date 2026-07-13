@@ -48,8 +48,6 @@ export interface SessionSummary {
     analysisTimeframe?: string | null;
     configJson?: string;
   }>;
-  /** Soonest next scheduled timer-source fire (ISO), or null if none running. */
-  nextTimerFireAt: string | null;
   readiness:
     | "armed"
     | "manual_only"
@@ -81,13 +79,8 @@ export interface ExperienceSummary {
     timeframePresetId: string;
   };
   capabilities: ExperienceCapabilities;
-  /** Schedule identities (rules experiences); empty for event-driven experiences. */
-  schedules?: Array<{
-    id: string;
-    symbol: string;
-    cadence: string;
-    instrumentClass: string;
-  }>;
+  /** True for scan_hit experiences (rules/options); false for event-driven. */
+  acceptsScanHit: boolean;
 }
 
 export interface ExperienceScorecardSummary {
@@ -145,7 +138,6 @@ export interface SessionCreateInput {
   brokerOverridesByInstrumentClass?: Partial<
     Record<InstrumentClass, string | null>
   >;
-  subscribedSourceIds?: string[];
 }
 
 export interface StrategyGetResponse {

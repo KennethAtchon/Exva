@@ -85,13 +85,11 @@ describe("taskBoundaryCheck", () => {
     });
   });
 
-  it("requires instrument scope when no signal sources are subscribed", async () => {
+  it("requires instrument scope for scan_hit experiences with no scope", async () => {
+    // rules-breakout uses scan_hit (no signal source types) so scope is required.
     const result = await taskBoundaryCheck(
-      { ...baseSession, instrumentScope: "" } as never,
+      { ...baseSession, instrumentScope: "", experienceId: "rules-breakout" } as never,
       {
-        signalSourcesRepo: {
-          subscribedSourceTypesForSession: () => [],
-        },
         sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
         sessionBrokerAssignmentsRepo: {
           listBrokerAccountIds: () => ["broker-1"],
@@ -112,13 +110,11 @@ describe("taskBoundaryCheck", () => {
     });
   });
 
-  it("does not require instrument scope for deprecated web_search-only sessions", async () => {
+  it("does not require instrument scope for event-driven experience sessions", async () => {
+    // edgar-catalyst uses edgar_8k sources which are self-describing (no scope needed).
     const result = await taskBoundaryCheck(
-      { ...baseSession, instrumentScope: "" } as never,
+      { ...baseSession, instrumentScope: "", experienceId: "edgar-catalyst" } as never,
       {
-        signalSourcesRepo: {
-          subscribedSourceTypesForSession: () => ["web_search"],
-        },
         sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
         sessionBrokerAssignmentsRepo: {
           listBrokerAccountIds: () => ["broker-1"],

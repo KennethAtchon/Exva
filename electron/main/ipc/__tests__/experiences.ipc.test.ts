@@ -26,7 +26,7 @@ describe("experiences IPC", () => {
       capabilities: {
         signalSourceTypes: string[];
       };
-      schedules?: Array<{ id: string; symbol: string }>;
+      acceptsScanHit: boolean;
     }>;
 
     expect(experiences).toHaveLength(6);
@@ -44,16 +44,17 @@ describe("experiences IPC", () => {
     for (const experience of experiences) {
       expect(experience.id).toEqual(expect.any(String));
       expect(experience.pipelineId).toEqual(expect.any(String));
-      const hasSignals = experience.capabilities.signalSourceTypes.length > 0;
-      const hasSchedules = (experience.schedules?.length ?? 0) > 0;
-      expect(hasSignals || hasSchedules).toBe(true);
+      const hasSignalSources =
+        experience.capabilities.signalSourceTypes.length > 0;
+      expect(hasSignalSources || experience.acceptsScanHit).toBe(true);
     }
 
     const meanRev = experiences.find((e) => e.id === "rules-mean-reversion");
     expect(meanRev?.capabilities.signalSourceTypes).toEqual([]);
-    expect(meanRev?.schedules?.map((s) => s.id)).toEqual([
-      "spy-15m-meanrev",
-      "qqq-15m-meanrev",
-    ]);
+    expect(meanRev?.acceptsScanHit).toBe(true);
+
+    const edgar = experiences.find((e) => e.id === "edgar-catalyst");
+    expect(edgar?.capabilities.signalSourceTypes).toEqual(["edgar_8k"]);
+    expect(edgar?.acceptsScanHit).toBe(false);
   });
 });

@@ -25,7 +25,6 @@ describe("SignalSourceRegistry", () => {
       new SignalEventsRepo(db),
       new SignalDeliveriesRepo(db),
       new SignalDeadLettersRepo(db),
-      new SignalSourcesRepo(db),
       { get: () => null, getStatus: () => "active" } as never,
       { listBrokerAccountIds: () => [] } as never,
       { get: () => null } as never,
@@ -33,33 +32,13 @@ describe("SignalSourceRegistry", () => {
       new EventBus(),
       new InstrumentNormalizer(),
     );
+    bus.setSubscriptionFanoutResolver({
+      resolveEventFanout: () => [],
+      resolveScheduledFanout: () => [],
+    } as never);
     return new SignalSourceRegistry(db, bus);
   }
 
-  it("loads deprecated timer as a non-emitting schedule identity stub", async () => {
-    const registry = createRegistry();
-    const record = new SignalSourcesRepo(db).create({
-      id: "timer-runtime",
-      type: "timer",
-      name: "Timer",
-      description: null,
-      enabled: true,
-      configJson: JSON.stringify({ symbol: "SPY", cadence: "15m" }),
-    });
-
-    registry.create(record);
-    await registry.start(record.id);
-
-    expect(registry.status(record.id)).toMatchObject({ status: "idle" });
-    expect(await registry.test(record.id)).toMatchObject({
-      passed: 0,
-      errors: expect.arrayContaining([expect.stringMatching(/schedule/i)]),
-    });
-    expect(registry.snapshot(record.id)?.lastSignalTicker).toBeNull();
-
-    await registry.stop(record.id);
-    expect(registry.status(record.id)?.status).toBe("paused");
-  });
 
   it("restarts sources with updated config", async () => {
     const registry = createRegistry();

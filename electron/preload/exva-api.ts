@@ -400,13 +400,6 @@ export interface ExvaApi {
     replaySignalDeadLetter(input: {
       deadLetterId: string;
     }): Promise<{ deliveryId: string }>;
-    getSessionSubscriptions(
-      sessionId: string,
-    ): Promise<{ sourceIds: string[] }>;
-    setSessionSubscriptions(input: {
-      sessionId: string;
-      sourceIds: string[];
-    }): Promise<{ ok: true }>;
     getSessionReadiness(input: {
       sessionId: string;
       instrumentScope: string;
@@ -614,5 +607,61 @@ export interface ExvaApi {
       name: K,
       handler: (payload: ExvaEventMap[K]) => void,
     ): () => void;
+  };
+  experienceCatalog: {
+    listTemplates(): Promise<{
+      templates: import("@electron/shared/domain/experience-inputs/catalog").ExperienceTemplateSummary[];
+    }>;
+    getConfigurationOptions(input: {
+      templateId: string;
+      templateVersion?: number;
+    }): Promise<
+      import("@electron/shared/domain/experience-inputs/catalog").TemplateConfigurationOptions
+    >;
+    validateDraft(
+      input: import("@electron/shared/domain/experience-inputs/catalog").SessionConfigurationDraft,
+    ): Promise<
+      import("@electron/shared/domain/experience-inputs/validation-result").SessionDraftValidation
+    >;
+  };
+  instrumentSets: {
+    list(): Promise<{
+      sets: import("@electron/shared/domain/experience-inputs/catalog").InstrumentSetRevision[];
+    }>;
+    get(input: { setId: string }): Promise<{
+      set: import("@electron/shared/domain/experience-inputs/catalog").InstrumentSetRevision;
+    }>;
+    createRevision(input: {
+      setId?: string;
+      name: string;
+      instrumentClass: InstrumentClass;
+      members: Array<{
+        canonicalId: string;
+        displaySymbol: string;
+        venue?: string | null;
+      }>;
+    }): Promise<{
+      set: import("@electron/shared/domain/experience-inputs/catalog").InstrumentSetRevision;
+    }>;
+  };
+  sourceDefinitions: {
+    list(): Promise<{
+      sources: import("@electron/shared/domain/experience-inputs/catalog").SourceDefinition[];
+    }>;
+    get(input: { id: string }): Promise<{
+      source: import("@electron/shared/domain/experience-inputs/catalog").SourceDefinition;
+    }>;
+  };
+  sessionInputs: {
+    get(input: { sessionId: string }): Promise<
+      import("@electron/shared/domain/experience-inputs/subscription").SessionInputConfiguration
+    >;
+    replace(input: {
+      sessionId: string;
+      inputRevision: number;
+      subscriptions: import("@electron/shared/domain/experience-inputs/subscription").SessionInputSubscriptionDraft[];
+    }): Promise<
+      import("@electron/shared/domain/experience-inputs/subscription").SessionInputConfiguration
+    >;
   };
 }

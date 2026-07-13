@@ -1,5 +1,6 @@
 import type { WorkspaceSession } from "@/lib/types";
 import { sessionRequiresInstrumentScope } from "@electron/shared/domain";
+import { listExperiences } from "@electron/main/experiences";
 import { resolveSessionInstrumentClasses } from "../effective-instrument-classes";
 import type { OrchestratorDeps } from "../session-types";
 import type { PreflightStepFailure } from "../session-types";
@@ -31,10 +32,10 @@ export async function taskBoundaryCheck(
       message: "At least one instrument class is required.",
     };
   }
-  const subscribedSourceTypes =
-    deps.signalSourcesRepo.subscribedSourceTypesForSession(session.id);
+  const experience = listExperiences().find((e) => e.id === session.experienceId);
+  const experienceSourceTypes = experience?.capabilities.signalSourceTypes ?? [];
   const requiresInstrumentScope = sessionRequiresInstrumentScope(
-    subscribedSourceTypes.map((type) => ({ type })),
+    experienceSourceTypes.map((type) => ({ type })),
   );
   if (requiresInstrumentScope && !session.instrumentScope.trim()) {
     return {

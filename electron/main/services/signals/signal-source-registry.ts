@@ -72,63 +72,6 @@ class DeprecatedWebSearchStub implements ISignalSource {
   }
 }
 
-/**
- * DB-compat stub for deprecated `timer` rows (schedule identity). Never emits;
- * SessionScheduler owns cadence. New creates are blocked in createSource.
- */
-class DeprecatedTimerStub implements ISignalSource {
-  readonly type = "timer" as const;
-  status: SignalSourceRuntimeStatus = "idle";
-  lastError: string | null =
-    "timer is a schedule identity, not a runnable signal source";
-
-  constructor(public readonly id: string) {}
-
-  async start(): Promise<void> {
-    this.status = "idle";
-    this.lastError =
-      "timer rows are schedule identities; SessionScheduler owns cadence";
-  }
-
-  async stop(): Promise<void> {
-    this.status = "paused";
-  }
-
-  async restart(_config: Record<string, unknown>): Promise<void> {
-    void _config;
-    await this.start();
-  }
-
-  async test(): Promise<PollResult> {
-    return {
-      detected: 0,
-      passed: 0,
-      dropped: 0,
-      errors: [this.lastError ?? "timer is a schedule, not a source"],
-    };
-  }
-
-  snapshot(): SignalSourceSnapshot {
-    return {
-      lastPollAt: null,
-      lastPollResult: null,
-      lastSignalAt: null,
-      lastSignalTicker: null,
-      recentActivity: [],
-    };
-  }
-
-  onSignal(handler: (event: SignalEvent) => void): void {
-    void handler;
-  }
-  offSignal(handler: (event: SignalEvent) => void): void {
-    void handler;
-  }
-
-  configuredInstrumentClasses(): InstrumentClass[] {
-    return [];
-  }
-}
 
 export class SignalSourceRegistry {
   private readonly sources = new Map<string, ISignalSource>();
@@ -211,9 +154,6 @@ export class SignalSourceRegistry {
     }
     if (record.type === "mock") {
       return new MockSignalSource(record.id, record.configJson);
-    }
-    if (record.type === "timer") {
-      return new DeprecatedTimerStub(record.id);
     }
     if (record.type === "prediction_event") {
       return new PredictionEventSignalSource(record.id, record.configJson);

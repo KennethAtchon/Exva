@@ -33,20 +33,5 @@ export const RULES_BREAKOUT_EXPERIENCE: ExperienceDescriptor = {
     },
     costs: { spreadBps: 5, slippageBps: 8, commissionBps: 10 },
   },
-  signals: [],
-  schedules: [
-    {
-      id: "btc-1h-breakout",
-      instrumentClass: "crypto",
-      symbol: "BTC-USD",
-      cadence: "1h",
-      defaultAnalysisTimeframe: "4h",
-      enabledByDefault: true,
-      marketHours: "24_7",
-      mockFixtures: {
-        defaultScenario: "clean_breakout",
-        scriptedWorkerOutputs: {},
-      },
-    },
-  ],
+  acceptsScanHit: true,
 };

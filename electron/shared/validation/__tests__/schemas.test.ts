@@ -41,15 +41,6 @@ describe("validation schemas", () => {
     ).toThrow();
   });
 
-  it("accepts multiple signal subscriptions on session create", () => {
-    expect(
-      sessionCreateInputSchema.parse({
-        ...validSessionCreate,
-        subscribedSourceIds: ["a", "b"],
-      }),
-    ).toMatchObject({ subscribedSourceIds: ["a", "b"] });
-  });
-
   it("coerces workspace prefs patch and rejects unknown fields", () => {
     expect(
       workspacePrefsPatchSchema.parse({ globalIncludeArchived: true }),

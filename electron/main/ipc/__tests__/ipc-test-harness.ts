@@ -6,7 +6,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { InstrumentClass } from "@/lib/types";
-import { sessionRequiresInstrumentScope } from "@electron/shared/domain";
 import { createTestDb } from "../../db/test-helpers";
 import type { DbClient } from "../../db/client";
 import { AgentRunsRepo } from "../../db/repositories/agents/agent-runs-repo";
@@ -164,7 +163,6 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     providerAccountsRepo: repos.providerAccounts,
     workspacePrefsRepo: repos.workspacePreferences,
     sessionAiPhasesRepo: repos.sessionAiPhases,
-    signalSourceTypes: signalSourcesRepo,
   });
 
   const mockAdapter = new MockBrokerAdapter();
@@ -283,7 +281,6 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     trades: repos.trades,
     runtimeManager,
     signalSources: signalSourcesRepo,
-    signalRegistry: { snapshot: () => null } as never,
     brokerAccounts: repos.brokerAccounts,
   });
 
@@ -294,19 +291,6 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     assignments: repos.sessionBrokerAssignments,
     brokerRouting: repos.brokerRouting,
     brokerAccounts: repos.brokerAccounts,
-    signals: {
-      replaceSessionSubscriptions: (sessionId, sourceIds) => {
-        signalSourcesRepo.replaceSessionSubscriptions(sessionId, sourceIds);
-      },
-      requiresInstrumentScopeForSourceIds: (sourceIds) => {
-        const subscribedSources = sourceIds.flatMap((sourceId) => {
-          const source = signalSourcesRepo.get(sourceId);
-          return source ? [{ type: source.type }] : [];
-        });
-        return sessionRequiresInstrumentScope(subscribedSources);
-      },
-      getSource: (sourceId) => signalSourcesRepo.get(sourceId),
-    },
   });
 
   const paperScorecard = new PaperScorecardService({
@@ -388,23 +372,40 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     } as unknown as AppServices["liveReadiness"],
     tradeAutopsy: {} as AppServices["tradeAutopsy"],
     autopsyExport: {} as AppServices["autopsyExport"],
-    signals: {
-      ensureAllExperienceSignalSources: () => [],
-    } as unknown as AppServices["signals"],
-    sessionScheduler: {
-      start: () => undefined,
-      stop: () => undefined,
-      register: () => undefined,
-      unregister: () => undefined,
-      snapshot: () => [],
-      getTelemetry: () => null,
-      fireNow: async () => null,
-    } as unknown as AppServices["sessionScheduler"],
+    signals: {} as unknown as AppServices["signals"],
     controlRepo: {} as AppServices["controlRepo"],
     control: {} as AppServices["control"],
     ladderStates: new Map(),
     approveLadderUpgrade: () => null,
     tickLadderAutomation: () => undefined,
+    experienceTemplateService: {
+      listTemplates: () => [],
+    } as unknown as AppServices["experienceTemplateService"],
+    instrumentSetService: {
+      list: () => [],
+      getActive: () => null,
+      getRevision: () => null,
+      createRevision: () => { throw new Error("not implemented in test harness"); },
+    } as unknown as AppServices["instrumentSetService"],
+    sourceDefinitionService: {
+      list: () => [],
+      get: () => null,
+    } as unknown as AppServices["sourceDefinitionService"],
+    sessionInputConfiguration: {
+      getConfiguration: () => null,
+      getConfigurationOptions: () => ({ subscriptions: [] }),
+      validateDraft: () => ({ valid: true, errors: [] }),
+      replaceInputs: () => { throw new Error("not implemented in test harness"); },
+      createFromProfile: () => undefined,
+    } as unknown as AppServices["sessionInputConfiguration"],
+    scheduleCoordinator: {
+      reconcile: () => undefined,
+      start: () => undefined,
+      stop: () => undefined,
+      snapshot: () => [],
+      getTelemetry: () => null,
+      fireNow: async () => null,
+    } as unknown as AppServices["scheduleCoordinator"],
   };
 
   function configureAiProvider(sessionId?: string) {

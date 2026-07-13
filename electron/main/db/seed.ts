@@ -13,6 +13,8 @@ import {
   builtInTradeRulePresets,
 } from "@electron/shared/presets";
 import * as schema from "./schema";
+import type { DbClient } from "./client";
+import { seedExperienceCatalog } from "../services/experience-catalog/seed-experience-catalog";
 
 export const SEEDED_OPENROUTER_PROVIDER_ID = "seed-openrouter";
 export const SEEDED_OPENROUTER_SECRET_REF = "provider:seed-openrouter";
@@ -20,7 +22,10 @@ export const SEEDED_ALPACA_BROKER_ID = "seed-alpaca-paper";
 export const SEEDED_ALPACA_SECRET_REF = "broker:seed-alpaca-paper";
 
 /** Idempotent defaults applied after Drizzle SQL migrations (workspace row, built-in search provider). */
-export function runSeed(db: BetterSQLite3Database<typeof schema>): void {
+export function runSeed(
+  db: BetterSQLite3Database<typeof schema>,
+  dbClient?: DbClient,
+): void {
   const builtIn = buildBuiltInDuckDuckGoProviderAccount();
   const openRouterKey = env.openRouterKey;
   const openRouterModel = env.openRouterModel;
@@ -191,5 +196,9 @@ export function runSeed(db: BetterSQLite3Database<typeof schema>): void {
       })
       .onConflictDoNothing()
       .run();
+  }
+
+  if (dbClient) {
+    seedExperienceCatalog(dbClient);
   }
 }

@@ -1,4 +1,3 @@
-import type { DbClient } from "../../db/client";
 import type { SourceDefinition } from "@electron/shared/domain/experience-inputs/catalog";
 import type { LiveSignalSourceType } from "@electron/shared/domain/signals";
 import { SourceDefinitionRepo } from "./source-definition-repo";
@@ -35,12 +34,4 @@ export class SourceDefinitionService {
   seed(): void {
     seedSourceDefinitions(this.repo);
   }
-}
-
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
-
-export function createSourceDefinitionService(db: DbClient): SourceDefinitionService {
-  return new SourceDefinitionService(new SourceDefinitionRepo(db));
 }

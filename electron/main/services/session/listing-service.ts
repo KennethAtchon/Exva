@@ -15,7 +15,6 @@ import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session
 import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { SessionRuntimeManager } from "./session-runtime-manager";
 import type { SignalSourcesRepo } from "../signals/repos/signal-sources-repo";
-import type { SignalSourceRegistry } from "../signals/signal-source-registry";
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import { requireExperience } from "../../experiences/index";
 import {
@@ -58,11 +57,6 @@ export interface SessionSummaryView {
     analysisTimeframe?: string | null;
     configJson?: string;
   }>;
-  /**
-   * Soonest next scheduled fire across the session's subscribed timer sources,
-   * as an ISO timestamp. null if the session has no running timer sources.
-   */
-  nextTimerFireAt: string | null;
   readiness:
     | "armed"
     | "manual_only"
@@ -88,7 +82,6 @@ export class SessionListingService {
       trades: TradesRepo;
       runtimeManager: SessionRuntimeManager;
       signalSources: SignalSourcesRepo;
-      signalRegistry: SignalSourceRegistry;
       brokerAccounts: BrokerAccountsRepo;
     },
   ) {}
@@ -120,25 +113,15 @@ export class SessionListingService {
           .listOpenAndPending(session.id)
           .filter((trade) => trade.status === "open").length;
         const assignments = this.deps.assignments.listAssignments(session.id);
-        const subscribedSources = this.deps.signalSources
-          .subscribedSourceStatesForSession(session.id)
-          .flatMap(({ sourceId, enabled }) => {
-            const source = this.deps.signalSources.get(sourceId);
-            return source
-              ? [
-                  {
-                    id: source.id,
-                    name: source.name,
-                    type: source.type,
-                    enabled,
-                    pollCadence: source.pollCadence ?? null,
-                    analysisTimeframe: source.analysisTimeframe ?? null,
-                    configJson: source.configJson,
-                  },
-                ]
-              : [];
-          });
-        const nextTimerFireAt = this.soonestTimerFireAt(subscribedSources);
+        const subscribedSources: Array<{
+          id: string;
+          name: string;
+          type: import("@electron/shared/domain").SignalSourceType;
+          enabled: boolean;
+          pollCadence?: string | null;
+          analysisTimeframe?: string | null;
+          configJson?: string;
+        }> = [];
         const inputModel = deriveSessionInputModel({
           subscribedSources,
           instrumentScope: session.instrumentScope,
@@ -202,7 +185,6 @@ export class SessionListingService {
           uptimeMin: this.computeUptimeMin(session.id),
           updatedAt: session.updatedAt,
           subscribedSources,
-          nextTimerFireAt,
           readiness,
           inputModel,
           rehearsalMode,
@@ -217,27 +199,6 @@ export class SessionListingService {
       focusedSessionId: focused?.id ?? null,
       sessions,
     };
-  }
-
-  /**
-   * Soonest non-null nextFireAt across the session's subscribed timer sources.
-   * Only the timer source type reports nextFireAt; others return null.
-   */
-  private soonestTimerFireAt(
-    subscribedSources: Array<{ id: string; type: string }>,
-  ): string | null {
-    let soonestMs: number | null = null;
-    for (const source of subscribedSources) {
-      if (source.type !== "timer") continue;
-      const nextFireAt = this.deps.signalRegistry.snapshot(
-        source.id,
-      )?.nextFireAt;
-      if (!nextFireAt) continue;
-      const ms = Date.parse(nextFireAt);
-      if (Number.isNaN(ms)) continue;
-      if (soonestMs === null || ms < soonestMs) soonestMs = ms;
-    }
-    return soonestMs === null ? null : new Date(soonestMs).toISOString();
   }
 
   computeUptimeMin(sessionId: string): number {

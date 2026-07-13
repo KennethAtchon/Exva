@@ -62,7 +62,7 @@ describe("mock-rehearsal", () => {
   it("requires experience mock capability", () => {
     expect(
       sessionEligibleForMockRehearsal({
-        experience: { signalSourceTypes: ["timer"] },
+        experience: { signalSourceTypes: ["manual"] },
         brokerAccounts: [{ id: "mock-a", brokerType: "mock" }],
         brokerAssignmentIds: ["mock-a"],
       }),
