@@ -3,7 +3,7 @@
 > **Last updated:** 2026-07-13 (post finish-line)
 > **Scope:** Main-process AI pipeline execution: registered analyses, AI phases, worker definitions, prompt assembly, tool construction, spend tracking, signal aggregation, selector caching, and trace persistence. Excludes session lifecycle, renderer UI, broker order placement, and trade monitoring except where those systems call the pipeline.
 > **Audience:** Engineers onboarding, reviewers, future maintainers
-> **Related docs:** `docs/architecture/ai-runtime.md`, `docs/folder-structure.md`, `electron/main/services/pipeline/README.md`, `docs/plans/finish-line/00-INDEX.md`
+> **Related docs:** `docs/architecture/ai-runtime.md`, `docs/folder-structure.md`, `electron/main/services/pipeline/README.md`, `docs/attic/finish-line/00-INDEX.md`
 
 ---
 

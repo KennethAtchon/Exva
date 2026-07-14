@@ -1,7 +1,7 @@
 # Exva 50 → 100: Full-System Rearchitecture & Brainstorm — Deep Plan
 
 > **Date:** 2026-07-11  
-> **Status:** Executed in full via finish-line/ — 2026-07-13 (**code complete**; acceptance pending Ken litmus / 7-day soak / real-broker keys). Phases 0–5 + finish-line docs 01–09 implemented in tree. See `docs/plans/finish-line/00-INDEX.md` for per-doc status.  
+> **Status:** Archived reference. Finish-line implementation audited 2026-07-13 and found incomplete/unsafe. Execution record: `docs/attic/finish-line/`. Active repairs: `docs/plans/finish-line-fix-up.md`.
 > **Owner:** Kenneth Atchon
 > **Audience:** Ken + implementing engineers/agents
 > **Scope:** The entire Exva codebase — signal architecture (primary), pipeline, brokers, risk, research loop, autonomy, UI, and the delete list. This is the "what would it take to make this an actual hands-free money-printing tool" document.

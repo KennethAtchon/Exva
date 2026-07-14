@@ -3,7 +3,7 @@
 > **Last updated:** 2026-07-13 (post finish-line)
 > **Scope:** Main-process runtime from session start through selector/trade analysis, approval, broker placement, monitoring, persistence, events, and observability. Includes how the runtime calls the LLM/pipeline layer (see also `docs/architecture/pipeline-runtime.md` for pipeline internals). Excludes renderer component design and broker-adapter implementation details.
 > **Audience:** Engineers onboarding, reviewers, future maintainers
-> **Related:** `docs/plans/finish-line/00-INDEX.md`
+> **Related:** `docs/attic/finish-line/00-INDEX.md`
 
 ---
 
