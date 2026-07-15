@@ -131,6 +131,49 @@ describe("SupervisorService alarms", () => {
     ).toBe(true);
   });
 
+  it("raises only one deduplicated alarm when multiple feeds in a session degrade in the same tick", async () => {
+    const { supervisor } = makeSupervisor();
+    supervisor.recordFeedHealth({
+      feedId: "alpaca-orders",
+      healthy: false,
+      detail: "reconnect storm",
+      sessionId: "s1",
+    });
+    supervisor.recordFeedHealth({
+      feedId: "kraken-orders",
+      healthy: false,
+      detail: "protocol ack timeout",
+      sessionId: "s1",
+    });
+    await supervisor.tick();
+
+    const feedAlarms = supervisor
+      .getAlarms()
+      .filter(
+        (a) => a.kind === "websocket_feed_degraded" && a.sessionId === "s1",
+      );
+    expect(feedAlarms).toHaveLength(1);
+  });
+
+  it("does not re-raise a feed-degraded alarm within the dedupe window on the next tick", async () => {
+    const { supervisor } = makeSupervisor();
+    supervisor.recordFeedHealth({
+      feedId: "alpaca-orders",
+      healthy: false,
+      detail: "reconnect storm",
+      sessionId: "s1",
+    });
+    await supervisor.tick();
+    await supervisor.tick();
+
+    const feedAlarms = supervisor
+      .getAlarms()
+      .filter(
+        (a) => a.kind === "websocket_feed_degraded" && a.sessionId === "s1",
+      );
+    expect(feedAlarms).toHaveLength(1);
+  });
+
   it("raises backup_failed", async () => {
     const { supervisor } = makeSupervisor();
     await supervisor.raiseBackupFailed("disk full");

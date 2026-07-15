@@ -123,14 +123,16 @@ export class KillSwitchService {
       const result = await this.cancelPendingTrade(trade);
       if (result === "canceled") canceled.push(trade.id);
       else if (result === "attention") attentionRequired.push(trade.id);
-      else if (result.error) failed.push({ tradeId: trade.id, error: result.error });
+      else if (result.error)
+        failed.push({ tradeId: trade.id, error: result.error });
     }
 
     for (const trade of open) {
       const result = await this.liquidateOpenTrade(trade);
       if (result === "closed") closed.push(trade.id);
       else if (result === "attention") attentionRequired.push(trade.id);
-      else if (result.error) failed.push({ tradeId: trade.id, error: result.error });
+      else if (result.error)
+        failed.push({ tradeId: trade.id, error: result.error });
     }
 
     const complete =

@@ -16,16 +16,16 @@ Use port **8767** deliberately — other ports may be stale from prior sessions.
 
 ## Structure
 
-| Path | Description |
-|------|-------------|
-| `index.html` | Gallery shell — variant picker, D/S screens, keyboard nav |
-| `contrast-check.html` | WCAG contrast validation for §2 palette |
-| `skin.css` | Shared design system (tokens, tables, cmd menu, etc.) |
-| `data.js` | `EXVA_MOCK` fixture data and render helpers |
-| `p1-linear-core/` | 220px sidebar + page-push detail |
-| `p2-command-surface/` | No sidebar, ⌘K navigation, inline expand |
-| `p3-ops-console/` | Sidebar + view tabs + 380px inspector **(recommended)** |
-| `p4-board-workspace/` | 56px icon rail + grouped sections + slide-over |
+| Path                  | Description                                               |
+| --------------------- | --------------------------------------------------------- |
+| `index.html`          | Gallery shell — variant picker, D/S screens, keyboard nav |
+| `contrast-check.html` | WCAG contrast validation for §2 palette                   |
+| `skin.css`            | Shared design system (tokens, tables, cmd menu, etc.)     |
+| `data.js`             | `EXVA_MOCK` fixture data and render helpers               |
+| `p1-linear-core/`     | 220px sidebar + page-push detail                          |
+| `p2-command-surface/` | No sidebar, ⌘K navigation, inline expand                  |
+| `p3-ops-console/`     | Sidebar + view tabs + 380px inspector **(recommended)**   |
+| `p4-board-workspace/` | 56px icon rail + grouped sections + slide-over            |
 
 ## Keyboard shortcuts (gallery)
 

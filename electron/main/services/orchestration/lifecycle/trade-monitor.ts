@@ -138,8 +138,8 @@ export class TradeMonitor {
       try {
         const feed = await this.ensureOrderEventFeed(brokerAccountId, orderIds);
         if (!this.feedHandlerUnsubs.has(brokerAccountId)) {
-          const unsub = feed.onEvent((event) =>
-            this.onOrderEvent(brokerAccountId, event),
+          const unsub = feed.onEvent(
+            (event) => void this.onOrderEvent(brokerAccountId, event),
           );
           this.feedHandlerUnsubs.set(brokerAccountId, unsub);
         }
@@ -152,12 +152,25 @@ export class TradeMonitor {
     }
   }
 
-  private onOrderEvent(brokerAccountId: string, event: OrderEvent): void {
+  /**
+   * React to a terminal order-lifecycle push (fill/cancel/reject) the moment
+   * it arrives instead of waiting for the next poll tick's `getOrderStatus`
+   * fallback (previously the only path that ever closed a trade this way).
+   * `event.brokerOrderId` is the *entry* order this app placed — a terminal
+   * event on it while the trade is still `open` means the broker closed the
+   * position out-of-band (bracket/stop, expiration, liquidation, etc.), so
+   * we confirm via `getOrderStatus` and close immediately, tagged
+   * `closureSource: "stream"` so it's distinguishable from a poll-detected
+   * close in trade history.
+   */
+  private async onOrderEvent(
+    brokerAccountId: string,
+    event: OrderEvent,
+  ): Promise<void> {
     if (
       event.kind !== "fill" &&
       event.kind !== "canceled" &&
-      event.kind !== "rejected" &&
-      event.kind !== "partial_fill"
+      event.kind !== "rejected"
     ) {
       return;
     }
@@ -173,8 +186,38 @@ export class TradeMonitor {
       },
       "order event feed update",
     );
-    // Terminal fill/cancel/reject: nudge a re-check via the next poll tick's
-    // getOrderStatus path. We do not close here to avoid racing exit policy.
+
+    const trade = this.tradesRepo.findOpenByBrokerOrderId(
+      brokerAccountId,
+      event.brokerOrderId,
+    );
+    if (!trade) return;
+
+    try {
+      const adapter = await this.brokerRegistry.get(brokerAccountId);
+      const status = await adapter.getOrderStatus(event.brokerOrderId);
+      if (status.status !== "closed") return;
+      // Re-fetch: the poll tick may have raced us and already closed this trade.
+      const fresh = this.tradesRepo.find(trade.id);
+      if (!fresh || fresh.status !== "open") return;
+      this.closeTrade(
+        trade.id,
+        status.realizedPnlUsd ?? 0,
+        "broker_closed",
+        status.latestPrice ?? undefined,
+        "stream",
+      );
+    } catch (err) {
+      logger.warn(
+        {
+          err,
+          sessionId: this.sessionId,
+          brokerAccountId,
+          brokerOrderId: event.brokerOrderId,
+        },
+        "failed to process terminal order stream event",
+      );
+    }
   }
 
   private async tick(): Promise<void> {
@@ -301,6 +344,7 @@ export class TradeMonitor {
               status.realizedPnlUsd ?? 0,
               "broker_closed",
               currentPrice,
+              "poll",
             );
           }
         },
@@ -417,6 +461,7 @@ export class TradeMonitor {
     pnl: number,
     exitReason?: string,
     exitPrice?: number,
+    closureSource?: "stream" | "poll",
   ) {
     const current = this.tradesRepo.require(tradeId);
     if (
@@ -465,6 +510,7 @@ export class TradeMonitor {
       "closed",
       pnl,
       exitReason,
+      closureSource,
     );
     this.capitalReservation.releaseOnClose(tradeId);
     this.eventBus.emit("trade_closed", closed);

@@ -114,6 +114,25 @@ export class TradesRepo {
     return Number(row?.count ?? 0) > 0;
   }
 
+  /** Open trade matching a broker order id — used by stream-driven closure to jump straight to the trade a terminal event refers to. */
+  findOpenByBrokerOrderId(
+    brokerAccountId: string,
+    brokerOrderId: string,
+  ): Trade | null {
+    const row = this.client.db
+      .select()
+      .from(trades)
+      .where(
+        and(
+          eq(trades.brokerAccountId, brokerAccountId),
+          eq(trades.brokerOrderId, brokerOrderId),
+          eq(trades.status, "open"),
+        ),
+      )
+      .get();
+    return row ? toTrade(row) : null;
+  }
+
   findOpenTradeOnBroker(
     brokerAccountId: string,
     instrumentSymbol: string,
@@ -222,6 +241,7 @@ export class TradesRepo {
     status: TradeStatus,
     finalPnlUsd: number | null = null,
     exitReason?: string,
+    closureSource?: "stream" | "poll",
   ): Trade {
     const current = this.require(id);
     const now = new Date().toISOString();
@@ -235,6 +255,7 @@ export class TradesRepo {
             : current.closed_at,
         finalPnlUsd: finalPnlUsd ?? current.final_pnl_usd,
         ...(exitReason != null ? { exitReason } : {}),
+        ...(closureSource != null ? { closureSource } : {}),
       })
       .where(eq(trades.id, id))
       .run();

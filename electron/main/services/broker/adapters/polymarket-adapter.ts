@@ -41,6 +41,7 @@ import {
   DEFAULT_PAPER_STARTING_BALANCE_USD,
   type PaperBalancesRepo,
 } from "../../../db/repositories/brokers/paper-balances-repo";
+import type { PaperPositionsRepo } from "../../../db/repositories/brokers/paper-positions-repo";
 
 const logger = createLogger("polymarket-adapter");
 
@@ -63,6 +64,13 @@ type GhostPosition = {
 export type PolymarketAdapterOptions = {
   accountId?: string;
   paperBalances?: PaperBalancesRepo;
+  /**
+   * Persisted ghost position store. When set alongside `accountId`, ghost
+   * positions survive an adapter rebuild (app restart): an order id absent
+   * from the in-memory map is rehydrated from this repo before being treated
+   * as unknown/closed.
+   */
+  paperPositions?: PaperPositionsRepo;
   /** Starting balance when no persisted row yet (tests / ephemeral). */
   startingPaperBalanceUsd?: number;
   /** Parity-check failure hook (registry wires to supervisor). */
@@ -105,6 +113,7 @@ export class PolymarketAdapter
   private memoryPaperBalanceUsd: number;
   private readonly accountId: string | undefined;
   private readonly paperBalances: PaperBalancesRepo | undefined;
+  private readonly paperPositions: PaperPositionsRepo | undefined;
   private readonly onParityWarning:
     | ((message: string, details: Record<string, unknown>) => void)
     | undefined;
@@ -117,6 +126,7 @@ export class PolymarketAdapter
   ) {
     this.accountId = options?.accountId;
     this.paperBalances = options?.paperBalances;
+    this.paperPositions = options?.paperPositions;
     this.onParityWarning = options?.onParityWarning;
     this.memoryPaperBalanceUsd =
       options?.startingPaperBalanceUsd ?? DEFAULT_PAPER_STARTING_BALANCE_USD;
@@ -202,20 +212,99 @@ export class PolymarketAdapter
   async placeOrderV2(order: BrokerOrderV2): Promise<BrokerOrderResult> {
     const check = adapterSupportsOrder(this.capabilities, order);
     if (!check.ok) {
-      throw new Error(`Polymarket rejects order: ${check.reason}`);
+      throw new AppError(
+        `Polymarket rejects order: ${check.reason}`,
+        "BROKER_REJECTED",
+      );
     }
-    if (
-      order.orderType === "market" &&
-      order.quantity.kind === "notional_usd"
-    ) {
-      return this.placeOrder(lowerBrokerOrderV2ToV1(order));
+    if (order.orderType === "market") {
+      if (order.quantity.kind === "notional_usd") {
+        return this.placeOrder(lowerBrokerOrderV2ToV1(order));
+      }
+      return this.placeMarketUnitsOrderV2(order);
     }
-    if (order.orderType === "limit") {
-      return this.placeLimitOrderV2(order);
+    return this.placeLimitOrderV2(order);
+  }
+
+  /**
+   * Market order sized in shares (units) rather than USD notional. Polymarket's
+   * FOK market order takes `amount` in USDC for a BUY but in shares for a SELL,
+   * so a units BUY still needs a live price to convert shares -> USDC budget.
+   */
+  private async placeMarketUnitsOrderV2(
+    order: BrokerOrderV2,
+  ): Promise<BrokerOrderResult> {
+    if (order.instrument.instrumentClass !== "prediction_market") {
+      throw new AppError(
+        "Polymarket adapter supports prediction markets only",
+        "UNSUPPORTED_INSTRUMENT",
+      );
     }
-    throw new Error(
-      `Polymarket placeOrderV2: ${order.orderType}/${order.quantity.kind} not yet wired`,
+    if (!(order.quantity.value > 0)) {
+      throw new AppError(
+        "Polymarket market+units requires a positive units quantity.",
+        "VALIDATION_FAILED",
+      );
+    }
+    const metadata = parsePredictionMetadata(order.instrument.metadataJson);
+
+    if (this.isPaper) {
+      return this.placeGhostOrderV2(order, metadata);
+    }
+
+    const client = await this.getAuthedClient();
+    const price = await this.resolveReferencePrice(
+      client,
+      metadata.outcomeTokenId,
     );
+    const amount =
+      order.side === "BUY"
+        ? Number((order.quantity.value * price).toFixed(6))
+        : order.quantity.value;
+    const tickSize = await this.resolveTickSize(
+      client,
+      metadata.outcomeTokenId,
+    );
+
+    let response: unknown;
+    try {
+      response = await traceBrokerInteraction(
+        this.interactionLogger,
+        "placeOrder_submit",
+        `${order.side}/${metadata.outcomeTokenId}/FOK/units${order.quantity.value}`,
+        () =>
+          client.createAndPostMarketOrder(
+            {
+              tokenID: metadata.outcomeTokenId,
+              side: order.side === "BUY" ? Side.BUY : Side.SELL,
+              amount,
+              price,
+              orderType: OrderType.FOK,
+            },
+            { tickSize },
+            OrderType.FOK,
+          ),
+      );
+    } catch (err) {
+      logger.error(
+        {
+          err,
+          tokenId: metadata.outcomeTokenId,
+          side: order.side,
+          amount,
+          price,
+        },
+        "polymarket placeOrderV2: createAndPostMarketOrder (units) threw",
+      );
+      throw err;
+    }
+
+    const brokerOrderId = extractOrderId(response);
+    logger.info(
+      { brokerOrderId, filledAvgPrice: price },
+      "polymarket placeOrderV2: market+units order accepted",
+    );
+    return { brokerOrderId, filledAvgPrice: price };
   }
 
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
@@ -338,7 +427,7 @@ export class PolymarketAdapter
     if (receipt.status === "filled" && receipt.filledAvgPrice != null) {
       const sizeUsd = receipt.filledQty * receipt.filledAvgPrice;
       if (order.side === "BUY") this.debitPaper(sizeUsd);
-      this.ghostPositions.set(brokerOrderId, {
+      this.setGhostPosition(brokerOrderId, {
         tokenId: metadata.outcomeTokenId,
         conditionId: metadata.conditionId,
         market: metadata.conditionId,
@@ -371,7 +460,7 @@ export class PolymarketAdapter
       order.quantity.kind === "units"
         ? order.quantity.value
         : order.quantity.value / Math.max(estPrice, 0.01);
-    this.ghostPositions.set(brokerOrderId, {
+    this.setGhostPosition(brokerOrderId, {
       tokenId: metadata.outcomeTokenId,
       conditionId: metadata.conditionId,
       market: metadata.conditionId,
@@ -463,13 +552,16 @@ export class PolymarketAdapter
 
   async cancelOrder(brokerOrderId: string): Promise<void> {
     if (this.isPaper) {
+      this.rehydrateGhostPosition(brokerOrderId);
       const canceled = this.ghosts.cancel(brokerOrderId);
       const pos = this.ghostPositions.get(brokerOrderId);
       if (pos?.resting) {
         pos.open = false;
         pos.resting = false;
+        this.persistGhostPosition(brokerOrderId, pos);
       } else if (canceled?.status === "canceled") {
         this.ghostPositions.delete(brokerOrderId);
+        this.paperPositions?.setClosed(brokerOrderId);
       }
       return;
     }
@@ -565,6 +657,7 @@ export class PolymarketAdapter
    * else mark-to-market at last trade. Credits paper balance with proceeds.
    */
   private async closeGhostOrder(orderId: string): Promise<CloseResult> {
+    this.rehydrateGhostPosition(orderId);
     await this.promoteRestingIfFilled(orderId);
     const ghost = this.ghostPositions.get(orderId);
     if (!ghost || !ghost.open || ghost.resting) {
@@ -582,6 +675,7 @@ export class PolymarketAdapter
     const realizedPnlUsd = proceeds - ghost.sizeUsd;
     this.creditPaper(proceeds);
     ghost.open = false;
+    this.paperPositions?.setClosed(orderId);
     logger.info(
       {
         orderId,
@@ -639,6 +733,7 @@ export class PolymarketAdapter
       };
     }
 
+    this.rehydrateGhostPosition(orderId);
     await this.promoteRestingIfFilled(orderId);
 
     const ghost = this.ghostPositions.get(orderId);
@@ -714,6 +809,7 @@ export class PolymarketAdapter
     pos.entryPrice = receipt.filledAvgPrice;
     pos.sizeUsd = sizeUsd;
     pos.open = true;
+    this.persistGhostPosition(orderId, pos);
     logger.info(
       {
         brokerOrderId: orderId,
@@ -722,6 +818,102 @@ export class PolymarketAdapter
       },
       "polymarket ghost: resting limit filled on quote cross",
     );
+  }
+
+  /**
+   * Rehydrate a ghost position from the persisted repo when the in-memory
+   * map lost it (adapter rebuilt after a restart). Also re-seeds a still-
+   * resting order into `this.ghosts` (purely in-memory) with its original
+   * orderType/limitPrice/quantity, so a later quote cross is detected and
+   * debited after the restart too — otherwise a fresh GhostFillSimulator has
+   * no record of the order and treats every poll as a no-op forever. No-op
+   * when the position is already tracked in memory, or when persistence
+   * isn't configured.
+   */
+  private rehydrateGhostPosition(orderId: string): void {
+    if (this.ghostPositions.has(orderId)) return;
+    if (!this.paperPositions) return;
+    const row = this.paperPositions.get(orderId);
+    if (!row || !row.open) return;
+    const metadata = row.metadata as {
+      tokenId?: string;
+      conditionId?: string;
+      orderType?: BrokerOrderV2["orderType"];
+      limitPrice?: number;
+      stopPrice?: number;
+      timeInForce?: BrokerOrderV2["timeInForce"];
+      quantityKind?: "units" | "notional_usd";
+      quantityValue?: number;
+    };
+    const tokenId = metadata.tokenId ?? "";
+    const conditionId = metadata.conditionId ?? null;
+    const order: BrokerOrderV2 = {
+      clientOrderId: orderId,
+      instrument: {
+        symbol: row.instrumentSymbol,
+        instrumentClass: "prediction_market",
+      },
+      side: row.side,
+      quantity: {
+        kind: metadata.quantityKind ?? "units",
+        value: metadata.quantityValue ?? row.shares,
+      },
+      orderType: metadata.orderType ?? "market",
+      timeInForce: metadata.timeInForce ?? "ioc",
+      limitPrice: metadata.limitPrice,
+      stopPrice: metadata.stopPrice,
+    };
+    this.ghostPositions.set(orderId, {
+      tokenId,
+      conditionId: conditionId ?? "",
+      market: conditionId,
+      side: row.side,
+      sizeUsd: row.sizeUsd,
+      shares: row.shares,
+      entryPrice: row.entryPrice,
+      open: row.open,
+      resting: row.resting,
+      order,
+    });
+    if (row.resting) this.ghosts.restoreResting(orderId, order, row.shares);
+    logger.info(
+      { brokerOrderId: orderId, resting: row.resting },
+      "polymarket ghost: position rehydrated from persisted store after restart",
+    );
+  }
+
+  /** Write-through: update in-memory map and (when configured) persist. */
+  private setGhostPosition(orderId: string, position: GhostPosition): void {
+    this.ghostPositions.set(orderId, position);
+    this.persistGhostPosition(orderId, position);
+  }
+
+  private persistGhostPosition(orderId: string, position: GhostPosition): void {
+    if (!this.paperPositions || !this.accountId) return;
+    this.paperPositions.upsert({
+      brokerOrderId: orderId,
+      accountId: this.accountId,
+      venue: "polymarket",
+      instrumentSymbol: position.market
+        ? `pm:${position.market}`
+        : position.tokenId,
+      side: position.side,
+      shares: position.shares,
+      entryPrice: position.entryPrice,
+      sizeUsd: position.sizeUsd,
+      open: position.open,
+      resting: position.resting,
+      metadata: {
+        tokenId: position.tokenId,
+        conditionId: position.conditionId,
+        orderType: position.order.orderType,
+        limitPrice: position.order.limitPrice,
+        stopPrice: position.order.stopPrice,
+        timeInForce: position.order.timeInForce,
+        quantityKind: position.order.quantity.kind,
+        quantityValue: position.order.quantity.value,
+      },
+    });
   }
 
   createOrderEventFeed(): OrderEventFeed {

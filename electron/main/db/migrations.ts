@@ -47,8 +47,7 @@ export function runMigrations(
 
   const db = drizzle(sqlite, { schema });
   migrate(db, {
-    migrationsFolder:
-      options?.migrationsFolder ?? resolveMigrationsFolder(),
+    migrationsFolder: options?.migrationsFolder ?? resolveMigrationsFolder(),
   });
 
   if (options?.drizzleOnly) {

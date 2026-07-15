@@ -25,6 +25,9 @@ interface BuildOrderPolicyTaskInput {
   placementQuoteSnapshot?: DecisionRiskInput["placementQuoteSnapshot"];
   marketIsOpen?: boolean;
   totalBrokerExposureUsd?: number;
+  /** Both set together: enables the adapter_capabilities gate to reject unsupported order shapes before any broker HTTP call. */
+  orderV2?: PolicyGateInput["orderV2"];
+  adapterCapabilities?: PolicyGateInput["adapterCapabilities"];
 }
 
 export function buildOrderPolicyTask(
@@ -57,5 +60,7 @@ export function buildOrderPolicyTask(
       brokerSupportsClass: input.brokerSupportsClass,
       marketIsOpen: input.marketIsOpen,
     },
+    orderV2: input.orderV2,
+    adapterCapabilities: input.adapterCapabilities,
   };
 }

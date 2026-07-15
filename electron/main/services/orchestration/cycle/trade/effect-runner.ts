@@ -10,6 +10,8 @@ import { createOutcomeError } from "../runtime-outcome";
 import { waitForApproval } from "./approval-flow";
 import { buildOrderPolicyTask } from "./order-policy-task";
 import { placeRoutedOrder } from "./order-placer";
+import { adapterCapabilitiesOf } from "../../../broker/adapters/broker-adapter";
+import { liftBrokerOrderV1ToV2 } from "../../../broker/order-contract-v2";
 import {
   persistTradeAiRuns,
   requirePipelineAiResults,
@@ -165,6 +167,16 @@ export async function placeBrokerOrder(
     ctx.deps.sessionRepo.uptimeMin(ctx.sessionId),
     strategy.riskConfig.maxAiSpendUsd,
   );
+  const orderV2 = liftBrokerOrderV1ToV2({
+    instrumentSymbol: wireSymbol,
+    instrumentDisplayName: context.instrument.instrumentDisplayName,
+    predictionOutcome: context.instrument.predictionOutcome,
+    instrumentMetadataJson: context.instrument.instrumentMetadataJson,
+    instrumentType: context.instrument.instrumentClass,
+    side: riskOrder.side,
+    sizeUsd: riskOrder.sizeUsd,
+    clientOrderId,
+  });
   const policyResult = runEngineForWorker<{
     allowed: boolean;
     reason?: string;
@@ -193,6 +205,8 @@ export async function placeBrokerOrder(
       brokerSupportsClass,
       quoteSnapshot: latestQuote ?? undefined,
       placementQuoteSnapshot: placementQuote,
+      orderV2,
+      adapterCapabilities: adapterCapabilitiesOf(adapter),
     }) as unknown as Record<string, unknown>,
   });
   if (!policyResult.allowed) {

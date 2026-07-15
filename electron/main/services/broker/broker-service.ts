@@ -1,8 +1,5 @@
 import type { BrokerRegistry } from "./broker-registry";
-import type {
-  CloseResult,
-  OrderStatus,
-} from "./adapters/broker-adapter";
+import type { CloseResult, OrderStatus } from "./adapters/broker-adapter";
 import { runWithProviderCallScopeAsync } from "../infra/provider-call-log";
 
 /** Thin helper for IPC paths that close by broker account + order id. */

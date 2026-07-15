@@ -14,6 +14,7 @@ import { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
 import { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import { BrokerRoutingRepo } from "../../db/repositories/brokers/broker-routing-repo";
 import { PaperBalancesRepo } from "../../db/repositories/brokers/paper-balances-repo";
+import { PaperPositionsRepo } from "../../db/repositories/brokers/paper-positions-repo";
 import { CapitalReservationsRepo } from "../../db/repositories/trades/capital-reservations-repo";
 import { EventsRepo } from "../../db/repositories/system/events-repo";
 import { ProviderAccountsRepo } from "../../db/repositories/workspace/provider-accounts-repo";
@@ -115,6 +116,7 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     brokerAccounts: new BrokerAccountsRepo(db),
     brokerRouting: new BrokerRoutingRepo(db),
     paperBalances: new PaperBalancesRepo(db),
+    paperPositions: new PaperPositionsRepo(db),
     capitalReservations: new CapitalReservationsRepo(db),
     events: new EventsRepo(db),
     providerAccounts: new ProviderAccountsRepo(db),

@@ -118,6 +118,27 @@ export class GhostFillSimulator {
     };
   }
 
+  /**
+   * Re-register a resting order after an adapter rebuild (app restart) so
+   * `poll` can still detect a later fill instead of the order silently
+   * going stale. No-op if already tracked (never clobbers live state).
+   */
+  restoreResting(
+    ghostOrderId: string,
+    order: BrokerOrderV2,
+    remainingQty: number,
+  ): void {
+    if (this.orders.has(ghostOrderId)) return;
+    this.orders.set(ghostOrderId, {
+      order,
+      status: "open",
+      filledAvgPrice: null,
+      filledQty: 0,
+      remainingQty,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
   /** Re-check resting ghosts against a fresh quote. */
   poll(ghostOrderId: string, quote: GhostQuote): GhostFillReceipt | null {
     const state = this.orders.get(ghostOrderId);

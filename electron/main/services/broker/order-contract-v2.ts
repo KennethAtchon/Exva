@@ -220,16 +220,24 @@ export const KALSHI_CAPABILITIES: AdapterCapabilities = {
   orderTypes: ["market", "limit"],
 };
 
+/**
+ * Tradier's order API only accepts `duration` in `["day", "gtc", "pre",
+ * "post"]` — there is no IOC/FOK on the venue, so advertising them would let
+ * the policy gate approve an order this adapter can only mis-map to `day`.
+ * Tradier account activity is also HTTP long-poll, not a push stream, so
+ * `supportsStreaming` stays false to match `createOrderEventFeed`'s poll
+ * implementation.
+ */
 export const TRADIER_CAPABILITIES: AdapterCapabilities = {
   supportsLimit: true,
   supportsStop: true,
   supportsStopLimit: true,
   // OTO/OCO exist on Tradier but TradeMonitor owns exits today.
   supportsBracket: false,
-  supportsStreaming: true,
+  supportsStreaming: false,
   supportsMultileg: true,
   quantityKinds: ["units", "notional_usd"],
-  timeInForce: ["day", "gtc", "ioc", "fok"],
+  timeInForce: ["day", "gtc"],
   orderTypes: ["market", "limit", "stop", "stop_limit"],
 };
 

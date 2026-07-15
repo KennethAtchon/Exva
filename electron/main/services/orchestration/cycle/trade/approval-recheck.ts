@@ -10,6 +10,8 @@ import { buildOrderPolicyTask } from "./order-policy-task";
 import { placeRoutedOrder } from "./order-placer";
 import { runPostDecisionGates } from "./post-decision-gates";
 import { buildTradeFromDecision } from "./trade-record-builder";
+import { adapterCapabilitiesOf } from "../../../broker/adapters/broker-adapter";
+import { liftBrokerOrderV1ToV2 } from "../../../broker/order-contract-v2";
 
 export async function runApprovalRecheck(
   ctx: TradingCycleContext,
@@ -189,6 +191,19 @@ export async function runApprovalRecheck(
     );
     return;
   }
+  const recheckAdapter = await ctx.deps.brokerRegistry.get(
+    recheckBrokerAccountId,
+  );
+  const recheckOrderV2 = liftBrokerOrderV1ToV2({
+    instrumentSymbol: instrument.symbol,
+    instrumentDisplayName: instrument.instrumentDisplayName,
+    predictionOutcome: instrument.predictionOutcome,
+    instrumentMetadataJson: instrument.instrumentMetadataJson,
+    instrumentType: input.instrumentClass,
+    side: nextTrade.side,
+    sizeUsd: riskOrder.sizeUsd,
+    clientOrderId: recheckClientOrderId,
+  });
   const recheckPolicy = runEngineForWorker<{
     allowed: boolean;
     reason?: string;
@@ -220,6 +235,8 @@ export async function runApprovalRecheck(
       side: nextTrade.side,
       strategy,
       brokerSupportsClass: true,
+      orderV2: recheckOrderV2,
+      adapterCapabilities: adapterCapabilitiesOf(recheckAdapter),
     }) as unknown as Record<string, unknown>,
   });
   if (!recheckPolicy.allowed) {

@@ -1,7 +1,7 @@
 export const SYSTEM_ARCHITECTURE_CHART = `graph LR
     subgraph Sources["Signal sources"]
-        EDGAR["EDGAR / Timer"]
-        Other["Mock / Manual / etc."]
+        EDGAR["EDGAR / calendar / scans"]
+        Other["Mock / Manual / PM / etc."]
     end
     subgraph Main["Main process"]
         Bus["SignalBus + SQLite"]

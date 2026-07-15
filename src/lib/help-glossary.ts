@@ -10,7 +10,7 @@ export const HELP_GLOSSARY = {
   },
   signal: {
     title: "Signal",
-    body: "An event the system can react to, such as a filing, news hit, or timer tick.",
+    body: "An event the system can react to, such as a filing, calendar event, or market scan hit.",
   },
   "signal-source": {
     title: "Signal source",
@@ -40,10 +40,6 @@ export const HELP_GLOSSARY = {
     title: "EDGAR 8-K",
     body: "Listens for SEC Form 8-K filings and turns matching filings into tradeable signals.",
   },
-  "signal-type-web-search": {
-    title: "Web search",
-    body: "Searches the web for relevant news and turns matching results into signals.",
-  },
   "signal-type-manual": {
     title: "Manual",
     body: "No automated feed. The session runs only from the manual tickers you enter.",
@@ -55,10 +51,6 @@ export const HELP_GLOSSARY = {
   "fire-rehearsal-signal": {
     title: "Fire rehearsal signal",
     body: "Emits one synthetic filing-style signal through the full delivery path for subscribed rehearsal sessions.",
-  },
-  "signal-type-timer": {
-    title: "Timer",
-    body: "Fires on a schedule for strategies that do not depend on external news.",
   },
   "signal-type-prediction-event": {
     title: "Prediction event",
@@ -103,15 +95,15 @@ export const HELP_GLOSSARY = {
   },
   "experience-rules-mean-reversion": {
     title: "Rules mean reversion",
-    body: "A rule-based mean reversion strategy on a timer-driven stock universe defined by the experience signal source.",
+    body: "A rule-based mean reversion strategy on a scheduled stock universe defined by the experience signal source.",
   },
   "experience-rules-qqq-mean-reversion": {
     title: "QQQ mean reversion",
-    body: "A timer-driven mean reversion strategy focused on QQQ.",
+    body: "A scheduled mean reversion strategy focused on QQQ.",
   },
   "experience-btc-momentum-breakout": {
     title: "BTC momentum breakout",
-    body: "A timer-driven BTC momentum breakout strategy.",
+    body: "A scheduled BTC momentum breakout strategy.",
   },
   "experience-commodities-trend-following": {
     title: "Commodities trend following",

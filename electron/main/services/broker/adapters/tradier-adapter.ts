@@ -635,9 +635,15 @@ export class TradierAdapter implements BrokerAdapter {
   }
 }
 
+/**
+ * Tradier's `duration` only has `day`/`gtc`/`pre`/`post` — there is no
+ * IOC/FOK on the venue. TRADIER_CAPABILITIES.timeInForce is restricted to
+ * `["day", "gtc"]` so the policy gate rejects ioc/fok before they ever reach
+ * here; this mapping only needs to cover the two duration values Tradier
+ * actually accepts.
+ */
 function mapTif(tif: BrokerOrderV2["timeInForce"]): string {
-  if (tif === "gtc") return "gtc";
-  return "day";
+  return tif === "gtc" ? "gtc" : "day";
 }
 
 function mapOrderType(t: BrokerOrderV2["orderType"]): string {

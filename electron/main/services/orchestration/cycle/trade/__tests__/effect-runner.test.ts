@@ -11,6 +11,25 @@ import {
   runApprovalAndCapital,
 } from "../effect-runner";
 import * as approvalFlowModule from "../approval-flow";
+import * as enginePromptModule from "../../../../pipeline/execution/engine-prompt-injector";
+import * as orderPlacerModule from "../order-placer";
+import { registerDefaultEngines } from "../../../../pipeline/engines/signal-registry/register-default-engines";
+import { RiskEngine } from "../../../../risk/risk-engine";
+import { BrokerAllocationGate } from "../../../../risk/broker-allocation-gate";
+import { ExitPolicyEvaluator } from "../../../../risk/exit-policy-evaluator";
+import { OrderPolicyGate } from "../../../policy/order-policy-gate";
+import { CandidateValidationService } from "../../../policy/candidate-validation-service";
+
+registerDefaultEngines({
+  riskEngine: new RiskEngine(),
+  candidateValidation: new CandidateValidationService(),
+  orderPolicyGate: new OrderPolicyGate(),
+  brokerAllocationGate: {
+    checkOrderFits: () => ({ ok: true as const }),
+    checkInstrumentConflict: () => ({ ok: true as const }),
+  } as unknown as BrokerAllocationGate,
+  exitPolicyEvaluator: new ExitPolicyEvaluator(),
+});
 
 describe("effect-runner", () => {
   afterEach(() => {
@@ -119,6 +138,106 @@ describe("effect-runner", () => {
         retryable: true,
       }),
     });
+  });
+
+  it("placeBrokerOrder feeds the resolved adapter's v2 order + capabilities to the policy gate", async () => {
+    const ctx = createContext();
+    const runEngineSpy = vi.spyOn(enginePromptModule, "runEngineForWorker");
+    const placeRoutedOrderSpy = vi
+      .spyOn(orderPlacerModule, "placeRoutedOrder")
+      .mockResolvedValue({
+        brokerOrderId: "mock-order-1",
+        filledAvgPrice: 185.5,
+      });
+
+    await placeBrokerOrder(
+      ctx,
+      {
+        kind: "trade",
+        cycleId: "cycle-1",
+        instrument: { symbol: "NVDA", instrumentClass: "stock" },
+      },
+      makeTrade(),
+      {
+        instrumentSymbol: "NVDA",
+        instrumentType: "stock",
+        side: "BUY",
+        sizeUsd: 500,
+      },
+    );
+
+    expect(runEngineSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        task: expect.objectContaining({
+          orderV2: expect.objectContaining({
+            orderType: "market",
+            quantity: { kind: "notional_usd", value: 500 },
+          }),
+          adapterCapabilities: expect.objectContaining({
+            orderTypes: expect.arrayContaining(["market"]),
+          }),
+        }),
+      }),
+    );
+    expect(placeRoutedOrderSpy).toHaveBeenCalled();
+  });
+
+  it("placeBrokerOrder rejects an adapter-unsupported order shape before any broker HTTP call", async () => {
+    const ctx = createContext();
+    const placeRoutedOrderSpy = vi.spyOn(orderPlacerModule, "placeRoutedOrder");
+    ctx.deps.brokerRouting.resolveAdapter = vi.fn(
+      async () =>
+        ({
+          adapter: {
+            brokerType: "mock",
+            supportedInstrumentClasses: ["stock"],
+            capabilities: {
+              supportsLimit: false,
+              supportsStop: false,
+              supportsStopLimit: false,
+              supportsBracket: false,
+              supportsStreaming: false,
+              quantityKinds: ["units"],
+              timeInForce: ["day"],
+              orderTypes: ["limit"],
+            },
+            getMarketSnapshot: vi.fn(async () => ({
+              price: 185,
+              timestamp: new Date().toISOString(),
+            })),
+            placeOrder: vi.fn(async () => {
+              throw new Error("placeOrder should never be called");
+            }),
+          },
+          brokerAccountId: "broker-1",
+        }) as never,
+    );
+
+    await expect(
+      placeBrokerOrder(
+        ctx,
+        {
+          kind: "trade",
+          cycleId: "cycle-1",
+          instrument: { symbol: "NVDA", instrumentClass: "stock" },
+        },
+        makeTrade(),
+        {
+          instrumentSymbol: "NVDA",
+          instrumentType: "stock",
+          side: "BUY",
+          sizeUsd: 500,
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+      message: expect.stringContaining("orderType market unsupported"),
+      details: expect.objectContaining({
+        outcome: "no_trade",
+        reasonCategory: "broker_reject",
+      }),
+    });
+    expect(placeRoutedOrderSpy).not.toHaveBeenCalled();
   });
 
   it("finalizeOpenedTrade marks trade open and emits trade_opened", () => {
@@ -269,6 +388,7 @@ function createContext(options?: { humanApprovalRequired?: boolean }) {
     sessionRepo: {
       getStatus: () => "active",
       requireById: () => ({ id: "session-1", instrumentClasses: ["stock"] }),
+      uptimeMin: () => 0,
     },
     strategyContextService: {
       getSelectorSettings: () => ({

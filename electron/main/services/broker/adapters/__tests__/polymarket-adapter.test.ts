@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PolymarketAdapter } from "../polymarket-adapter";
-import { DEFAULT_PAPER_STARTING_BALANCE_USD } from "../../../../db/repositories/brokers/paper-balances-repo";
+import {
+  DEFAULT_PAPER_STARTING_BALANCE_USD,
+  PaperBalancesRepo,
+} from "../../../../db/repositories/brokers/paper-balances-repo";
+import { PaperPositionsRepo } from "../../../../db/repositories/brokers/paper-positions-repo";
+import { BrokerAccountsRepo } from "../../../../db/repositories/brokers/broker-accounts-repo";
+import { createTestDb } from "../../../../db/test-helpers";
 
 const clobClientMethods = vi.hoisted(() => ({
   getOk: vi.fn(),
@@ -336,6 +342,145 @@ describe("PolymarketAdapter", () => {
       });
       await adapter.placeOrder(buy);
       expect(onParityWarning).toHaveBeenCalled();
+    });
+
+    describe("restart rehydration (persisted paper positions)", () => {
+      function setupPersistence() {
+        const db = createTestDb();
+        const accounts = new BrokerAccountsRepo(db);
+        accounts.insert({
+          id: "pm-paper-restart",
+          name: "Polymarket Paper",
+          brokerType: "polymarket",
+          supportedInstrumentClasses: ["prediction_market"],
+          mode: "paper",
+          secretRef: "secret:pm-paper-restart",
+        });
+        const paperBalances = new PaperBalancesRepo(db);
+        const paperPositions = new PaperPositionsRepo(db);
+        return { db, paperBalances, paperPositions };
+      }
+
+      it("survives an adapter rebuild: filled ghost positions rehydrate from the persisted store", async () => {
+        const { db, paperBalances, paperPositions } = setupPersistence();
+        const firstAdapter = new PolymarketAdapter(
+          credentials,
+          "paper",
+          undefined,
+          { accountId: "pm-paper-restart", paperBalances, paperPositions },
+        );
+        const order = await firstAdapter.placeOrder(buy);
+
+        // Simulate app restart: brand-new adapter instance, no in-memory state.
+        const rebuiltAdapter = new PolymarketAdapter(
+          credentials,
+          "paper",
+          undefined,
+          { accountId: "pm-paper-restart", paperBalances, paperPositions },
+        );
+
+        const status = await rebuiltAdapter.getOrderStatus(order.brokerOrderId);
+        expect(status.status).toBe("open");
+
+        clobClientMethods.getLastTradePrice.mockResolvedValue(0.8);
+        const closed = await rebuiltAdapter.closeOrder(order.brokerOrderId);
+        expect(closed.realizedPnlUsd).toBeGreaterThan(0);
+        expect(paperPositions.get(order.brokerOrderId)?.open).toBe(false);
+        db.sqlite.close();
+      });
+
+      it("survives an adapter rebuild: resting ghost limits rehydrate and can be canceled", async () => {
+        const { db, paperBalances, paperPositions } = setupPersistence();
+        const firstAdapter = new PolymarketAdapter(
+          credentials,
+          "paper",
+          undefined,
+          { accountId: "pm-paper-restart", paperBalances, paperPositions },
+        );
+        const placed = await firstAdapter.placeOrderV2?.({
+          clientOrderId: "limit-restart-1",
+          instrument: {
+            symbol: "pm:cond-1",
+            instrumentClass: "prediction_market",
+            metadataJson: metadata,
+          },
+          side: "BUY",
+          quantity: { kind: "units", value: 10 },
+          orderType: "limit",
+          limitPrice: 0.4,
+          timeInForce: "gtc",
+        });
+        expect(placed).toBeDefined();
+        if (!placed) throw new Error("expected placed order");
+        expect(paperPositions.get(placed.brokerOrderId)?.resting).toBe(true);
+
+        const rebuiltAdapter = new PolymarketAdapter(
+          credentials,
+          "paper",
+          undefined,
+          { accountId: "pm-paper-restart", paperBalances, paperPositions },
+        );
+        await rebuiltAdapter.cancelOrder(placed.brokerOrderId);
+        const status = await rebuiltAdapter.getOrderStatus(
+          placed.brokerOrderId,
+        );
+        expect(status.status).toBe("closed");
+        db.sqlite.close();
+      });
+
+      it("survives an adapter rebuild: resting ghost limits rehydrate and fill on quote cross with a single debit", async () => {
+        const { db, paperBalances, paperPositions } = setupPersistence();
+        const firstAdapter = new PolymarketAdapter(
+          credentials,
+          "paper",
+          undefined,
+          { accountId: "pm-paper-restart", paperBalances, paperPositions },
+        );
+        const placed = await firstAdapter.placeOrderV2?.({
+          clientOrderId: "limit-restart-fill-1",
+          instrument: {
+            symbol: "pm:cond-1",
+            instrumentClass: "prediction_market",
+            metadataJson: metadata,
+          },
+          side: "BUY",
+          quantity: { kind: "units", value: 10 },
+          orderType: "limit",
+          limitPrice: 0.4,
+          timeInForce: "gtc",
+        });
+        expect(placed).toBeDefined();
+        if (!placed) throw new Error("expected placed order");
+
+        // Never marketable on the placing instance — stays resting.
+        const balanceBeforeFill = paperBalances.getBalance("pm-paper-restart");
+
+        const rebuiltAdapter = new PolymarketAdapter(
+          credentials,
+          "paper",
+          undefined,
+          { accountId: "pm-paper-restart", paperBalances, paperPositions },
+        );
+        // Ask crosses below the resting limit — now marketable.
+        clobClientMethods.getLastTradePrice.mockResolvedValue(0.35);
+        const status = await rebuiltAdapter.getOrderStatus(
+          placed.brokerOrderId,
+        );
+        expect(status.status).toBe("open");
+        expect(paperPositions.get(placed.brokerOrderId)?.resting).toBe(false);
+        expect(paperBalances.getBalance("pm-paper-restart")).toBeLessThan(
+          balanceBeforeFill,
+        );
+
+        // A second status check must not double-debit.
+        const balanceAfterFirstFill =
+          paperBalances.getBalance("pm-paper-restart");
+        await rebuiltAdapter.getOrderStatus(placed.brokerOrderId);
+        expect(paperBalances.getBalance("pm-paper-restart")).toBe(
+          balanceAfterFirstFill,
+        );
+        db.sqlite.close();
+      });
     });
   });
 });

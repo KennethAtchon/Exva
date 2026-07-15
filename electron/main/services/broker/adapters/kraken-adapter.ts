@@ -9,7 +9,11 @@ import {
   GhostFillSimulator,
   type GhostQuote,
 } from "../mock/ghost-fill-simulator";
-import type { PaperBalancesRepo } from "../../../db/repositories/brokers/paper-balances-repo";
+import {
+  DEFAULT_PAPER_STARTING_BALANCE_USD,
+  type PaperBalancesRepo,
+} from "../../../db/repositories/brokers/paper-balances-repo";
+import type { PaperPositionsRepo } from "../../../db/repositories/brokers/paper-positions-repo";
 import {
   KRAKEN_CAPABILITIES,
   adapterSupportsOrder,
@@ -39,6 +43,30 @@ export interface KrakenCredentials {
 export type KrakenAdapterOptions = {
   accountId?: string;
   paperBalances?: PaperBalancesRepo;
+  /**
+   * Persisted ghost position store. When set alongside `accountId`, ghost
+   * positions survive an adapter rebuild (app restart): a ghost order id
+   * absent from the in-memory map is rehydrated from this repo instead of
+   * being treated as unknown, and `getPositions` reflects persisted state.
+   */
+  paperPositions?: PaperPositionsRepo;
+  /** Starting balance when no persisted row yet (tests / ephemeral). */
+  startingPaperBalanceUsd?: number;
+};
+
+/** Filled (or resting) ghost position keyed by ghost order id. */
+type GhostPosition = {
+  symbol: string;
+  side: "BUY" | "SELL";
+  sizeUsd: number;
+  shares: number;
+  entryPrice: number;
+  /** Position still open (not closed). */
+  open: boolean;
+  /** Order still resting in GhostFillSimulator (not filled yet). */
+  resting: boolean;
+  /** Original order, kept to re-seed GhostFillSimulator after a restart. */
+  order: BrokerOrderV2;
 };
 
 const REST = "https://api.kraken.com";
@@ -117,10 +145,13 @@ export class KrakenAdapter implements BrokerAdapter {
   private readonly ghosts = new GhostFillSimulator();
   private nonce = Date.now() * 1000;
   private privateQueue: Promise<unknown> = Promise.resolve();
-  /** clientOrderId → symbol for ghost poll re-checks */
-  private readonly ghostSymbols = new Map<string, string>();
+  /** Ghost order id → position, filled or resting. */
+  private readonly ghostPositions = new Map<string, GhostPosition>();
+  /** In-memory fallback when PaperBalancesRepo is not injected (unit tests). */
+  private memoryPaperBalanceUsd: number;
   private readonly accountId: string | undefined;
   private readonly paperBalances: PaperBalancesRepo | undefined;
+  private readonly paperPositions: PaperPositionsRepo | undefined;
 
   constructor(
     credentialsJson: string | KrakenCredentials,
@@ -134,6 +165,9 @@ export class KrakenAdapter implements BrokerAdapter {
         : credentialsJson;
     this.accountId = options?.accountId;
     this.paperBalances = options?.paperBalances;
+    this.paperPositions = options?.paperPositions;
+    this.memoryPaperBalanceUsd =
+      options?.startingPaperBalanceUsd ?? DEFAULT_PAPER_STARTING_BALANCE_USD;
     if (!this.credentials.apiKey || !this.credentials.apiSecret) {
       throw new AppError(
         "Kraken credentials require apiKey and apiSecret",
@@ -163,9 +197,7 @@ export class KrakenAdapter implements BrokerAdapter {
   }
 
   async getAccountBalance(): Promise<number> {
-    if (this.mode === "paper" && this.paperBalances && this.accountId) {
-      return this.paperBalances.getBalance(this.accountId);
-    }
+    if (this.mode === "paper") return this.readPaperBalance();
     const data = await this.privateRequest<{
       error?: string[];
       result?: Record<string, string>;
@@ -181,6 +213,7 @@ export class KrakenAdapter implements BrokerAdapter {
   }
 
   async getPositions(): Promise<BrokerPosition[]> {
+    if (this.mode === "paper") return this.getGhostPositions();
     const data = await this.privateRequest<{
       error?: string[];
       result?: Record<string, string>;
@@ -205,6 +238,45 @@ export class KrakenAdapter implements BrokerAdapter {
         side: "long",
         sizeUsd: qty * price,
         unrealizedPnl: 0,
+      });
+    }
+    return positions;
+  }
+
+  /**
+   * Ghost positions: merge persisted rows (survives restart) with in-memory
+   * state, then mark-to-market each filled (non-resting) position against a
+   * fresh quote.
+   */
+  private async getGhostPositions(): Promise<BrokerPosition[]> {
+    if (this.paperPositions && this.accountId) {
+      for (const row of this.paperPositions.listOpenByAccount(this.accountId)) {
+        if (!this.ghostPositions.has(row.brokerOrderId)) {
+          this.rehydrateGhostPosition(row.brokerOrderId);
+        }
+      }
+    }
+    const positions: BrokerPosition[] = [];
+    for (const pos of this.ghostPositions.values()) {
+      if (!pos.open || pos.resting) continue;
+      let price = pos.entryPrice;
+      try {
+        const snap = await this.getMarketSnapshot(pos.symbol);
+        price = snap.price;
+      } catch {
+        /* mark at entry price when the venue is unreachable */
+      }
+      const marketValue = pos.shares * price;
+      const unrealizedPnl =
+        pos.side === "BUY"
+          ? marketValue - pos.sizeUsd
+          : pos.sizeUsd - marketValue;
+      positions.push({
+        instrumentSymbol: pos.symbol,
+        instrumentType: "crypto",
+        side: pos.side === "BUY" ? "long" : "short",
+        sizeUsd: marketValue,
+        unrealizedPnl,
       });
     }
     return positions;
@@ -316,28 +388,7 @@ export class KrakenAdapter implements BrokerAdapter {
           "kraken validate-only rejected; ghost-simulating without validate",
         );
       }
-      const receipt = this.ghosts.simulateFill(order, quote);
-      this.ghostSymbols.set(receipt.ghostOrderId, order.instrument.symbol);
-      if (
-        receipt.status === "filled" &&
-        receipt.filledAvgPrice != null &&
-        order.side === "BUY" &&
-        this.paperBalances &&
-        this.accountId
-      ) {
-        this.paperBalances.debit(
-          this.accountId,
-          receipt.filledQty * receipt.filledAvgPrice,
-        );
-      }
-      return {
-        brokerOrderId: receipt.ghostOrderId,
-        filledAvgPrice: receipt.filledAvgPrice ?? 0,
-        filledSizeUsd:
-          receipt.filledAvgPrice != null
-            ? receipt.filledQty * receipt.filledAvgPrice
-            : undefined,
-      };
+      return this.fillGhostOrderV2(order, quote);
     }
 
     const data = await this.privateRequest<{
@@ -356,9 +407,82 @@ export class KrakenAdapter implements BrokerAdapter {
     };
   }
 
+  /**
+   * Ghost fill via shared GhostFillSimulator. Market fills immediately;
+   * limits/stops rest until marketable. Debits persisted paper balance on
+   * fill — never touches the real Kraken balance.
+   */
+  private fillGhostOrderV2(
+    order: BrokerOrderV2,
+    quote: GhostQuote,
+  ): BrokerOrderResult {
+    const receipt = this.ghosts.simulateFill(order, quote);
+    const brokerOrderId = receipt.ghostOrderId;
+
+    if (receipt.status === "filled" && receipt.filledAvgPrice != null) {
+      const sizeUsd = receipt.filledQty * receipt.filledAvgPrice;
+      if (order.side === "BUY") this.debitPaper(sizeUsd);
+      this.setGhostPosition(brokerOrderId, {
+        symbol: order.instrument.symbol,
+        side: order.side,
+        sizeUsd,
+        shares: receipt.filledQty,
+        entryPrice: receipt.filledAvgPrice,
+        open: true,
+        resting: false,
+        order,
+      });
+      logger.info(
+        {
+          brokerOrderId,
+          filledAvgPrice: receipt.filledAvgPrice,
+          paperBalanceUsd: this.readPaperBalance(),
+        },
+        "kraken ghost: order filled locally",
+      );
+      return {
+        brokerOrderId,
+        filledAvgPrice: receipt.filledAvgPrice,
+        filledSizeUsd: sizeUsd,
+      };
+    }
+
+    // Resting limit/stop — no debit until fill on poll.
+    const estPrice = order.limitPrice ?? order.stopPrice ?? quote.last;
+    const estQty =
+      order.quantity.kind === "units"
+        ? order.quantity.value
+        : order.quantity.value / Math.max(estPrice, 0.01);
+    this.setGhostPosition(brokerOrderId, {
+      symbol: order.instrument.symbol,
+      side: order.side,
+      sizeUsd: estQty * estPrice,
+      shares: estQty,
+      entryPrice: estPrice,
+      open: true,
+      resting: true,
+      order,
+    });
+    logger.info(
+      { brokerOrderId, limitPrice: order.limitPrice },
+      "kraken ghost: resting order waiting for marketable quote",
+    );
+    return { brokerOrderId, filledAvgPrice: 0 };
+  }
+
   async cancelOrder(brokerOrderId: string): Promise<void> {
     if (brokerOrderId.startsWith("ghost-")) {
-      this.ghosts.cancel(brokerOrderId);
+      this.rehydrateGhostPosition(brokerOrderId);
+      const canceled = this.ghosts.cancel(brokerOrderId);
+      const pos = this.ghostPositions.get(brokerOrderId);
+      if (pos?.resting) {
+        pos.open = false;
+        pos.resting = false;
+        this.persistGhostPosition(brokerOrderId, pos);
+      } else if (canceled?.status === "canceled") {
+        this.ghostPositions.delete(brokerOrderId);
+        this.paperPositions?.setClosed(brokerOrderId);
+      }
       return;
     }
     const data = await this.privateRequest<{ error?: string[] }>(
@@ -369,44 +493,7 @@ export class KrakenAdapter implements BrokerAdapter {
   }
 
   async getOrderStatus(orderId: string): Promise<OrderStatus> {
-    if (orderId.startsWith("ghost-")) {
-      let receipt = this.ghosts.get(orderId);
-      if (receipt?.status === "open") {
-        const symbol = this.ghostSymbols.get(orderId);
-        if (symbol) {
-          try {
-            const snap = await this.getMarketSnapshot(symbol);
-            receipt =
-              this.ghosts.poll(orderId, {
-                bid: snap.bid ?? snap.price,
-                ask: snap.ask ?? snap.price,
-                last: snap.price,
-              }) ?? receipt;
-          } catch {
-            /* keep open */
-          }
-        }
-      }
-      if (!receipt) {
-        return {
-          brokerOrderId: orderId,
-          status: "unknown",
-          latestPrice: null,
-          realizedPnlUsd: null,
-        };
-      }
-      return {
-        brokerOrderId: orderId,
-        status:
-          receipt.status === "open"
-            ? "open"
-            : receipt.status === "filled" || receipt.status === "canceled"
-              ? "closed"
-              : "unknown",
-        latestPrice: receipt.filledAvgPrice,
-        realizedPnlUsd: null,
-      };
-    }
+    if (orderId.startsWith("ghost-")) return this.getGhostOrderStatus(orderId);
 
     const data = await this.privateRequest<{
       error?: string[];
@@ -440,12 +527,265 @@ export class KrakenAdapter implements BrokerAdapter {
   }
 
   async closeOrder(orderId: string): Promise<CloseResult> {
+    if (orderId.startsWith("ghost-")) return this.closeGhostOrder(orderId);
     const status = await this.getOrderStatus(orderId);
     if (status.status === "open") await this.cancelOrder(orderId);
     return {
       brokerOrderId: orderId,
       realizedPnlUsd: status.realizedPnlUsd ?? 0,
     };
+  }
+
+  /**
+   * Ghost status: resting limits/stops re-check quotes on each poll; filled
+   * positions stay open until explicitly closed. Mirrors the Polymarket
+   * ghost-status shape so trade-monitor treats both venues consistently.
+   */
+  private async getGhostOrderStatus(orderId: string): Promise<OrderStatus> {
+    const sim = this.ghosts.get(orderId);
+    if (sim?.status === "canceled") {
+      return {
+        brokerOrderId: orderId,
+        status: "closed",
+        latestPrice: null,
+        realizedPnlUsd: null,
+      };
+    }
+
+    this.rehydrateGhostPosition(orderId);
+    await this.promoteRestingIfFilled(orderId);
+
+    const pos = this.ghostPositions.get(orderId);
+    if (!pos) {
+      return {
+        brokerOrderId: orderId,
+        status: "unknown",
+        latestPrice: null,
+        realizedPnlUsd: null,
+      };
+    }
+
+    if (pos.resting) {
+      return {
+        brokerOrderId: orderId,
+        status: "open",
+        latestPrice: null,
+        realizedPnlUsd: null,
+      };
+    }
+
+    if (!pos.open) {
+      return {
+        brokerOrderId: orderId,
+        status: "closed",
+        latestPrice: pos.entryPrice,
+        realizedPnlUsd: null,
+      };
+    }
+
+    let latestPrice: number | null = null;
+    try {
+      const snap = await this.getMarketSnapshot(pos.symbol);
+      latestPrice = snap.price;
+    } catch {
+      latestPrice = null;
+    }
+    return {
+      brokerOrderId: orderId,
+      status: "open",
+      latestPrice,
+      realizedPnlUsd: null,
+    };
+  }
+
+  /**
+   * Close a filled ghost position: mark-to-market against a fresh quote,
+   * credit proceeds, compute realized P&L. A still-resting order is
+   * canceled instead (nothing to settle). Idempotent — a second close call
+   * finds `open: false` and returns zero P&L rather than re-crediting.
+   */
+  private async closeGhostOrder(orderId: string): Promise<CloseResult> {
+    this.rehydrateGhostPosition(orderId);
+    await this.promoteRestingIfFilled(orderId);
+    const pos = this.ghostPositions.get(orderId);
+    if (!pos || !pos.open) {
+      return { brokerOrderId: orderId, realizedPnlUsd: 0 };
+    }
+    if (pos.resting) {
+      await this.cancelOrder(orderId);
+      return { brokerOrderId: orderId, realizedPnlUsd: 0 };
+    }
+
+    let exitPrice = pos.entryPrice;
+    try {
+      const snap = await this.getMarketSnapshot(pos.symbol);
+      exitPrice = snap.price;
+    } catch {
+      /* mark at entry price when the venue is unreachable */
+    }
+    const exitValue = pos.shares * exitPrice;
+    const realizedPnlUsd = exitValue - pos.sizeUsd;
+    this.creditPaper(exitValue);
+    pos.open = false;
+    this.paperPositions?.setClosed(orderId);
+    logger.info(
+      {
+        orderId,
+        exitPrice,
+        realizedPnlUsd,
+        paperBalanceUsd: this.readPaperBalance(),
+      },
+      "kraken ghost: position closed locally",
+    );
+    return { brokerOrderId: orderId, realizedPnlUsd };
+  }
+
+  /** Re-check resting ghost against a fresh quote; debit paper on fill. */
+  private async promoteRestingIfFilled(orderId: string): Promise<void> {
+    const pos = this.ghostPositions.get(orderId);
+    if (!pos?.resting) return;
+    let quote: GhostQuote;
+    try {
+      const snap = await this.getMarketSnapshot(pos.symbol);
+      quote = {
+        bid: snap.bid ?? snap.price,
+        ask: snap.ask ?? snap.price,
+        last: snap.price,
+      };
+    } catch {
+      return;
+    }
+    const receipt = this.ghosts.poll(orderId, quote);
+    if (receipt?.status !== "filled" || receipt.filledAvgPrice == null) return;
+    const sizeUsd = receipt.filledQty * receipt.filledAvgPrice;
+    if (pos.side === "BUY") this.debitPaper(sizeUsd);
+    pos.resting = false;
+    pos.shares = receipt.filledQty;
+    pos.entryPrice = receipt.filledAvgPrice;
+    pos.sizeUsd = sizeUsd;
+    pos.open = true;
+    this.persistGhostPosition(orderId, pos);
+    logger.info(
+      {
+        brokerOrderId: orderId,
+        filledAvgPrice: receipt.filledAvgPrice,
+        paperBalanceUsd: this.readPaperBalance(),
+      },
+      "kraken ghost: resting order filled on quote cross",
+    );
+  }
+
+  /**
+   * Rehydrate a ghost position from the persisted repo when the in-memory
+   * map lost it (adapter rebuilt after a restart). Also re-seeds a still-
+   * resting order into GhostFillSimulator (which is otherwise purely
+   * in-memory) so a later quote cross is still detected and debited after
+   * the restart, not just before it. No-op when the position is already
+   * tracked in memory, or when persistence isn't configured.
+   */
+  private rehydrateGhostPosition(orderId: string): void {
+    if (this.ghostPositions.has(orderId)) return;
+    if (!this.paperPositions) return;
+    const row = this.paperPositions.get(orderId);
+    if (!row || !row.open) return;
+    const meta = row.metadata as {
+      orderType?: BrokerOrderV2["orderType"];
+      limitPrice?: number;
+      stopPrice?: number;
+      timeInForce?: BrokerOrderV2["timeInForce"];
+      quantityKind?: "units" | "notional_usd";
+      quantityValue?: number;
+    };
+    const order: BrokerOrderV2 = {
+      clientOrderId: orderId.replace(/^ghost-/, ""),
+      instrument: { symbol: row.instrumentSymbol, instrumentClass: "crypto" },
+      side: row.side,
+      quantity: {
+        kind: meta.quantityKind ?? "units",
+        value: meta.quantityValue ?? row.shares,
+      },
+      orderType: meta.orderType ?? "market",
+      timeInForce: meta.timeInForce ?? "gtc",
+      limitPrice: meta.limitPrice,
+      stopPrice: meta.stopPrice,
+    };
+    this.ghostPositions.set(orderId, {
+      symbol: row.instrumentSymbol,
+      side: row.side,
+      sizeUsd: row.sizeUsd,
+      shares: row.shares,
+      entryPrice: row.entryPrice,
+      open: row.open,
+      resting: row.resting,
+      order,
+    });
+    if (row.resting) {
+      this.ghosts.restoreResting(orderId, order, row.shares);
+    }
+    logger.info(
+      { brokerOrderId: orderId, resting: row.resting },
+      "kraken ghost: position rehydrated from persisted store after restart",
+    );
+  }
+
+  /** Write-through: update in-memory map and (when configured) persist. */
+  private setGhostPosition(orderId: string, position: GhostPosition): void {
+    this.ghostPositions.set(orderId, position);
+    this.persistGhostPosition(orderId, position);
+  }
+
+  private persistGhostPosition(orderId: string, position: GhostPosition): void {
+    if (!this.paperPositions || !this.accountId) return;
+    this.paperPositions.upsert({
+      brokerOrderId: orderId,
+      accountId: this.accountId,
+      venue: "kraken",
+      instrumentSymbol: position.symbol,
+      side: position.side,
+      shares: position.shares,
+      entryPrice: position.entryPrice,
+      sizeUsd: position.sizeUsd,
+      open: position.open,
+      resting: position.resting,
+      metadata: {
+        orderType: position.order.orderType,
+        limitPrice: position.order.limitPrice,
+        stopPrice: position.order.stopPrice,
+        timeInForce: position.order.timeInForce,
+        quantityKind: position.order.quantity.kind,
+        quantityValue: position.order.quantity.value,
+      },
+    });
+  }
+
+  private readPaperBalance(): number {
+    if (this.paperBalances && this.accountId) {
+      return this.paperBalances.getBalance(this.accountId);
+    }
+    return this.memoryPaperBalanceUsd;
+  }
+
+  private debitPaper(amount: number): void {
+    if (this.paperBalances && this.accountId) {
+      this.paperBalances.debit(this.accountId, amount);
+      return;
+    }
+    if (this.memoryPaperBalanceUsd < amount) {
+      throw brokerError(
+        "BROKER_INSUFFICIENT_FUNDS",
+        `Insufficient paper balance: need $${amount.toFixed(2)}, have $${this.memoryPaperBalanceUsd.toFixed(2)}.`,
+        { need: amount, have: this.memoryPaperBalanceUsd },
+      );
+    }
+    this.memoryPaperBalanceUsd -= amount;
+  }
+
+  private creditPaper(amount: number): void {
+    if (this.paperBalances && this.accountId) {
+      this.paperBalances.credit(this.accountId, amount);
+      return;
+    }
+    this.memoryPaperBalanceUsd += amount;
   }
 
   async getOhlcv(

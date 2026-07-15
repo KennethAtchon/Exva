@@ -44,9 +44,11 @@ export function OptionsFlowEdgePage() {
             way, the flow reads bullish (calls) or bearish (puts).
           </>,
           <>
-            <DocStrong>Trade the read.</DocStrong> v1 trades the underlying
-            equity on the directional signal; confidence scales with how unusual
-            and how lopsided the flow is, capped at 0.85.
+            <DocStrong>Select a vertical.</DocStrong>{" "}
+            <DocInlineCode>selectVerticalSpread</DocInlineCode> picks a
+            defined-risk debit vertical on the directional side; size and
+            placement go through RiskEngine and{" "}
+            <DocInlineCode>placeSpread</DocInlineCode>.
           </>,
         ]}
       />
@@ -55,7 +57,7 @@ export function OptionsFlowEdgePage() {
       <DocParagraph>
         Most unusual volume is hedging or noise, not informed bets. The detector
         is deliberately strict — balanced flow, or volume that is merely above
-        average, is skipped. The next phase adds an AI-search step that asks{" "}
+        average, is skipped. An evidence-enrichment pass can later ask{" "}
         <DocStrong>why</DocStrong> the flow is happening (earnings, M&amp;A
         chatter, a known event) before committing, the same challenge-your-bias
         discipline used by the prediction-market pipeline.
@@ -83,23 +85,21 @@ export function OptionsFlowEdgePage() {
         ]}
       />
 
-      <DocHeading id="roadmap">
-        Contract-level execution (next phase)
-      </DocHeading>
+      <DocHeading id="execution">Contract-level execution</DocHeading>
       <DocParagraph>
-        v1 trades the underlying so it can reuse the proven equity order path.
-        The defined-risk options upgrade — selecting a specific contract (a long
-        call/put or vertical, max loss = debit paid) via the contract selector —
-        is the next phase. The selector picks the contract whose delta is
-        closest to target among liquid, tight-spread strikes inside the expiry
-        window.
+        Execution is defined-risk options:{" "}
+        <DocInlineCode>selectVerticalSpread</DocInlineCode> chooses long and
+        short legs (same expiry, target width/debit), and Tradier{" "}
+        <DocInlineCode>placeSpread</DocInlineCode> submits the multileg order.
+        Max loss equals net debit for long verticals (plus fees). Monitor mid
+        for profit target, stop, and DTE floor exits.
       </DocParagraph>
 
       <DocCallout variant="warning" title="Paper-only until validated">
         Options Flow Edge ships <DocStrong>disabled by default</DocStrong> and
         paper-only. It must clear its research contract — 100 out-of-sample
-        trades with a positive lower-bound expectancy — before it is considered
-        for real capital.
+        paper fills with positive expectancy after costs — before live
+        readiness.
       </DocCallout>
     </>
   );

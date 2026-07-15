@@ -81,6 +81,26 @@ export class DecisionTraceRepo {
     return row ? this.parse(row.traceJson) : null;
   }
 
+  /** Trace record metadata (cycle id, timestamps) without decoding the trace body. */
+  getRecordByTrade(tradeId: string): DecisionTraceRecord | null {
+    const row = this.client.db
+      .select()
+      .from(decisionTraces)
+      .where(eq(decisionTraces.tradeId, tradeId))
+      .get();
+    if (!row) return null;
+    const trace = this.parse(row.traceJson);
+    return {
+      cycleId: row.cycleId,
+      sessionId: row.sessionId,
+      tradeId: row.tradeId,
+      instrumentSymbol: row.instrumentSymbol,
+      trace,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
+  }
+
   private rawByCycle(
     cycleId: string,
   ): { record: DecisionTraceRecord; trace: TradeDecisionTrace } | null {

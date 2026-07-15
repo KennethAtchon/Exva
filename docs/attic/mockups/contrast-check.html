@@ -1,84 +1,157 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Exva M0 — Contrast Check</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="skin.css">
-  <style>
-    .contrast-page { max-width: 720px; margin: 0 auto; padding: 32px 24px; }
-    .contrast-page h1 { font-size: 18px; margin-bottom: 8px; }
-    .contrast-page p { color: var(--text-dim); margin-bottom: 24px; font-size: 13px; }
-    .pair {
-      display: flex; align-items: center; justify-content: space-between;
-      height: 48px; padding: 0 16px; margin-bottom: 8px;
-      border: 1px solid var(--border); border-radius: var(--radius);
-    }
-    .pair-label { font-size: 12px; font-family: var(--font-mono); color: var(--text-faint); }
-    .pair-sample { font-size: 14px; font-weight: 500; }
-    .pair-result { font-size: 12px; font-family: var(--font-mono); }
-    .pair-result.pass { color: var(--up); }
-    .pair-result.fail { color: var(--down); }
-    .pair-result.warn { color: var(--caution); }
-    .note { margin-top: 24px; padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 12px; color: var(--text-dim); }
-  </style>
-</head>
-<body>
-  <div class="contrast-page">
-    <h1>WCAG Contrast Check</h1>
-    <p>Body-text pairs on §2 palette. Target: ≥ 4.5:1 for normal text. Accent is selection-only — not validated as body text.</p>
-    <div id="pairs"></div>
-    <div class="note">
-      <strong>Accent (#5E6AD2)</strong> on bg/surface fails body-text contrast (≈3.8:1 on #08090A).
-      Use accent only for selection highlights, active tabs, and primary buttons — never as paragraph or table body text.
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Exva M0 — Contrast Check</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="skin.css" />
+    <style>
+      .contrast-page {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 32px 24px;
+      }
+      .contrast-page h1 {
+        font-size: 18px;
+        margin-bottom: 8px;
+      }
+      .contrast-page p {
+        color: var(--text-dim);
+        margin-bottom: 24px;
+        font-size: 13px;
+      }
+      .pair {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 48px;
+        padding: 0 16px;
+        margin-bottom: 8px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+      }
+      .pair-label {
+        font-size: 12px;
+        font-family: var(--font-mono);
+        color: var(--text-faint);
+      }
+      .pair-sample {
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .pair-result {
+        font-size: 12px;
+        font-family: var(--font-mono);
+      }
+      .pair-result.pass {
+        color: var(--up);
+      }
+      .pair-result.fail {
+        color: var(--down);
+      }
+      .pair-result.warn {
+        color: var(--caution);
+      }
+      .note {
+        margin-top: 24px;
+        padding: 12px 16px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="contrast-page">
+      <h1>WCAG Contrast Check</h1>
+      <p>
+        Body-text pairs on §2 palette. Target: ≥ 4.5:1 for normal text. Accent
+        is selection-only — not validated as body text.
+      </p>
+      <div id="pairs"></div>
+      <div class="note">
+        <strong>Accent (#5E6AD2)</strong> on bg/surface fails body-text contrast
+        (≈3.8:1 on #08090A). Use accent only for selection highlights, active
+        tabs, and primary buttons — never as paragraph or table body text.
+      </div>
+      <div class="mt-16">
+        <a class="btn btn-sm" href="index.html">← Back to gallery</a>
+      </div>
     </div>
-    <div class="mt-16"><a class="btn btn-sm" href="index.html">← Back to gallery</a></div>
-  </div>
-  <script>
-    function luminance(hex) {
-      const rgb = hex.replace("#","").match(/.{2}/g).map(x => {
-        const c = parseInt(x, 16) / 255;
-        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-      });
-      return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
-    }
-    function contrast(fg, bg) {
-      const l1 = luminance(fg), l2 = luminance(bg);
-      const lighter = Math.max(l1, l2), darker = Math.min(l1, l2);
-      return (lighter + 0.05) / (darker + 0.05);
-    }
-    const tokens = {
-      bg: "#08090A", surface: "#0F1011", "surface-hover": "#16171A",
-      text: "#F7F8F8", "text-dim": "#8A8F98", "text-faint": "#62666D",
-      accent: "#5E6AD2", up: "#4CC38A", down: "#E5484D", caution: "#F5B841"
-    };
-    const bodyPairs = [
-      ["text on bg", tokens.text, tokens.bg],
-      ["text on surface", tokens.text, tokens.surface],
-      ["text-dim on bg", tokens["text-dim"], tokens.bg],
-      ["text-dim on surface", tokens["text-dim"], tokens.surface],
-      ["text-faint on bg", tokens["text-faint"], tokens.bg],
-      ["text-faint on surface", tokens["text-faint"], tokens.surface],
-      ["up on bg", tokens.up, tokens.bg],
-      ["down on bg", tokens.down, tokens.bg],
-      ["caution on bg", tokens.caution, tokens.bg],
-      ["accent on bg (selection only)", tokens.accent, tokens.bg, true],
-      ["accent on surface (selection only)", tokens.accent, tokens.surface, true],
-    ];
-    document.getElementById("pairs").innerHTML = bodyPairs.map(([label, fg, bg, selectionOnly]) => {
-      const ratio = contrast(fg, bg);
-      const pass = ratio >= 4.5;
-      const cls = selectionOnly ? "warn" : pass ? "pass" : "fail";
-      const status = selectionOnly ? `${ratio.toFixed(1)}:1 — N/A` : pass ? `${ratio.toFixed(1)}:1 ✓` : `${ratio.toFixed(1)}:1 ✗`;
-      return `<div class="pair" style="background:${bg}">
+    <script>
+      function luminance(hex) {
+        const rgb = hex
+          .replace("#", "")
+          .match(/.{2}/g)
+          .map((x) => {
+            const c = parseInt(x, 16) / 255;
+            return c <= 0.03928
+              ? c / 12.92
+              : Math.pow((c + 0.055) / 1.055, 2.4);
+          });
+        return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+      }
+      function contrast(fg, bg) {
+        const l1 = luminance(fg),
+          l2 = luminance(bg);
+        const lighter = Math.max(l1, l2),
+          darker = Math.min(l1, l2);
+        return (lighter + 0.05) / (darker + 0.05);
+      }
+      const tokens = {
+        bg: "#08090A",
+        surface: "#0F1011",
+        "surface-hover": "#16171A",
+        text: "#F7F8F8",
+        "text-dim": "#8A8F98",
+        "text-faint": "#62666D",
+        accent: "#5E6AD2",
+        up: "#4CC38A",
+        down: "#E5484D",
+        caution: "#F5B841",
+      };
+      const bodyPairs = [
+        ["text on bg", tokens.text, tokens.bg],
+        ["text on surface", tokens.text, tokens.surface],
+        ["text-dim on bg", tokens["text-dim"], tokens.bg],
+        ["text-dim on surface", tokens["text-dim"], tokens.surface],
+        ["text-faint on bg", tokens["text-faint"], tokens.bg],
+        ["text-faint on surface", tokens["text-faint"], tokens.surface],
+        ["up on bg", tokens.up, tokens.bg],
+        ["down on bg", tokens.down, tokens.bg],
+        ["caution on bg", tokens.caution, tokens.bg],
+        ["accent on bg (selection only)", tokens.accent, tokens.bg, true],
+        [
+          "accent on surface (selection only)",
+          tokens.accent,
+          tokens.surface,
+          true,
+        ],
+      ];
+      document.getElementById("pairs").innerHTML = bodyPairs
+        .map(([label, fg, bg, selectionOnly]) => {
+          const ratio = contrast(fg, bg);
+          const pass = ratio >= 4.5;
+          const cls = selectionOnly ? "warn" : pass ? "pass" : "fail";
+          const status = selectionOnly
+            ? `${ratio.toFixed(1)}:1 — N/A`
+            : pass
+              ? `${ratio.toFixed(1)}:1 ✓`
+              : `${ratio.toFixed(1)}:1 ✗`;
+          return `<div class="pair" style="background:${bg}">
         <span class="pair-label">${label}</span>
         <span class="pair-sample" style="color:${fg}">The quick brown fox</span>
         <span class="pair-result ${cls}">${status}</span>
       </div>`;
-    }).join("");
-  </script>
-</body>
+        })
+        .join("");
+    </script>
+  </body>
 </html>

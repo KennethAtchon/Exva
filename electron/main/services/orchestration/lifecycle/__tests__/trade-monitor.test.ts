@@ -41,6 +41,7 @@ describe("TradeMonitor", () => {
       "closed",
       expect.any(Number),
       "take_profit",
+      undefined,
     );
   });
 
@@ -76,6 +77,7 @@ describe("TradeMonitor", () => {
       "closed",
       expect.any(Number),
       "stop_loss_fixed",
+      undefined,
     );
   });
 
@@ -112,6 +114,7 @@ describe("TradeMonitor", () => {
       "closed",
       expect.any(Number),
       "max_hold_days",
+      undefined,
     );
   });
 
@@ -173,6 +176,84 @@ describe("TradeMonitor", () => {
     await monitor["tick"]();
 
     expect(harness.tradesRepo.updateStatus).toHaveBeenCalled();
+  });
+
+  it("closes a trade immediately from a terminal stream event, tagged closureSource: stream", async () => {
+    const harness = createHarness({
+      currentPrice: 205,
+      entryPrice: 200,
+    });
+    harness.tradesRepo.findOpenByBrokerOrderId = vi.fn((): Trade | null => ({
+      ...harness.trade,
+    }));
+    const adapterGetOrderStatus = vi.fn(async () => ({
+      status: "closed" as const,
+      realizedPnlUsd: 42,
+      latestPrice: 210,
+    }));
+    harness.brokerRegistry.get = vi.fn(async () => ({
+      brokerType: "mock",
+      getOrderStatus: adapterGetOrderStatus,
+    })) as never;
+
+    const monitor = new TradeMonitor(
+      "session-1",
+      harness.tradesRepo as never,
+      harness.statsRepo as never,
+      harness.sessionRepo as never,
+      harness.brokerRegistry as never,
+      harness.strategyContextService as never,
+      harness.capitalReservation as never,
+      () => 5000,
+      harness.eventBus,
+      () => 10,
+      undefined,
+      harness.instrumentNormalizer as never,
+      MOCK_POLL_INTERVAL_MS,
+    );
+
+    await monitor["onOrderEvent"]("broker-1", {
+      brokerOrderId: "mock-order-1",
+      kind: "fill",
+      ts: new Date().toISOString(),
+    });
+
+    expect(adapterGetOrderStatus).toHaveBeenCalledWith("mock-order-1");
+    expect(harness.tradesRepo.updateStatus).toHaveBeenCalledWith(
+      "trade-1",
+      "closed",
+      42,
+      "broker_closed",
+      "stream",
+    );
+  });
+
+  it("ignores a stream event with no matching open trade for that broker order", async () => {
+    const harness = createHarness({ currentPrice: 205, entryPrice: 200 });
+    harness.tradesRepo.findOpenByBrokerOrderId = vi.fn(() => null);
+    const monitor = new TradeMonitor(
+      "session-1",
+      harness.tradesRepo as never,
+      harness.statsRepo as never,
+      harness.sessionRepo as never,
+      harness.brokerRegistry as never,
+      harness.strategyContextService as never,
+      harness.capitalReservation as never,
+      () => 5000,
+      harness.eventBus,
+      () => 10,
+      undefined,
+      harness.instrumentNormalizer as never,
+      MOCK_POLL_INTERVAL_MS,
+    );
+
+    await monitor["onOrderEvent"]("broker-1", {
+      brokerOrderId: "unknown-order",
+      kind: "canceled",
+      ts: new Date().toISOString(),
+    });
+
+    expect(harness.tradesRepo.updateStatus).not.toHaveBeenCalled();
   });
 
   it("retries on next tick after quote failure without escalating session", async () => {
@@ -252,11 +333,22 @@ function createHarness(options: {
 
   let quoteFailuresRemaining = options.quoteFailuresBeforeSuccess ?? 0;
 
+  type MockAdapter = {
+    brokerType: string;
+    getMarketSnapshot?: ReturnType<typeof vi.fn>;
+    getOrderStatus: ReturnType<typeof vi.fn>;
+    closeOrder?: ReturnType<typeof vi.fn>;
+    getOhlcv?: ReturnType<typeof vi.fn>;
+  };
+
   return {
     eventBus,
+    trade,
     tradesRepo: {
       listOpenAndPending: vi.fn(() => [trade]),
       require: vi.fn(() => trade),
+      find: vi.fn(() => trade),
+      findOpenByBrokerOrderId: vi.fn((): Trade | null => null),
       updatePriceExtremes: vi.fn(),
       updateLevelTouchTimes: vi.fn(),
       updateCloseSnapshot: vi.fn(),
@@ -281,22 +373,24 @@ function createHarness(options: {
       uptimeMin: vi.fn(() => 10),
     },
     brokerRegistry: {
-      get: vi.fn(async () => ({
-        brokerType: "mock",
-        getMarketSnapshot: vi.fn(async () => {
-          if (quoteFailuresRemaining > 0) {
-            quoteFailuresRemaining -= 1;
-            throw new Error("quote unavailable");
-          }
-          return {
-            price: options.currentPrice,
-            timestamp: new Date().toISOString(),
-          };
+      get: vi.fn(
+        async (): Promise<MockAdapter> => ({
+          brokerType: "mock",
+          getMarketSnapshot: vi.fn(async () => {
+            if (quoteFailuresRemaining > 0) {
+              quoteFailuresRemaining -= 1;
+              throw new Error("quote unavailable");
+            }
+            return {
+              price: options.currentPrice,
+              timestamp: new Date().toISOString(),
+            };
+          }),
+          getOrderStatus: vi.fn(async () => ({ status: "open" as const })),
+          closeOrder: vi.fn(async () => ({ realizedPnlUsd: 25 })),
+          getOhlcv: vi.fn(async () => []),
         }),
-        getOrderStatus: vi.fn(async () => ({ status: "open" as const })),
-        closeOrder: vi.fn(async () => ({ realizedPnlUsd: 25 })),
-        getOhlcv: vi.fn(async () => []),
-      })),
+      ),
     },
     strategyContextService: {
       getSelectorSettings: () => ({

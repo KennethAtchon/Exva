@@ -329,8 +329,7 @@ function assembleSessionDocFromLegacy(
       tradeRulesRow.rules_preset_id as typeof base.tradeRules.rulesPresetId,
     setupType: tradeRulesRow.setup_type as typeof base.tradeRules.setupType,
     sideBias: tradeRulesRow.side_bias as typeof base.tradeRules.sideBias,
-    entryStyle:
-      tradeRulesRow.entry_style as typeof base.tradeRules.entryStyle,
+    entryStyle: tradeRulesRow.entry_style as typeof base.tradeRules.entryStyle,
     exitStyle: tradeRulesRow.exit_style as typeof base.tradeRules.exitStyle,
     scalingMode:
       tradeRulesRow.scaling_mode as typeof base.tradeRules.scalingMode,

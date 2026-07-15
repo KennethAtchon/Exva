@@ -432,6 +432,8 @@ export const trades = sqliteTable(
     highWaterMarkPrice: real("high_water_mark_price"),
     lowWaterMarkPrice: real("low_water_mark_price"),
     exitReason: text("exit_reason"),
+    /** How the terminal close was detected: `stream` (pushed by the broker feed) or `poll` (found on the next snapshot poll). Null for legacy rows closed before this was tracked. */
+    closureSource: text("closure_source"),
     clientOrderId: text("client_order_id"),
     closeMarketSnapshotJson: text("close_market_snapshot_json"),
     mfeUsd: real("mfe_usd"),
@@ -1411,5 +1413,38 @@ export const equitySnapshots = sqliteTable(
   },
   (table) => ({
     tsIdx: index("idx_equity_snapshots_ts").on(table.ts),
+  }),
+);
+
+/**
+ * Persisted ghost (paper) positions for venues without native position
+ * lookup (Polymarket). Keyed by broker order id so an adapter rebuilt after
+ * a restart can rehydrate open/resting positions instead of treating an
+ * unknown order id as already closed.
+ */
+export const paperPositions = sqliteTable(
+  "paper_positions",
+  {
+    brokerOrderId: text("broker_order_id").primaryKey(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => brokerAccounts.id, { onDelete: "cascade" }),
+    venue: text("venue").notNull(),
+    instrumentSymbol: text("instrument_symbol").notNull(),
+    side: text("side").notNull(),
+    shares: real("shares").notNull(),
+    entryPrice: real("entry_price").notNull(),
+    sizeUsd: real("size_usd").notNull(),
+    open: integer("open", { mode: "boolean" }).notNull().default(true),
+    resting: integer("resting", { mode: "boolean" }).notNull().default(false),
+    metadataJson: text("metadata_json").notNull().default("{}"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => ({
+    accountOpenIdx: index("idx_paper_positions_account_open").on(
+      table.accountId,
+      table.open,
+    ),
   }),
 );

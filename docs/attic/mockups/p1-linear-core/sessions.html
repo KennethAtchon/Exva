@@ -1,95 +1,146 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>P1 Linear Core — Sessions</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../skin.css">
-</head>
-<body class="detail-push panel-open">
-  <div class="app">
-    <aside class="sidebar">
-      <div class="nav-brand">Exva</div>
-      <nav>
-        <a class="nav-item" href="dashboard.html"><span>◈</span> Dashboard <span class="kbd">⌘1</span></a>
-        <a class="nav-item active" href="sessions.html"><span>◎</span> Sessions <span class="kbd">⌘2</span></a>
-        <a class="nav-item" href="#"><span>⚡</span> Signals <span class="kbd">⌘3</span></a>
-        <a class="nav-item" href="#"><span>▣</span> Portfolio <span class="kbd">⌘4</span></a>
-        <a class="nav-item" href="#"><span>◷</span> Autopsy <span class="kbd">⌘5</span></a>
-        <a class="nav-item" href="#"><span>⚙</span> Settings <span class="kbd">⌘6</span></a>
-      </nav>
-    </aside>
-    <div class="main">
-      <header class="topbar">
-        <span class="topbar-title">Sessions</span>
-        <span class="topbar-spacer"></span>
-        <button class="btn btn-sm btn-primary">+ New session</button>
-        <button class="cmd-trigger" data-cmd-open><span>Search…</span> <kbd>⌘K</kbd></button>
-      </header>
-      <div class="content">
-        <div class="span-row mb-8">
-          <span class="label">Active</span>
-          <span class="pill live">3 live</span>
-          <span class="pill paper">1 paper</span>
-          <span class="pill stop">1 stopped</span>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>P1 Linear Core — Sessions</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../skin.css" />
+  </head>
+  <body class="detail-push panel-open">
+    <div class="app">
+      <aside class="sidebar">
+        <div class="nav-brand">Exva</div>
+        <nav>
+          <a class="nav-item" href="dashboard.html"
+            ><span>◈</span> Dashboard <span class="kbd">⌘1</span></a
+          >
+          <a class="nav-item active" href="sessions.html"
+            ><span>◎</span> Sessions <span class="kbd">⌘2</span></a
+          >
+          <a class="nav-item" href="#"
+            ><span>⚡</span> Signals <span class="kbd">⌘3</span></a
+          >
+          <a class="nav-item" href="#"
+            ><span>▣</span> Portfolio <span class="kbd">⌘4</span></a
+          >
+          <a class="nav-item" href="#"
+            ><span>◷</span> Autopsy <span class="kbd">⌘5</span></a
+          >
+          <a class="nav-item" href="#"
+            ><span>⚙</span> Settings <span class="kbd">⌘6</span></a
+          >
+        </nav>
+      </aside>
+      <div class="main">
+        <header class="topbar">
+          <span class="topbar-title">Sessions</span>
           <span class="topbar-spacer"></span>
-          <span class="mono up tabular" id="total-pnl"></span>
+          <button class="btn btn-sm btn-primary">+ New session</button>
+          <button class="cmd-trigger" data-cmd-open>
+            <span>Search…</span> <kbd>⌘K</kbd>
+          </button>
+        </header>
+        <div class="content">
+          <div class="span-row mb-8">
+            <span class="label">Active</span>
+            <span class="pill live">3 live</span>
+            <span class="pill paper">1 paper</span>
+            <span class="pill stop">1 stopped</span>
+            <span class="topbar-spacer"></span>
+            <span class="mono up tabular" id="total-pnl"></span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Session</th>
+                  <th>Status</th>
+                  <th class="num">P&amp;L</th>
+                  <th class="num">Trades</th>
+                  <th class="num">Win%</th>
+                  <th>Broker</th>
+                  <th>Started</th>
+                  <th>Agent</th>
+                </tr>
+              </thead>
+              <tbody id="sessions-body"></tbody>
+            </table>
+          </div>
         </div>
-        <div class="table-wrap">
-          <table class="data">
-            <thead>
-              <tr>
-                <th>Session</th><th>Status</th><th class="num">P&amp;L</th>
-                <th class="num">Trades</th><th class="num">Win%</th>
-                <th>Broker</th><th>Started</th><th>Agent</th>
-              </tr>
-            </thead>
-            <tbody id="sessions-body"></tbody>
-          </table>
+      </div>
+      <aside class="detail-panel" id="detail-panel">
+        <div class="inspector-header">
+          <h2>Momentum-AM</h2>
+          <div class="sub">
+            <span class="pill live">live</span> · Alpaca · scout-v2
+          </div>
         </div>
+        <div class="inspector-section">
+          <h3>Performance</h3>
+          <div class="kv-row">
+            <span class="k">P&amp;L</span><span class="v up">+903.60</span>
+          </div>
+          <div class="kv-row">
+            <span class="k">Trades</span><span class="v">14</span>
+          </div>
+          <div class="kv-row">
+            <span class="k">Win rate</span><span class="v">64%</span>
+          </div>
+          <div class="kv-row">
+            <span class="k">Started</span><span class="v">09:32</span>
+          </div>
+        </div>
+        <div class="inspector-section">
+          <h3>Positions</h3>
+          <div class="kv-row">
+            <span class="k">NVDA</span><span class="v up">+771.60</span>
+          </div>
+          <div class="kv-row">
+            <span class="k">AMD</span><span class="v down">−387.00</span>
+          </div>
+          <div class="kv-row">
+            <span class="k">PLTR</span><span class="v up">+519.00</span>
+          </div>
+        </div>
+        <div class="inspector-section">
+          <h3>Agent trace</h3>
+          <div id="trace-list"></div>
+        </div>
+      </aside>
+    </div>
+    <div class="cmd-overlay hidden" id="cmd-overlay">
+      <div class="cmd-menu">
+        <div class="cmd-input-wrap">
+          <span>⌘</span
+          ><input
+            class="cmd-input"
+            id="cmd-input"
+            placeholder="Type a command or search…"
+          />
+        </div>
+        <div class="cmd-list" id="cmd-list"></div>
       </div>
     </div>
-    <aside class="detail-panel" id="detail-panel">
-      <div class="inspector-header">
-        <h2>Momentum-AM</h2>
-        <div class="sub"><span class="pill live">live</span> · Alpaca · scout-v2</div>
-      </div>
-      <div class="inspector-section">
-        <h3>Performance</h3>
-        <div class="kv-row"><span class="k">P&amp;L</span><span class="v up">+903.60</span></div>
-        <div class="kv-row"><span class="k">Trades</span><span class="v">14</span></div>
-        <div class="kv-row"><span class="k">Win rate</span><span class="v">64%</span></div>
-        <div class="kv-row"><span class="k">Started</span><span class="v">09:32</span></div>
-      </div>
-      <div class="inspector-section">
-        <h3>Positions</h3>
-        <div class="kv-row"><span class="k">NVDA</span><span class="v up">+771.60</span></div>
-        <div class="kv-row"><span class="k">AMD</span><span class="v down">−387.00</span></div>
-        <div class="kv-row"><span class="k">PLTR</span><span class="v up">+519.00</span></div>
-      </div>
-      <div class="inspector-section">
-        <h3>Agent trace</h3>
-        <div id="trace-list"></div>
-      </div>
-    </aside>
-  </div>
-  <div class="cmd-overlay hidden" id="cmd-overlay">
-    <div class="cmd-menu">
-      <div class="cmd-input-wrap"><span>⌘</span><input class="cmd-input" id="cmd-input" placeholder="Type a command or search…"></div>
-      <div class="cmd-list" id="cmd-list"></div>
-    </div>
-  </div>
-  <div class="variant-badge"><strong>P1</strong> Linear Core</div>
-  <script src="../data.js"></script>
-  <script>
-    const total = EXVA_MOCK.sessions.reduce((s, x) => s + x.pnl, 0);
-    document.getElementById("total-pnl").textContent = "Net " + fmtSigned(total);
-    document.getElementById("sessions-body").innerHTML = renderSessionsTable(EXVA_MOCK.sessions, "s1");
-    document.getElementById("trace-list").innerHTML = renderTrace(EXVA_MOCK.agentTrace.slice(0, 3));
-    initCmdPalette();
-  </script>
-</body>
+    <div class="variant-badge"><strong>P1</strong> Linear Core</div>
+    <script src="../data.js"></script>
+    <script>
+      const total = EXVA_MOCK.sessions.reduce((s, x) => s + x.pnl, 0);
+      document.getElementById("total-pnl").textContent =
+        "Net " + fmtSigned(total);
+      document.getElementById("sessions-body").innerHTML = renderSessionsTable(
+        EXVA_MOCK.sessions,
+        "s1",
+      );
+      document.getElementById("trace-list").innerHTML = renderTrace(
+        EXVA_MOCK.agentTrace.slice(0, 3),
+      );
+      initCmdPalette();
+    </script>
+  </body>
 </html>

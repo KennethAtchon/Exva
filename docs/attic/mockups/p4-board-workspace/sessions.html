@@ -1,104 +1,167 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>P4 Board Workspace — Sessions</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../skin.css">
-</head>
-<body>
-  <div class="app">
-    <aside class="rail">
-      <button class="rail-btn" title="Dashboard" onclick="location.href='dashboard.html'">◈</button>
-      <button class="rail-btn active" title="Sessions">◎</button>
-      <button class="rail-btn" title="Signals">⚡</button>
-      <button class="rail-btn" title="Portfolio">▣</button>
-      <button class="rail-btn" title="Autopsy">◷</button>
-      <div style="flex:1"></div>
-      <button class="rail-btn" title="Settings">⚙</button>
-    </aside>
-    <div class="main">
-      <header class="topbar">
-        <span class="topbar-title">Sessions</span>
-        <span class="topbar-spacer"></span>
-        <button class="btn btn-sm btn-primary">+ New</button>
-        <button class="cmd-trigger" data-cmd-open><span>Search…</span> <kbd>⌘K</kbd></button>
-      </header>
-      <div class="content">
-        <div class="group">
-          <div class="group-title">Live</div>
-          <div class="table-wrap">
-            <table class="data">
-              <thead><tr><th>Session</th><th class="num">P&amp;L</th><th class="num">Trades</th><th>Agent</th></tr></thead>
-              <tbody id="live-body"></tbody>
-            </table>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>P4 Board Workspace — Sessions</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../skin.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="rail">
+        <button
+          class="rail-btn"
+          title="Dashboard"
+          onclick="location.href = 'dashboard.html'"
+        >
+          ◈
+        </button>
+        <button class="rail-btn active" title="Sessions">◎</button>
+        <button class="rail-btn" title="Signals">⚡</button>
+        <button class="rail-btn" title="Portfolio">▣</button>
+        <button class="rail-btn" title="Autopsy">◷</button>
+        <div style="flex: 1"></div>
+        <button class="rail-btn" title="Settings">⚙</button>
+      </aside>
+      <div class="main">
+        <header class="topbar">
+          <span class="topbar-title">Sessions</span>
+          <span class="topbar-spacer"></span>
+          <button class="btn btn-sm btn-primary">+ New</button>
+          <button class="cmd-trigger" data-cmd-open>
+            <span>Search…</span> <kbd>⌘K</kbd>
+          </button>
+        </header>
+        <div class="content">
+          <div class="group">
+            <div class="group-title">Live</div>
+            <div class="table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Session</th>
+                    <th class="num">P&amp;L</th>
+                    <th class="num">Trades</th>
+                    <th>Agent</th>
+                  </tr>
+                </thead>
+                <tbody id="live-body"></tbody>
+              </table>
+            </div>
           </div>
-        </div>
-        <div class="group">
-          <div class="group-title">Paper</div>
-          <div class="table-wrap">
-            <table class="data">
-              <thead><tr><th>Session</th><th class="num">P&amp;L</th><th class="num">Trades</th><th>Agent</th></tr></thead>
-              <tbody id="paper-body"></tbody>
-            </table>
+          <div class="group">
+            <div class="group-title">Paper</div>
+            <div class="table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Session</th>
+                    <th class="num">P&amp;L</th>
+                    <th class="num">Trades</th>
+                    <th>Agent</th>
+                  </tr>
+                </thead>
+                <tbody id="paper-body"></tbody>
+              </table>
+            </div>
           </div>
-        </div>
-        <div class="group">
-          <div class="group-title">Stopped</div>
-          <div class="table-wrap">
-            <table class="data">
-              <thead><tr><th>Session</th><th class="num">P&amp;L</th><th class="num">Trades</th><th>Agent</th></tr></thead>
-              <tbody id="stopped-body"></tbody>
-            </table>
+          <div class="group">
+            <div class="group-title">Stopped</div>
+            <div class="table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Session</th>
+                    <th class="num">P&amp;L</th>
+                    <th class="num">Trades</th>
+                    <th>Agent</th>
+                  </tr>
+                </thead>
+                <tbody id="stopped-body"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-  <div class="sheet-backdrop"></div>
-  <aside class="sheet">
-    <div class="sheet-header">
-      <h2>Momentum-AM</h2>
-      <button class="btn btn-ghost btn-sm">✕</button>
+    <div class="sheet-backdrop"></div>
+    <aside class="sheet">
+      <div class="sheet-header">
+        <h2>Momentum-AM</h2>
+        <button class="btn btn-ghost btn-sm">✕</button>
+      </div>
+      <div class="inspector-section">
+        <h3>Session</h3>
+        <div class="kv-row">
+          <span class="k">Status</span
+          ><span class="v"><span class="pill live">live</span></span>
+        </div>
+        <div class="kv-row">
+          <span class="k">P&amp;L</span><span class="v up">+903.60</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Win rate</span><span class="v">64%</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Agent</span><span class="v">scout-v2</span>
+        </div>
+      </div>
+      <div class="inspector-section">
+        <h3>Positions</h3>
+        <div class="kv-row">
+          <span class="k">NVDA</span><span class="v up">+771.60</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">AMD</span><span class="v down">−387.00</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">PLTR</span><span class="v up">+519.00</span>
+        </div>
+      </div>
+      <div class="inspector-section flex gap-sm">
+        <button class="btn btn-sm">Pause</button>
+        <button class="btn btn-sm" style="color: var(--down)">Stop</button>
+      </div>
+    </aside>
+    <div class="cmd-overlay hidden" id="cmd-overlay">
+      <div class="cmd-menu">
+        <div class="cmd-input-wrap">
+          <span>⌘</span
+          ><input
+            class="cmd-input"
+            id="cmd-input"
+            placeholder="Type a command or search…"
+          />
+        </div>
+        <div class="cmd-list" id="cmd-list"></div>
+      </div>
     </div>
-    <div class="inspector-section">
-      <h3>Session</h3>
-      <div class="kv-row"><span class="k">Status</span><span class="v"><span class="pill live">live</span></span></div>
-      <div class="kv-row"><span class="k">P&amp;L</span><span class="v up">+903.60</span></div>
-      <div class="kv-row"><span class="k">Win rate</span><span class="v">64%</span></div>
-      <div class="kv-row"><span class="k">Agent</span><span class="v">scout-v2</span></div>
-    </div>
-    <div class="inspector-section">
-      <h3>Positions</h3>
-      <div class="kv-row"><span class="k">NVDA</span><span class="v up">+771.60</span></div>
-      <div class="kv-row"><span class="k">AMD</span><span class="v down">−387.00</span></div>
-      <div class="kv-row"><span class="k">PLTR</span><span class="v up">+519.00</span></div>
-    </div>
-    <div class="inspector-section flex gap-sm">
-      <button class="btn btn-sm">Pause</button>
-      <button class="btn btn-sm" style="color:var(--down)">Stop</button>
-    </div>
-  </aside>
-  <div class="cmd-overlay hidden" id="cmd-overlay">
-    <div class="cmd-menu">
-      <div class="cmd-input-wrap"><span>⌘</span><input class="cmd-input" id="cmd-input" placeholder="Type a command or search…"></div>
-      <div class="cmd-list" id="cmd-list"></div>
-    </div>
-  </div>
-  <div class="variant-badge"><strong>P4</strong> Board Workspace</div>
-  <script src="../data.js"></script>
-  <script>
-    function sessionRow(s) {
-      const cls = s.pnl >= 0 ? "up" : "down";
-      return `<tr><td class="sym">${s.name}</td><td class="num mono ${cls}">${fmtSigned(s.pnl)}</td><td class="num mono">${s.trades}</td><td class="dim">${s.agent}</td></tr>`;
-    }
-    document.getElementById("live-body").innerHTML = EXVA_MOCK.sessions.filter(s => s.status === "live").map(sessionRow).join("");
-    document.getElementById("paper-body").innerHTML = EXVA_MOCK.sessions.filter(s => s.status === "paper").map(sessionRow).join("");
-    document.getElementById("stopped-body").innerHTML = EXVA_MOCK.sessions.filter(s => s.status === "stopped").map(sessionRow).join("");
-    initCmdPalette();
-  </script>
-</body>
+    <div class="variant-badge"><strong>P4</strong> Board Workspace</div>
+    <script src="../data.js"></script>
+    <script>
+      function sessionRow(s) {
+        const cls = s.pnl >= 0 ? "up" : "down";
+        return `<tr><td class="sym">${s.name}</td><td class="num mono ${cls}">${fmtSigned(s.pnl)}</td><td class="num mono">${s.trades}</td><td class="dim">${s.agent}</td></tr>`;
+      }
+      document.getElementById("live-body").innerHTML = EXVA_MOCK.sessions
+        .filter((s) => s.status === "live")
+        .map(sessionRow)
+        .join("");
+      document.getElementById("paper-body").innerHTML = EXVA_MOCK.sessions
+        .filter((s) => s.status === "paper")
+        .map(sessionRow)
+        .join("");
+      document.getElementById("stopped-body").innerHTML = EXVA_MOCK.sessions
+        .filter((s) => s.status === "stopped")
+        .map(sessionRow)
+        .join("");
+      initCmdPalette();
+    </script>
+  </body>
 </html>

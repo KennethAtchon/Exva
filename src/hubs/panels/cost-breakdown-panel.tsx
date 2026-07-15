@@ -7,6 +7,7 @@ import {
   StatTile,
 } from "@/components/ui/primitives";
 import { fmt } from "@/lib/formatters";
+import { formatIpcError } from "@/lib/ipc-error";
 import { api } from "@/lib/exva";
 import type { EventSourceType } from "@/lib/types";
 import {
@@ -17,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { HubQueryError } from "@/hubs/dna";
 import { useSessionStore } from "@/store/sessionStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
@@ -25,13 +27,28 @@ export const CostBreakdownPage = () => {
   const viewMode = useWorkspaceStore((s) => s.viewMode);
   const focusedSessionId = useWorkspaceStore((s) => s.focusedSessionId);
   const environmentMode = useWorkspaceStore((s) => s.environmentMode);
-  const { data: d } = useQuery({
+  const {
+    data: d,
+    isError,
+    error,
+    refetch,
+    isPending,
+  } = useQuery({
     queryKey: ["cost-breakdown", viewMode, focusedSessionId, environmentMode],
     queryFn: () => api.getCostBreakdown(),
     refetchInterval: 5000,
   });
 
-  if (!d || !stats) {
+  if (isError) {
+    return (
+      <HubQueryError
+        message={formatIpcError(error).display}
+        onRetry={() => void refetch()}
+      />
+    );
+  }
+
+  if (isPending || !d || !stats) {
     return <div className="font-sans text-body text-text3">Loading…</div>;
   }
 

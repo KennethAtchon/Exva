@@ -1,110 +1,200 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Exva M0 — UI Variant Gallery</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="skin.css">
-  <style>
-    body { display: flex; flex-direction: column; height: 100vh; }
-    .gallery-bar {
-      display: flex; align-items: center; gap: 12px;
-      padding: 10px 16px; border-bottom: 1px solid var(--border);
-      background: var(--surface); flex-shrink: 0;
-    }
-    .gallery-bar h1 { font-size: 14px; font-weight: 600; }
-    .variant-pills { display: flex; gap: 4px; }
-    .variant-pill {
-      height: 28px; padding: 0 12px; border-radius: var(--radius);
-      border: 1px solid var(--border); background: var(--bg);
-      color: var(--text-dim); font-size: 12px; cursor: pointer; font-family: inherit;
-    }
-    .variant-pill:hover { border-color: var(--text-faint); color: var(--text); }
-    .variant-pill.active { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
-    .variant-pill.rec::after { content: " ★"; color: var(--accent); }
-    .screen-toggle { display: flex; gap: 2px; }
-    .screen-btn {
-      height: 28px; padding: 0 10px; border: 1px solid var(--border);
-      background: var(--bg); color: var(--text-dim); font-size: 12px;
-      cursor: pointer; font-family: var(--font-mono);
-    }
-    .screen-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
-    .screen-btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
-    .screen-btn.active { background: var(--surface-hover); color: var(--text); }
-    .gallery-frame { flex: 1; border: none; width: 100%; }
-    .gallery-hint { font-size: 11px; color: var(--text-faint); font-family: var(--font-mono); }
-    .gallery-hint kbd { color: var(--text-dim); }
-  </style>
-</head>
-<body>
-  <div class="gallery-bar">
-    <h1>Exva M0 Gallery</h1>
-    <div class="variant-pills" id="variant-pills">
-      <button class="variant-pill active" data-v="1">1 Linear Core</button>
-      <button class="variant-pill" data-v="2">2 Command Surface</button>
-      <button class="variant-pill rec active-rec" data-v="3">3 Ops Console</button>
-      <button class="variant-pill" data-v="4">4 Board Workspace</button>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Exva M0 — UI Variant Gallery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="skin.css" />
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      .gallery-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+        flex-shrink: 0;
+      }
+      .gallery-bar h1 {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .variant-pills {
+        display: flex;
+        gap: 4px;
+      }
+      .variant-pill {
+        height: 28px;
+        padding: 0 12px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text-dim);
+        font-size: 12px;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .variant-pill:hover {
+        border-color: var(--text-faint);
+        color: var(--text);
+      }
+      .variant-pill.active {
+        background: var(--accent-soft);
+        border-color: var(--accent);
+        color: var(--text);
+      }
+      .variant-pill.rec::after {
+        content: " ★";
+        color: var(--accent);
+      }
+      .screen-toggle {
+        display: flex;
+        gap: 2px;
+      }
+      .screen-btn {
+        height: 28px;
+        padding: 0 10px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text-dim);
+        font-size: 12px;
+        cursor: pointer;
+        font-family: var(--font-mono);
+      }
+      .screen-btn:first-child {
+        border-radius: var(--radius) 0 0 var(--radius);
+      }
+      .screen-btn:last-child {
+        border-radius: 0 var(--radius) var(--radius) 0;
+      }
+      .screen-btn.active {
+        background: var(--surface-hover);
+        color: var(--text);
+      }
+      .gallery-frame {
+        flex: 1;
+        border: none;
+        width: 100%;
+      }
+      .gallery-hint {
+        font-size: 11px;
+        color: var(--text-faint);
+        font-family: var(--font-mono);
+      }
+      .gallery-hint kbd {
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="gallery-bar">
+      <h1>Exva M0 Gallery</h1>
+      <div class="variant-pills" id="variant-pills">
+        <button class="variant-pill active" data-v="1">1 Linear Core</button>
+        <button class="variant-pill" data-v="2">2 Command Surface</button>
+        <button class="variant-pill rec active-rec" data-v="3">
+          3 Ops Console
+        </button>
+        <button class="variant-pill" data-v="4">4 Board Workspace</button>
+      </div>
+      <div class="screen-toggle">
+        <button class="screen-btn active" data-s="dashboard">
+          D Dashboard
+        </button>
+        <button class="screen-btn" data-s="sessions">S Sessions</button>
+      </div>
+      <span class="topbar-spacer"></span>
+      <button class="btn btn-sm" id="btn-prev">← Prev</button>
+      <button class="btn btn-sm" id="btn-next">Next →</button>
+      <a class="btn btn-sm btn-ghost" href="contrast-check.html">Contrast</a>
+      <span class="gallery-hint"
+        ><kbd>1-4</kbd> variant · <kbd>D/S</kbd> screen ·
+        <kbd>←→</kbd> nav</span
+      >
     </div>
-    <div class="screen-toggle">
-      <button class="screen-btn active" data-s="dashboard">D Dashboard</button>
-      <button class="screen-btn" data-s="sessions">S Sessions</button>
-    </div>
-    <span class="topbar-spacer"></span>
-    <button class="btn btn-sm" id="btn-prev">← Prev</button>
-    <button class="btn btn-sm" id="btn-next">Next →</button>
-    <a class="btn btn-sm btn-ghost" href="contrast-check.html">Contrast</a>
-    <span class="gallery-hint"><kbd>1-4</kbd> variant · <kbd>D/S</kbd> screen · <kbd>←→</kbd> nav</span>
-  </div>
-  <iframe class="gallery-frame" id="frame" src="p1-linear-core/dashboard.html"></iframe>
-  <script>
-    const variants = [
-      { id: 1, dir: "p1-linear-core", name: "Linear Core" },
-      { id: 2, dir: "p2-command-surface", name: "Command Surface" },
-      { id: 3, dir: "p3-ops-console", name: "Ops Console", rec: true },
-      { id: 4, dir: "p4-board-workspace", name: "Board Workspace" },
-    ];
-    let v = 1, screen = "dashboard";
-    const frame = document.getElementById("frame");
+    <iframe
+      class="gallery-frame"
+      id="frame"
+      src="p1-linear-core/dashboard.html"
+    ></iframe>
+    <script>
+      const variants = [
+        { id: 1, dir: "p1-linear-core", name: "Linear Core" },
+        { id: 2, dir: "p2-command-surface", name: "Command Surface" },
+        { id: 3, dir: "p3-ops-console", name: "Ops Console", rec: true },
+        { id: 4, dir: "p4-board-workspace", name: "Board Workspace" },
+      ];
+      let v = 1,
+        screen = "dashboard";
+      const frame = document.getElementById("frame");
 
-    function load() {
-      const variant = variants.find(x => x.id === v);
-      frame.src = `${variant.dir}/${screen}.html`;
-      document.querySelectorAll(".variant-pill").forEach(p => {
-        p.classList.toggle("active", +p.dataset.v === v);
-      });
-      document.querySelectorAll(".screen-btn").forEach(b => {
-        b.classList.toggle("active", b.dataset.s === screen);
-      });
-    }
+      function load() {
+        const variant = variants.find((x) => x.id === v);
+        frame.src = `${variant.dir}/${screen}.html`;
+        document.querySelectorAll(".variant-pill").forEach((p) => {
+          p.classList.toggle("active", +p.dataset.v === v);
+        });
+        document.querySelectorAll(".screen-btn").forEach((b) => {
+          b.classList.toggle("active", b.dataset.s === screen);
+        });
+      }
 
-    document.getElementById("variant-pills").addEventListener("click", e => {
-      const pill = e.target.closest(".variant-pill");
-      if (!pill) return;
-      v = +pill.dataset.v;
-      load();
-    });
-    document.querySelectorAll(".screen-btn").forEach(b => {
-      b.addEventListener("click", () => { screen = b.dataset.s; load(); });
-    });
-    document.getElementById("btn-prev").addEventListener("click", () => {
-      v = v <= 1 ? 4 : v - 1;
-      load();
-    });
-    document.getElementById("btn-next").addEventListener("click", () => {
-      v = v >= 4 ? 1 : v + 1;
-      load();
-    });
-    document.addEventListener("keydown", e => {
-      if (e.target.tagName === "INPUT") return;
-      if (e.key >= "1" && e.key <= "4") { v = +e.key; load(); }
-      if (e.key === "d" || e.key === "D") { screen = "dashboard"; load(); }
-      if (e.key === "s" || e.key === "S") { screen = "sessions"; load(); }
-      if (e.key === "ArrowLeft") { v = v <= 1 ? 4 : v - 1; load(); }
-      if (e.key === "ArrowRight") { v = v >= 4 ? 1 : v + 1; load(); }
-    });
-  </script>
-</body>
+      document
+        .getElementById("variant-pills")
+        .addEventListener("click", (e) => {
+          const pill = e.target.closest(".variant-pill");
+          if (!pill) return;
+          v = +pill.dataset.v;
+          load();
+        });
+      document.querySelectorAll(".screen-btn").forEach((b) => {
+        b.addEventListener("click", () => {
+          screen = b.dataset.s;
+          load();
+        });
+      });
+      document.getElementById("btn-prev").addEventListener("click", () => {
+        v = v <= 1 ? 4 : v - 1;
+        load();
+      });
+      document.getElementById("btn-next").addEventListener("click", () => {
+        v = v >= 4 ? 1 : v + 1;
+        load();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.target.tagName === "INPUT") return;
+        if (e.key >= "1" && e.key <= "4") {
+          v = +e.key;
+          load();
+        }
+        if (e.key === "d" || e.key === "D") {
+          screen = "dashboard";
+          load();
+        }
+        if (e.key === "s" || e.key === "S") {
+          screen = "sessions";
+          load();
+        }
+        if (e.key === "ArrowLeft") {
+          v = v <= 1 ? 4 : v - 1;
+          load();
+        }
+        if (e.key === "ArrowRight") {
+          v = v >= 4 ? 1 : v + 1;
+          load();
+        }
+      });
+    </script>
+  </body>
 </html>

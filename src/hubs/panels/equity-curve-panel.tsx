@@ -68,6 +68,8 @@ export function EquityCurvePanel({ showAiCost = false, className }: Props) {
   useExvaEvent("equity_snapshot", () => load(range));
 
   const values = points.map((p) => p.total);
+  // Cumulative AI spend is already stored on each snapshot; subtract it
+  // (do not use a single day's spend as if it were the curve offset).
   const netValues = showAiCost
     ? points.map((p) => (p.total ?? 0) - (p.aiSpendUsd ?? 0))
     : null;

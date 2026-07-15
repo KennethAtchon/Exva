@@ -1,106 +1,164 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>P4 Board Workspace — Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../skin.css">
-</head>
-<body>
-  <div class="app">
-    <aside class="rail">
-      <button class="rail-btn active" title="Dashboard">◈</button>
-      <button class="rail-btn" title="Sessions" onclick="location.href='sessions.html'">◎</button>
-      <button class="rail-btn" title="Signals">⚡</button>
-      <button class="rail-btn" title="Portfolio">▣</button>
-      <button class="rail-btn" title="Autopsy">◷</button>
-      <div style="flex:1"></div>
-      <button class="rail-btn" title="Settings">⚙</button>
-    </aside>
-    <div class="main">
-      <header class="topbar">
-        <span class="topbar-title">Dashboard</span>
-        <span class="topbar-spacer"></span>
-        <button class="cmd-trigger" data-cmd-open><span>Search…</span> <kbd>⌘K</kbd></button>
-      </header>
-      <div class="content">
-        <div class="stats">
-          <div><div class="stat-label">Equity</div><div class="stat-value tabular" id="equity"></div></div>
-          <div><div class="stat-label">Day P&amp;L</div><div class="stat-value up tabular" id="day-pnl"></div></div>
-        </div>
-        <div class="group">
-          <div class="group-title">Winners</div>
-          <div class="table-wrap">
-            <table class="data">
-              <thead><tr><th>Symbol</th><th class="num">P&amp;L</th><th class="num">%</th><th>Session</th></tr></thead>
-              <tbody id="winners-body"></tbody>
-            </table>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>P4 Board Workspace — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../skin.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="rail">
+        <button class="rail-btn active" title="Dashboard">◈</button>
+        <button
+          class="rail-btn"
+          title="Sessions"
+          onclick="location.href = 'sessions.html'"
+        >
+          ◎
+        </button>
+        <button class="rail-btn" title="Signals">⚡</button>
+        <button class="rail-btn" title="Portfolio">▣</button>
+        <button class="rail-btn" title="Autopsy">◷</button>
+        <div style="flex: 1"></div>
+        <button class="rail-btn" title="Settings">⚙</button>
+      </aside>
+      <div class="main">
+        <header class="topbar">
+          <span class="topbar-title">Dashboard</span>
+          <span class="topbar-spacer"></span>
+          <button class="cmd-trigger" data-cmd-open>
+            <span>Search…</span> <kbd>⌘K</kbd>
+          </button>
+        </header>
+        <div class="content">
+          <div class="stats">
+            <div>
+              <div class="stat-label">Equity</div>
+              <div class="stat-value tabular" id="equity"></div>
+            </div>
+            <div>
+              <div class="stat-label">Day P&amp;L</div>
+              <div class="stat-value up tabular" id="day-pnl"></div>
+            </div>
           </div>
-        </div>
-        <div class="group">
-          <div class="group-title">Losers</div>
-          <div class="table-wrap">
-            <table class="data">
-              <thead><tr><th>Symbol</th><th class="num">P&amp;L</th><th class="num">%</th><th>Session</th></tr></thead>
-              <tbody id="losers-body"></tbody>
-            </table>
+          <div class="group">
+            <div class="group-title">Winners</div>
+            <div class="table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th class="num">P&amp;L</th>
+                    <th class="num">%</th>
+                    <th>Session</th>
+                  </tr>
+                </thead>
+                <tbody id="winners-body"></tbody>
+              </table>
+            </div>
           </div>
-        </div>
-        <div class="group">
-          <div class="group-title">Attention</div>
-          <div class="table-wrap" id="attention-list"></div>
+          <div class="group">
+            <div class="group-title">Losers</div>
+            <div class="table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th class="num">P&amp;L</th>
+                    <th class="num">%</th>
+                    <th>Session</th>
+                  </tr>
+                </thead>
+                <tbody id="losers-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="group">
+            <div class="group-title">Attention</div>
+            <div class="table-wrap" id="attention-list"></div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-  <div class="sheet-backdrop"></div>
-  <aside class="sheet">
-    <div class="sheet-header">
-      <h2>NVDA</h2>
-      <button class="btn btn-ghost btn-sm">✕</button>
+    <div class="sheet-backdrop"></div>
+    <aside class="sheet">
+      <div class="sheet-header">
+        <h2>NVDA</h2>
+        <button class="btn btn-ghost btn-sm">✕</button>
+      </div>
+      <div class="inspector-section">
+        <h3>Position</h3>
+        <div class="kv-row">
+          <span class="k">Side</span><span class="v">long · 120</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Last</span><span class="v up">124.85</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">P&amp;L</span><span class="v up">+771.60</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Stop</span><span class="v">122.10</span>
+        </div>
+      </div>
+      <div class="inspector-section">
+        <h3>Agent trace</h3>
+        <div id="trace-list"></div>
+      </div>
+      <div class="inspector-section flex gap-sm">
+        <button class="btn btn-sm btn-primary w-full">Adjust stop</button>
+      </div>
+    </aside>
+    <div class="cmd-overlay hidden" id="cmd-overlay">
+      <div class="cmd-menu">
+        <div class="cmd-input-wrap">
+          <span>⌘</span
+          ><input
+            class="cmd-input"
+            id="cmd-input"
+            placeholder="Type a command or search…"
+          />
+        </div>
+        <div class="cmd-list" id="cmd-list"></div>
+      </div>
     </div>
-    <div class="inspector-section">
-      <h3>Position</h3>
-      <div class="kv-row"><span class="k">Side</span><span class="v">long · 120</span></div>
-      <div class="kv-row"><span class="k">Last</span><span class="v up">124.85</span></div>
-      <div class="kv-row"><span class="k">P&amp;L</span><span class="v up">+771.60</span></div>
-      <div class="kv-row"><span class="k">Stop</span><span class="v">122.10</span></div>
-    </div>
-    <div class="inspector-section">
-      <h3>Agent trace</h3>
-      <div id="trace-list"></div>
-    </div>
-    <div class="inspector-section flex gap-sm">
-      <button class="btn btn-sm btn-primary w-full">Adjust stop</button>
-    </div>
-  </aside>
-  <div class="cmd-overlay hidden" id="cmd-overlay">
-    <div class="cmd-menu">
-      <div class="cmd-input-wrap"><span>⌘</span><input class="cmd-input" id="cmd-input" placeholder="Type a command or search…"></div>
-      <div class="cmd-list" id="cmd-list"></div>
-    </div>
-  </div>
-  <div class="variant-badge"><strong>P4</strong> Board Workspace</div>
-  <script src="../data.js"></script>
-  <script>
-    const p = EXVA_MOCK.portfolio;
-    document.getElementById("equity").textContent = "$" + p.equity.toLocaleString("en-US", {minimumFractionDigits:2});
-    document.getElementById("day-pnl").textContent = fmtSigned(p.dayPnl) + " (" + fmtPct(p.dayPnlPct) + ")";
-    const winners = EXVA_MOCK.positions.filter(x => x.pnl >= 0).sort((a,b) => b.pnl - a.pnl);
-    const losers = EXVA_MOCK.positions.filter(x => x.pnl < 0);
-    function miniRow(pos) {
-      const cls = pos.pnl >= 0 ? "up" : "down";
-      return `<tr><td class="sym">${pos.sym}</td><td class="num mono ${cls}">${fmtSigned(pos.pnl)}</td><td class="num mono ${cls}">${tickGlyph(pos.pnlPct)} ${fmtPct(pos.pnlPct)}</td><td class="dim">${pos.session}</td></tr>`;
-    }
-    document.getElementById("winners-body").innerHTML = winners.map(miniRow).join("");
-    document.getElementById("losers-body").innerHTML = losers.map(miniRow).join("");
-    document.getElementById("attention-list").innerHTML = renderAttention(EXVA_MOCK.attention);
-    document.getElementById("trace-list").innerHTML = renderTrace(EXVA_MOCK.agentTrace.slice(0, 3));
-    initCmdPalette();
-    setInterval(flashTick, 5000);
-  </script>
-</body>
+    <div class="variant-badge"><strong>P4</strong> Board Workspace</div>
+    <script src="../data.js"></script>
+    <script>
+      const p = EXVA_MOCK.portfolio;
+      document.getElementById("equity").textContent =
+        "$" + p.equity.toLocaleString("en-US", { minimumFractionDigits: 2 });
+      document.getElementById("day-pnl").textContent =
+        fmtSigned(p.dayPnl) + " (" + fmtPct(p.dayPnlPct) + ")";
+      const winners = EXVA_MOCK.positions
+        .filter((x) => x.pnl >= 0)
+        .sort((a, b) => b.pnl - a.pnl);
+      const losers = EXVA_MOCK.positions.filter((x) => x.pnl < 0);
+      function miniRow(pos) {
+        const cls = pos.pnl >= 0 ? "up" : "down";
+        return `<tr><td class="sym">${pos.sym}</td><td class="num mono ${cls}">${fmtSigned(pos.pnl)}</td><td class="num mono ${cls}">${tickGlyph(pos.pnlPct)} ${fmtPct(pos.pnlPct)}</td><td class="dim">${pos.session}</td></tr>`;
+      }
+      document.getElementById("winners-body").innerHTML = winners
+        .map(miniRow)
+        .join("");
+      document.getElementById("losers-body").innerHTML = losers
+        .map(miniRow)
+        .join("");
+      document.getElementById("attention-list").innerHTML = renderAttention(
+        EXVA_MOCK.attention,
+      );
+      document.getElementById("trace-list").innerHTML = renderTrace(
+        EXVA_MOCK.agentTrace.slice(0, 3),
+      );
+      initCmdPalette();
+      setInterval(flashTick, 5000);
+    </script>
+  </body>
 </html>

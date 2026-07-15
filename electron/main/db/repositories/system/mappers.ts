@@ -52,6 +52,9 @@ export function toTrade(row: Row): Trade {
     high_water_mark_price: nullableNumber(row.high_water_mark_price),
     low_water_mark_price: nullableNumber(row.low_water_mark_price),
     exit_reason: nullableString(row.exit_reason),
+    closure_source: nullableString(
+      row.closure_source,
+    ) as Trade["closure_source"],
     client_order_id: nullableString(row.client_order_id),
     close_market_snapshot_json: nullableString(row.close_market_snapshot_json),
     mfe_usd: nullableNumber(row.mfe_usd),

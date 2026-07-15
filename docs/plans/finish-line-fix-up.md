@@ -1,7 +1,7 @@
 # Finish-Line Fix-Up Plan
 
 > **Date:** 2026-07-13
-> **Status:** Active; implementation audit complete, repairs not started
+> **Status:** Active; P0 repairs landed; P1 partially in progress (paper persist, stream close, Alpaca prove, glossary); P2–P4 still open
 > **Owner:** Ken
 > **Source audit:** [`docs/attic/finish-line/`](../attic/finish-line/00-INDEX.md)
 > **Goal:** Repair the finish-line implementation until its original completion contract is true in code, tests, the daily database, and live operation.

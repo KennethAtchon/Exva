@@ -3,6 +3,7 @@ import { AppError } from "@electron/shared/infra/errors";
 import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { PaperBalancesRepo } from "../../db/repositories/brokers/paper-balances-repo";
+import type { PaperPositionsRepo } from "../../db/repositories/brokers/paper-positions-repo";
 import type { SecretsService } from "../infra/secrets-service";
 import type { SupervisorService } from "../supervisor/supervisor-service";
 import { createInstrumentedBrokerAdapter } from "./instrumented-broker-adapter";
@@ -39,6 +40,7 @@ export class BrokerRegistry {
     private readonly secrets: SecretsService,
     private readonly apiCallLogRepo?: ApiCallLogRepo,
     private readonly paperBalancesRepo?: PaperBalancesRepo,
+    private readonly paperPositionsRepo?: PaperPositionsRepo,
   ) {}
 
   /** Wire after SupervisorService is constructed (avoids circular boot order). */
@@ -169,6 +171,7 @@ export class BrokerRegistry {
         return new PolymarketAdapter(parsed, account.mode, interactionLogger, {
           accountId: account.id,
           paperBalances: this.paperBalancesRepo,
+          paperPositions: this.paperPositionsRepo,
           onParityWarning: (message, details) => {
             void this.supervisor?.raiseParityCheckFailed(
               null,
@@ -185,6 +188,7 @@ export class BrokerRegistry {
         return new KrakenAdapter(credsJson, account.mode, interactionLogger, {
           accountId: account.id,
           paperBalances: this.paperBalancesRepo,
+          paperPositions: this.paperPositionsRepo,
         });
       case "mock": {
         const kind = resolveMockScenarioKind(account);

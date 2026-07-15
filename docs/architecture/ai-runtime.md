@@ -158,18 +158,20 @@ erDiagram
 
 **Key runtime entities:**
 
-| Entity                          | Runtime role                                                                                                                                                     |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sessions`                      | Status, execution mode, selection mode, instrument scope/classes, default search provider, live-readiness acknowledgement.                                       |
-| `session_execution_steps`       | Per `(session_id, cycle_id, stage)` progress and retry state for selector, AI phases, risk gate, broker order, and monitoring marker.                            |
-| `session_* strategy tables`     | Research posture, trade rules, risk config, timeframe, AI settings, selector settings, and phase/worker model config.                                            |
-| `trades`                        | Pending/open/closed/rejected trade records, broker ids, instrument metadata, prediction-market metadata, AI cost, confidence, price levels, and close snapshots. |
-| `trade_approvals`               | Human approval rows and resolution state.                                                                                                                        |
-| `capital_reservations`          | Approval/order/position capital locks that release or convert as the trade lifecycle progresses.                                                                 |
-| `agent_runs` / `agent_messages` | AI trace metadata, prompts/messages/tool calls/output JSON/thinking/strategy snapshot/cycle id.                                                                  |
-| `events`                        | User-visible and developer-visible runtime log rows with optional session/trade/cycle correlation.                                                               |
-| `api_call_log`                  | AI/search/tool call accounting with provider, endpoint, latency, cost/credits, and status.                                                                       |
-| `session_instrument_cache`      | Selector cache for non-empty instrument selections keyed by session/effective-scope fingerprint.                                                                 |
+| Entity                            | Runtime role                                                                                                                                                     |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sessions`                        | Status, execution mode, selection mode, instrument scope/classes, default search provider, live-readiness acknowledgement.                                       |
+| `session_strategy_configs`        | Versioned JSON document for strategy, risk, timeframe, trade rules, research posture, AI phases/workers, and selector settings.                                  |
+| `config_presets`                  | Built-in and user presets (risk/timeframe/research/trade-rules/full) merged into session strategy configs.                                                       |
+| `session_strategy_config_history` | Immutable prior versions of session strategy configs for rollback and audit.                                                                                     |
+| `session_execution_steps`         | Per `(session_id, cycle_id, stage)` progress and retry state for selector, AI phases, risk gate, broker order, and monitoring marker.                            |
+| `trades`                          | Pending/open/closed/rejected trade records, broker ids, instrument metadata, prediction-market metadata, AI cost, confidence, price levels, and close snapshots. |
+| `trade_approvals`                 | Human approval rows and resolution state.                                                                                                                        |
+| `capital_reservations`            | Approval/order/position capital locks that release or convert as the trade lifecycle progresses.                                                                 |
+| `agent_runs` / `agent_messages`   | AI trace metadata, prompts/messages/tool calls/output JSON/thinking/strategy snapshot/cycle id.                                                                  |
+| `events`                          | User-visible and developer-visible runtime log rows with optional session/trade/cycle correlation.                                                               |
+| `api_call_log`                    | AI/search/tool call accounting with provider, endpoint, latency, cost/credits, and status.                                                                       |
+| `session_instrument_cache`        | Selector cache for non-empty instrument selections keyed by session/effective-scope fingerprint.                                                                 |
 
 ---
 

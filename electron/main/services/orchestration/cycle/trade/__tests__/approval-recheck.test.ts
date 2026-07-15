@@ -198,6 +198,12 @@ function createContext(options?: {
       })),
       resolveBrokerAccountId: () => "broker-1",
     },
+    brokerRegistry: {
+      get: vi.fn(async () => ({
+        brokerType: "mock",
+        supportedInstrumentClasses: ["stock"],
+      })),
+    },
     instrumentNormalizer: {
       toBrokerSymbol: ({ symbol }: { symbol: string }) => symbol,
     },

@@ -65,6 +65,23 @@ export class EquitySnapshotService {
       perExperience[expId] = (perExperience[expId] ?? 0) + mark;
     }
 
+    // Attribute closed-trade realized P&L to experiences (lifetime contribution).
+    const closedWindowStart = new Date(
+      now.getTime() - 365 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const closed = this.deps.trades.listClosedInWindow({
+      windowStart: closedWindowStart,
+      windowEnd: now.toISOString(),
+    });
+    for (const trade of closed) {
+      const session = trade.sessionId
+        ? this.deps.sessions.findById(trade.sessionId)
+        : null;
+      const expId = session?.experienceId ?? trade.sessionId ?? "unassigned";
+      perExperience[expId] =
+        (perExperience[expId] ?? 0) + (trade.final_pnl_usd ?? 0);
+    }
+
     // Closed realized P&L already reflected in balances for live; for paper,
     // fold closed session P&L into experience attribution.
     const today = now.toISOString().slice(0, 10);
@@ -74,6 +91,21 @@ export class EquitySnapshotService {
       if (s.experienceId) {
         perExperience[s.experienceId] = perExperience[s.experienceId] ?? 0;
       }
+    }
+
+    // Sanity: contributions should not invent portfolio equity — they are an
+    // attribution map (open marks + realized), not a second cash ledger.
+    const contributionSum = Object.values(perExperience).reduce(
+      (a, b) => a + b,
+      0,
+    );
+    if (
+      Number.isFinite(contributionSum) &&
+      Math.abs(contributionSum) > Math.abs(total) + 1e-6
+    ) {
+      // Attribution can exceed total when cash is below assigned experience
+      // P&L (common on paper); surface via stale so UI can warn.
+      marksStale = true;
     }
 
     const row = this.deps.snapshots.insert({

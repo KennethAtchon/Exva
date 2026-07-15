@@ -215,7 +215,10 @@ export class AlpacaAdapter implements BrokerAdapter {
   async placeOrderV2(order: BrokerOrderV2): Promise<BrokerOrderResult> {
     const check = adapterSupportsOrder(this.capabilities, order);
     if (!check.ok) {
-      throw new Error(`Alpaca rejects order: ${check.reason}`);
+      throw new AppError(
+        `Alpaca rejects order: ${check.reason}`,
+        "BROKER_REJECTED",
+      );
     }
     if (
       order.orderType === "market" &&
@@ -223,15 +226,73 @@ export class AlpacaAdapter implements BrokerAdapter {
     ) {
       return this.placeOrder(lowerBrokerOrderV2ToV1(order));
     }
-    if (order.orderType === "limit" && order.quantity.kind === "units") {
-      return this.submitRawOrder(await this.buildLimitUnitsBody(order));
+    // Every other advertised orderType/quantityKind combination sizes in
+    // whole units. Alpaca does not accept `notional` for stop/stop_limit
+    // orders (or options) at all, so notional requests there are converted
+    // to units via a live quote — same contract (a dollar-sized request),
+    // honored by computing the right quantity instead of a param Alpaca
+    // would reject.
+    const unitsOrder = await this.toUnitsOrder(order);
+    switch (unitsOrder.orderType) {
+      case "limit":
+        return this.submitRawOrder(
+          await this.buildLimitUnitsBody(unitsOrder),
+          unitsOrder.limitPrice,
+        );
+      case "market":
+        return this.submitRawOrder(await this.buildMarketUnitsBody(unitsOrder));
+      case "stop":
+        return this.submitRawOrder(
+          await this.buildStopUnitsBody(unitsOrder),
+          unitsOrder.stopPrice,
+        );
+      case "stop_limit":
+        return this.submitRawOrder(
+          await this.buildStopLimitUnitsBody(unitsOrder),
+          unitsOrder.limitPrice ?? unitsOrder.stopPrice,
+        );
+      default:
+        throw new AppError(
+          `Alpaca placeOrderV2: ${unitsOrder.orderType} not supported`,
+          "BROKER_REJECTED",
+        );
     }
-    if (order.orderType === "market" && order.quantity.kind === "units") {
-      return this.submitRawOrder(await this.buildMarketUnitsBody(order));
+  }
+
+  /** Convert a notional_usd request into a units request via a live quote; pass units requests through unchanged. */
+  private async toUnitsOrder(order: BrokerOrderV2): Promise<BrokerOrderV2> {
+    if (order.quantity.kind === "units") return order;
+    const qty = await this.resolveUnitsFromNotional(order);
+    return { ...order, quantity: { kind: "units", value: qty } };
+  }
+
+  private async resolveUnitsFromNotional(
+    order: BrokerOrderV2,
+  ): Promise<number> {
+    const notionalUsd = order.quantity.value;
+    if (order.instrument.instrumentClass === "options") {
+      const snapshot = await this.getOptionMarketSnapshot(
+        order.instrument.symbol,
+      );
+      const perContractCost = snapshot.price * 100;
+      if (!(perContractCost > 0)) {
+        throw new AppError(
+          "Alpaca options order: no quotable contract price to size against.",
+          "BROKER_ERROR",
+          { instrumentSymbol: order.instrument.symbol },
+        );
+      }
+      return Math.max(1, Math.floor(notionalUsd / perContractCost));
     }
-    throw new Error(
-      `Alpaca placeOrderV2: ${order.orderType}/${order.quantity.kind} not yet wired`,
-    );
+    const snapshot = await this.getMarketSnapshot(order.instrument.symbol);
+    if (!(snapshot.price > 0)) {
+      throw new AppError(
+        "Alpaca order: no quotable price to convert notional size into units.",
+        "BROKER_ERROR",
+        { instrumentSymbol: order.instrument.symbol },
+      );
+    }
+    return Math.max(1, Math.floor(notionalUsd / snapshot.price));
   }
 
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
@@ -600,6 +661,7 @@ export class AlpacaAdapter implements BrokerAdapter {
    */
   private async submitRawOrder(
     body: Record<string, unknown>,
+    restingFallbackPrice?: number,
   ): Promise<BrokerOrderResult> {
     const result = await this.request<{
       id: string;
@@ -609,7 +671,10 @@ export class AlpacaAdapter implements BrokerAdapter {
       method: "POST",
       body: JSON.stringify(body),
     });
-    const filledAvgPrice = await this.resolveFilledAvgPrice(result);
+    const filledAvgPrice = await this.resolveFilledAvgPrice(
+      result,
+      restingFallbackPrice,
+    );
     return { brokerOrderId: result.id, filledAvgPrice };
   }
 
@@ -709,6 +774,103 @@ export class AlpacaAdapter implements BrokerAdapter {
     );
   }
 
+  /**
+   * Explicit v2 stop+units: qty + stop_price. Alpaca does not allow
+   * extended-hours or notional stop orders, so this always sizes in units and
+   * requires the regular session (crypto trades 24/7).
+   */
+  private async buildStopUnitsBody(
+    order: BrokerOrderV2,
+  ): Promise<Record<string, unknown>> {
+    if (order.stopPrice == null || !(order.stopPrice > 0)) {
+      throw new AppError(
+        "Alpaca stop order requires a positive stopPrice.",
+        "VALIDATION_FAILED",
+      );
+    }
+    if (order.quantity.kind !== "units" || !(order.quantity.value > 0)) {
+      throw new AppError(
+        "Alpaca stop+units requires a positive units quantity.",
+        "VALIDATION_FAILED",
+      );
+    }
+    const instrumentType = order.instrument.instrumentClass;
+    const base = {
+      symbol: order.instrument.symbol,
+      side: order.side.toLowerCase(),
+      client_order_id: toAlpacaClientOrderId(order.clientOrderId),
+      qty: String(order.quantity.value),
+      type: "stop",
+      stop_price: String(roundToPenny(order.stopPrice)),
+      time_in_force: order.timeInForce,
+    };
+
+    if (instrumentType === "crypto") {
+      return {
+        ...base,
+        time_in_force: order.timeInForce === "day" ? "gtc" : order.timeInForce,
+      };
+    }
+
+    const session = getUsEquitySession(this.now());
+    if (session === "regular") return base;
+    throw new AppError(
+      `Alpaca stop orders require regular trading hours for ${order.instrument.symbol}; extended-hours stop orders are not supported.`,
+      "MARKET_CLOSED",
+      { instrumentSymbol: order.instrument.symbol, instrumentType, session },
+    );
+  }
+
+  /** Explicit v2 stop_limit+units: qty + stop_price + limit_price; same hours rule as plain stop. */
+  private async buildStopLimitUnitsBody(
+    order: BrokerOrderV2,
+  ): Promise<Record<string, unknown>> {
+    if (order.stopPrice == null || !(order.stopPrice > 0)) {
+      throw new AppError(
+        "Alpaca stop_limit order requires a positive stopPrice.",
+        "VALIDATION_FAILED",
+      );
+    }
+    if (order.limitPrice == null || !(order.limitPrice > 0)) {
+      throw new AppError(
+        "Alpaca stop_limit order requires a positive limitPrice.",
+        "VALIDATION_FAILED",
+      );
+    }
+    if (order.quantity.kind !== "units" || !(order.quantity.value > 0)) {
+      throw new AppError(
+        "Alpaca stop_limit+units requires a positive units quantity.",
+        "VALIDATION_FAILED",
+      );
+    }
+    const instrumentType = order.instrument.instrumentClass;
+    const base = {
+      symbol: order.instrument.symbol,
+      side: order.side.toLowerCase(),
+      client_order_id: toAlpacaClientOrderId(order.clientOrderId),
+      qty: String(order.quantity.value),
+      type: "stop_limit",
+      stop_price: String(roundToPenny(order.stopPrice)),
+      limit_price: String(roundToPenny(order.limitPrice)),
+      time_in_force: order.timeInForce,
+    };
+
+    if (instrumentType === "crypto") {
+      return {
+        ...base,
+        time_in_force: order.timeInForce === "day" ? "gtc" : order.timeInForce,
+      };
+    }
+
+    const session = getUsEquitySession(this.now());
+    if (session === "regular") return base;
+    throw new AppError(
+      `Alpaca stop_limit orders require regular trading hours for ${order.instrument.symbol}; extended-hours stop_limit orders are not supported.`,
+      "MARKET_CLOSED",
+      { instrumentSymbol: order.instrument.symbol, instrumentType, session },
+    );
+  }
+
   private async buildOrderBody(
     order: BrokerOrder,
   ): Promise<Record<string, unknown>> {
@@ -792,14 +954,24 @@ export class AlpacaAdapter implements BrokerAdapter {
   /**
    * Resolve the average fill price. A just-submitted order may report no price
    * until the fill propagates, so we poll the order a few times before giving
-   * up. We still fail loud if it never fills — a trade with no entry price is
-   * worse than an error, since downstream PnL would be meaningless.
+   * up.
+   *
+   * A market order that never reports a fill is a genuine broker error — a
+   * trade with no entry price is worse than an error, since downstream PnL
+   * would be meaningless. A limit/stop order that is still open after the
+   * same poll window is not an error: it is legitimately resting at the
+   * exchange (e.g. a non-marketable limit) and must not be reported as
+   * failed. `restingFallbackPrice` (the order's limit/stop price) is only
+   * used in that resting case, never for a canceled/rejected order.
    */
-  private async resolveFilledAvgPrice(order: {
-    id: string;
-    filled_avg_price?: string;
-    status?: string;
-  }): Promise<number> {
+  private async resolveFilledAvgPrice(
+    order: {
+      id: string;
+      filled_avg_price?: string;
+      status?: string;
+    },
+    restingFallbackPrice?: number,
+  ): Promise<number> {
     const immediate = parsePositiveNumber(order.filled_avg_price);
     if (immediate != null) return immediate;
 
@@ -813,6 +985,22 @@ export class AlpacaAdapter implements BrokerAdapter {
       const price = parsePositiveNumber(refreshed.filled_avg_price);
       if (price != null) return price;
       lastStatus = refreshed.status ?? lastStatus;
+    }
+
+    if (
+      restingFallbackPrice != null &&
+      restingFallbackPrice > 0 &&
+      isOpenAlpacaOrderStatus(lastStatus)
+    ) {
+      logger.info(
+        {
+          brokerOrderId: order.id,
+          status: lastStatus,
+          restingFallbackPrice,
+        },
+        "alpaca placeOrder: order is resting unfilled; preserving it instead of failing",
+      );
+      return restingFallbackPrice;
     }
 
     const err = new AppError(
@@ -964,6 +1152,20 @@ function parsePositiveNumber(value: string | undefined): number | null {
   if (value == null) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+/** Alpaca order statuses that mean "still live, not yet filled" (i.e. resting). */
+function isOpenAlpacaOrderStatus(status: string | null): boolean {
+  if (!status) return false;
+  const s = status.toLowerCase();
+  return (
+    s === "new" ||
+    s === "accepted" ||
+    s === "pending_new" ||
+    s === "accepted_for_bidding" ||
+    s === "held" ||
+    s === "partially_filled"
+  );
 }
 
 /**
