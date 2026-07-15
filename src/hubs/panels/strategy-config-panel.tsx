@@ -834,6 +834,9 @@ const renderStrategyConfigMainView = ({
         onRolledBack={(record) => {
           applyConfigRecord(focusedSessionId, record);
         }}
+        onVersionRefresh={(record) => {
+          applyConfigRecord(focusedSessionId, record);
+        }}
       />
     </div>
   );

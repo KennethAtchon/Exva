@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P3 Ops Console — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../skin.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="nav-brand">Exva</div>
+      <nav>
+        <a class="nav-item active" href="dashboard.html"><span>◈</span> Dashboard <span class="kbd">⌘1</span></a>
+        <a class="nav-item" href="sessions.html"><span>◎</span> Sessions <span class="kbd">⌘2</span></a>
+        <a class="nav-item" href="#"><span>⚡</span> Signals <span class="kbd">⌘3</span></a>
+        <a class="nav-item" href="#"><span>▣</span> Portfolio <span class="kbd">⌘4</span></a>
+        <a class="nav-item" href="#"><span>◷</span> Autopsy <span class="kbd">⌘5</span></a>
+        <a class="nav-item" href="#"><span>⚙</span> Settings <span class="kbd">⌘6</span></a>
+      </nav>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <span class="topbar-title">Dashboard</span>
+        <span class="topbar-spacer"></span>
+        <button class="cmd-trigger" data-cmd-open><span>Search…</span> <kbd>⌘K</kbd></button>
+      </header>
+      <div class="view-tabs">
+        <button class="view-tab active">Positions</button>
+        <button class="view-tab">Attention</button>
+        <button class="view-tab">Agent log</button>
+      </div>
+      <div class="split">
+        <div class="split-list">
+          <div style="padding:12px 16px">
+            <div class="stats" style="margin-bottom:12px;padding-bottom:12px">
+              <div><div class="stat-label">Equity</div><div class="stat-value tabular" id="equity"></div></div>
+              <div><div class="stat-label">Day P&amp;L</div><div class="stat-value up tabular" id="day-pnl"></div></div>
+            </div>
+            <div class="table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Symbol</th><th>Side</th><th class="num">Qty</th>
+                    <th class="num">Last</th><th class="num">P&amp;L</th><th class="num">%</th>
+                    <th>Session</th>
+                  </tr>
+                </thead>
+                <tbody id="positions-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <aside class="split-inspector">
+          <div class="inspector-header">
+            <h2>NVDA</h2>
+            <div class="sub">Momentum-AM · long 120</div>
+          </div>
+          <div class="inspector-section">
+            <h3>Quote</h3>
+            <div class="kv-row"><span class="k">Last</span><span class="v up">124.85</span></div>
+            <div class="kv-row"><span class="k">Avg</span><span class="v">118.42</span></div>
+            <div class="kv-row"><span class="k">P&amp;L</span><span class="v up">+771.60</span></div>
+            <div class="kv-row"><span class="k">%</span><span class="v up">▲ +5.43%</span></div>
+          </div>
+          <div class="inspector-section">
+            <h3>Risk</h3>
+            <div class="kv-row"><span class="k">Stop</span><span class="v">122.10</span></div>
+            <div class="kv-row"><span class="k">Target</span><span class="v">128.00</span></div>
+            <div class="kv-row"><span class="k">R-multiple</span><span class="v up">+1.8R</span></div>
+          </div>
+          <div class="inspector-section">
+            <h3>Agent trace</h3>
+            <div id="trace-list"></div>
+          </div>
+          <div class="inspector-section flex gap-sm">
+            <button class="btn btn-sm">Close</button>
+            <button class="btn btn-sm btn-primary">Adjust</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+  <div class="cmd-overlay hidden" id="cmd-overlay">
+    <div class="cmd-menu">
+      <div class="cmd-input-wrap"><span>⌘</span><input class="cmd-input" id="cmd-input" placeholder="Type a command or search…"></div>
+      <div class="cmd-list" id="cmd-list"></div>
+    </div>
+  </div>
+  <div class="variant-badge rec"><strong>P3</strong> Ops Console ★</div>
+  <script src="../data.js"></script>
+  <script>
+    const p = EXVA_MOCK.portfolio;
+    document.getElementById("equity").textContent = "$" + p.equity.toLocaleString("en-US", {minimumFractionDigits:2});
+    document.getElementById("day-pnl").textContent = fmtSigned(p.dayPnl);
+    document.getElementById("positions-body").innerHTML = renderPositionsTable(EXVA_MOCK.positions, "NVDA");
+    document.getElementById("trace-list").innerHTML = renderTrace(EXVA_MOCK.agentTrace.slice(0, 4));
+    initCmdPalette();
+    setInterval(flashTick, 5000);
+  </script>
+</body>
+</html>

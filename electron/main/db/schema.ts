@@ -1,4 +1,5 @@
 import {
+  check,
   index,
   integer,
   primaryKey,
@@ -602,6 +603,10 @@ export const autopsies = sqliteTable(
     createdBy: text("created_by").notNull().default("user"),
   },
   (table) => ({
+    scopeCheck: check(
+      "autopsies_scope_check",
+      sql`${table.scope} IN ('trade', 'period')`,
+    ),
     scopeIdx: index("idx_autopsies_scope").on(table.scope),
     tradeIdIdx: index("idx_autopsies_trade").on(table.tradeId),
     periodScopeIdx: index("idx_autopsies_period_scope").on(table.periodScope),

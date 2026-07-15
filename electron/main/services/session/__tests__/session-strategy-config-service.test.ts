@@ -65,6 +65,36 @@ describe("SessionStrategyConfigService", () => {
     }
   });
 
+  it("CAS race: only one of two concurrent writers commits", async () => {
+    const before = service.get(sessionId);
+    const errors: unknown[] = [];
+    const results: number[] = [];
+
+    await Promise.all(
+      [1111, 2222].map(async (maxPositionUsd) => {
+        try {
+          const after = await Promise.resolve(
+            service.update(
+              sessionId,
+              { risk: { maxPositionUsd } },
+              before.version,
+            ),
+          );
+          results.push(after.doc.risk.maxPositionUsd);
+        } catch (err) {
+          errors.push(err);
+        }
+      }),
+    );
+
+    expect(results).toHaveLength(1);
+    expect(errors).toHaveLength(1);
+    expect((errors[0] as AppError).code).toBe("STALE_VERSION");
+    const final = service.get(sessionId);
+    expect(final.version).toBe(before.version + 1);
+    expect([1111, 2222]).toContain(final.doc.risk.maxPositionUsd);
+  });
+
   it("rollback restores a prior history version", () => {
     const v1 = service.get(sessionId);
     const v2 = service.update(

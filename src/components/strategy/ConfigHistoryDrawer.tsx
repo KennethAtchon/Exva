@@ -25,6 +25,7 @@ export function ConfigHistoryDrawer({
   isLocked,
   onClose,
   onRolledBack,
+  onVersionRefresh,
 }: {
   open: boolean;
   sessionId: string;
@@ -32,6 +33,8 @@ export function ConfigHistoryDrawer({
   isLocked: boolean;
   onClose: () => void;
   onRolledBack: (record: StrategyConfigRecord) => void;
+  /** Called when a stale rollback refreshes the live config so parent store matches. */
+  onVersionRefresh?: (record: StrategyConfigRecord) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +85,9 @@ export function ConfigHistoryDrawer({
   if (!open) return null;
 
   const handleRollback = async () => {
-    if (!selected || currentVersion == null) return;
+    if (!selected) return;
+    const expectedVersion = current?.version ?? currentVersion;
+    if (expectedVersion == null) return;
     if (
       !window.confirm(
         `Roll back to version ${selected.version}? The current config becomes a new history entry.`,
@@ -96,7 +101,7 @@ export function ConfigHistoryDrawer({
       const result = await api.rollbackStrategyConfig({
         sessionId,
         version: selected.version,
-        expectedVersion: currentVersion,
+        expectedVersion,
       });
       onRolledBack(result);
       onClose();
@@ -110,6 +115,7 @@ export function ConfigHistoryDrawer({
           ]);
           setHistory(historyResult.history);
           setCurrent(config);
+          onVersionRefresh?.(config);
         } catch {
           // Keep the stale message; user can close and reopen.
         }

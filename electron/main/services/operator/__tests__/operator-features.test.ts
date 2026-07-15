@@ -8,6 +8,7 @@ import { BacktestRunsRepo } from "../../../db/repositories/research/experiment-r
 import { ExperienceExperimentsRepo } from "../../../db/repositories/experiences/experience-experiments-repo";
 import { EventBus } from "../../infra/event-bus";
 import { KillSwitchService } from "../kill-switch-service";
+import { vi } from "vitest";
 
 describe("operator power tools (finish-line 08)", () => {
   it("persists briefings and equity snapshots", () => {
@@ -95,7 +96,7 @@ describe("operator power tools (finish-line 08)", () => {
     const kill = new KillSwitchService({
       sessions: { listByStatuses: () => [] } as never,
       trades: { listOpenAndPending: () => [] } as never,
-      sessionService: {} as never,
+      sessionService: { pause: async () => undefined } as never,
       liveReadiness: {} as never,
       supervisor: {} as never,
       eventBus: new EventBus(),
@@ -106,5 +107,122 @@ describe("operator power tools (finish-line 08)", () => {
     await expect(kill.flattenAll("nope")).rejects.toThrow(/FLATTEN/);
     const ok = await kill.flattenAll("FLATTEN");
     expect(ok.closed).toEqual([]);
+    expect(ok.canceled).toEqual([]);
+    expect(ok.complete).toBe(true);
+  });
+
+  it("flatten leaves trades open when broker identity is missing", async () => {
+    const updateStatus = vi.fn();
+    const releaseOnClose = vi.fn();
+    const raiseDailyLoss = vi.fn(async () => undefined);
+    const kill = new KillSwitchService({
+      sessions: { listByStatuses: () => [] } as never,
+      trades: {
+        listOpenAndPending: () => [
+          {
+            id: "t-open",
+            status: "open",
+            sessionId: "s1",
+            broker_order_id: null,
+            brokerAccountId: null,
+          },
+          {
+            id: "t-pending",
+            status: "pending",
+            sessionId: "s1",
+            broker_order_id: "ord",
+            brokerAccountId: null,
+          },
+        ],
+        updateStatus,
+      } as never,
+      sessionService: { pause: async () => undefined } as never,
+      liveReadiness: {} as never,
+      supervisor: { raiseDailyLoss } as never,
+      eventBus: new EventBus(),
+      broker: {
+        closeOrder: vi.fn(),
+        cancelOrder: vi.fn(),
+        getOrderStatus: vi.fn(),
+      } as never,
+      capitalReservation: { releaseOnClose } as never,
+      loadGauges: () => [],
+    });
+
+    const result = await kill.flattenAll("FLATTEN");
+    expect(result.complete).toBe(false);
+    expect(result.attentionRequired.sort()).toEqual(
+      ["t-open", "t-pending"].sort(),
+    );
+    expect(updateStatus).not.toHaveBeenCalled();
+    expect(releaseOnClose).not.toHaveBeenCalled();
+  });
+
+  it("flatten confirms broker closure before DB close", async () => {
+    const updateStatus = vi.fn((_id, _status, pnl) => ({
+      id: "t1",
+      status: "closed",
+      final_pnl_usd: pnl,
+    }));
+    const releaseOnClose = vi.fn();
+    let openCalls = 0;
+    const kill = new KillSwitchService({
+      sessions: { listByStatuses: () => [] } as never,
+      trades: {
+        listOpenAndPending: () => {
+          openCalls += 1;
+          return openCalls === 1
+            ? [
+                {
+                  id: "t1",
+                  status: "open",
+                  sessionId: "s1",
+                  broker_order_id: "ord-1",
+                  brokerAccountId: "acct-1",
+                },
+              ]
+            : [];
+        },
+        updateStatus,
+      } as never,
+      sessionService: { pause: async () => undefined } as never,
+      liveReadiness: {} as never,
+      supervisor: { raiseDailyLoss: vi.fn() } as never,
+      eventBus: new EventBus(),
+      broker: {
+        getOrderStatus: vi
+          .fn()
+          .mockResolvedValueOnce({
+            brokerOrderId: "ord-1",
+            status: "open",
+            latestPrice: 1,
+            realizedPnlUsd: null,
+          })
+          .mockResolvedValueOnce({
+            brokerOrderId: "ord-1",
+            status: "closed",
+            latestPrice: 1,
+            realizedPnlUsd: 12,
+          }),
+        closeOrder: vi.fn(async () => ({
+          brokerOrderId: "ord-1",
+          realizedPnlUsd: 12,
+        })),
+        cancelOrder: vi.fn(),
+      } as never,
+      capitalReservation: { releaseOnClose } as never,
+      loadGauges: () => [],
+    });
+
+    const result = await kill.flattenAll("FLATTEN");
+    expect(result.closed).toEqual(["t1"]);
+    expect(result.complete).toBe(true);
+    expect(updateStatus).toHaveBeenCalledWith(
+      "t1",
+      "closed",
+      12,
+      "flatten_close",
+    );
+    expect(releaseOnClose).toHaveBeenCalledWith("t1");
   });
 });

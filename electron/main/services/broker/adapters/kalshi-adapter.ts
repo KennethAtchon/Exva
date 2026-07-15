@@ -370,6 +370,7 @@ export class KalshiAdapter implements BrokerAdapter {
         );
       },
       mapMessage: (raw) => mapKalshiFillMessage(raw),
+      isProtocolAck: (raw) => isKalshiSubscribedAck(raw),
       onFallbackToPoll: (reason) => {
         logger.warn({ reason }, "kalshi order feed using poll fallback");
         opts?.onFallbackToPoll?.(reason);
@@ -439,7 +440,8 @@ export class KalshiAdapter implements BrokerAdapter {
   }
 }
 
-function mapKalshiFillMessage(raw: unknown): OrderEvent[] {
+/** Decode a Kalshi websocket frame into JSON, or null if it isn't parseable JSON. */
+function parseKalshiMessage(raw: unknown): unknown {
   const text =
     typeof raw === "string"
       ? raw
@@ -450,12 +452,27 @@ function mapKalshiFillMessage(raw: unknown): OrderEvent[] {
           : raw instanceof ArrayBuffer
             ? new TextDecoder().decode(raw)
             : String(raw);
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(text);
+    return JSON.parse(text);
   } catch {
-    return [];
+    return null;
   }
+}
+
+/**
+ * Kalshi confirms a `subscribe` command with `{"type":"subscribed",...}`; a
+ * bad signature or rejected channel gets `{"type":"error",...}` instead (or
+ * the socket never sends a confirmation at all), so only "subscribed" proves
+ * the fill channel is actually live.
+ */
+function isKalshiSubscribedAck(raw: unknown): boolean {
+  const parsed = parseKalshiMessage(raw);
+  if (!parsed || typeof parsed !== "object") return false;
+  return (parsed as { type?: string }).type === "subscribed";
+}
+
+function mapKalshiFillMessage(raw: unknown): OrderEvent[] {
+  const parsed = parseKalshiMessage(raw);
   if (!parsed || typeof parsed !== "object") return [];
   const msg = parsed as {
     type?: string;

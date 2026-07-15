@@ -13,6 +13,16 @@ import {
   sessions,
 } from "./schema";
 import { toWorkspaceSession } from "./repositories/system/mappers";
+import {
+  assertIntegrity,
+  createTruncatedMigrationsFolder,
+  schemaFingerprint,
+  upgradeFromTag,
+} from "./migration-upgrade-helpers";
+import { resolveMigrationsFolder } from "./migrations-folder";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 describe("runMigrations", () => {
   it("applies schema, seed SQL, and runtime seed defaults", () => {
@@ -467,5 +477,151 @@ describe("runMigrations", () => {
       ]),
     );
     testDb.sqlite.close();
+  });
+
+  it("upgrades fixtures at 0012/0013/0014 to identical head schema", () => {
+    const head = createTestDb();
+    assertIntegrity(head.sqlite);
+    const headFp = schemaFingerprint(head.sqlite);
+    head.sqlite.close();
+
+    for (const tag of [
+      "0012_alpha_sources",
+      "0013_operator_power_tools",
+      "0014_hub_query_indexes",
+    ] as const) {
+      const upgraded = upgradeFromTag(tag);
+      assertIntegrity(upgraded.sqlite);
+      expect(schemaFingerprint(upgraded.sqlite)).toBe(headFp);
+      upgraded.cleanup();
+    }
+  });
+
+  it("0007 merge copies legacy autopsy rows when upgrading from 0005", () => {
+    const truncated = createTruncatedMigrationsFolder(
+      "0005_signal_events_envelope_backfill",
+    );
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "exva-autopsy-up-"));
+    const dbPath = path.join(dir, "exva.db");
+    const sqlite = new BetterSqlite3(dbPath);
+    sqlite.pragma("journal_mode = WAL");
+    runMigrations(sqlite, { migrationsFolder: truncated, drizzleOnly: true });
+
+    const now = new Date().toISOString();
+    sqlite
+      .prepare(
+        `INSERT INTO sessions (
+          id, name, objective, status, instrument_classes, instrument_scope,
+          created_at, updated_at
+        ) VALUES ('s1', 'S', 'obj', 'paused', '["stock"]', '{}', ?, ?)`,
+      )
+      .run(now, now);
+    sqlite
+      .prepare(
+        `INSERT INTO trades (
+          id, session_id, instrument_symbol, instrument_type, side,
+          position_size_usd, strategy, status, ai_cost_usd, confidence_score, created_at
+        ) VALUES ('t1', 's1', 'AAPL', 'stock', 'BUY', 100, 'passive_income', 'closed', 0, 0.5, ?)`,
+      )
+      .run(now);
+
+    // Satisfy 0009 backfill: every session needs the legacy singleton rows.
+    sqlite
+      .prepare(`INSERT INTO session_strategies (session_id) VALUES ('s1')`)
+      .run();
+    sqlite
+      .prepare(
+        `INSERT INTO session_risk_config (session_id, updated_at) VALUES ('s1', ?)`,
+      )
+      .run(now);
+    sqlite
+      .prepare(
+        `INSERT INTO session_timeframe_config (session_id, updated_at) VALUES ('s1', ?)`,
+      )
+      .run(now);
+    sqlite
+      .prepare(
+        `INSERT INTO session_trade_rules (
+          session_id, setup_type, side_bias, entry_style, exit_style, scaling_mode, updated_at
+        ) VALUES ('s1', 'custom', 'both', 'catalyst', 'fixed_pct', 'single_entry', ?)`,
+      )
+      .run(now);
+    sqlite
+      .prepare(
+        `INSERT INTO session_research_posture (session_id, updated_at) VALUES ('s1', ?)`,
+      )
+      .run(now);
+    sqlite
+      .prepare(
+        `INSERT INTO session_ai_settings (session_id, updated_at) VALUES ('s1', ?)`,
+      )
+      .run(now);
+    sqlite
+      .prepare(
+        `INSERT INTO session_selector_settings (session_id, updated_at) VALUES ('s1', ?)`,
+      )
+      .run(now);
+
+    sqlite
+      .prepare(
+        `INSERT INTO trade_autopsies (
+          id, trade_id, summary, session_id, model_id,
+          summary_structured_json, phase_traces_json, is_fallback, created_at, created_by
+        ) VALUES ('ta-up', 't1', 'trade ok', 's1', 'm', '{}', '[]', 0, ?, 'user')`,
+      )
+      .run(now);
+    sqlite
+      .prepare(
+        `INSERT INTO period_autopsies (
+          id, scope, window_start, window_end, filters_json, trade_count,
+          trade_ids_json, total_cost_usd, session_id, model_id,
+          summary_structured_json, phase_traces_json, is_fallback, created_at, created_by
+        ) VALUES ('pa-up', 'session', ?, ?, '{}', 1, '[]', 0.1, 's1', 'm', '{}', '[]', 0, ?, 'user')`,
+      )
+      .run(now, now, now);
+    sqlite
+      .prepare(
+        `INSERT INTO autopsy_lessons (
+          id, autopsy_id, period_autopsy_id, trade_id, session_id, lesson,
+          severity, category, proposed_fix, status, recurrence_count, source, scope,
+          created_at, updated_at
+        ) VALUES
+          ('l-up-t', 'ta-up', NULL, 't1', 's1', 'trade lesson', 'medium', 'strategy',
+           '', 'pending', 0, 'trade', 'session', ?, ?),
+          ('l-up-p', NULL, 'pa-up', NULL, 's1', 'period lesson', 'high', 'risk',
+           '', 'pending', 0, 'period', 'session', ?, ?)`,
+      )
+      .run(now, now, now, now);
+
+    runMigrations(sqlite, { migrationsFolder: resolveMigrationsFolder() });
+    assertIntegrity(sqlite);
+
+    const tradeCount = sqlite
+      .prepare(`SELECT COUNT(*) AS n FROM autopsies WHERE id = 'ta-up'`)
+      .get() as { n: number };
+    const periodCount = sqlite
+      .prepare(`SELECT COUNT(*) AS n FROM autopsies WHERE id = 'pa-up'`)
+      .get() as { n: number };
+    expect(tradeCount.n).toBe(1);
+    expect(periodCount.n).toBe(1);
+
+    const lessons = sqlite
+      .prepare(
+        `SELECT COUNT(*) AS n FROM autopsy_lessons
+         WHERE autopsy_id IN ('ta-up', 'pa-up')`,
+      )
+      .get() as { n: number };
+    expect(lessons.n).toBe(2);
+
+    const scopeSql = sqlite
+      .prepare(
+        `SELECT sql FROM sqlite_master WHERE type='table' AND name='autopsies'`,
+      )
+      .get() as { sql: string };
+    expect(scopeSql.sql).toMatch(/CHECK\s*\(\s*`?scope`?\s+IN\s*\(/i);
+
+    sqlite.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(truncated, { recursive: true, force: true });
   });
 });

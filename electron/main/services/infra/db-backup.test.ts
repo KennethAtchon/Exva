@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import BetterSqlite3 from "better-sqlite3";
 import {
   backupSqliteDb,
   resolveAppDbPath,
@@ -9,13 +10,19 @@ import {
   writeLastBackupMeta,
 } from "./db-backup";
 
+function writeValidSqlite(filePath: string): void {
+  const db = new BetterSqlite3(filePath);
+  db.exec("CREATE TABLE t (id INTEGER PRIMARY KEY); INSERT INTO t VALUES (1);");
+  db.close();
+}
+
 describe("db-backup", () => {
   it("resolves a concrete app db path", () => {
     const resolved = resolveAppDbPath("/tmp/exva-userdata");
     expect(resolved).toBe(path.join("/tmp/exva-userdata", "exva.db"));
   });
 
-  it("skips when source is missing", () => {
+  it("skips when source is missing (first-run)", () => {
     const result = backupSqliteDb({
       sourcePath: path.join(os.tmpdir(), `exva-missing-${Date.now()}.db`),
       trigger: "manual",
@@ -24,17 +31,24 @@ describe("db-backup", () => {
     expect(result.skipped).toBe(true);
   });
 
+  it("fails when requireSource is set and file is missing", () => {
+    const result = backupSqliteDb({
+      sourcePath: path.join(
+        os.tmpdir(),
+        `exva-required-missing-${Date.now()}.db`,
+      ),
+      trigger: "pre_migration",
+      requireSource: true,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/missing/i);
+  });
+
   it("copies an existing sqlite file into the backup dir", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "exva-backup-"));
     const source = path.join(dir, "exva.db");
-    const backupDir = path.join(dir, "backups");
-    fs.mkdirSync(backupDir, { recursive: true });
-    fs.writeFileSync(source, "SQLite format 3\0");
+    writeValidSqlite(source);
 
-    // Avoid mutating process.env: write directly into the default meta path's
-    // sibling by using a unique source and asserting the copy succeeded.
-    // Backup dir comes from env.dbBackupDir which is frozen at module load —
-    // so we still write a file and verify backupSqliteDb's return path exists.
     const result = backupSqliteDb({ sourcePath: source, trigger: "manual" });
     expect(result.ok).toBe(true);
     expect(result.backupPath).toBeTruthy();

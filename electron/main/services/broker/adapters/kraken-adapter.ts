@@ -495,6 +495,7 @@ export class KrakenAdapter implements BrokerAdapter {
         })();
       },
       mapMessage: (raw) => mapKrakenExecution(raw),
+      isProtocolAck: (raw) => isKrakenSubscribeAck(raw),
       onFallbackToPoll: (reason) => {
         logger.warn({ reason }, "kraken order feed using poll fallback");
         opts?.onFallbackToPoll?.(reason);
@@ -633,19 +634,36 @@ function toWirePair(asset: string): string {
   return `${base}/USD`;
 }
 
-function mapKrakenExecution(raw: unknown): OrderEvent[] {
+/** Decode a Kraken websocket frame into JSON, or null if it isn't parseable JSON. */
+function parseKrakenMessage(raw: unknown): unknown {
   const text =
     typeof raw === "string"
       ? raw
       : Buffer.isBuffer(raw)
         ? raw.toString("utf8")
         : String(raw);
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(text);
+    return JSON.parse(text);
   } catch {
-    return [];
+    return null;
   }
+}
+
+/**
+ * Kraken v2 confirms `{"method":"subscribe",...}` with
+ * `{"method":"subscribe","success":true,...}`; a bad/expired token gets
+ * `success:false` with an `error` field instead, so only `success:true`
+ * proves the executions channel is actually live.
+ */
+function isKrakenSubscribeAck(raw: unknown): boolean {
+  const parsed = parseKrakenMessage(raw);
+  if (!parsed || typeof parsed !== "object") return false;
+  const msg = parsed as { method?: string; success?: boolean };
+  return msg.method === "subscribe" && msg.success === true;
+}
+
+function mapKrakenExecution(raw: unknown): OrderEvent[] {
+  const parsed = parseKrakenMessage(raw);
   if (!parsed || typeof parsed !== "object") return [];
   const msg = parsed as {
     channel?: string;

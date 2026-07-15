@@ -776,45 +776,67 @@ export class SessionStrategyConfigService {
     ) => SessionStrategyConfigDoc,
   ): SessionStrategyConfigRecord {
     const current = this.get(sessionId);
-    if (current.version !== expectedVersion) {
-      throw new AppError(
-        `Strategy config version mismatch for session ${sessionId}: expected ${expectedVersion}, found ${current.version}`,
-        "STALE_VERSION",
-        {
-          sessionId,
-          expectedVersion,
-          actualVersion: current.version,
-        },
-      );
-    }
-
     const nextDoc = parseSessionStrategyConfigDoc(
       nextDocFromCurrent(current.doc),
     );
     const now = new Date().toISOString();
-    const nextVersion = current.version + 1;
+    const nextVersion = expectedVersion + 1;
 
+    let wrote = false;
     this.client.db.transaction((tx) => {
-      tx.insert(sessionStrategyConfigHistory)
-        .values({
-          id: randomUUID(),
-          sessionId,
-          version: current.version,
-          doc: current.doc,
-          savedAt: now,
-        })
-        .run();
-
-      tx.update(sessionStrategyConfigs)
+      // Compare-and-swap inside the transaction: exactly one writer wins.
+      const updateResult = tx
+        .update(sessionStrategyConfigs)
         .set({
           version: nextVersion,
           schemaVersion: SESSION_STRATEGY_CONFIG_SCHEMA_VERSION,
           doc: nextDoc,
           updatedAt: now,
         })
-        .where(eq(sessionStrategyConfigs.sessionId, sessionId))
+        .where(
+          and(
+            eq(sessionStrategyConfigs.sessionId, sessionId),
+            eq(sessionStrategyConfigs.version, expectedVersion),
+          ),
+        )
         .run();
+
+      if (updateResult.changes !== 1) {
+        const actual = tx
+          .select({ version: sessionStrategyConfigs.version })
+          .from(sessionStrategyConfigs)
+          .where(eq(sessionStrategyConfigs.sessionId, sessionId))
+          .get();
+        throw new AppError(
+          `Strategy config version mismatch for session ${sessionId}: expected ${expectedVersion}, found ${actual?.version ?? "missing"}`,
+          "STALE_VERSION",
+          {
+            sessionId,
+            expectedVersion,
+            actualVersion: actual?.version ?? null,
+          },
+        );
+      }
+
+      tx.insert(sessionStrategyConfigHistory)
+        .values({
+          id: randomUUID(),
+          sessionId,
+          version: expectedVersion,
+          doc: current.doc,
+          savedAt: now,
+        })
+        .run();
+      wrote = true;
     });
+
+    if (!wrote) {
+      throw new AppError(
+        `Strategy config write did not commit for session ${sessionId}`,
+        "INTERNAL_ERROR",
+        { sessionId },
+      );
+    }
 
     return {
       version: nextVersion,

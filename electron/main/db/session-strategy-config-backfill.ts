@@ -182,40 +182,76 @@ type LegacySelectorRow = {
   no_instrument_retry_minutes: number | null;
 };
 
+const REQUIRED_LEGACY_SESSION_TABLES = [
+  "session_strategies",
+  "session_risk_config",
+  "session_timeframe_config",
+  "session_trade_rules",
+  "session_research_posture",
+  "session_ai_settings",
+  "session_selector_settings",
+] as const;
+
+function requireLegacySessionRow<T>(
+  sqlite: Database.Database,
+  table: string,
+  sessionId: string,
+): T {
+  if (!legacyTableExists(sqlite, table)) {
+    throw new Error(
+      `0009: session '${sessionId}' missing legacy table '${table}' during config backfill`,
+    );
+  }
+  const row = sqlite
+    .prepare(`SELECT * FROM "${table}" WHERE session_id = ?`)
+    .get(sessionId) as T | undefined;
+  if (!row) {
+    throw new Error(
+      `0009: session '${sessionId}' missing required row in legacy table '${table}'`,
+    );
+  }
+  return row;
+}
+
 function assembleSessionDocFromLegacy(
   sqlite: Database.Database,
   sessionId: string,
 ): SessionStrategyConfigDoc {
-  const strategyRow = legacyTableExists(sqlite, "session_strategies")
-    ? (sqlite
-        .prepare(`SELECT * FROM session_strategies WHERE session_id = ?`)
-        .get(sessionId) as LegacyStrategyRow | undefined)
-    : undefined;
-  const riskRow = legacyTableExists(sqlite, "session_risk_config")
-    ? (sqlite
-        .prepare(`SELECT * FROM session_risk_config WHERE session_id = ?`)
-        .get(sessionId) as LegacyRiskRow | undefined)
-    : undefined;
-  const timeframeRow = legacyTableExists(sqlite, "session_timeframe_config")
-    ? (sqlite
-        .prepare(`SELECT * FROM session_timeframe_config WHERE session_id = ?`)
-        .get(sessionId) as LegacyTimeframeRow | undefined)
-    : undefined;
-  const tradeRulesRow = legacyTableExists(sqlite, "session_trade_rules")
-    ? (sqlite
-        .prepare(`SELECT * FROM session_trade_rules WHERE session_id = ?`)
-        .get(sessionId) as LegacyTradeRulesRow | undefined)
-    : undefined;
-  const researchRow = legacyTableExists(sqlite, "session_research_posture")
-    ? (sqlite
-        .prepare(`SELECT * FROM session_research_posture WHERE session_id = ?`)
-        .get(sessionId) as LegacyResearchRow | undefined)
-    : undefined;
-  const aiSettingsRow = legacyTableExists(sqlite, "session_ai_settings")
-    ? (sqlite
-        .prepare(`SELECT * FROM session_ai_settings WHERE session_id = ?`)
-        .get(sessionId) as LegacyAiSettingsRow | undefined)
-    : undefined;
+  const strategyRow = requireLegacySessionRow<LegacyStrategyRow>(
+    sqlite,
+    "session_strategies",
+    sessionId,
+  );
+  const riskRow = requireLegacySessionRow<LegacyRiskRow>(
+    sqlite,
+    "session_risk_config",
+    sessionId,
+  );
+  const timeframeRow = requireLegacySessionRow<LegacyTimeframeRow>(
+    sqlite,
+    "session_timeframe_config",
+    sessionId,
+  );
+  const tradeRulesRow = requireLegacySessionRow<LegacyTradeRulesRow>(
+    sqlite,
+    "session_trade_rules",
+    sessionId,
+  );
+  const researchRow = requireLegacySessionRow<LegacyResearchRow>(
+    sqlite,
+    "session_research_posture",
+    sessionId,
+  );
+  const aiSettingsRow = requireLegacySessionRow<LegacyAiSettingsRow>(
+    sqlite,
+    "session_ai_settings",
+    sessionId,
+  );
+  const selectorRow = requireLegacySessionRow<LegacySelectorRow>(
+    sqlite,
+    "session_selector_settings",
+    sessionId,
+  );
   const phaseRows = legacyTableExists(sqlite, "session_ai_phases")
     ? (sqlite
         .prepare(`SELECT * FROM session_ai_phases WHERE session_id = ?`)
@@ -226,110 +262,95 @@ function assembleSessionDocFromLegacy(
         .prepare(`SELECT * FROM session_ai_phase_workers WHERE session_id = ?`)
         .all(sessionId) as LegacyWorkerRow[])
     : [];
-  const selectorRow = legacyTableExists(sqlite, "session_selector_settings")
-    ? (sqlite
-        .prepare(`SELECT * FROM session_selector_settings WHERE session_id = ?`)
-        .get(sessionId) as LegacySelectorRow | undefined)
-    : undefined;
 
   const base = defaultSessionStrategyConfigDoc();
 
-  const strategy = strategyRow
-    ? {
-        strategyProfile:
-          strategyRow.strategy_profile as typeof base.strategy.strategyProfile,
-        maxPositionUsd: strategyRow.max_position_usd,
-        stopLossPct: strategyRow.stop_loss_pct,
-        takeProfitPct: strategyRow.take_profit_pct,
-        maxConcurrentTrades: strategyRow.max_concurrent_trades,
-        researchDepth:
-          strategyRow.research_depth as typeof base.strategy.researchDepth,
-        dailyLossLimitUsd: strategyRow.daily_loss_limit_usd,
-        profitTargetUsd: strategyRow.profit_target_usd,
-        maxAiSpendUsd: strategyRow.max_ai_spend_usd,
-        humanApprovalRequired: Boolean(strategyRow.human_approval_required),
-        primaryTradingTimeframe:
-          strategyRow.primary_trading_timeframe as typeof base.strategy.primaryTradingTimeframe,
-        holdingStyle:
-          strategyRow.holding_style as typeof base.strategy.holdingStyle,
-        targetHoldDays: strategyRow.target_hold_days,
-        maxHoldDays: strategyRow.max_hold_days,
-        timeframeNotes: strategyRow.timeframe_notes,
-      }
-    : base.strategy;
+  const strategy = {
+    strategyProfile:
+      strategyRow.strategy_profile as typeof base.strategy.strategyProfile,
+    maxPositionUsd: strategyRow.max_position_usd,
+    stopLossPct: strategyRow.stop_loss_pct,
+    takeProfitPct: strategyRow.take_profit_pct,
+    maxConcurrentTrades: strategyRow.max_concurrent_trades,
+    researchDepth:
+      strategyRow.research_depth as typeof base.strategy.researchDepth,
+    dailyLossLimitUsd: strategyRow.daily_loss_limit_usd,
+    profitTargetUsd: strategyRow.profit_target_usd,
+    maxAiSpendUsd: strategyRow.max_ai_spend_usd,
+    humanApprovalRequired: Boolean(strategyRow.human_approval_required),
+    primaryTradingTimeframe:
+      strategyRow.primary_trading_timeframe as typeof base.strategy.primaryTradingTimeframe,
+    holdingStyle:
+      strategyRow.holding_style as typeof base.strategy.holdingStyle,
+    targetHoldDays: strategyRow.target_hold_days,
+    maxHoldDays: strategyRow.max_hold_days,
+    timeframeNotes: strategyRow.timeframe_notes,
+  };
 
-  const risk = riskRow
-    ? {
-        riskPresetId: riskRow.risk_preset_id as typeof base.risk.riskPresetId,
-        offHoursTrading:
-          riskRow.off_hours_trading as typeof base.risk.offHoursTrading,
-        maxPositionUsd: riskRow.max_position_usd,
-        stopLossPct: riskRow.stop_loss_pct,
-        takeProfitPct: riskRow.take_profit_pct,
-        stopLossType: riskRow.stop_loss_type as typeof base.risk.stopLossType,
-        atrStopMultiplier: riskRow.atr_stop_multiplier,
-        kellyFraction: riskRow.kelly_fraction,
-        predictionEdgeThreshold: riskRow.prediction_edge_threshold,
-        maxExposureUsd: riskRow.max_exposure_usd,
-        waitForOpenThreshold: riskRow.wait_for_open_threshold,
-        maxConcurrentTrades: riskRow.max_concurrent_trades,
-        maxConsecutiveLosers: riskRow.max_consecutive_losers,
-        volatilityHaltMaxSpreadPct: riskRow.volatility_halt_max_spread_pct,
-        dailyLossLimitUsd: riskRow.daily_loss_limit_usd,
-        profitTargetUsd: riskRow.profit_target_usd,
-        maxAiSpendUsd: riskRow.max_ai_spend_usd,
-        maxDataSpendUsd: riskRow.max_data_spend_usd,
-        humanApprovalRequired: Boolean(riskRow.human_approval_required),
-        calendarBlackoutHours: 24,
-        eventTypedExperience: false,
-      }
-    : base.risk;
+  const risk = {
+    riskPresetId: riskRow.risk_preset_id as typeof base.risk.riskPresetId,
+    offHoursTrading:
+      riskRow.off_hours_trading as typeof base.risk.offHoursTrading,
+    maxPositionUsd: riskRow.max_position_usd,
+    stopLossPct: riskRow.stop_loss_pct,
+    takeProfitPct: riskRow.take_profit_pct,
+    stopLossType: riskRow.stop_loss_type as typeof base.risk.stopLossType,
+    atrStopMultiplier: riskRow.atr_stop_multiplier,
+    kellyFraction: riskRow.kelly_fraction,
+    predictionEdgeThreshold: riskRow.prediction_edge_threshold,
+    maxExposureUsd: riskRow.max_exposure_usd,
+    waitForOpenThreshold: riskRow.wait_for_open_threshold,
+    maxConcurrentTrades: riskRow.max_concurrent_trades,
+    maxConsecutiveLosers: riskRow.max_consecutive_losers,
+    volatilityHaltMaxSpreadPct: riskRow.volatility_halt_max_spread_pct,
+    dailyLossLimitUsd: riskRow.daily_loss_limit_usd,
+    profitTargetUsd: riskRow.profit_target_usd,
+    maxAiSpendUsd: riskRow.max_ai_spend_usd,
+    maxDataSpendUsd: riskRow.max_data_spend_usd,
+    humanApprovalRequired: Boolean(riskRow.human_approval_required),
+    calendarBlackoutHours: 24,
+    eventTypedExperience: false,
+  };
 
-  const timeframe = timeframeRow
-    ? {
-        timeframePresetId:
-          timeframeRow.timeframe_preset_id as typeof base.timeframe.timeframePresetId,
-        primaryTradingTimeframe:
-          timeframeRow.primary_trading_timeframe as typeof base.timeframe.primaryTradingTimeframe,
-        holdingStyle:
-          timeframeRow.holding_style as typeof base.timeframe.holdingStyle,
-        targetHoldDays: timeframeRow.target_hold_days,
-        maxHoldDays: timeframeRow.max_hold_days,
-        timeframeNotes: timeframeRow.timeframe_notes,
-      }
-    : base.timeframe;
+  const timeframe = {
+    timeframePresetId:
+      timeframeRow.timeframe_preset_id as typeof base.timeframe.timeframePresetId,
+    primaryTradingTimeframe:
+      timeframeRow.primary_trading_timeframe as typeof base.timeframe.primaryTradingTimeframe,
+    holdingStyle:
+      timeframeRow.holding_style as typeof base.timeframe.holdingStyle,
+    targetHoldDays: timeframeRow.target_hold_days,
+    maxHoldDays: timeframeRow.max_hold_days,
+    timeframeNotes: timeframeRow.timeframe_notes,
+  };
 
-  const tradeRules = tradeRulesRow
-    ? {
-        rulesPresetId:
-          tradeRulesRow.rules_preset_id as typeof base.tradeRules.rulesPresetId,
-        setupType: tradeRulesRow.setup_type as typeof base.tradeRules.setupType,
-        sideBias: tradeRulesRow.side_bias as typeof base.tradeRules.sideBias,
-        entryStyle:
-          tradeRulesRow.entry_style as typeof base.tradeRules.entryStyle,
-        exitStyle: tradeRulesRow.exit_style as typeof base.tradeRules.exitStyle,
-        scalingMode:
-          tradeRulesRow.scaling_mode as typeof base.tradeRules.scalingMode,
-        tradeRulesMarkdown: tradeRulesRow.trade_rules_markdown,
-        ruleNotes: tradeRulesRow.rule_notes,
-      }
-    : base.tradeRules;
+  const tradeRules = {
+    rulesPresetId:
+      tradeRulesRow.rules_preset_id as typeof base.tradeRules.rulesPresetId,
+    setupType: tradeRulesRow.setup_type as typeof base.tradeRules.setupType,
+    sideBias: tradeRulesRow.side_bias as typeof base.tradeRules.sideBias,
+    entryStyle:
+      tradeRulesRow.entry_style as typeof base.tradeRules.entryStyle,
+    exitStyle: tradeRulesRow.exit_style as typeof base.tradeRules.exitStyle,
+    scalingMode:
+      tradeRulesRow.scaling_mode as typeof base.tradeRules.scalingMode,
+    tradeRulesMarkdown: tradeRulesRow.trade_rules_markdown,
+    ruleNotes: tradeRulesRow.rule_notes,
+  };
 
-  const researchPosture = researchRow
-    ? {
-        posturePresetId:
-          researchRow.posture_preset_id as typeof base.researchPosture.posturePresetId,
-        processingMode:
-          researchRow.processing_mode as typeof base.researchPosture.processingMode,
-        evidenceMode:
-          researchRow.evidence_mode as typeof base.researchPosture.evidenceMode,
-        catalystMode:
-          researchRow.catalyst_mode as typeof base.researchPosture.catalystMode,
-        fundamentalStrictness:
-          researchRow.fundamental_strictness as typeof base.researchPosture.fundamentalStrictness,
-        postureNotes: researchRow.posture_notes,
-      }
-    : base.researchPosture;
+  const researchPosture = {
+    posturePresetId:
+      researchRow.posture_preset_id as typeof base.researchPosture.posturePresetId,
+    processingMode:
+      researchRow.processing_mode as typeof base.researchPosture.processingMode,
+    evidenceMode:
+      researchRow.evidence_mode as typeof base.researchPosture.evidenceMode,
+    catalystMode:
+      researchRow.catalyst_mode as typeof base.researchPosture.catalystMode,
+    fundamentalStrictness:
+      researchRow.fundamental_strictness as typeof base.researchPosture.fundamentalStrictness,
+    postureNotes: researchRow.posture_notes,
+  };
 
   const workersByPhase = new Map<string, LegacyWorkerRow[]>();
   for (const w of workerRows) {
@@ -338,45 +359,39 @@ function assembleSessionDocFromLegacy(
     workersByPhase.set(w.phase, list);
   }
 
-  const ai =
-    phaseRows.length > 0 || aiSettingsRow
-      ? {
-          settings: {
-            workerGuidanceMarkdown:
-              aiSettingsRow?.worker_guidance_markdown ?? "",
-          },
-          phases:
-            phaseRows.length > 0
-              ? phaseRows.map((p) => ({
-                  phase: p.phase as (typeof base.ai.phases)[number]["phase"],
-                  providerKey: p.provider_key,
-                  modelId: p.model_id,
-                  temperature: p.temperature,
-                  maxTokens: p.max_tokens,
-                  reasoningLevel:
-                    p.reasoning_level as (typeof base.ai.phases)[number]["reasoningLevel"],
-                  promptSource:
-                    p.prompt_source as (typeof base.ai.phases)[number]["promptSource"],
-                  promptMarkdown: p.prompt_markdown,
-                  workers: (workersByPhase.get(p.phase) ?? []).map((w) => ({
-                    workerId: w.worker_id,
-                    providerKey: w.provider_key ?? null,
-                    modelId: w.model_id ?? null,
-                    maxSteps: w.max_steps ?? null,
-                    spendLimitUsd: w.spend_limit_usd ?? null,
-                    promptMarkdown: w.prompt_markdown ?? null,
-                  })),
-                }))
-              : defaultAiSection().phases,
-        }
-      : base.ai;
+  const ai = {
+    settings: {
+      workerGuidanceMarkdown: aiSettingsRow.worker_guidance_markdown ?? "",
+    },
+    phases:
+      phaseRows.length > 0
+        ? phaseRows.map((p) => ({
+            phase: p.phase as (typeof base.ai.phases)[number]["phase"],
+            providerKey: p.provider_key,
+            modelId: p.model_id,
+            temperature: p.temperature,
+            maxTokens: p.max_tokens,
+            reasoningLevel:
+              p.reasoning_level as (typeof base.ai.phases)[number]["reasoningLevel"],
+            promptSource:
+              p.prompt_source as (typeof base.ai.phases)[number]["promptSource"],
+            promptMarkdown: p.prompt_markdown,
+            workers: (workersByPhase.get(p.phase) ?? []).map((w) => ({
+              workerId: w.worker_id,
+              providerKey: w.provider_key ?? null,
+              modelId: w.model_id ?? null,
+              maxSteps: w.max_steps ?? null,
+              spendLimitUsd: w.spend_limit_usd ?? null,
+              promptMarkdown: w.prompt_markdown ?? null,
+            })),
+          }))
+        : defaultAiSection().phases,
+  };
 
-  const selector = selectorRow
-    ? {
-        aiPickerEnabled: Boolean(selectorRow.ai_picker_enabled),
-        noInstrumentRetryMinutes: selectorRow.no_instrument_retry_minutes,
-      }
-    : base.selector;
+  const selector = {
+    aiPickerEnabled: Boolean(selectorRow.ai_picker_enabled),
+    noInstrumentRetryMinutes: selectorRow.no_instrument_retry_minutes,
+  };
 
   const raw: SessionStrategyConfigDoc = {
     schemaVersion: SESSION_STRATEGY_CONFIG_SCHEMA_VERSION,
@@ -411,11 +426,25 @@ function insertConfigPreset(
   },
 ): boolean {
   const existing = db
-    .select({ id: schema.configPresets.id })
+    .select()
     .from(schema.configPresets)
     .where(eq(schema.configPresets.id, input.id))
     .get();
-  if (existing) return false;
+  if (existing) {
+    try {
+      if (existing.kind === "full") {
+        parseSessionStrategyConfigDoc(existing.doc);
+      } else {
+        parseSessionStrategyConfigPartialDoc(existing.doc);
+      }
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `0009: existing config_presets row '${existing.id}' failed Zod validation: ${detail}`,
+      );
+    }
+    return false;
+  }
 
   let validated: SessionStrategyConfigPartialDoc | SessionStrategyConfigDoc;
   try {
@@ -759,18 +788,27 @@ export function backfillSessionStrategyConfigs(
     .all();
   let sessionsBackfilled = 0;
 
-  const hasLegacySessionTables = legacyTableExists(
-    sqlite,
-    "session_strategies",
+  const hasLegacySessionTables = REQUIRED_LEGACY_SESSION_TABLES.every((name) =>
+    legacyTableExists(sqlite, name),
   );
 
   for (const { id: sessionId } of sessions) {
     const existing = db
-      .select({ sessionId: schema.sessionStrategyConfigs.sessionId })
+      .select()
       .from(schema.sessionStrategyConfigs)
       .where(eq(schema.sessionStrategyConfigs.sessionId, sessionId))
       .get();
-    if (existing) continue;
+    if (existing) {
+      try {
+        parseSessionStrategyConfigDoc(existing.doc);
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `0009: existing session_strategy_configs for '${sessionId}' failed Zod validation: ${detail}`,
+        );
+      }
+      continue;
+    }
 
     if (!hasLegacySessionTables) {
       throw new Error(
@@ -794,6 +832,70 @@ export function backfillSessionStrategyConfigs(
   const presetsBackfilled = backfillPresetsFromLegacy(sqlite, db, now);
 
   return { sessionsBackfilled, presetsBackfilled };
+}
+
+/**
+ * Assert every session has exactly one valid config document and every preset
+ * Zod-parses before legacy recovery tables are dropped.
+ */
+export function assertSessionStrategyConfigPreservation(
+  sqlite: Database.Database,
+): void {
+  const db = drizzle(sqlite, { schema });
+  const sessionRows = db
+    .select({ id: schema.sessions.id })
+    .from(schema.sessions)
+    .all();
+
+  for (const { id: sessionId } of sessionRows) {
+    const configs = db
+      .select()
+      .from(schema.sessionStrategyConfigs)
+      .where(eq(schema.sessionStrategyConfigs.sessionId, sessionId))
+      .all();
+    if (configs.length !== 1) {
+      throw new Error(
+        `0010: expected exactly one session_strategy_configs row for session '${sessionId}', found ${configs.length}`,
+      );
+    }
+    const config = configs[0];
+    if (!config) {
+      throw new Error(
+        `0010: missing session_strategy_configs row for session '${sessionId}'`,
+      );
+    }
+    try {
+      parseSessionStrategyConfigDoc(config.doc);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `0010: session_strategy_configs for '${sessionId}' failed Zod validation before drop: ${detail}`,
+      );
+    }
+  }
+
+  const presets = db.select().from(schema.configPresets).all();
+  for (const preset of presets) {
+    try {
+      if (preset.kind === "full") {
+        parseSessionStrategyConfigDoc(preset.doc);
+      } else {
+        parseSessionStrategyConfigPartialDoc(preset.doc);
+      }
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `0010: config_presets '${preset.id}' failed Zod validation before drop: ${detail}`,
+      );
+    }
+  }
+
+  const fkViolations = sqlite.prepare("PRAGMA foreign_key_check").all();
+  if (fkViolations.length > 0) {
+    throw new Error(
+      `0010: foreign_key_check failed before legacy drop (${fkViolations.length} violation(s))`,
+    );
+  }
 }
 
 /**

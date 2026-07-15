@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2 Command Surface — Sessions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../skin.css">
+</head>
+<body>
+  <div class="app">
+    <div class="main">
+      <header class="topbar">
+        <span class="topbar-title">Exva</span>
+        <nav class="flex gap-sm" style="margin-left:16px">
+          <a class="btn btn-ghost btn-sm" href="dashboard.html">Dashboard</a>
+          <a class="btn btn-ghost btn-sm" href="sessions.html" style="color:var(--text)">Sessions</a>
+        </nav>
+        <span class="topbar-spacer"></span>
+        <button class="btn btn-sm btn-primary">+ New session</button>
+        <button class="cmd-trigger" data-cmd-open><span>Search…</span> <kbd>⌘K</kbd></button>
+      </header>
+      <div class="content">
+        <div class="span-row mb-8">
+          <span class="label">Sessions</span>
+          <span class="pill live">3 live</span>
+          <span class="pill paper">1 paper</span>
+          <span class="mono up tabular" id="total-pnl"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Session</th><th>Status</th><th class="num">P&amp;L</th>
+                <th class="num">Trades</th><th class="num">Win%</th>
+                <th>Broker</th><th>Started</th><th>Agent</th>
+              </tr>
+            </thead>
+            <tbody id="sessions-body"></tbody>
+          </table>
+        </div>
+        <div class="expand-panel mt-8">
+          <div class="expand-panel-header">Momentum-AM — inline detail</div>
+          <div class="expand-panel-body">
+            <div class="kv-row"><span class="k">Status</span><span class="v"><span class="pill live">live</span></span></div>
+            <div class="kv-row"><span class="k">P&amp;L</span><span class="v up">+903.60</span></div>
+            <div class="kv-row"><span class="k">Agent</span><span class="v">scout-v2</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="cmd-overlay hidden" id="cmd-overlay">
+    <div class="cmd-menu">
+      <div class="cmd-input-wrap"><span>⌘</span><input class="cmd-input" id="cmd-input" placeholder="Type a command or search…"></div>
+      <div class="cmd-list" id="cmd-list"></div>
+    </div>
+  </div>
+  <div class="variant-badge"><strong>P2</strong> Command Surface</div>
+  <script src="../data.js"></script>
+  <script>
+    const total = EXVA_MOCK.sessions.reduce((s, x) => s + x.pnl, 0);
+    document.getElementById("total-pnl").textContent = "Net " + fmtSigned(total);
+    document.getElementById("sessions-body").innerHTML = renderSessionsTable(EXVA_MOCK.sessions, "s1");
+    initCmdPalette();
+  </script>
+</body>
+</html>

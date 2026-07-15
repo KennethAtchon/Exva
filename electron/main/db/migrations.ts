@@ -4,11 +4,18 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import * as schema from "./schema";
 import { resolveMigrationsFolder } from "./migrations-folder";
 import { runSeed } from "./seed";
-import { backfillSessionStrategyConfigs } from "./session-strategy-config-backfill";
+import {
+  assertSessionStrategyConfigPreservation,
+  backfillSessionStrategyConfigs,
+} from "./session-strategy-config-backfill";
 import { dropLegacySessionConfigTables } from "./drop-legacy-session-config-tables";
 
 export interface RunMigrationsOptions {
   rebuildFromScratch?: boolean;
+  /** Override migrations folder (upgrade-fixture tests). */
+  migrationsFolder?: string;
+  /** Apply Drizzle SQL only; skip seed/backfill/drop (upgrade staging). */
+  drizzleOnly?: boolean;
 }
 
 function dropApplicationTables(sqlite: Database.Database): void {
@@ -39,12 +46,20 @@ export function runMigrations(
   }
 
   const db = drizzle(sqlite, { schema });
-  migrate(db, { migrationsFolder: resolveMigrationsFolder() });
+  migrate(db, {
+    migrationsFolder:
+      options?.migrationsFolder ?? resolveMigrationsFolder(),
+  });
+
+  if (options?.drizzleOnly) {
+    return;
+  }
+
   runSeed(db, { sqlite, db, dbPath: ":memory:" });
-  // 0009: Zod-validated assembly of session_strategy_configs + config_presets.
-  // Reads legacy tables when still present (upgrade path). Seed already
-  // populates config_presets for fresh DBs.
-  backfillSessionStrategyConfigs(sqlite);
-  // 0010: drop fourteen legacy config/preset tables after backfill.
-  dropLegacySessionConfigTables(sqlite);
+  // 0009 + 0010: backfill, preserve assertions, and drop in one transaction.
+  sqlite.transaction(() => {
+    backfillSessionStrategyConfigs(sqlite);
+    assertSessionStrategyConfigPreservation(sqlite);
+    dropLegacySessionConfigTables(sqlite);
+  })();
 }

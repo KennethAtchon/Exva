@@ -115,6 +115,22 @@ function trySqlite3Backup(sourcePath: string, destPath: string): boolean {
   }
 }
 
+/** Open backup read-only and require PRAGMA quick_check = ok. */
+export function validateSqliteBackup(backupPath: string): void {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const Database = require("better-sqlite3") as typeof import("better-sqlite3");
+  const db = new Database(backupPath, { readonly: true, fileMustExist: true });
+  try {
+    const rows = db.pragma("quick_check") as Array<{ quick_check: string }>;
+    const result = rows[0]?.quick_check ?? "";
+    if (result !== "ok") {
+      throw new Error(`backup quick_check failed: ${result || "empty"}`);
+    }
+  } finally {
+    db.close();
+  }
+}
+
 /**
  * Snapshot the SQLite DB. Prefer `sqlite3 .backup` (online-safe); fall back
  * to copying the main file (+ WAL/SHM when present).
@@ -122,10 +138,21 @@ function trySqlite3Backup(sourcePath: string, destPath: string): boolean {
 export function backupSqliteDb(options: {
   sourcePath: string;
   trigger: LastBackupMeta["trigger"];
+  /** When true, missing source is hard failure (configured EXVA_DB_PATH). */
+  requireSource?: boolean;
 }): BackupResult {
   const backedUpAt = new Date().toISOString();
   const sourcePath = path.resolve(options.sourcePath);
   if (!fs.existsSync(sourcePath)) {
+    if (options.requireSource || Boolean(env.dbPath?.trim())) {
+      return {
+        ok: false,
+        sourcePath,
+        backupPath: null,
+        backedUpAt,
+        error: `configured database missing: ${sourcePath}`,
+      };
+    }
     return {
       ok: true,
       sourcePath,
@@ -152,6 +179,8 @@ export function backupSqliteDb(options: {
       }
     }
 
+    validateSqliteBackup(backupPath);
+
     pruneBackups(backupDir);
     writeLastBackupMeta({
       backedUpAt,
@@ -167,6 +196,11 @@ export function backupSqliteDb(options: {
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     logger.error({ err, sourcePath }, "db backup failed");
+    try {
+      if (fs.existsSync(backupPath)) fs.rmSync(backupPath, { force: true });
+    } catch {
+      // Best-effort cleanup of invalid backup.
+    }
     return {
       ok: false,
       sourcePath,

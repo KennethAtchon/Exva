@@ -566,6 +566,7 @@ export class AlpacaAdapter implements BrokerAdapter {
         );
       },
       mapMessage: (raw) => mapAlpacaTradeUpdate(raw),
+      isProtocolAck: (raw) => isAlpacaStreamAck(raw),
       onFallbackToPoll: (reason) => {
         logger.warn({ reason }, "alpaca order feed using poll fallback");
         opts?.onFallbackToPoll?.(reason);
@@ -996,19 +997,40 @@ function toAlpacaClientOrderId(clientOrderId: string): string {
   return `exva-${createHash("sha256").update(clientOrderId).digest("hex").slice(0, 43)}`;
 }
 
-function mapAlpacaTradeUpdate(raw: unknown): OrderEvent[] {
+/** Decode an Alpaca websocket frame into JSON, or null if it isn't parseable JSON. */
+function parseAlpacaStreamMessage(raw: unknown): unknown {
   const text =
     typeof raw === "string"
       ? raw
       : Buffer.isBuffer(raw)
         ? raw.toString("utf8")
         : String(raw);
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(text);
+    return JSON.parse(text);
   } catch {
-    return [];
+    return null;
   }
+}
+
+/**
+ * Alpaca confirms the trade_updates stream in two steps: an `authorization`
+ * message with `status: "authorized"`, then a `listening` confirmation once
+ * the subscribe (`listen`) command is accepted. Either is proof the socket
+ * is a real, authenticated Alpaca stream — a bad key gets `unauthorized`
+ * (or the venue just closes the socket) instead of either message.
+ */
+function isAlpacaStreamAck(raw: unknown): boolean {
+  const parsed = parseAlpacaStreamMessage(raw);
+  if (!parsed || typeof parsed !== "object") return false;
+  const msg = parsed as { stream?: string; data?: { status?: string } };
+  if (msg.stream === "authorization" && msg.data?.status === "authorized") {
+    return true;
+  }
+  return msg.stream === "listening";
+}
+
+function mapAlpacaTradeUpdate(raw: unknown): OrderEvent[] {
+  const parsed = parseAlpacaStreamMessage(raw);
   if (!parsed || typeof parsed !== "object") return [];
   const msg = parsed as {
     stream?: string;

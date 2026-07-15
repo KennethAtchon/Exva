@@ -21,7 +21,11 @@ export const LEGACY_SESSION_CONFIG_TABLES = [
   "trade_rule_presets",
 ] as const;
 
-/** Idempotent DROP after 0009 backfill — safe when tables already gone. */
+/**
+ * Idempotent DROP after 0009 backfill — safe when tables already gone.
+ * Callers must run assertSessionStrategyConfigPreservation first (inside the
+ * same transaction as the backfill).
+ */
 export function dropLegacySessionConfigTables(sqlite: Database.Database): void {
   sqlite.pragma("foreign_keys = OFF");
   try {

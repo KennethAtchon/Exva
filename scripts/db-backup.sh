@@ -7,9 +7,11 @@ set -euo pipefail
 HOME_DIR="${HOME:-$(eval echo ~)}"
 BACKUP_DIR="${EXVA_DB_BACKUP_DIR:-$HOME_DIR/.exva/backups}"
 KEEP=30
+EXPLICIT_PATH=0
 
 resolve_db_path() {
   if [[ -n "${EXVA_DB_PATH:-}" ]]; then
+    EXPLICIT_PATH=1
     echo "$EXVA_DB_PATH"
     return
   fi
@@ -35,6 +37,10 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$BACKUP_DIR"
 
 if [[ ! -f "$SRC" ]]; then
+  if ((EXPLICIT_PATH)); then
+    echo "EXVA_DB_PATH is set but database file is missing: $SRC" >&2
+    exit 1
+  fi
   echo "No DB at $SRC — nothing to back up."
   exit 0
 fi
@@ -60,15 +66,30 @@ else
   echo "Backed up (cp; sqlite3 not found) $SRC → $DEST"
 fi
 
-# Prune to last KEEP backups (newest first). Portable on macOS bash 3.
-COUNT=0
-# shellcheck disable=SC2012
-ls -1t "$BACKUP_DIR"/exva-*.db "$BACKUP_DIR"/exva-*.sqlite 2>/dev/null | while read -r stale; do
-  COUNT=$((COUNT + 1))
-  if ((COUNT > KEEP)); then
-    rm -f "$stale" "${stale}-wal" "${stale}-shm"
+# Validate backup integrity before recording success.
+if command -v sqlite3 >/dev/null 2>&1; then
+  CHECK="$(sqlite3 "$DEST" "PRAGMA quick_check;" 2>/dev/null || true)"
+  if [[ "$CHECK" != "ok" ]]; then
+    echo "Backup failed quick_check: ${CHECK:-unreadable}" >&2
+    rm -f "$DEST" "$DEST-wal" "$DEST-shm"
+    exit 1
   fi
-done
+fi
+
+# Prune to last KEEP backups (newest first). Null-safe; bash 3 portable.
+shopt -s nullglob
+prune_files=("$BACKUP_DIR"/exva-*.db "$BACKUP_DIR"/exva-*.sqlite)
+if ((${#prune_files[@]} > 0)); then
+  COUNT=0
+  # shellcheck disable=SC2012
+  while IFS= read -r stale; do
+    COUNT=$((COUNT + 1))
+    if ((COUNT > KEEP)); then
+      rm -f "$stale" "${stale}-wal" "${stale}-shm"
+    fi
+  done < <(ls -1t "${prune_files[@]}")
+fi
+shopt -u nullglob
 
 BACKED_UP_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 cat >"$META" <<EOF
