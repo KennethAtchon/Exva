@@ -1,7 +1,7 @@
 # Finish-Line Fix-Up Plan
 
-> **Date:** 2026-07-13
-> **Status:** Active; P0 repairs landed; P1 partially in progress (paper persist, stream close, Alpaca prove, glossary); P2–P4 still open
+> **Date:** 2026-07-13 (last updated 2026-07-15)
+> **Status:** Active; P0 repairs landed and verified; automated gate (`bun run check`) now green; P1 runtime, P2 tools, and P4 operator gates still open
 > **Owner:** Ken
 > **Source audit:** [`docs/attic/finish-line/`](../attic/finish-line/00-INDEX.md)
 > **Goal:** Repair the finish-line implementation until its original completion contract is true in code, tests, the daily database, and live operation.
@@ -10,12 +10,14 @@
 
 The finish-line work is **not implemented completely or correctly**. The five-hub shell, much of the config-document cutover, several broker/data primitives, mock proof, and many unit tests exist. However, the audit found critical defects in database upgrades and emergency liquidation, disconnected alpha-source implementations, incomplete broker/paper lifecycles, and operator tools that are prototypes rather than the end-to-end features described by the archived plans.
 
-`bun run check` is currently red at `format:check` because these files are not Prettier-clean:
+**2026-07-15 update — `bun run check` is now green end to end** (typecheck, lint, format, knip, 1506 tests, mock proof). The earlier `format:check` failure on the drizzle meta files is resolved. Fixes landed since the audit:
 
-- `electron/main/db/drizzle/meta/_journal.json`
-- `electron/main/db/drizzle/meta/0000_snapshot.json`
+- Lint restored to green: type-only `base` → `BaseDoc` alias in `session-strategy-config-backfill.ts`; unused import dropped; archived `docs/attic/mockups` excluded from lint.
+- The backup→restore journey test (`operator-journeys.ipc.test.ts`) was rewritten from opaque fake bytes into a real migrated-SQLite round-trip (insert → checkpoint → backup → restore → reopen → query), which also validates the new F0.2 `quick_check` gate (partial **F3.2**).
+- Accounts panel now surfaces typed load errors with retry on both queries (partial **F3.1**).
+- UI density and dashboard layout reworked (type scale, Roster/Ladder de-squash, scroll).
 
-The command therefore did not reach `knip`, the full Vitest suite, or `check:proof` during this audit. Focused audit suites passed, but several tests prove isolated helpers or mocked persistence rather than the stated production journeys.
+Several tests still prove isolated helpers or mocked persistence rather than the stated production journeys; the deep P1 runtime journeys remain unproven against live brokers.
 
 ### Status by archived plan
 
@@ -344,10 +346,10 @@ Add journey tests for:
 
 ### Automated gates
 
-- [ ] `bun run check` passes three consecutive times.
-- [ ] Zero skipped/todo tests in production test suites.
+- [~] `bun run check` passes (green as of 2026-07-15; still needs three consecutive confirmed runs).
+- [ ] Zero skipped/todo tests in production test suites. (Note: `check:proof` still reports 2 skipped Alpaca/Polymarket key-gated stages.)
 - [ ] Migration matrix passes from fresh, `0012`, `0013`, `0014`, and a sanitized daily-DB copy.
-- [ ] `bun run prove -- --mode=mock` passes.
+- [x] `bun run prove -- --mode=mock` passes.
 - [ ] Polymarket proof passes across a forced process restart.
 - [ ] Broker certification assertions are non-placeholder and mock certification passes.
 - [ ] All seven alpha sources have at least one non-test production caller and source-specific smoke.
