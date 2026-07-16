@@ -127,6 +127,7 @@ export default tseslint.config(
       "scripts",
       "playwright.config.ts",
       "tmp",
+      "docs/attic/mockups",
     ],
   },
   js.configs.recommended,

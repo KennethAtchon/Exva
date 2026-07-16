@@ -166,12 +166,37 @@ describe("operator journeys (IPC)", () => {
 });
 
 describe("backup → restore journey", () => {
-  it("round-trips sqlite bytes through backupSqliteDb + restoreSqliteDb", () => {
+  it("backs up a real migrated sqlite db and restores queryable rows", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "exva-journey-backup-"));
     const source = path.join(dir, "exva.db");
     const restored = path.join(dir, "restored.db");
     const marker = `journey-marker-${Date.now()}`;
-    fs.writeFileSync(source, `SQLite format 3\0${marker}`);
+
+    // Build a real, migrated SQLite database and persist a row we can later
+    // query back — proving the backup preserves actual database content, not
+    // merely opaque bytes. A fake header would fail the quick_check gate.
+    const src = createFileTestDb(source);
+    const now = new Date().toISOString();
+    src.db
+      .insert(schema.ohlcvBars)
+      .values({
+        id: marker,
+        symbol: "AAPL",
+        instrumentClass: "stock",
+        timeframe: "1h",
+        ts: now,
+        open: 100,
+        high: 101,
+        low: 99,
+        close: 100.5,
+        volume: 1000,
+        provider: "test",
+        ingestedAt: now,
+      })
+      .run();
+    // Flush WAL into the main file so a plain file copy is self-contained.
+    src.sqlite.pragma("wal_checkpoint(TRUNCATE)");
+    src.sqlite.close();
 
     const backup = backupSqliteDb({ sourcePath: source, trigger: "manual" });
     expect(backup.ok).toBe(true);
@@ -183,7 +208,20 @@ describe("backup → restore journey", () => {
       targetPath: restored,
     });
     expect(restore.ok).toBe(true);
-    expect(fs.readFileSync(restored, "utf8")).toContain(marker);
+
+    // Reopen the restored database and prove the row round-tripped.
+    const reopened = new BetterSqlite3(restored, {
+      readonly: true,
+      fileMustExist: true,
+    });
+    try {
+      const row = reopened
+        .prepare("SELECT id FROM ohlcv_bars WHERE id = ?")
+        .get(marker) as { id: string } | undefined;
+      expect(row?.id).toBe(marker);
+    } finally {
+      reopened.close();
+    }
 
     fs.rmSync(dir, { recursive: true, force: true });
     try {
