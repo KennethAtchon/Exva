@@ -56,10 +56,13 @@ const ModelCombobox = ({
           <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-        <Command>
+      <PopoverContent
+        collisionPadding={8}
+        className="flex max-h-[var(--radix-popover-content-available-height)] w-[var(--radix-popover-trigger-width)] flex-col overflow-hidden p-0"
+      >
+        <Command className="min-h-0">
           <CommandInput placeholder="Search models…" />
-          <CommandList id={listId}>
+          <CommandList id={listId} className="min-h-0 flex-1">
             <CommandEmpty className="p-3 text-caption text-text3">
               No models found.
             </CommandEmpty>

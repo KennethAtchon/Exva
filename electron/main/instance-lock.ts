@@ -6,6 +6,9 @@
  * pid, waits briefly, then takes the lock. If takeover fails, GUI refuses to
  * start with a clear error (fallback: "Stop Headless" via uninstall-launchd /
  * kill). Headless never steals the lock from a live GUI.
+ *
+ * Process identity: lock carries a random `identity` token. Before SIGTERM we
+ * re-read the lock and refuse to kill if pid/identity no longer match (PID reuse).
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -17,6 +20,7 @@ const logger = createLogger("instance-lock");
 
 export const LOCK_DIR = path.join(os.homedir(), ".exva");
 export const LOCK_PATH = path.join(LOCK_DIR, "instance.lock");
+export const SUPPRESS_HEADLESS_PATH = path.join(LOCK_DIR, "suppress-headless");
 
 export type InstanceMode = "gui" | "headless";
 
@@ -30,6 +34,8 @@ export interface InstanceLockPayload {
   pid: number;
   mode: InstanceMode;
   startedAt: string;
+  /** Random token unique to this process lifetime — guards PID reuse. */
+  identity: string;
 }
 
 export function readInstanceLock(): InstanceLockPayload | null {
@@ -38,7 +44,7 @@ export function readInstanceLock(): InstanceLockPayload | null {
     const raw = JSON.parse(
       fs.readFileSync(LOCK_PATH, "utf8"),
     ) as InstanceLockPayload;
-    if (!raw.pid || !raw.mode) return null;
+    if (!raw.pid || !raw.mode || !raw.identity) return null;
     return raw;
   } catch {
     return null;
@@ -54,14 +60,30 @@ function processAlive(pid: number): boolean {
   }
 }
 
+function sameProcess(
+  expected: InstanceLockPayload,
+  current: InstanceLockPayload | null,
+): boolean {
+  return (
+    current != null &&
+    current.pid === expected.pid &&
+    current.identity === expected.identity &&
+    current.mode === expected.mode
+  );
+}
+
 export function writeInstanceLock(mode: InstanceMode): void {
   fs.mkdirSync(LOCK_DIR, { recursive: true });
   const payload: InstanceLockPayload = {
     pid: process.pid,
     mode,
     startedAt: new Date().toISOString(),
+    identity: crypto.randomUUID(),
   };
   fs.writeFileSync(LOCK_PATH, `${JSON.stringify(payload, null, 2)}\n`);
+  if (mode === "gui") {
+    fs.writeFileSync(SUPPRESS_HEADLESS_PATH, `${payload.identity}\n`);
+  }
 }
 
 export function clearInstanceLock(): void {
@@ -69,6 +91,9 @@ export function clearInstanceLock(): void {
     const existing = readInstanceLock();
     if (existing && existing.pid === process.pid) {
       fs.rmSync(LOCK_PATH, { force: true });
+      if (existing.mode === "gui") {
+        fs.rmSync(SUPPRESS_HEADLESS_PATH, { force: true });
+      }
     }
   } catch {
     // Best-effort.
@@ -93,9 +118,16 @@ export async function acquireInstanceLock(
     }
     if (mode === "gui" && existing.mode === "headless") {
       logger.info(
-        { headlessPid: existing.pid },
+        { headlessPid: existing.pid, identity: existing.identity },
         "GUI taking over from headless — signaling headless to exit",
       );
+      const stillSame = readInstanceLock();
+      if (!sameProcess(existing, stillSame)) {
+        return {
+          ok: false,
+          reason: `Headless lock identity changed before SIGTERM (pid reuse guard). Retry.`,
+        };
+      }
       try {
         process.kill(existing.pid, "SIGTERM");
       } catch (err) {
@@ -106,10 +138,11 @@ export async function acquireInstanceLock(
       }
       const deadline = Date.now() + 8_000;
       while (Date.now() < deadline) {
-        if (!processAlive(existing.pid)) break;
+        const cur = readInstanceLock();
+        if (!sameProcess(existing, cur) || !processAlive(existing.pid)) break;
         await new Promise((r) => setTimeout(r, 200));
       }
-      if (processAlive(existing.pid)) {
+      if (processAlive(existing.pid) && sameProcess(existing, readInstanceLock())) {
         return {
           ok: false,
           reason: `Headless pid ${existing.pid} did not exit after SIGTERM. Run scripts/uninstall-launchd.sh or kill it, then retry.`,

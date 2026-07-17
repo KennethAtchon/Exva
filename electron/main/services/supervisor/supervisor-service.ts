@@ -3,6 +3,9 @@ import type { NotificationService } from "../infra/notification-service";
 import { createLogger } from "../infra/log";
 import type { MarketDataService } from "../marketdata/market-data-service";
 import type { TradingTimeframe } from "@electron/shared/domain/enums";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   runNightlyResearchJobs,
   type NightlyResearchJobDeps,
@@ -15,6 +18,8 @@ import {
 } from "./notification-sinks";
 
 const supervisorLogger = createLogger("supervisor");
+const NIGHTLY_LOCAL_HOUR = 8;
+const LAST_NIGHTLY_PATH = path.join(os.homedir(), ".exva", "last-nightly-run");
 
 export type AlarmSeverity = "info" | "warn" | "error" | "kill";
 
@@ -84,8 +89,6 @@ export interface SupervisorDeps {
   /** Load per-session AI spend (USD) for runaway alarm. */
   loadAiSpendBySession?: () => Array<{ sessionId: string; spendUsd: number }>;
 }
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Continuous supervisor: heartbeats, freshness, spend/drawdown, feed + backup.
@@ -390,11 +393,9 @@ export class SupervisorService {
 
     await this.router.maybeFlushDigest(new Date(nowMs));
 
-    if (
-      this.deps.nightlyResearch &&
-      (this.lastNightlyRunMs === 0 || nowMs - this.lastNightlyRunMs >= DAY_MS)
-    ) {
+    if (this.deps.nightlyResearch && shouldRunNightly(nowMs)) {
       this.lastNightlyRunMs = nowMs;
+      persistNightlyRunDate(localDateKey(nowMs));
       try {
         await runNightlyResearchJobs(this.deps.nightlyResearch);
       } catch (err) {
@@ -503,4 +504,42 @@ function alarmSeverityToRoute(
   if (severity === "error") return "error";
   if (severity === "warn") return "warn";
   return "info";
+}
+
+function localDateKey(nowMs: number): string {
+  const d = new Date(nowMs);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function readPersistedNightlyDate(
+  filePath: string = LAST_NIGHTLY_PATH,
+): string | null {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    return fs.readFileSync(filePath, "utf8").trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function persistNightlyRunDate(
+  dateKey: string,
+  filePath: string = LAST_NIGHTLY_PATH,
+): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${dateKey}\n`);
+}
+
+/** Fire once per local calendar day at/after 08:00 local. */
+export function shouldRunNightly(
+  nowMs: number,
+  filePath: string = LAST_NIGHTLY_PATH,
+): boolean {
+  const now = new Date(nowMs);
+  if (now.getHours() < NIGHTLY_LOCAL_HOUR) return false;
+  const today = localDateKey(nowMs);
+  return readPersistedNightlyDate(filePath) !== today;
 }

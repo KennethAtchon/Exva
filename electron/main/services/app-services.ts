@@ -31,6 +31,9 @@ import { DecisionTraceRepo } from "../db/repositories/trades/decision-trace-repo
 import { SignalObservationsRepo } from "../db/repositories/research/signal-observations-repo";
 import { SignalLabelsRepo } from "../db/repositories/research/signal-labels-repo";
 import { CalendarEventsRepo } from "../db/repositories/signals/calendar-events-repo";
+import { CrossVenueMarketLinksRepo } from "../db/repositories/signals/cross-venue-market-links-repo";
+import { Form4TransactionsRepo } from "../db/repositories/signals/form4-transactions-repo";
+import { FundingRatesRepo } from "../db/repositories/marketdata/funding-rates-repo";
 import {
   BacktestRunsRepo,
   ModelVersionsRepo,
@@ -159,6 +162,7 @@ import { SessionInputRuntimePlanner } from "./scheduling/session-input-runtime-p
 import { ScheduledStrategyExecutor } from "./scheduling/scheduled-strategy-executor";
 import { MarketCalendarRegistry } from "./scheduling/market-calendar-registry";
 import { SubscriptionFanoutResolver } from "./signals/subscription-fanout-resolver";
+import { AlphaSourceScanService } from "./signals/alpha-source-scan-service";
 import type { ExperienceTemplateService } from "./experience-catalog/experience-template-service";
 import { INPUT_PROFILE_IDS } from "./experience-catalog/input-profile-seeds";
 import { TEMPLATE_IDS } from "./experience-catalog/experience-template-seeds";
@@ -251,6 +255,7 @@ export interface AppServices {
   sourceDefinitionService: SourceDefinitionService;
   sessionInputConfiguration: SessionInputConfigurationService;
   scheduleCoordinator: ScheduleCoordinator;
+  alphaSourceScans: AlphaSourceScanService;
   // Finish-line 08 operator power tools
   paletteQuery: PaletteQueryService;
   backtestLab: BacktestLabService;
@@ -259,6 +264,7 @@ export interface AppServices {
   equitySnapshots: EquitySnapshotService;
   whatIfReplay: WhatIfReplayService;
   killSwitch: KillSwitchService;
+  refreshTelegramCreds: () => Promise<void>;
 }
 
 export async function createAppServices(app: App): Promise<AppServices> {
@@ -301,6 +307,9 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const signalDeliveriesRepo = new SignalDeliveriesRepo(db);
   const signalDeadLettersRepo = new SignalDeadLettersRepo(db);
   const calendarEventsRepo = new CalendarEventsRepo(db);
+  const fundingRatesRepo = new FundingRatesRepo(db);
+  const form4TransactionsRepo = new Form4TransactionsRepo(db);
+  const crossVenueLinksRepo = new CrossVenueMarketLinksRepo(db);
   const secrets = new SecretsService();
   await seedEnvBackedAccountSecrets(repos, secrets);
   const brokerRegistry = new BrokerRegistry(
@@ -897,6 +906,16 @@ export async function createAppServices(app: App): Promise<AppServices> {
   scheduleCoordinator.reconcile(plans);
   scheduleCoordinator.start();
 
+  const alphaSourceScans = new AlphaSourceScanService({
+    fundingRates: fundingRatesRepo,
+    form4Transactions: form4TransactionsRepo,
+    crossVenueLinks: crossVenueLinksRepo,
+    emitSignals: async (signals, groupKey) => {
+      await signalBus.ingestScheduledGroupHit(signals, groupKey, []);
+    },
+  });
+  alphaSourceScans.start();
+
   signalBus.setSubscriptionFanoutResolver(fanoutResolver);
   const signalRegistry = new SignalSourceRegistry(db, signalBus);
   const sessionListing = new SessionListingService({
@@ -1015,6 +1034,35 @@ export async function createAppServices(app: App): Promise<AppServices> {
       });
     },
     getAiBudgetUsd: () => 25,
+    getLadderNotes: () => {
+      const notes: string[] = [];
+      for (const [experienceId, state] of ladderStates) {
+        if (state.pendingUpgradeTo) {
+          notes.push(
+            `${experienceId}: pending upgrade ${state.rung} → ${state.pendingUpgradeTo}`,
+          );
+        } else {
+          notes.push(
+            `${experienceId}: on ${state.rung} (bound $${state.capitalBoundUsd})`,
+          );
+        }
+      }
+      if (notes.length === 0) notes.push("No ladder states evaluated yet.");
+      return notes.slice(0, 12);
+    },
+    getCalibrationNotes: () => {
+      const models = calibration.list();
+      if (models.length === 0) {
+        return ["No calibration models refreshed yet."];
+      }
+      return models.slice(0, 12).map((m) => {
+        const samples = m.buckets.reduce((n, b) => n + b.sampleSize, 0);
+        if (samples < 20) {
+          return `${m.modelId}@${m.modelVersion}: sparse (${samples} labels, Brier ${m.brierScore.toFixed(3)})`;
+        }
+        return `${m.modelId}@${m.modelVersion}: Brier ${m.brierScore.toFixed(3)} · ${samples} labels`;
+      });
+    },
   });
   const whatIfReplay = new WhatIfReplayService({
     trades: repos.trades,
@@ -1125,6 +1173,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sourceDefinitionService,
     sessionInputConfiguration,
     scheduleCoordinator,
+    alphaSourceScans,
     paletteQuery,
     backtestLab,
     dataDoctor,
@@ -1132,6 +1181,10 @@ export async function createAppServices(app: App): Promise<AppServices> {
     equitySnapshots: equitySnapshotService,
     whatIfReplay,
     killSwitch,
+    refreshTelegramCreds: async () => {
+      const raw = await secrets.get("notify:telegram");
+      telegramCredsCache = parseTelegramSecretJson(raw);
+    },
   };
   return appServices;
 }

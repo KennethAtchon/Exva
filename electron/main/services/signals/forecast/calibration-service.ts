@@ -87,6 +87,10 @@ export class CalibrationService {
     return cal;
   }
 
+  list(): ModelCalibration[] {
+    return [...this.store.values()];
+  }
+
   /**
    * Haircut in [0,1] applied to Kelly size. Uncalibrated → near 0.
    * Well-calibrated with samples → approaches 1.

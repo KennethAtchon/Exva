@@ -27,5 +27,20 @@ describe("adapter certification (mock)", () => {
     expect(
       report.checks.some((c) => c.name === "getAccountBalance" && c.ok),
     ).toBe(true);
+    expect(
+      report.checks.some(
+        (c) => c.name === "taxonomyBROKER_AUTH" && c.ok,
+      ),
+    ).toBe(true);
+    expect(
+      report.checks.some(
+        (c) => c.name === "taxonomyINSUFFICIENT_FUNDS" && c.ok,
+      ),
+    ).toBe(true);
+    expect(
+      report.checks.some(
+        (c) => c.name === "taxonomyUNKNOWN_SYMBOL" && c.ok,
+      ),
+    ).toBe(true);
   });
 });

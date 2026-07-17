@@ -209,8 +209,9 @@ input::placeholder {
 }
 
 :focus-visible {
+  /* Inset so the ring survives overflow-hidden ancestors (popovers, selects). */
   outline: 1.5px solid var(--text1);
-  outline-offset: 2px;
+  outline-offset: -1.5px;
 }
 
 @keyframes slideIn {

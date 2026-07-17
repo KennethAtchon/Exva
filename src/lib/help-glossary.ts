@@ -327,7 +327,7 @@ export const HELP_GLOSSARY = {
   },
   "manual-tickers": {
     title: "Manual tickers",
-    body: "Symbols that seed or constrain research for manual-only or web-search sessions. Listener experiences ignore this field — instruments come from the signal feed.",
+    body: "Symbols that seed or constrain research for manual-only sessions. Listener experiences ignore this field — instruments come from the signal feed.",
   },
   "broker-accounts": {
     title: "Broker accounts",

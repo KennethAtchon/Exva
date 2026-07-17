@@ -504,8 +504,20 @@ export default function App() {
       onOpenPalette={() => setPaletteOpen(true)}
     >
       {ui.loadError && (
-        <div className="border-b border-error-border bg-error-dim px-6 py-2 font-mono text-caption text-error">
-          {ui.loadError}
+        <div className="flex items-center justify-between gap-3 border-b border-error-border bg-error-dim px-6 py-2 font-mono text-caption text-error">
+          <span>{ui.loadError}</span>
+          <button
+            type="button"
+            className="shrink-0 underline"
+            onClick={() => {
+              dispatchUi({ loadError: null });
+              void reloadStats();
+              void reloadTrades();
+              void loadWorkspaceView();
+            }}
+          >
+            Retry
+          </button>
         </div>
       )}
       <div className="flex flex-1 flex-col overflow-hidden">{pageEl()}</div>

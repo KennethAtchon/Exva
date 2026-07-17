@@ -27,6 +27,10 @@ export interface MorningBriefingDeps {
   /** Deliver to phone sinks (ntfy/telegram). */
   deliverSink?: (title: string, body: string) => Promise<void> | void;
   getAiBudgetUsd?: () => number;
+  /** Promotion-ladder notes for the briefing. */
+  getLadderNotes?: () => string[];
+  /** Calibration status notes for the briefing. */
+  getCalibrationNotes?: () => string[];
 }
 
 /**
@@ -39,18 +43,16 @@ export class MorningBriefingService {
   async assemble(forDate = yesterdayUtcDate()): Promise<BriefingRow> {
     const dayStart = `${forDate}T00:00:00.000Z`;
     const dayEnd = `${forDate}T23:59:59.999Z`;
-    const allTrades = this.deps.trades.listAllFiltered({});
-    const opened = allTrades.filter(
-      (t) => t.opened_at && t.opened_at >= dayStart && t.opened_at <= dayEnd,
-    );
-    const closed = allTrades.filter(
-      (t) =>
-        t.status === "closed" &&
-        t.closed_at &&
-        t.closed_at >= dayStart &&
-        t.closed_at <= dayEnd,
-    );
-    const openNow = allTrades.filter((t) => t.status === "open");
+    const closed = this.deps.trades.listClosedInWindow({
+      windowStart: dayStart,
+      windowEnd: dayEnd,
+    });
+    const openNow = this.deps.trades.listOpenAndPending();
+    const opened = this.deps.trades
+      .listAllFiltered({})
+      .filter(
+        (t) => t.opened_at && t.opened_at >= dayStart && t.opened_at <= dayEnd,
+      );
     const yesterdayPnlUsd = closed.reduce(
       (sum, t) => sum + (t.final_pnl_usd ?? 0),
       0,
@@ -83,6 +85,10 @@ export class MorningBriefingService {
         ? "no coverage rows"
         : `${matrix.length} cells · ${stale} stale/dead · ${gaps} gaps`;
 
+    const heldSymbols = new Set(
+      openNow.map((t) => t.instrumentSymbol).filter(Boolean),
+    );
+
     const upcoming = this.deps.db.db
       .select({
         title: calendarEvents.title,
@@ -101,13 +107,23 @@ export class MorningBriefingService {
           ),
         ),
       )
-      .limit(12)
+      .limit(40)
       .all()
+      .filter(
+        (r) =>
+          r.symbol == null ||
+          heldSymbols.size === 0 ||
+          heldSymbols.has(r.symbol),
+      )
+      .slice(0, 12)
       .map((r) => ({
         title: r.title ?? "Event",
         scheduledAt: r.scheduledAt,
         symbol: r.symbol,
       }));
+
+    const ladderNotes = this.deps.getLadderNotes?.() ?? [];
+    const calibrationNotes = this.deps.getCalibrationNotes?.() ?? [];
 
     const doc: BriefingDoc = {
       date: forDate,
@@ -116,8 +132,8 @@ export class MorningBriefingService {
       tradesOpened: opened.length,
       tradesClosed: closed.length,
       tradeSummaries,
-      ladderNotes: [],
-      calibrationNotes: [],
+      ladderNotes,
+      calibrationNotes,
       calendarEvents: upcoming,
       alarms: alarms.slice(0, 10),
       aiSpendUsd,
@@ -130,8 +146,19 @@ export class MorningBriefingService {
       },
     };
 
-    const narrative =
-      (await this.deps.narrate?.(doc)) ?? buildDeterministicNarrative(doc);
+    let narrative: string;
+    try {
+      narrative =
+        (await this.deps.narrate?.(doc)) ?? buildDeterministicNarrative(doc);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.deps.notifications.notify(
+        "Briefing narrative failed",
+        msg,
+        "WARN",
+      );
+      narrative = buildDeterministicNarrative(doc);
+    }
 
     const row = this.deps.briefings.upsert({
       date: forDate,
@@ -145,12 +172,28 @@ export class MorningBriefingService {
       "",
       `P&L ${fmtUsd(yesterdayPnlUsd)} · ${opened.length} opened / ${closed.length} closed · ${openNow.length} open`,
       `AI $${aiSpendUsd.toFixed(2)} / $${aiBudgetUsd.toFixed(2)} · ${dataCoverageStatus}`,
+      ladderNotes.length > 0 ? `Ladder: ${ladderNotes.join("; ")}` : null,
+      calibrationNotes.length > 0
+        ? `Calibration: ${calibrationNotes.join("; ")}`
+        : null,
       "",
       "Open Exva → Dashboard for full briefing.",
-    ].join("\n");
+    ]
+      .filter((line) => line != null)
+      .join("\n");
 
     this.deps.notifications.notify(title, body, "INFO");
-    await this.deps.deliverSink?.(title, body);
+    try {
+      await this.deps.deliverSink?.(title, body);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.deps.notifications.notify(
+        "Briefing delivery failed",
+        msg,
+        "ERROR",
+      );
+      throw err;
+    }
 
     return row;
   }

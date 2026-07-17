@@ -12,8 +12,6 @@ import {
 } from "../replay/cycle-replay-service";
 import { getStrategyDefinitionRegistry } from "../strategies";
 import type { MarketDataService } from "../marketdata/market-data-service";
-import { createMeanReversionStrategy } from "../signals/strategy/mean-reversion-signal";
-import type { DeterministicStrategy } from "../backtest/replay-engine";
 
 export interface WhatIfParams {
   zScoreEntry?: number;
@@ -161,9 +159,14 @@ export class WhatIfReplayService {
     metrics: Record<string, unknown>,
     experienceId?: string,
   ): string {
+    if (!experienceId) {
+      throw new Error(
+        "what-if save requires experienceId from the source decision/session",
+      );
+    }
     const exp = this.deps.experienceExperiments.insert({
       id: crypto.randomUUID(),
-      experienceId: experienceId ?? "what-if",
+      experienceId,
       configHash: createHash("sha256")
         .update(JSON.stringify({ tradeId: trade.id, params, kind: "what-if" }))
         .digest("hex")
@@ -184,23 +187,20 @@ export class WhatIfReplayService {
     notes: string[],
   ): Promise<WhatIfResult> {
     notes.push("No cycle fixture — deterministic strategy evaluate only");
-    const strategyId = params.strategyId ?? "mean-reversion";
-    let strategy: DeterministicStrategy;
-    try {
-      const def = getStrategyDefinitionRegistry().require(strategyId);
-      strategy = def.create(
-        def.parameterSchema.parse({
-          ...(params.strategyParams ?? {}),
-          ...(params.zScoreEntry != null
-            ? { zScoreEntry: params.zScoreEntry }
-            : {}),
-        }),
+    if (!params.strategyId) {
+      throw new Error(
+        "what-if without cycle fixture requires strategyId (no silent mean-reversion fallback)",
       );
-    } catch {
-      strategy = createMeanReversionStrategy({
-        zScoreEntry: params.zScoreEntry ?? -2,
-      });
     }
+    const def = getStrategyDefinitionRegistry().require(params.strategyId);
+    const strategy = def.create(
+      def.parameterSchema.parse({
+        ...(params.strategyParams ?? {}),
+        ...(params.zScoreEntry != null
+          ? { zScoreEntry: params.zScoreEntry }
+          : {}),
+      }),
+    );
 
     let wouldSignal = false;
     if (this.deps.marketData) {

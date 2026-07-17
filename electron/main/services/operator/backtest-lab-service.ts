@@ -204,6 +204,62 @@ export class BacktestLabService {
     return { run, result, determinismHash: contractHash };
   }
 
+  /**
+   * Re-execute from the immutable foldConfigJson stored on a prior run,
+   * then compare the new output hash to the original contractHash.
+   */
+  async rerunFromSpec(runId: string): Promise<{
+    original: BacktestRun;
+    rerun: BacktestRun;
+    result: BacktestResult;
+    hashMatches: boolean;
+  }> {
+    const original = this.deps.backtestRuns.getById(runId);
+    if (!original) throw new Error(`backtest run not found: ${runId}`);
+    let spec: {
+      folds: number;
+      foldConfig?: FoldConfig;
+      strategyId: string;
+      strategyParams?: Record<string, unknown>;
+      symbols: string[];
+      timeframe: TradingTimeframe;
+      exitPolicy?: ExitPolicyConfig;
+    };
+    try {
+      spec = JSON.parse(original.foldConfigJson) as typeof spec;
+    } catch {
+      throw new Error(`backtest run ${runId} has invalid foldConfigJson`);
+    }
+    if (!spec.strategyId || !spec.symbols?.length || !spec.timeframe) {
+      throw new Error(`backtest run ${runId} foldConfigJson missing required fields`);
+    }
+    let costs: Partial<BacktestCosts> | undefined;
+    try {
+      costs = JSON.parse(original.costModelJson) as Partial<BacktestCosts>;
+    } catch {
+      costs = undefined;
+    }
+    const { run, result } = await this.run({
+      experienceId: original.experienceId,
+      strategyId: spec.strategyId,
+      strategyParams: spec.strategyParams,
+      symbols: spec.symbols,
+      timeframe: spec.timeframe,
+      windowStart: original.windowStart,
+      windowEnd: original.windowEnd,
+      folds: spec.folds,
+      foldConfig: spec.foldConfig,
+      costs,
+      exitPolicy: spec.exitPolicy,
+    });
+    return {
+      original,
+      rerun: run,
+      result,
+      hashMatches: result.runHash === original.contractHash,
+    };
+  }
+
   async compare(runIds: string[]): Promise<{
     runs: BacktestRun[];
     metrics: Array<Record<string, unknown>>;

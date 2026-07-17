@@ -187,7 +187,11 @@ function buildChecks(
   const rows: CheckRow[] = [];
 
   for (const p of providers) {
-    const pass = p.enabled && p.errorRate < 0.1;
+    const pass =
+      p.enabled &&
+      p.successCount24h > 0 &&
+      p.errorRate < 0.1 &&
+      p.lastSuccessAt != null;
     rows.push({
       id: `provider-${p.provider}`,
       name: `Provider · ${p.provider}`,
@@ -212,8 +216,7 @@ function buildChecks(
   }
 
   for (const cell of cells) {
-    const freshPass =
-      cell.freshness === "fresh" || cell.freshness === "unknown";
+    const freshPass = cell.freshness === "fresh";
     rows.push({
       id: `fresh-${cell.symbol}-${cell.timeframe}`,
       name: `Freshness · ${cell.symbol}/${cell.timeframe}`,

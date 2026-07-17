@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { AppError } from "@electron/shared/infra/errors";
 import type { BrokerAdapter } from "../adapters/broker-adapter";
+import { MockBrokerAdapter } from "../adapters/mock-adapter";
 import {
   adapterSupportsOrder,
   type AdapterCapabilities,
@@ -193,7 +195,7 @@ export async function runAdapterCertification(
         checks.push(
           check(
             "placeFarLimit",
-            status.status === "open" || status.status === "closed",
+            status.status === "open",
             `id=${placed.brokerOrderId} status=${status.status}`,
           ),
         );
@@ -202,7 +204,7 @@ export async function runAdapterCertification(
         checks.push(
           check(
             "cancelFarLimit",
-            after.status === "closed" || after.status === "unknown",
+            after.status === "closed" || after.status === "canceled",
             `status=${after.status}`,
           ),
         );
@@ -291,14 +293,20 @@ export async function runAdapterCertification(
     }
   }
 
-  // --- Error taxonomy (best-effort; mock may not hit HTTP) ---
-  checks.push(
-    check(
-      "errorTaxonomyDocumented",
-      true,
-      "BROKER_AUTH|INSUFFICIENT_FUNDS|UNKNOWN_SYMBOL|REJECTED via AppError",
-    ),
-  );
+  // --- Error taxonomy: induce typed codes (mock-capable; live adapters skip) ---
+  if (adapter.brokerType === "mock") {
+    checks.push(
+      ...(await induceMockErrorTaxonomy(symbol, instrumentClass)),
+    );
+  } else {
+    checks.push(
+      check(
+        "errorTaxonomyInduced",
+        true,
+        "skipped: live adapter has no induced fault hooks",
+      ),
+    );
+  }
 
   const passed = checks.every((c) => c.ok);
   return {
@@ -347,6 +355,74 @@ function inventUnsupportedOrder(
     };
   }
   return null;
+}
+
+async function induceMockErrorTaxonomy(
+  symbol: string,
+  instrumentClass: BrokerOrderV2["instrument"]["instrumentClass"],
+): Promise<CertCheckResult[]> {
+  const checks: CertCheckResult[] = [];
+
+  const authAdapter = new MockBrokerAdapter({ forceAuthFail: true });
+  try {
+    await authAdapter.testConnection();
+    checks.push(check("taxonomyBROKER_AUTH", false, "expected throw"));
+  } catch (err) {
+    checks.push(
+      check(
+        "taxonomyBROKER_AUTH",
+        err instanceof AppError && err.code === "BROKER_AUTH",
+        err instanceof AppError ? err.code : String(err),
+      ),
+    );
+  }
+
+  const fundsAdapter = new MockBrokerAdapter({ forceInsufficientFunds: true });
+  try {
+    await fundsAdapter.placeOrderV2!({
+      clientOrderId: `cert-funds-${Date.now()}`,
+      instrument: { symbol, instrumentClass },
+      side: "BUY",
+      quantity: { kind: "units", value: 1 },
+      orderType: "market",
+      timeInForce: "day",
+    });
+    checks.push(check("taxonomyINSUFFICIENT_FUNDS", false, "expected throw"));
+  } catch (err) {
+    checks.push(
+      check(
+        "taxonomyINSUFFICIENT_FUNDS",
+        err instanceof AppError && err.code === "BROKER_INSUFFICIENT_FUNDS",
+        err instanceof AppError ? err.code : String(err),
+      ),
+    );
+  }
+
+  const unknownSymbol = "__CERT_UNKNOWN_SYMBOL__";
+  const symbolAdapter = new MockBrokerAdapter({
+    forceUnknownSymbol: unknownSymbol,
+  });
+  try {
+    await symbolAdapter.placeOrderV2!({
+      clientOrderId: `cert-sym-${Date.now()}`,
+      instrument: { symbol: unknownSymbol, instrumentClass },
+      side: "BUY",
+      quantity: { kind: "units", value: 1 },
+      orderType: "market",
+      timeInForce: "day",
+    });
+    checks.push(check("taxonomyUNKNOWN_SYMBOL", false, "expected throw"));
+  } catch (err) {
+    checks.push(
+      check(
+        "taxonomyUNKNOWN_SYMBOL",
+        err instanceof AppError && err.code === "BROKER_UNKNOWN_SYMBOL",
+        err instanceof AppError ? err.code : String(err),
+      ),
+    );
+  }
+
+  return checks;
 }
 
 export function formatCertReport(report: AdapterCertReport): string {

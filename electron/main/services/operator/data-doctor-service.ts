@@ -87,16 +87,15 @@ export class DataDoctorService {
     if (stamps.length < 2) return [];
     const expected = expectedBarMs(timeframe);
     const gaps: Array<{ from: string; to: string }> = [];
-    // Allow 1.6× spacing before calling a hole (weekends / holidays for daily).
-    const threshold = expected * (timeframe === "1d" ? 3.5 : 1.6);
+    const threshold = expected * 1.6;
     for (let i = 1; i < stamps.length; i++) {
       const prev = stamps[i - 1];
       const cur = stamps[i];
       if (!prev || !cur) continue;
       const delta = Date.parse(cur) - Date.parse(prev);
-      if (Number.isFinite(delta) && delta > threshold) {
-        gaps.push({ from: prev, to: cur });
-      }
+      if (!Number.isFinite(delta) || delta <= threshold) continue;
+      if (timeframe === "1d" && isWeekendGap(prev, cur)) continue;
+      gaps.push({ from: prev, to: cur });
     }
     return gaps;
   }
@@ -178,12 +177,14 @@ export class DataDoctorService {
 
     return [...byProvider.entries()].map(([provider, stats]) => {
       const total = stats.success + stats.error;
+      const noTraffic = total === 0;
       return {
         provider,
         lastSuccessAt: stats.lastSuccess,
         errorCount24h: stats.error,
         successCount24h: stats.success,
-        errorRate: total === 0 ? 0 : stats.error / total,
+        // No calls → treat as fully degraded (1.0), never a quiet pass.
+        errorRate: noTraffic ? 1 : stats.error / total,
         enabled: !this.disabledProviders.has(provider),
       };
     });
@@ -257,3 +258,24 @@ export class DataDoctorService {
     return this.deps.db.db.select().from(dataCoverage).all();
   }
 }
+
+/** True when the span from prev→cur only covers Fri→Mon weekend closure. */
+function isWeekendGap(prevIso: string, curIso: string): boolean {
+  const prev = new Date(prevIso);
+  const cur = new Date(curIso);
+  if (Number.isNaN(prev.getTime()) || Number.isNaN(cur.getTime())) return false;
+  const prevDay = prev.getUTCDay(); // 0=Sun … 5=Fri
+  const curDay = cur.getUTCDay();
+  const deltaMs = cur.getTime() - prev.getTime();
+  // Fri → Mon (~3d) or Fri → Tue holiday-ish up to 4d
+  if (prevDay === 5 && (curDay === 1 || curDay === 2) && deltaMs <= 4.5 * DAY_MS) {
+    return true;
+  }
+  // Thu → Mon (holiday Friday)
+  if (prevDay === 4 && curDay === 1 && deltaMs <= 4.5 * DAY_MS) {
+    return true;
+  }
+  return false;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;

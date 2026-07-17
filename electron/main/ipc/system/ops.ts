@@ -102,11 +102,13 @@ export function registerOpsHandlers(services: AppServices): void {
       "notify:telegram",
       JSON.stringify({ botToken, chatId }),
     );
+    await services.refreshTelegramCreds();
     return { ok: true as const };
   });
 
   handle(ipcMain, channels.ops.clearTelegramSecret, async () => {
     await services.secrets.delete("notify:telegram");
+    await services.refreshTelegramCreds();
     return { ok: true as const };
   });
 

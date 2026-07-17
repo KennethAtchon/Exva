@@ -18,6 +18,7 @@ import {
   type OrderEventFeed,
 } from "../order-contract-v2";
 import { createPollOrderEventFeed } from "../order-event-feed";
+import { brokerError } from "../broker-errors";
 import {
   DEFAULT_MOCK_ACCOUNT_BALANCE_USD,
   DEFAULT_MOCK_EXECUTION_TIER,
@@ -48,6 +49,12 @@ export interface MockScenario {
   brokerTimeoutMs?: number;
   /** If set, getOrderStatus returns "closed" with computed PnL after this many ms. */
   autoCloseAfterMs?: number;
+  /** Cert/taxonomy: testConnection fails with BROKER_AUTH. */
+  forceAuthFail?: boolean;
+  /** Cert/taxonomy: placeOrder fails with BROKER_INSUFFICIENT_FUNDS. */
+  forceInsufficientFunds?: boolean;
+  /** Cert/taxonomy: placeOrder for this symbol fails with BROKER_UNKNOWN_SYMBOL. */
+  forceUnknownSymbol?: string;
 }
 
 export interface MockOhlcvBar {
@@ -157,6 +164,9 @@ export class MockBrokerAdapter implements BrokerAdapter {
   ) {}
 
   async testConnection(): Promise<ConnectionTestResult> {
+    if (this.scenario.forceAuthFail) {
+      throw brokerError("BROKER_AUTH", "Mock broker auth failed");
+    }
     return {
       ok: true,
       message: "Mock broker connected",
@@ -208,6 +218,22 @@ export class MockBrokerAdapter implements BrokerAdapter {
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
     if (this.scenario.marketClosed) {
       throw new Error("Market is closed; order rejected");
+    }
+
+    if (this.scenario.forceInsufficientFunds) {
+      throw brokerError(
+        "BROKER_INSUFFICIENT_FUNDS",
+        "Mock broker insufficient funds",
+      );
+    }
+    if (
+      this.scenario.forceUnknownSymbol &&
+      order.instrumentSymbol === this.scenario.forceUnknownSymbol
+    ) {
+      throw brokerError(
+        "BROKER_UNKNOWN_SYMBOL",
+        `Mock broker unknown symbol: ${order.instrumentSymbol}`,
+      );
     }
 
     const kind = this.scenario.kind;
