@@ -21,17 +21,38 @@ Several tests still prove isolated helpers or mocked persistence rather than the
 
 ### Status by archived plan
 
-| Plan                | Audit status          | Main reason                                                                                                    |
-| ------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------- |
-| 01 residual debt    | Partial / unsafe      | Upgrade migrations were removed; legacy signal envelope remains; autopsy migration is not tested as an upgrade |
-| 02 config diet      | Partial / unsafe      | Backfill can default missing rows and skips validation before destructive drops; concurrency is not atomic     |
-| 03 brokers          | Partial               | Capabilities overstate support; feeds and certification do not prove the promised behavior                     |
-| 04 proof and ops    | Partial / broken gate | Alpaca proof always fails; backup failure does not stop migration; launchd handoff can restart-loop            |
-| 05 Polymarket paper | Partial               | Ghost state is memory-only, so restart and multi-day settlement are broken                                     |
-| 06 alpha sources    | Mostly disconnected   | Core scanners exist as isolated functions but are not cataloged, scheduled, ingested, or routed end-to-end     |
-| 07 UI consolidation | Mostly implemented    | Five hubs and route deletion exist; visual and capability parity remain unverified                             |
-| 08 operator tools   | Partial / unsafe      | Flatten can falsify closure; replay, attribution, briefing, palette, Data Doctor, and Lab are incomplete       |
-| 09 smoothness       | Not complete          | Error states, real journey tests, docs, performance evidence, fresh/daily DB runs, and soak remain open        |
+Two columns: the original 2026-07-13 audit verdict, and the verified state as of
+2026-07-16 (confirmed by reading the code, `bun run check` green).
+
+| Plan                | Audit (07-13)         | Now (07-16) — verified                                                                                                                                                                                               |
+| ------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 01 residual debt    | Partial / unsafe      | Migration chain restored + tested (P0 green). **Gap: legacy signal envelope `signal-event-from-market-signal.ts` still present (F1.7).**                                                                             |
+| 02 config diet      | Partial / unsafe      | Backfill Zod validation + atomic drops + version CAS landed (P0 verified). Done pending live daily-DB migration.                                                                                                     |
+| 03 brokers          | Partial               | Capabilities/feeds largely wired. **Gap: cert error-taxonomy is a hardcoded placebo (F1.3) — needs a live broker to prove.**                                                                                         |
+| 04 proof and ops    | Partial / broken gate | Mock proof green; alpaca proof is a real read-only audit; backup is a hard gate. **Gap: launchd/PID-identity handoff (F3.4).**                                                                                       |
+| 05 Polymarket paper | Partial               | **Persisted ghost positions + rehydration landed** (`paper-positions-repo.ts` + both adapters). Multi-restart settlement unproven vs live.                                                                           |
+| 06 alpha sources    | Mostly disconnected   | Registered in `strategies/definitions/*` + scan callers for form4/funding. **Gap: cross-venue has no scheduled scan (F1.5).**                                                                                        |
+| 07 UI consolidation | Mostly implemented    | UI density + dashboard layout reworked (2026-07-15). Visual/capability parity still operator-review only.                                                                                                            |
+| 08 operator tools   | Partial / unsafe      | **Attribution (F2.1) + what-if replay (F2.2) reworked.** Gaps: briefing ladder/calibration sections still empty + no 08:00 scheduler (F2.3); no `backtest-lab-service` found (F2.6); palette/Data Doctor unverified. |
+| 09 smoothness       | Not complete          | `bun run check` green; Accounts + cost-breakdown error states done. **Gaps: remaining journey tests (F3.2), perf evidence, daily-DB run, soak.**                                                                     |
+
+### What's left — punch list (2026-07-16)
+
+**Code-completable but require the running app / live-or-sandbox brokers to verify (not safely one-shottable static):**
+
+- F1.3 — replace cert error-taxonomy placebo with induced BROKER_AUTH / INSUFFICIENT_FUNDS / UNKNOWN_SYMBOL and typed-code assertions.
+- F1.6 — options-flow v2 (two-leg verticals through RiskEngine/allocation/policy).
+- F1.7 — remove the legacy signal envelope; migrate reads/dedupe to `MarketSignal`.
+- F1.5 — add a scheduled scan caller for cross-venue dislocation.
+- F2.3 — populate briefing ladder/calibration sections; schedule at 08:00 local with persisted last-run.
+- F2.6 — confirm/implement Backtest Lab rerun-from-spec (service file not found).
+- F2.4/F2.5 — command-palette parity + Data Doctor calendar/degraded correctness (unverified).
+- F3.2 — add the remaining journey tests (signal→decision→gates→order→fill→close; ghost-fill→restart→settlement; pause/flatten partial-failure reconciliation).
+- F3.4 — verify process identity (not just PID) before SIGTERM; calendar-based nightly scheduling.
+
+**Operator-only — physically require Ken (keys / hardware / time):** every item under "Operator-only gates" below — real broker certs, live stream close, cross-venue approval, Tradier sandbox vertical, light/dark hub screenshots, cold-start perf, three 08:00 briefings, 7-day soak.
+
+**Already done since the audit (do not redo):** P0 (F0.1–F0.5), paper persistence (F1.1), stream feeds (F1.2), proof modes (F1.4), attribution (F2.1), what-if replay (F2.2), Accounts/cost-breakdown error states (F3.1), glossary cleanup (F3.3), `bun run check` green.
 
 ## Non-Negotiable Repair Order
 
