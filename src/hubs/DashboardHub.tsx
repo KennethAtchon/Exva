@@ -201,7 +201,7 @@ export function DashboardHub() {
       />
 
       <HubBody scroll className="flex flex-col gap-3 p-4">
-        <div className="grid min-h-[200px] grid-cols-1 gap-3 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <div className="grid min-h-[260px] grid-cols-1 gap-3 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
           <PnLTodayCard
             dailyPnlUsd={stats.daily_pnl_usd}
             dailyPnlPct={stats.daily_pnl_pct}
@@ -212,11 +212,7 @@ export function DashboardHub() {
             pendingCount={pendingApprovals.length}
             spendWarn={spendWarn}
           />
-          <HubPane
-            eyebrow="Portfolio"
-            title="Equity curve"
-            className="min-h-[200px]"
-          >
+          <HubPane eyebrow="Portfolio" title="Equity curve">
             <EquityCurvePanel />
           </HubPane>
         </div>
@@ -235,43 +231,43 @@ export function DashboardHub() {
           />
         ) : null}
 
-        <div className="grid min-h-[280px] flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
+        <div className="grid min-h-[360px] grid-cols-1">
           <RecentTradesPanel
             trades={trades}
             emptyDay={stats.total_trades_today === 0}
           />
-          <SessionsColumn
-            sessions={sessions}
-            sessionsError={sessionsError}
-            scorecards={scorecards}
-            scorecardsError={scorecardsError}
-            viewMode={viewMode}
-            includeArchived={preferences?.globalIncludeArchived ?? false}
-            onRetrySessions={refreshSessions}
-            onRetryScorecards={() => {
-              void api
-                .listExperienceScorecards()
-                .then((rows) => {
-                  setScorecards(rows);
-                  setScorecardsError(null);
-                })
-                .catch((err) => {
-                  setScorecardsError(formatIpcError(err).display);
-                });
-            }}
-            onToggleArchived={async (checked) => {
-              await api.patchWorkspacePreferences({
-                globalIncludeArchived: checked,
-              });
-              await loadWorkspaceView();
-            }}
-            onFocusSession={async (id) => {
-              await api.focusSession(id);
-              await loadWorkspaceView();
-            }}
-          />
         </div>
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <SessionsColumn
+          sessions={sessions}
+          sessionsError={sessionsError}
+          scorecards={scorecards}
+          scorecardsError={scorecardsError}
+          viewMode={viewMode}
+          includeArchived={preferences?.globalIncludeArchived ?? false}
+          onRetrySessions={refreshSessions}
+          onRetryScorecards={() => {
+            void api
+              .listExperienceScorecards()
+              .then((rows) => {
+                setScorecards(rows);
+                setScorecardsError(null);
+              })
+              .catch((err) => {
+                setScorecardsError(formatIpcError(err).display);
+              });
+          }}
+          onToggleArchived={async (checked) => {
+            await api.patchWorkspacePreferences({
+              globalIncludeArchived: checked,
+            });
+            await loadWorkspaceView();
+          }}
+          onFocusSession={async (id) => {
+            await api.focusSession(id);
+            await loadWorkspaceView();
+          }}
+        />
+        <div className="grid min-h-[320px] grid-cols-1 gap-3 lg:grid-cols-2">
           <MorningBriefingPanel />
           <KillSwitchPanel />
         </div>
@@ -589,7 +585,7 @@ function SessionsColumn({
   });
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-col gap-3">
+    <div className="grid min-h-[360px] min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">
       <HubPane
         eyebrow="Roster"
         title="Sessions"

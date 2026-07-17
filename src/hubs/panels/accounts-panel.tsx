@@ -26,6 +26,8 @@ import {
 } from "@electron/shared/domain/mock-scenario";
 import { api, type ProviderModelEntry } from "@/lib/exva";
 import { cn } from "@/lib/utils";
+import { formatIpcError } from "@/lib/ipc-error";
+import { HubQueryError } from "@/hubs/dna";
 import { REASONING_LEVEL_OPTIONS } from "@electron/shared/ai/ai-phase";
 import type {
   BrokerRoutingDefault,
@@ -263,11 +265,21 @@ export const AccountsPage = () => {
     [],
   );
 
-  const { data: providersData, refetch: refetchProviders } = useQuery({
+  const {
+    data: providersData,
+    refetch: refetchProviders,
+    isError: providersIsError,
+    error: providersError,
+  } = useQuery({
     queryKey: ["accounts-providers"],
     queryFn: () => api.listProviders(),
   });
-  const { data: workspaceData, refetch: refetchWorkspace } = useQuery({
+  const {
+    data: workspaceData,
+    refetch: refetchWorkspace,
+    isError: workspaceIsError,
+    error: workspaceError,
+  } = useQuery({
     queryKey: ["accounts-workspace", environmentMode],
     queryFn: async () => {
       const [b, r, view] = await Promise.all([
@@ -461,6 +473,21 @@ export const AccountsPage = () => {
           </button>
         </div>
       </div>
+
+      {providersIsError ? (
+        <HubQueryError
+          message={`Providers failed to load — ${formatIpcError(providersError).display}`}
+          onRetry={() => void refetchProviders()}
+          className="m-0"
+        />
+      ) : null}
+      {workspaceIsError ? (
+        <HubQueryError
+          message={`Broker accounts and routing failed to load — ${formatIpcError(workspaceError).display}`}
+          onRetry={() => void refetchWorkspace()}
+          className="m-0"
+        />
+      ) : null}
 
       <div className={twoColumnLayoutClass}>
         <div className={columnClass}>

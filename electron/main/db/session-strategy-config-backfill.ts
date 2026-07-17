@@ -263,38 +263,38 @@ function assembleSessionDocFromLegacy(
         .all(sessionId) as LegacyWorkerRow[])
     : [];
 
-  const base = defaultSessionStrategyConfigDoc();
+  type BaseDoc = ReturnType<typeof defaultSessionStrategyConfigDoc>;
 
   const strategy = {
     strategyProfile:
-      strategyRow.strategy_profile as typeof base.strategy.strategyProfile,
+      strategyRow.strategy_profile as BaseDoc["strategy"]["strategyProfile"],
     maxPositionUsd: strategyRow.max_position_usd,
     stopLossPct: strategyRow.stop_loss_pct,
     takeProfitPct: strategyRow.take_profit_pct,
     maxConcurrentTrades: strategyRow.max_concurrent_trades,
     researchDepth:
-      strategyRow.research_depth as typeof base.strategy.researchDepth,
+      strategyRow.research_depth as BaseDoc["strategy"]["researchDepth"],
     dailyLossLimitUsd: strategyRow.daily_loss_limit_usd,
     profitTargetUsd: strategyRow.profit_target_usd,
     maxAiSpendUsd: strategyRow.max_ai_spend_usd,
     humanApprovalRequired: Boolean(strategyRow.human_approval_required),
     primaryTradingTimeframe:
-      strategyRow.primary_trading_timeframe as typeof base.strategy.primaryTradingTimeframe,
+      strategyRow.primary_trading_timeframe as BaseDoc["strategy"]["primaryTradingTimeframe"],
     holdingStyle:
-      strategyRow.holding_style as typeof base.strategy.holdingStyle,
+      strategyRow.holding_style as BaseDoc["strategy"]["holdingStyle"],
     targetHoldDays: strategyRow.target_hold_days,
     maxHoldDays: strategyRow.max_hold_days,
     timeframeNotes: strategyRow.timeframe_notes,
   };
 
   const risk = {
-    riskPresetId: riskRow.risk_preset_id as typeof base.risk.riskPresetId,
+    riskPresetId: riskRow.risk_preset_id as BaseDoc["risk"]["riskPresetId"],
     offHoursTrading:
-      riskRow.off_hours_trading as typeof base.risk.offHoursTrading,
+      riskRow.off_hours_trading as BaseDoc["risk"]["offHoursTrading"],
     maxPositionUsd: riskRow.max_position_usd,
     stopLossPct: riskRow.stop_loss_pct,
     takeProfitPct: riskRow.take_profit_pct,
-    stopLossType: riskRow.stop_loss_type as typeof base.risk.stopLossType,
+    stopLossType: riskRow.stop_loss_type as BaseDoc["risk"]["stopLossType"],
     atrStopMultiplier: riskRow.atr_stop_multiplier,
     kellyFraction: riskRow.kelly_fraction,
     predictionEdgeThreshold: riskRow.prediction_edge_threshold,
@@ -314,11 +314,11 @@ function assembleSessionDocFromLegacy(
 
   const timeframe = {
     timeframePresetId:
-      timeframeRow.timeframe_preset_id as typeof base.timeframe.timeframePresetId,
+      timeframeRow.timeframe_preset_id as BaseDoc["timeframe"]["timeframePresetId"],
     primaryTradingTimeframe:
-      timeframeRow.primary_trading_timeframe as typeof base.timeframe.primaryTradingTimeframe,
+      timeframeRow.primary_trading_timeframe as BaseDoc["timeframe"]["primaryTradingTimeframe"],
     holdingStyle:
-      timeframeRow.holding_style as typeof base.timeframe.holdingStyle,
+      timeframeRow.holding_style as BaseDoc["timeframe"]["holdingStyle"],
     targetHoldDays: timeframeRow.target_hold_days,
     maxHoldDays: timeframeRow.max_hold_days,
     timeframeNotes: timeframeRow.timeframe_notes,
@@ -326,28 +326,29 @@ function assembleSessionDocFromLegacy(
 
   const tradeRules = {
     rulesPresetId:
-      tradeRulesRow.rules_preset_id as typeof base.tradeRules.rulesPresetId,
-    setupType: tradeRulesRow.setup_type as typeof base.tradeRules.setupType,
-    sideBias: tradeRulesRow.side_bias as typeof base.tradeRules.sideBias,
-    entryStyle: tradeRulesRow.entry_style as typeof base.tradeRules.entryStyle,
-    exitStyle: tradeRulesRow.exit_style as typeof base.tradeRules.exitStyle,
+      tradeRulesRow.rules_preset_id as BaseDoc["tradeRules"]["rulesPresetId"],
+    setupType: tradeRulesRow.setup_type as BaseDoc["tradeRules"]["setupType"],
+    sideBias: tradeRulesRow.side_bias as BaseDoc["tradeRules"]["sideBias"],
+    entryStyle:
+      tradeRulesRow.entry_style as BaseDoc["tradeRules"]["entryStyle"],
+    exitStyle: tradeRulesRow.exit_style as BaseDoc["tradeRules"]["exitStyle"],
     scalingMode:
-      tradeRulesRow.scaling_mode as typeof base.tradeRules.scalingMode,
+      tradeRulesRow.scaling_mode as BaseDoc["tradeRules"]["scalingMode"],
     tradeRulesMarkdown: tradeRulesRow.trade_rules_markdown,
     ruleNotes: tradeRulesRow.rule_notes,
   };
 
   const researchPosture = {
     posturePresetId:
-      researchRow.posture_preset_id as typeof base.researchPosture.posturePresetId,
+      researchRow.posture_preset_id as BaseDoc["researchPosture"]["posturePresetId"],
     processingMode:
-      researchRow.processing_mode as typeof base.researchPosture.processingMode,
+      researchRow.processing_mode as BaseDoc["researchPosture"]["processingMode"],
     evidenceMode:
-      researchRow.evidence_mode as typeof base.researchPosture.evidenceMode,
+      researchRow.evidence_mode as BaseDoc["researchPosture"]["evidenceMode"],
     catalystMode:
-      researchRow.catalyst_mode as typeof base.researchPosture.catalystMode,
+      researchRow.catalyst_mode as BaseDoc["researchPosture"]["catalystMode"],
     fundamentalStrictness:
-      researchRow.fundamental_strictness as typeof base.researchPosture.fundamentalStrictness,
+      researchRow.fundamental_strictness as BaseDoc["researchPosture"]["fundamentalStrictness"],
     postureNotes: researchRow.posture_notes,
   };
 
@@ -365,15 +366,15 @@ function assembleSessionDocFromLegacy(
     phases:
       phaseRows.length > 0
         ? phaseRows.map((p) => ({
-            phase: p.phase as (typeof base.ai.phases)[number]["phase"],
+            phase: p.phase as BaseDoc["ai"]["phases"][number]["phase"],
             providerKey: p.provider_key,
             modelId: p.model_id,
             temperature: p.temperature,
             maxTokens: p.max_tokens,
             reasoningLevel:
-              p.reasoning_level as (typeof base.ai.phases)[number]["reasoningLevel"],
+              p.reasoning_level as BaseDoc["ai"]["phases"][number]["reasoningLevel"],
             promptSource:
-              p.prompt_source as (typeof base.ai.phases)[number]["promptSource"],
+              p.prompt_source as BaseDoc["ai"]["phases"][number]["promptSource"],
             promptMarkdown: p.prompt_markdown,
             workers: (workersByPhase.get(p.phase) ?? []).map((w) => ({
               workerId: w.worker_id,

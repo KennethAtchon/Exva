@@ -1,7 +1,7 @@
 # Finish-Line Fix-Up Plan
 
-> **Date:** 2026-07-13
-> **Status:** Active; P0 repairs landed; P1 partially in progress (paper persist, stream close, Alpaca prove, glossary); P2–P4 still open
+> **Date:** 2026-07-13 (last updated 2026-07-15)
+> **Status:** Active; P0 repairs landed and verified; automated gate (`bun run check`) now green; P1 runtime, P2 tools, and P4 operator gates still open
 > **Owner:** Ken
 > **Source audit:** [`docs/attic/finish-line/`](../attic/finish-line/00-INDEX.md)
 > **Goal:** Repair the finish-line implementation until its original completion contract is true in code, tests, the daily database, and live operation.
@@ -10,26 +10,72 @@
 
 The finish-line work is **not implemented completely or correctly**. The five-hub shell, much of the config-document cutover, several broker/data primitives, mock proof, and many unit tests exist. However, the audit found critical defects in database upgrades and emergency liquidation, disconnected alpha-source implementations, incomplete broker/paper lifecycles, and operator tools that are prototypes rather than the end-to-end features described by the archived plans.
 
-`bun run check` is currently red at `format:check` because these files are not Prettier-clean:
+**2026-07-15 update — `bun run check` is now green end to end** (typecheck, lint, format, knip, 1506 tests, mock proof). The earlier `format:check` failure on the drizzle meta files is resolved. Fixes landed since the audit:
 
-- `electron/main/db/drizzle/meta/_journal.json`
-- `electron/main/db/drizzle/meta/0000_snapshot.json`
+- Lint restored to green: type-only `base` → `BaseDoc` alias in `session-strategy-config-backfill.ts`; unused import dropped; archived `docs/attic/mockups` excluded from lint.
+- The backup→restore journey test (`operator-journeys.ipc.test.ts`) was rewritten from opaque fake bytes into a real migrated-SQLite round-trip (insert → checkpoint → backup → restore → reopen → query), which also validates the new F0.2 `quick_check` gate (partial **F3.2**).
+- Accounts panel now surfaces typed load errors with retry on both queries (partial **F3.1**).
+- UI density and dashboard layout reworked (type scale, Roster/Ladder de-squash, scroll).
 
-The command therefore did not reach `knip`, the full Vitest suite, or `check:proof` during this audit. Focused audit suites passed, but several tests prove isolated helpers or mocked persistence rather than the stated production journeys.
+Several tests still prove isolated helpers or mocked persistence rather than the stated production journeys; the deep P1 runtime journeys remain unproven against live brokers.
 
 ### Status by archived plan
 
-| Plan                | Audit status          | Main reason                                                                                                    |
-| ------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------- |
-| 01 residual debt    | Partial / unsafe      | Upgrade migrations were removed; legacy signal envelope remains; autopsy migration is not tested as an upgrade |
-| 02 config diet      | Partial / unsafe      | Backfill can default missing rows and skips validation before destructive drops; concurrency is not atomic     |
-| 03 brokers          | Partial               | Capabilities overstate support; feeds and certification do not prove the promised behavior                     |
-| 04 proof and ops    | Partial / broken gate | Alpaca proof always fails; backup failure does not stop migration; launchd handoff can restart-loop            |
-| 05 Polymarket paper | Partial               | Ghost state is memory-only, so restart and multi-day settlement are broken                                     |
-| 06 alpha sources    | Mostly disconnected   | Core scanners exist as isolated functions but are not cataloged, scheduled, ingested, or routed end-to-end     |
-| 07 UI consolidation | Mostly implemented    | Five hubs and route deletion exist; visual and capability parity remain unverified                             |
-| 08 operator tools   | Partial / unsafe      | Flatten can falsify closure; replay, attribution, briefing, palette, Data Doctor, and Lab are incomplete       |
-| 09 smoothness       | Not complete          | Error states, real journey tests, docs, performance evidence, fresh/daily DB runs, and soak remain open        |
+Two columns: the original 2026-07-13 audit verdict, and the verified state as of
+2026-07-16 (confirmed by reading the code, `bun run check` green).
+
+| Plan                | Audit (07-13)         | Now (07-16) — verified                                                                                                                                                                                               |
+| ------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 01 residual debt    | Partial / unsafe      | Migration chain restored + tested (P0 green). **Gap: legacy signal envelope `signal-event-from-market-signal.ts` still present (F1.7).**                                                                             |
+| 02 config diet      | Partial / unsafe      | Backfill Zod validation + atomic drops + version CAS landed (P0 verified). Done pending live daily-DB migration.                                                                                                     |
+| 03 brokers          | Partial               | Capabilities/feeds largely wired. **Gap: cert error-taxonomy is a hardcoded placebo (F1.3) — needs a live broker to prove.**                                                                                         |
+| 04 proof and ops    | Partial / broken gate | Mock proof green; alpaca proof is a real read-only audit; backup is a hard gate. **Gap: launchd/PID-identity handoff (F3.4).**                                                                                       |
+| 05 Polymarket paper | Partial               | **Persisted ghost positions + rehydration landed** (`paper-positions-repo.ts` + both adapters). Multi-restart settlement unproven vs live.                                                                           |
+| 06 alpha sources    | Mostly disconnected   | Registered in `strategies/definitions/*` + scan callers for form4/funding. **Gap: cross-venue has no scheduled scan (F1.5).**                                                                                        |
+| 07 UI consolidation | Mostly implemented    | UI density + dashboard layout reworked (2026-07-15). Visual/capability parity still operator-review only.                                                                                                            |
+| 08 operator tools   | Partial / unsafe      | **Attribution (F2.1) + what-if replay (F2.2) reworked.** Gaps: briefing ladder/calibration sections still empty + no 08:00 scheduler (F2.3); no `backtest-lab-service` found (F2.6); palette/Data Doctor unverified. |
+| 09 smoothness       | Not complete          | `bun run check` green; Accounts + cost-breakdown error states done. **Gaps: remaining journey tests (F3.2), perf evidence, daily-DB run, soak.**                                                                     |
+
+### What's left — punch list (2026-07-16)
+
+**Code-completable but require the running app / live-or-sandbox brokers to verify (not safely one-shottable static):**
+
+- F1.3 — replace cert error-taxonomy placebo with induced BROKER_AUTH / INSUFFICIENT_FUNDS / UNKNOWN_SYMBOL and typed-code assertions.
+- F1.6 — options-flow v2 (two-leg verticals through RiskEngine/allocation/policy).
+- F1.7 — remove the legacy signal envelope; migrate reads/dedupe to `MarketSignal`.
+- F1.5 — add a scheduled scan caller for cross-venue dislocation.
+- F2.3 — populate briefing ladder/calibration sections; schedule at 08:00 local with persisted last-run.
+- F2.6 — confirm/implement Backtest Lab rerun-from-spec (service file not found).
+- F2.4/F2.5 — command-palette parity + Data Doctor calendar/degraded correctness (unverified).
+- F3.2 — add the remaining journey tests (signal→decision→gates→order→fill→close; ghost-fill→restart→settlement; pause/flatten partial-failure reconciliation).
+- F3.4 — verify process identity (not just PID) before SIGTERM; calendar-based nightly scheduling.
+
+**Operator-only — physically require Ken (keys / hardware / time):** every item under "Operator-only gates" below — real broker certs, live stream close, cross-venue approval, Tradier sandbox vertical, light/dark hub screenshots, cold-start perf, three 08:00 briefings, 7-day soak.
+
+**Already done since the audit (do not redo):** P0 (F0.1–F0.5), paper persistence (F1.1), stream feeds (F1.2), proof modes (F1.4), attribution (F2.1), what-if replay (F2.2), Accounts/cost-breakdown error states (F3.1), glossary cleanup (F3.3), `bun run check` green.
+
+### TLDR: shortcuts taken
+
+- The 2026-07-16 "verified" column is **static-read verification only** — I read the code and ran `bun run check`; I did **not** exercise the runtime against live/sandbox brokers. "Done" here means "implemented + unit-tested," not "proven in live operation."
+- F2.4 (command palette), F2.5 (Data Doctor), and F2.6 (Backtest Lab) are marked "unverified" from shallow greps, not a deep read. F2.6's service file was not found under its audited name — it may be renamed; I did not chase it down.
+- The original per-defect **line-references below (F0–F3 bodies) remain the stale 07-13 numbers.** Only the summary table + punch list above were refreshed. Treat body line-refs as approximate.
+- Options-flow v2 (F1.6) and the legacy-envelope removal (F1.7) are named as gaps but **not scoped** — each needs its own design pass.
+
+### User journey
+
+This plan touches UI in two places, both reworked 2026-07-15:
+
+- **Dashboard:** Ken opens the app → lands on the control room → sees a large hero P&L + equity curve, then a full-width recent-trades table, then Roster and Ladder as two large side-by-side panes (previously crushed into a 300px sidebar), then briefing + kill-switch. The body scrolls when content exceeds the viewport. Nothing is squashed; every box has a min-height floor.
+- **Accounts:** if a provider or broker-routing load fails, Ken now sees a typed error banner naming the failed operation with a Retry button, instead of a silently empty panel.
+
+Remaining UI journeys (per-hub light/dark review, empty/failure states across all surfaces) are operator-review gates Ken must walk.
+
+### Core decisions (sign-off required)
+
+1. **Do not commit unverifiable broker/money code.** The four code-completable P1/P2 gaps (F1.3, F1.6, F1.7, F2.3) are only landed once proven against a live/sandbox broker — no "code exists" check-offs. Confirm this bar.
+2. **Sequence of remaining work:** F1.7 (envelope removal, read-path risk) vs F1.6 (options v2, net-new feature) first? Recommend F1.7 first — it unblocks clean signal persistence.
+3. **F2.6 Backtest Lab:** confirm whether the feature was renamed/dropped before I re-implement rerun-from-spec.
+4. **Operator gates are Ken's:** the 7-day soak, real broker certs, and live-stream observation cannot be delegated — confirm you own these.
 
 ## Non-Negotiable Repair Order
 
@@ -131,6 +177,36 @@ The staged migration squash deletes `0001` through `0014` and retimestamps a ful
 - Broker positions and DB trades reconcile to zero before the UI says complete.
 
 ## P1 - Complete Runtime Trading and Signal Paths
+
+> **Verification pass — 2026-07-16.** Much of P1 has been implemented since the
+> 2026-07-13 audit; the defect line-references below are stale. Current state,
+> confirmed by reading the code:
+>
+> - **F1.1 (paper persistence): largely done.** Both adapters take a
+>   `PaperPositionsRepo` and rehydrate persisted ghost positions on read
+>   (`polymarket-adapter.ts:68-73,247-260`, `kraken-adapter.ts:247-260`).
+>   Kraken debits on fill and credits proceeds with realized P&L
+>   (`kraken-adapter.ts:424,628,661`). `paper-positions-repo.ts` exists with a
+>   passing test. Remaining: confirm parity + multi-restart settlement against a
+>   live/paper broker.
+> - **F1.2 (streams): substantially done.** `trade-monitor.ts` carries order-event
+>   feeds keyed by account with a stream→poll fallback hook (`:43-92`).
+> - **F1.4 (proof): done.** `prove-trade-loop.ts` alpaca mode is a read-only audit
+>   of a real recorded paper trade, not an unconditional failure.
+> - **F1.5 (alpha sources): mostly wired.** cross-venue, form4, and funding-basis
+>   are registered in `strategies/definitions/*` + `strategies/index.ts`; form4 and
+>   funding-basis have `signals/strategy/*-scan.ts` callers. Gap: cross-venue has no
+>   scheduled scan caller yet.
+> - **Genuine remaining gaps (all require the running system / live brokers to fix
+>   AND verify — not safely one-shottable from static code):**
+>   - **F1.3** — `adapter-certification.ts:295-301` still pushes a hardcoded
+>     `errorTaxonomyDocumented: true` placebo; inducing real BROKER_AUTH /
+>     INSUFFICIENT_FUNDS / UNKNOWN_SYMBOL codes needs a live broker to prove.
+>   - **F1.6** — options-flow is still v1 (single-leg underlying);
+>     `options-flow-input-builders.ts:51-53` still says "next phase."
+>   - **F1.7** — the legacy envelope bridge `signal-event-from-market-signal.ts`
+>     still exists; removing it touches persistence/read paths and needs a live
+>     round-trip to verify.
 
 ### F1.1 Persist paper orders and positions
 
@@ -344,10 +420,10 @@ Add journey tests for:
 
 ### Automated gates
 
-- [ ] `bun run check` passes three consecutive times.
-- [ ] Zero skipped/todo tests in production test suites.
+- [~] `bun run check` passes (green as of 2026-07-15; still needs three consecutive confirmed runs).
+- [ ] Zero skipped/todo tests in production test suites. (Note: `check:proof` still reports 2 skipped Alpaca/Polymarket key-gated stages.)
 - [ ] Migration matrix passes from fresh, `0012`, `0013`, `0014`, and a sanitized daily-DB copy.
-- [ ] `bun run prove -- --mode=mock` passes.
+- [x] `bun run prove -- --mode=mock` passes.
 - [ ] Polymarket proof passes across a forced process restart.
 - [ ] Broker certification assertions are non-placeholder and mock certification passes.
 - [ ] All seven alpha sources have at least one non-test production caller and source-specific smoke.
