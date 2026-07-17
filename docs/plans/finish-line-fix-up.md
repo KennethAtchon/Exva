@@ -134,6 +134,36 @@ The staged migration squash deletes `0001` through `0014` and retimestamps a ful
 
 ## P1 - Complete Runtime Trading and Signal Paths
 
+> **Verification pass — 2026-07-16.** Much of P1 has been implemented since the
+> 2026-07-13 audit; the defect line-references below are stale. Current state,
+> confirmed by reading the code:
+>
+> - **F1.1 (paper persistence): largely done.** Both adapters take a
+>   `PaperPositionsRepo` and rehydrate persisted ghost positions on read
+>   (`polymarket-adapter.ts:68-73,247-260`, `kraken-adapter.ts:247-260`).
+>   Kraken debits on fill and credits proceeds with realized P&L
+>   (`kraken-adapter.ts:424,628,661`). `paper-positions-repo.ts` exists with a
+>   passing test. Remaining: confirm parity + multi-restart settlement against a
+>   live/paper broker.
+> - **F1.2 (streams): substantially done.** `trade-monitor.ts` carries order-event
+>   feeds keyed by account with a stream→poll fallback hook (`:43-92`).
+> - **F1.4 (proof): done.** `prove-trade-loop.ts` alpaca mode is a read-only audit
+>   of a real recorded paper trade, not an unconditional failure.
+> - **F1.5 (alpha sources): mostly wired.** cross-venue, form4, and funding-basis
+>   are registered in `strategies/definitions/*` + `strategies/index.ts`; form4 and
+>   funding-basis have `signals/strategy/*-scan.ts` callers. Gap: cross-venue has no
+>   scheduled scan caller yet.
+> - **Genuine remaining gaps (all require the running system / live brokers to fix
+>   AND verify — not safely one-shottable from static code):**
+>   - **F1.3** — `adapter-certification.ts:295-301` still pushes a hardcoded
+>     `errorTaxonomyDocumented: true` placebo; inducing real BROKER_AUTH /
+>     INSUFFICIENT_FUNDS / UNKNOWN_SYMBOL codes needs a live broker to prove.
+>   - **F1.6** — options-flow is still v1 (single-leg underlying);
+>     `options-flow-input-builders.ts:51-53` still says "next phase."
+>   - **F1.7** — the legacy envelope bridge `signal-event-from-market-signal.ts`
+>     still exists; removing it touches persistence/read paths and needs a live
+>     round-trip to verify.
+
 ### F1.1 Persist paper orders and positions
 
 **Defect**
