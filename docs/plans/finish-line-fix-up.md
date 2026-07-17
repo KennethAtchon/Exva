@@ -54,6 +54,29 @@ Two columns: the original 2026-07-13 audit verdict, and the verified state as of
 
 **Already done since the audit (do not redo):** P0 (F0.1–F0.5), paper persistence (F1.1), stream feeds (F1.2), proof modes (F1.4), attribution (F2.1), what-if replay (F2.2), Accounts/cost-breakdown error states (F3.1), glossary cleanup (F3.3), `bun run check` green.
 
+### TLDR: shortcuts taken
+
+- The 2026-07-16 "verified" column is **static-read verification only** — I read the code and ran `bun run check`; I did **not** exercise the runtime against live/sandbox brokers. "Done" here means "implemented + unit-tested," not "proven in live operation."
+- F2.4 (command palette), F2.5 (Data Doctor), and F2.6 (Backtest Lab) are marked "unverified" from shallow greps, not a deep read. F2.6's service file was not found under its audited name — it may be renamed; I did not chase it down.
+- The original per-defect **line-references below (F0–F3 bodies) remain the stale 07-13 numbers.** Only the summary table + punch list above were refreshed. Treat body line-refs as approximate.
+- Options-flow v2 (F1.6) and the legacy-envelope removal (F1.7) are named as gaps but **not scoped** — each needs its own design pass.
+
+### User journey
+
+This plan touches UI in two places, both reworked 2026-07-15:
+
+- **Dashboard:** Ken opens the app → lands on the control room → sees a large hero P&L + equity curve, then a full-width recent-trades table, then Roster and Ladder as two large side-by-side panes (previously crushed into a 300px sidebar), then briefing + kill-switch. The body scrolls when content exceeds the viewport. Nothing is squashed; every box has a min-height floor.
+- **Accounts:** if a provider or broker-routing load fails, Ken now sees a typed error banner naming the failed operation with a Retry button, instead of a silently empty panel.
+
+Remaining UI journeys (per-hub light/dark review, empty/failure states across all surfaces) are operator-review gates Ken must walk.
+
+### Core decisions (sign-off required)
+
+1. **Do not commit unverifiable broker/money code.** The four code-completable P1/P2 gaps (F1.3, F1.6, F1.7, F2.3) are only landed once proven against a live/sandbox broker — no "code exists" check-offs. Confirm this bar.
+2. **Sequence of remaining work:** F1.7 (envelope removal, read-path risk) vs F1.6 (options v2, net-new feature) first? Recommend F1.7 first — it unblocks clean signal persistence.
+3. **F2.6 Backtest Lab:** confirm whether the feature was renamed/dropped before I re-implement rerun-from-spec.
+4. **Operator gates are Ken's:** the 7-day soak, real broker certs, and live-stream observation cannot be delegated — confirm you own these.
+
 ## Non-Negotiable Repair Order
 
 ```mermaid
