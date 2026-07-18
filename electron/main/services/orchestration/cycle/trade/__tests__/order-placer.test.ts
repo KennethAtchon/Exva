@@ -109,6 +109,34 @@ describe("placeRoutedOrder", () => {
       { brokerAccountId: "broker-alt" },
     );
   });
+
+  it("refuses submission when kill-switch halt is engaged after policy", async () => {
+    const placeOrder = vi.fn(async () => ({
+      brokerOrderId: "should-not-place",
+      filledAvgPrice: 1,
+    }));
+    const ctx = createContext({
+      isOrderHalted: () => true,
+      placeOrder,
+    });
+    const trade = makeTrade();
+
+    await expect(
+      placeRoutedOrder(
+        ctx,
+        trade,
+        "stock",
+        {
+          instrumentSymbol: "NVDA",
+          instrumentType: "stock",
+          side: "BUY",
+          sizeUsd: 500,
+        },
+        "cycle-1:trade-1",
+      ),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(placeOrder).not.toHaveBeenCalled();
+  });
 });
 
 function makeTrade(): Trade {
@@ -145,6 +173,8 @@ function makeTrade(): Trade {
 function createContext(options?: {
   instrumentConflict?: boolean;
   brokerAccountId?: string;
+  isOrderHalted?: () => boolean;
+  placeOrder?: ReturnType<typeof vi.fn>;
   capabilities?: {
     supportsLimit: boolean;
     supportsStop: boolean;
@@ -159,10 +189,12 @@ function createContext(options?: {
   const adapter = {
     brokerType: "mock" as const,
     capabilities: options?.capabilities,
-    placeOrder: vi.fn(async () => ({
-      brokerOrderId: "mock-order-1",
-      filledAvgPrice: 185.5,
-    })),
+    placeOrder:
+      options?.placeOrder ??
+      vi.fn(async () => ({
+        brokerOrderId: "mock-order-1",
+        filledAvgPrice: 185.5,
+      })),
   };
 
   return new TradingCycleContext("session-1", {
@@ -193,5 +225,6 @@ function createContext(options?: {
       ),
       patchPendingExecution: vi.fn(),
     },
+    isOrderHalted: options?.isOrderHalted,
   } as never);
 }

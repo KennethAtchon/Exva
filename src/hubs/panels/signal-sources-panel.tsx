@@ -7,8 +7,10 @@ import {
   HelpTooltip,
   Switch,
 } from "@/components/ui";
+import { confirm } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/primitives";
 import { api } from "@/lib/exva";
+import { formatRelative } from "@/lib/format";
 import { formatSignalSourceTimingSubtitle } from "@electron/shared/domain/signal-timing";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import type { HelpGlossaryId } from "@/lib/help-glossary";
@@ -197,6 +199,7 @@ function SourceCard({
 }) {
   const [pending, setPending] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const lastScan = source.lastSignalAt
     ? formatRelative(source.lastSignalAt)
@@ -206,18 +209,22 @@ function SourceCard({
 
   const onToggle = async (enabled: boolean) => {
     setPending(true);
+    setActionError(null);
     try {
       if (!enabled && source.attachedSessionCount > 0) {
-        const confirm = window.confirm(
-          `Disable this source for ${source.attachedSessionCount} subscribed sessions? Sessions will stay subscribed but move to waiting state until the source is enabled again.`,
-        );
-        if (!confirm) return;
+        const ok = await confirm({
+          title: "Disable this source?",
+          description: `Disable this source for ${source.attachedSessionCount} subscribed sessions? Sessions will stay subscribed but move to waiting state until the source is enabled again.`,
+          confirmLabel: "Disable",
+          variant: "destructive",
+        });
+        if (!ok) return;
       }
       if (enabled) await api.enableSignalSource(source.id);
       else await api.disableSignalSource(source.id);
       onChanged();
     } catch {
-      window.alert("Failed to update source.");
+      setActionError("Failed to update source.");
     } finally {
       setPending(false);
     }
@@ -225,17 +232,24 @@ function SourceCard({
 
   const remove = async () => {
     const names = source.attachedSessionNames.join(", ");
-    const message =
+    const description =
       source.attachedSessionCount > 0
         ? `This source is subscribed by ${source.attachedSessionCount} sessions: ${names}. Removing it will unsubscribe all of them.`
-        : "Delete this source? This cannot be undone.";
-    if (!window.confirm(message)) return;
+        : "This cannot be undone.";
+    const ok = await confirm({
+      title: "Delete this source?",
+      description,
+      confirmLabel: "Delete",
+      variant: "destructive",
+    });
+    if (!ok) return;
     setPending(true);
+    setActionError(null);
     try {
       await api.deleteSignalSource(source.id);
       onChanged();
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Delete failed.");
+      setActionError(err instanceof Error ? err.message : "Delete failed.");
     } finally {
       setPending(false);
     }
@@ -255,6 +269,11 @@ function SourceCard({
         </Badge>
       </div>
 
+      {actionError ? (
+        <p className="mb-2 m-0 font-sans text-caption text-error" role="alert">
+          {actionError}
+        </p>
+      ) : null}
       <div className="mb-3 space-y-1 font-mono text-caption text-text3">
         <div>Last scan · {lastScan}</div>
         <div className="truncate">
@@ -793,18 +812,6 @@ function typeBadgeVariant(
   if (type === "mock") return "purple";
   if (type === "prediction_event") return "success";
   return "default";
-}
-
-function formatRelative(value: string): string {
-  const diffMs = Date.now() - new Date(value).getTime();
-  if (!Number.isFinite(diffMs)) return value;
-  const diffMin = Math.round(diffMs / 60000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHours = Math.round(diffMin / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.round(diffHours / 24);
-  return `${diffDays}d ago`;
 }
 
 const inputClass =

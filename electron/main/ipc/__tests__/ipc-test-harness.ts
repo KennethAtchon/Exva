@@ -324,6 +324,7 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
       start: vi.fn(),
       stop: vi.fn(),
     } as unknown as AppServices["balanceTicker"],
+    stopBackgroundTickers: vi.fn(),
     capitalReservation: capitalReservation as never,
     eventBus,
     notifications: {} as AppServices["notifications"],
@@ -394,6 +395,11 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
       getTelemetry: () => null,
       fireNow: async () => null,
     } as unknown as AppServices["scheduleCoordinator"],
+    alphaSourceScans: {
+      list: () => [],
+      get: () => null,
+    } as unknown as AppServices["alphaSourceScans"],
+    refreshTelegramCreds: async () => undefined,
     paletteQuery: new PaletteQueryService(db, {
       list: () => [],
     } as never),

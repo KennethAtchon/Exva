@@ -21,6 +21,7 @@ import { hasApprovalCallback, resolveApproval } from "./trade/approval-flow";
 import { runApprovalRecheck } from "./trade/approval-recheck";
 import { executeTradeCycle, runTradeCycle } from "./trade/trade-cycle";
 import type { ResolvedInstrument, SelectorCycleContext } from "./types";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 
 export type { ResolvedInstrument } from "./types";
 
@@ -362,10 +363,10 @@ export class AgentOrchestrator {
 }
 
 function parseSignalPayloadJson(payloadJson: string): Record<string, unknown> {
-  try {
-    const parsed = JSON.parse(payloadJson) as Record<string, unknown>;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
+  const parsed = safeJsonParse<Record<string, unknown>>(
+    payloadJson,
+    undefined,
+    "agent-orchestrator.signalPayload",
+  );
+  return parsed && typeof parsed === "object" ? parsed : {};
 }

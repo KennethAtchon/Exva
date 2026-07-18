@@ -3,6 +3,7 @@ import type { ConnectionTestResult, InstrumentClass } from "@/lib/types";
 import type { TradingTimeframe } from "@electron/shared/domain/enums";
 import { AppError } from "@electron/shared/infra/errors";
 import { createLogger } from "../../infra/log";
+import { requireJsonParse, safeJsonParse } from "../../infra/safe-json-parse";
 import type { BrokerInteractionLogger } from "../broker-interaction-logger";
 import { classifyHttpBrokerError, brokerError } from "../broker-errors";
 import {
@@ -161,7 +162,11 @@ export class KrakenAdapter implements BrokerAdapter {
   ) {
     this.credentials =
       typeof credentialsJson === "string"
-        ? (JSON.parse(credentialsJson) as KrakenCredentials)
+        ? requireJsonParse<KrakenCredentials>(
+            credentialsJson,
+            undefined,
+            "Invalid Kraken credentials JSON",
+          )
         : credentialsJson;
     this.accountId = options?.accountId;
     this.paperBalances = options?.paperBalances;
@@ -982,11 +987,7 @@ function parseKrakenMessage(raw: unknown): unknown {
       : Buffer.isBuffer(raw)
         ? raw.toString("utf8")
         : String(raw);
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
+  return safeJsonParse(text, undefined, "kraken-adapter.ws-message");
 }
 
 /**

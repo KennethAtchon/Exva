@@ -11,6 +11,7 @@ import {
 } from "@electron/shared/ai/ai-phase-config";
 import type { SelectorCandidate } from "./selector-candidate-merger";
 import type { FailureHistoryEntry } from "../../orchestration/cycle/runtime-outcome";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 
 export interface SelectorSelectorRiskFilterDeps {
   sessionId: string;
@@ -144,29 +145,30 @@ function extractQuoteSnapshot(
   for (const trace of traces) {
     for (const call of trace.toolCalls) {
       if (call.tool !== "get_quote") continue;
-      try {
-        const parsed = JSON.parse(call.resultJson) as Record<string, unknown>;
-        if (
-          typeof parsed.price !== "number" ||
-          typeof parsed.timestamp !== "string"
-        )
-          continue;
-        return {
-          instrumentSymbol:
-            typeof parsed.instrumentSymbol === "string"
-              ? parsed.instrumentSymbol
-              : "",
-          price: parsed.price,
-          bid: typeof parsed.bid === "number" ? parsed.bid : undefined,
-          ask: typeof parsed.ask === "number" ? parsed.ask : undefined,
-          spreadPct:
-            typeof parsed.spreadPct === "number" ? parsed.spreadPct : undefined,
-          volume: typeof parsed.volume === "number" ? parsed.volume : undefined,
-          timestamp: parsed.timestamp,
-        };
-      } catch {
+      const parsed = safeJsonParse<Record<string, unknown>>(
+        call.resultJson,
+        undefined,
+        "selector-risk-filter.get_quote",
+      );
+      if (
+        !parsed ||
+        typeof parsed.price !== "number" ||
+        typeof parsed.timestamp !== "string"
+      )
         continue;
-      }
+      return {
+        instrumentSymbol:
+          typeof parsed.instrumentSymbol === "string"
+            ? parsed.instrumentSymbol
+            : "",
+        price: parsed.price,
+        bid: typeof parsed.bid === "number" ? parsed.bid : undefined,
+        ask: typeof parsed.ask === "number" ? parsed.ask : undefined,
+        spreadPct:
+          typeof parsed.spreadPct === "number" ? parsed.spreadPct : undefined,
+        volume: typeof parsed.volume === "number" ? parsed.volume : undefined,
+        timestamp: parsed.timestamp,
+      };
     }
   }
   return null;

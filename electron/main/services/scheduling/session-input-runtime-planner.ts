@@ -12,6 +12,7 @@ import {
 import type { StrategyDefinitionRegistry } from "../strategies/strategy-definition-registry";
 import { computeScheduleGroupKey } from "./schedule-group-key";
 import { createLogger } from "../infra/log";
+import { safeJsonParse } from "../infra/safe-json-parse";
 
 const logger = createLogger("session-input-runtime-planner");
 
@@ -166,21 +167,24 @@ export class SessionInputRuntimePlanner {
       // Parse cadence and strategy parameters.
       let cadence: CadenceSpec;
       try {
-        cadence = parseCadence(JSON.parse(cadenceJson));
+        const cadenceRaw = safeJsonParse(
+          cadenceJson,
+          undefined,
+          "session-input-runtime-planner.cadence",
+        );
+        if (cadenceRaw == null) throw new Error("cadenceJson parse failed");
+        cadence = parseCadence(cadenceRaw);
       } catch (err) {
         logger.warn({ subscriptionId, err }, "invalid cadenceJson — skipped");
         continue;
       }
 
-      let strategyParameters: Record<string, unknown>;
-      try {
-        strategyParameters = JSON.parse(strategyParametersJson) as Record<
-          string,
-          unknown
-        >;
-      } catch {
-        strategyParameters = {};
-      }
+      const strategyParameters =
+        safeJsonParse<Record<string, unknown>>(
+          strategyParametersJson,
+          undefined,
+          "session-input-runtime-planner.strategyParameters",
+        ) ?? {};
 
       const groupKey = computeScheduleGroupKey({
         templateId,

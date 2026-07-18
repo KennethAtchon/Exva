@@ -1,6 +1,7 @@
 import type { DbClient } from "../../client";
 import { desc, eq } from "drizzle-orm";
 import { experienceExperiments } from "../../schema";
+import { safeJsonParse } from "../../../services/infra/safe-json-parse";
 
 export type ExperimentVerdict = "promising" | "reject" | "inconclusive";
 
@@ -95,12 +96,12 @@ export class ExperienceExperimentsRepo {
 function toExperiment(
   row: typeof experienceExperiments.$inferSelect,
 ): ExperienceExperiment {
-  let metrics: Record<string, unknown> = {};
-  try {
-    metrics = JSON.parse(row.metricsJson) as Record<string, unknown>;
-  } catch {
-    metrics = {};
-  }
+  const metrics =
+    safeJsonParse<Record<string, unknown>>(
+      row.metricsJson,
+      undefined,
+      "experience-experiments.metrics",
+    ) ?? {};
   return {
     id: row.id,
     experienceId: row.experienceId,

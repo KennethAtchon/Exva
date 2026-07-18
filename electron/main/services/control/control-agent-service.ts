@@ -18,7 +18,17 @@ import {
 } from "./build-control-toolset";
 
 const CONTROL_SPEND_CAP_USD = 0.5;
-const CONTROL_MAX_STEPS = 12;
+/** Raised for read-heavy multi-tool turns after capability parity expansion. */
+const CONTROL_MAX_STEPS = 20;
+const CONFIRMATION_TIMEOUT_MS = 5 * 60 * 1000;
+/** Cap each prior tool result when replaying into history (feeds the $0.50 budget). */
+const TOOL_HISTORY_RESULT_MAX_CHARS = 400;
+
+function compactToolResult(resultJson: string | null): string {
+  if (resultJson == null) return "(no result)";
+  if (resultJson.length <= TOOL_HISTORY_RESULT_MAX_CHARS) return resultJson;
+  return `${resultJson.slice(0, TOOL_HISTORY_RESULT_MAX_CHARS)}…`;
+}
 
 interface ActiveTurn {
   turnId: string;
@@ -171,7 +181,15 @@ export class ControlAgentService {
               resolve({ decision: "cancel" });
               return;
             }
-            turn.pending.set(toolCallId, resolve);
+            const timer = setTimeout(() => {
+              if (turn.pending.delete(toolCallId)) {
+                resolve({ decision: "cancel" });
+              }
+            }, CONFIRMATION_TIMEOUT_MS);
+            turn.pending.set(toolCallId, (decision) => {
+              clearTimeout(timer);
+              resolve(decision);
+            });
           }),
         addAutoApproved: (confirmClass) => {
           ctx.autoApproved.add(confirmClass);
@@ -181,6 +199,7 @@ export class ControlAgentService {
 
       const tools = buildControlToolset(CONTROL_CAPABILITIES, rt);
       const adapter = await this.deps.providerRegistry.get(providerKey);
+      let streamedText = "";
       const trace = await adapter.runAgent({
         model: modelId,
         role: "control",
@@ -191,6 +210,14 @@ export class ControlAgentService {
         spendLimitUsd: CONTROL_SPEND_CAP_USD,
         reasoningLevel,
         abortSignal: controller.signal,
+        onTextDelta: (text) => {
+          streamedText = text;
+          this.deps.eventBus.emit("control_delta", {
+            conversationId,
+            turnId,
+            text,
+          });
+        },
       });
 
       costUsd = trace.costUsd;
@@ -198,9 +225,11 @@ export class ControlAgentService {
       const text =
         trace.assistantText.trim().length > 0
           ? trace.assistantText
-          : cancelled
-            ? "(cancelled)"
-            : "(no response)";
+          : streamedText.trim().length > 0
+            ? streamedText
+            : cancelled
+              ? "(cancelled)"
+              : "(no response)";
 
       repo.insertMessage({
         id: randomUUID(),
@@ -215,11 +244,13 @@ export class ControlAgentService {
       });
       repo.setAutoApproved(conversationId, [...ctx.autoApproved]);
 
-      this.deps.eventBus.emit("control_delta", {
-        conversationId,
-        turnId,
-        text,
-      });
+      if (streamedText !== text) {
+        this.deps.eventBus.emit("control_delta", {
+          conversationId,
+          turnId,
+          text,
+        });
+      }
       this.logCost({
         providerKey,
         modelId,
@@ -292,18 +323,47 @@ export class ControlAgentService {
   }
 
   private loadHistory(conversationId: string): LLMMessage[] {
-    return this.deps.repo
+    const messages = this.deps.repo
       .listMessages(conversationId)
-      .filter((m) => m.status === "complete" || m.status === "cancelled")
-      .map((m) => {
-        const role: LLMMessage["role"] =
-          m.role === "assistant"
-            ? "assistant"
-            : m.role === "system"
-              ? "system"
-              : "user";
-        return { role, content: m.content };
-      });
+      .filter((m) => m.status === "complete" || m.status === "cancelled");
+    const toolsByTurn = new Map<string, string[]>();
+    for (const call of this.deps.repo.listToolCalls(conversationId)) {
+      if (
+        call.status !== "succeeded" &&
+        call.status !== "failed" &&
+        call.status !== "rejected"
+      ) {
+        continue;
+      }
+      const compact = compactToolResult(call.resultJson);
+      const line = `- ${call.capability} [${call.status}]: ${compact}`;
+      const list = toolsByTurn.get(call.turnId);
+      if (list) list.push(line);
+      else toolsByTurn.set(call.turnId, [line]);
+    }
+
+    const out: LLMMessage[] = [];
+    for (const m of messages) {
+      const role: LLMMessage["role"] =
+        m.role === "assistant"
+          ? "assistant"
+          : m.role === "system"
+            ? "system"
+            : "user";
+      out.push({ role, content: m.content });
+      if (m.role === "assistant") {
+        const lines = toolsByTurn.get(m.turnId);
+        if (lines && lines.length > 0) {
+          // Adapter flattens roles to a string prompt; keep as user so
+          // mid-history blocks are not pulled into the system prompt.
+          out.push({
+            role: "user",
+            content: `Prior tool results from this turn:\n${lines.join("\n")}`,
+          });
+        }
+      }
+    }
+    return out;
   }
 
   /** Compact current-state snapshot appended to the system prompt each turn. */
@@ -346,6 +406,43 @@ export class ControlAgentService {
       );
     } catch {
       lines.push("- Signal sources: unavailable.");
+    }
+    try {
+      const pending = services.repos.tradeApprovals.listPending();
+      if (pending.length === 0) {
+        lines.push("- Pending trade approvals: 0.");
+      } else {
+        const shown = pending.slice(0, 8).map((p) => p.id);
+        const more =
+          pending.length > shown.length
+            ? ` (+${pending.length - shown.length} more)`
+            : "";
+        lines.push(
+          `- Pending trade approvals: ${pending.length} [${shown.join(", ")}${more}].`,
+        );
+      }
+    } catch {
+      lines.push("- Pending trade approvals: unavailable.");
+    }
+    try {
+      const halted = services.killSwitch.isHalted();
+      const gauges = services.killSwitch.gauges();
+      const hot = gauges
+        .filter(
+          (g) =>
+            g.dailyPnlUsd <= -0.5 * g.dailyLossLimitUsd ||
+            g.drawdownFraction >= 0.5 * g.maxDrawdownFraction,
+        )
+        .slice(0, 5)
+        .map(
+          (g) =>
+            `${g.sessionName} pnl=$${Math.round(g.dailyPnlUsd)}/${g.dailyLossLimitUsd}`,
+        );
+      lines.push(
+        `- Kill switch: ${halted ? "HALTED" : "clear"}${hot.length > 0 ? `; attention: ${hot.join("; ")}` : ""}.`,
+      );
+    } catch {
+      lines.push("- Kill switch gauges: unavailable.");
     }
     if (scopeSessionId) {
       lines.push(`- This conversation is scoped to session ${scopeSessionId}.`);

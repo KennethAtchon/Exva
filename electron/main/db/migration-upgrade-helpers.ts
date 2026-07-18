@@ -5,6 +5,7 @@ import BetterSqlite3 from "better-sqlite3";
 import { expect } from "vitest";
 import { resolveMigrationsFolder } from "./migrations-folder";
 import { runMigrations } from "./migrations";
+import { requireJsonParse } from "../services/infra/safe-json-parse";
 
 type Journal = {
   version: string;
@@ -25,7 +26,11 @@ export function createTruncatedMigrationsFolder(throughTag: string): string {
   fs.cpSync(source, dest, { recursive: true });
 
   const journalPath = path.join(dest, "meta", "_journal.json");
-  const journal = JSON.parse(fs.readFileSync(journalPath, "utf8")) as Journal;
+  const journal = requireJsonParse<Journal>(
+    fs.readFileSync(journalPath, "utf8"),
+    undefined,
+    "Invalid drizzle migration journal JSON",
+  );
   const cut = journal.entries.findIndex((e) => e.tag === throughTag);
   if (cut < 0) {
     throw new Error(`tag ${throughTag} not in journal`);

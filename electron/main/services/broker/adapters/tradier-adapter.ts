@@ -2,8 +2,14 @@ import type { ConnectionTestResult, InstrumentClass } from "@/lib/types";
 import type { TradingTimeframe } from "@electron/shared/domain/enums";
 import { AppError } from "@electron/shared/infra/errors";
 import { createLogger } from "../../infra/log";
+import { requireJsonParse } from "../../infra/safe-json-parse";
 import type { BrokerInteractionLogger } from "../broker-interaction-logger";
-import { classifyHttpBrokerError } from "../broker-errors";
+import {
+  brokerDataError,
+  classifyHttpBrokerError,
+  requireFiniteNumber,
+  requirePositivePrice,
+} from "../broker-errors";
 import {
   TRADIER_CAPABILITIES,
   adapterSupportsOrder,
@@ -66,7 +72,11 @@ export class TradierAdapter implements BrokerAdapter {
   ) {
     this.credentials =
       typeof credentialsJson === "string"
-        ? (JSON.parse(credentialsJson) as TradierCredentials)
+        ? requireJsonParse<TradierCredentials>(
+            credentialsJson,
+            undefined,
+            "Invalid Tradier credentials JSON",
+          )
         : credentialsJson;
     if (!this.credentials.accessToken || !this.credentials.accountId) {
       throw new AppError(
@@ -109,7 +119,10 @@ export class TradierAdapter implements BrokerAdapter {
       `/v1/accounts/${encodeURIComponent(this.credentials.accountId)}/balances`,
     );
     const b = data.balances;
-    return b?.total_equity ?? b?.total_cash ?? b?.cash?.cash_available ?? 0;
+    const raw = b?.total_equity ?? b?.total_cash ?? b?.cash?.cash_available;
+    return requireFiniteNumber(raw, "balances.total_equity", {
+      broker: "tradier",
+    });
   }
 
   async getPositions(): Promise<BrokerPosition[]> {
@@ -137,12 +150,29 @@ export class TradierAdapter implements BrokerAdapter {
         ? [raw.position]
         : [];
     return list.map((p) => {
-      const qty = Number(p.quantity ?? 0);
+      const symbol = p.symbol;
+      if (!symbol) {
+        throw brokerDataError("Tradier position missing symbol", {
+          broker: "tradier",
+        });
+      }
+      const qty = requireFiniteNumber(p.quantity, "position.quantity", {
+        broker: "tradier",
+        symbol,
+      });
+      const costBasis = requireFiniteNumber(
+        p.cost_basis,
+        "position.cost_basis",
+        {
+          broker: "tradier",
+          symbol,
+        },
+      );
       return {
-        instrumentSymbol: p.symbol ?? "",
-        instrumentType: isOcc(p.symbol ?? "") ? "options" : "stock",
+        instrumentSymbol: symbol,
+        instrumentType: isOcc(symbol) ? "options" : "stock",
         side: qty >= 0 ? ("long" as const) : ("short" as const),
-        sizeUsd: Math.abs(Number(p.cost_basis ?? 0)),
+        sizeUsd: Math.abs(costBasis),
         unrealizedPnl: 0,
       };
     });
@@ -166,16 +196,44 @@ export class TradierAdapter implements BrokerAdapter {
     );
     const q = data.quotes?.quote;
     const quote = Array.isArray(q) ? q[0] : q;
-    const last = Number(quote?.last ?? 0);
-    const bid = Number(quote?.bid ?? 0);
-    const ask = Number(quote?.ask ?? 0);
+    if (!quote) {
+      throw brokerDataError("Tradier quote response missing quote", {
+        broker: "tradier",
+        symbol: instrumentSymbol,
+      });
+    }
+    const asFinite = (value: unknown): number => {
+      if (value === undefined || value === null || value === "") {
+        return Number.NaN;
+      }
+      const n = typeof value === "number" ? value : Number(value);
+      return Number.isFinite(n) ? n : Number.NaN;
+    };
+    const last = asFinite(quote.last);
+    const bid = asFinite(quote.bid);
+    const ask = asFinite(quote.ask);
+    const mid = bid > 0 && ask > 0 ? (bid + ask) / 2 : Number.NaN;
+    const priceCandidate =
+      last > 0
+        ? last
+        : mid > 0
+          ? mid
+          : bid > 0
+            ? bid
+            : ask > 0
+              ? ask
+              : undefined;
+    const price = requirePositivePrice(priceCandidate, "quote.last", {
+      broker: "tradier",
+      symbol: instrumentSymbol,
+    });
     return {
       instrumentSymbol,
-      instrumentDisplayName: quote?.description ?? null,
-      price: last || (bid && ask ? (bid + ask) / 2 : bid || ask),
-      bid: bid || undefined,
-      ask: ask || undefined,
-      volume: quote?.volume,
+      instrumentDisplayName: quote.description ?? null,
+      price,
+      bid: Number.isFinite(bid) && bid > 0 ? bid : undefined,
+      ask: Number.isFinite(ask) && ask > 0 ? ask : undefined,
+      volume: quote.volume,
       timestamp: new Date().toISOString(),
     };
   }
@@ -266,9 +324,14 @@ export class TradierAdapter implements BrokerAdapter {
       throw new AppError("Tradier did not return an order id", "BROKER_ERROR");
     }
     const status = await this.getOrderStatus(id);
+    const filledAvgPrice = requirePositivePrice(
+      status.latestPrice ?? order.limitPrice,
+      "order.filledAvgPrice",
+      { broker: "tradier", orderId: id },
+    );
     return {
       brokerOrderId: id,
-      filledAvgPrice: status.latestPrice ?? order.limitPrice ?? 0,
+      filledAvgPrice,
     };
   }
 
@@ -345,9 +408,14 @@ export class TradierAdapter implements BrokerAdapter {
       );
     }
     const status = await this.getOrderStatus(id);
+    const filledAvgPrice = requirePositivePrice(
+      status.latestPrice ?? order.limitPrice,
+      "order.filledAvgPrice",
+      { broker: "tradier", orderId: id },
+    );
     return {
       brokerOrderId: id,
-      filledAvgPrice: status.latestPrice ?? order.limitPrice ?? 0,
+      filledAvgPrice,
     };
   }
 

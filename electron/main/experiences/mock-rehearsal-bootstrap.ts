@@ -10,6 +10,7 @@ import { env } from "../config/env";
 import type { SignalSourcesRepo } from "../services/signals/repos/signal-sources-repo";
 import { ensureMockRehearsalSignalSource } from "./ensure-mock-rehearsal-signal-source";
 import { migrateEligibleSessionsToMockRehearsal } from "./migrate-mock-rehearsal-subscriptions";
+import { safeJsonParse } from "../services/infra/safe-json-parse";
 
 export {
   buildMockRehearsalConfigJson,
@@ -49,9 +50,13 @@ function attachSourceToRegistry(
   }
   const runtime = registry.get(source.id);
   if (runtime) {
-    void runtime.restart(
-      JSON.parse(source.configJson) as Record<string, unknown>,
-    );
+    const config =
+      safeJsonParse<Record<string, unknown>>(
+        source.configJson,
+        undefined,
+        "mock-rehearsal-bootstrap.config",
+      ) ?? {};
+    void runtime.restart(config);
   }
 }
 

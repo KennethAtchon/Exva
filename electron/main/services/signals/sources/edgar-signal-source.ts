@@ -11,6 +11,7 @@ import type {
 } from "../ISignalSource";
 import { CikTickerCache } from "../cache/cik-ticker-cache";
 import { createLogger } from "../../infra/log";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 
 const FEED_URL =
   "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&dateb=&owner=include&count=40&search_text=&output=atom";
@@ -241,11 +242,10 @@ export class EdgarSignalSource implements ISignalSource {
 }
 
 function safeParseConfig(raw: string): EdgarConfig {
-  try {
-    return JSON.parse(raw) as EdgarConfig;
-  } catch {
-    return {};
-  }
+  return (
+    safeJsonParse<EdgarConfig>(raw, undefined, "edgar-signal-source.config") ??
+    {}
+  );
 }
 
 function parseAtomEntries(xml: string): Array<{

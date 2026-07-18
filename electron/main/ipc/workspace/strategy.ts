@@ -9,39 +9,59 @@ import { AppError } from "@electron/shared/infra/errors";
 import type { AppServices } from "../../services/app-services";
 import { assertSessionInWorkspaceEnvironment } from "../environment-guards";
 import { handle } from "../handle";
+import {
+  ipcNoPayloadSchema,
+  ipcPayloadUnknownSchema,
+} from "../payload-schemas";
 
 export function registerStrategyHandlers(services: AppServices): void {
-  handle(ipcMain, channels.strategy.get, async (payload) => {
-    const sessionId = resolveSessionId(services, payload);
-    return services.strategyContext.getPageData(sessionId);
-  });
+  handle(
+    ipcMain,
+    channels.strategy.get,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const sessionId = resolveSessionId(services, payload);
+      return services.strategyContext.getPageData(sessionId);
+    },
+  );
 
-  handle(ipcMain, channels.strategy.getProviderModels, async (payload) => {
-    const { providerKey } = strategyGetProviderModelsSchema.parse(payload);
-    const provider = services.repos.providerAccounts.find(providerKey);
-    if (!provider || provider.category !== "ai") {
-      return { models: [] };
-    }
-    try {
-      const models = await services.providerRegistry.listModels(providerKey);
-      return { models };
-    } catch {
-      return { models: [] };
-    }
-  });
+  handle(
+    ipcMain,
+    channels.strategy.getProviderModels,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const { providerKey } = strategyGetProviderModelsSchema.parse(payload);
+      const provider = services.repos.providerAccounts.find(providerKey);
+      if (!provider || provider.category !== "ai") {
+        return { models: [] };
+      }
+      try {
+        const models = await services.providerRegistry.listModels(providerKey);
+        return { models };
+      } catch {
+        return { models: [] };
+      }
+    },
+  );
 
-  handle(ipcMain, channels.strategy.getWorkspaceDefaultModel, async () => {
-    const prefs = services.repos.workspacePreferences.get();
-    return {
-      providerKey: prefs.defaultModelProviderKey,
-      modelId: prefs.defaultModelModelId,
-      reasoningLevel: prefs.defaultModelReasoningLevel,
-    };
-  });
+  handle(
+    ipcMain,
+    channels.strategy.getWorkspaceDefaultModel,
+    ipcNoPayloadSchema,
+    async () => {
+      const prefs = services.repos.workspacePreferences.get();
+      return {
+        providerKey: prefs.defaultModelProviderKey,
+        modelId: prefs.defaultModelModelId,
+        reasoningLevel: prefs.defaultModelReasoningLevel,
+      };
+    },
+  );
 
   handle(
     ipcMain,
     channels.strategy.saveWorkspaceDefaultModel,
+    ipcPayloadUnknownSchema,
     async (payload) => {
       const { providerKey, modelId, reasoningLevel } = payload as {
         providerKey: string;

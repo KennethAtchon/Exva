@@ -6,14 +6,16 @@ import {
   Microscope,
   Radio,
   Settings2,
+  Sparkles,
 } from "lucide-react";
 
-/** Five hubs + Docs. Detail overlays (TradeDetail, trade autopsy) are not nav items. */
+/** Six hubs + Docs. Detail overlays (TradeDetail, trade autopsy) are not nav items. */
 export type PageKey =
   | "dashboard"
   | "sessions"
   | "signals"
   | "research"
+  | "assistant"
   | "settings"
   | "docs";
 
@@ -24,16 +26,18 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "sessions", label: "Sessions", icon: Layers },
   { id: "signals", label: "Signals", icon: Radio },
   { id: "research", label: "Research", icon: Microscope },
+  { id: "assistant", label: "Assistant", icon: Sparkles },
   { id: "settings", label: "Settings", icon: Settings2 },
   { id: "docs", label: "Docs", icon: BookOpen },
 ];
 
-/** Primary rail: five hubs. Docs is pinned separately at the rail bottom. */
+/** Primary rail: six hubs. Docs is pinned separately at the rail bottom. */
 export const NAV_PRIMARY_IDS: PageKey[] = [
   "dashboard",
   "sessions",
   "signals",
   "research",
+  "assistant",
   "settings",
 ];
 

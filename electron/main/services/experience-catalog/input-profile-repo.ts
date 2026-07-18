@@ -7,6 +7,7 @@ import type {
 } from "@electron/shared/domain/experience-inputs/catalog";
 import type { TradingTimeframe } from "@electron/shared/domain/enums";
 import type { CadenceSpec } from "@electron/shared/domain/experience-inputs/cadence";
+import { requireJsonParse } from "../infra/safe-json-parse";
 
 // ---------------------------------------------------------------------------
 // Discriminated create inputs
@@ -115,7 +116,11 @@ export class InputProfileRepo {
 type ProfileRow = typeof experienceInputProfiles.$inferSelect;
 
 function rowToProfile(row: ProfileRow): ExperienceInputProfile {
-  const payload = JSON.parse(row.payloadJson) as Record<string, unknown>;
+  const payload = requireJsonParse<Record<string, unknown>>(
+    row.payloadJson,
+    undefined,
+    "Invalid experience input profile payloadJson",
+  );
   const mode = row.mode as InputMode;
 
   if (mode === "event_source") {

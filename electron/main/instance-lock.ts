@@ -15,6 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import { env } from "./config/env";
 import { createLogger } from "./services/infra/log";
+import { safeJsonParse } from "./services/infra/safe-json-parse";
 
 const logger = createLogger("instance-lock");
 
@@ -41,10 +42,12 @@ export interface InstanceLockPayload {
 export function readInstanceLock(): InstanceLockPayload | null {
   try {
     if (!fs.existsSync(LOCK_PATH)) return null;
-    const raw = JSON.parse(
+    const raw = safeJsonParse<InstanceLockPayload>(
       fs.readFileSync(LOCK_PATH, "utf8"),
-    ) as InstanceLockPayload;
-    if (!raw.pid || !raw.mode || !raw.identity) return null;
+      undefined,
+      "instance-lock",
+    );
+    if (!raw?.pid || !raw.mode || !raw.identity) return null;
     return raw;
   } catch {
     return null;
@@ -142,7 +145,10 @@ export async function acquireInstanceLock(
         if (!sameProcess(existing, cur) || !processAlive(existing.pid)) break;
         await new Promise((r) => setTimeout(r, 200));
       }
-      if (processAlive(existing.pid) && sameProcess(existing, readInstanceLock())) {
+      if (
+        processAlive(existing.pid) &&
+        sameProcess(existing, readInstanceLock())
+      ) {
         return {
           ok: false,
           reason: `Headless pid ${existing.pid} did not exit after SIGTERM. Run scripts/uninstall-launchd.sh or kill it, then retry.`,

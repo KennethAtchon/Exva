@@ -165,6 +165,7 @@ export function createStreamingOrderEventFeed(
 
   const startHeartbeat = (): void => {
     if (!(pingIntervalMs > 0)) return;
+    clearPing();
     pingTimer = setInterval(() => {
       if (socket?.readyState === WebSocket.OPEN) {
         socket.ping();
@@ -220,6 +221,8 @@ export function createStreamingOrderEventFeed(
 
     socket.on("error", (err) => {
       logger.warn({ err }, "order event feed websocket error");
+      clearPing();
+      clearAuthAckTimer();
     });
 
     socket.on("close", () => {

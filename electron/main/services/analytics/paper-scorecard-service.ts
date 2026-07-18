@@ -1,5 +1,6 @@
 import type { Trade } from "@/lib/types";
 import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
+import { safeJsonParse } from "../infra/safe-json-parse";
 import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
@@ -218,30 +219,28 @@ function isMockBrokerTrade(
 
 function readMockScenarioKind(trade: Trade): MockScenarioKind | null {
   if (!trade.instrumentMetadataJson) return null;
-  try {
-    const parsed = JSON.parse(trade.instrumentMetadataJson) as {
-      mockScenarioKind?: string;
-    };
-    const kind = parsed.mockScenarioKind;
-    if (!kind) return null;
-    const validKinds: MockScenarioKind[] = [
-      "clean_breakout",
-      "failed_breakout",
-      "sideways_chop",
-      "gap_down_after_entry",
-      "news_reversal",
-      "stale_quote",
-      "wide_spread",
-      "partial_fill",
-      "broker_reject",
-      "rate_limit",
-    ];
-    return validKinds.includes(kind as MockScenarioKind)
-      ? (kind as MockScenarioKind)
-      : null;
-  } catch {
-    return null;
-  }
+  const parsed = safeJsonParse<{ mockScenarioKind?: string }>(
+    trade.instrumentMetadataJson,
+    undefined,
+    "paper-scorecard.mockScenarioKind",
+  );
+  const kind = parsed?.mockScenarioKind;
+  if (!kind) return null;
+  const validKinds: MockScenarioKind[] = [
+    "clean_breakout",
+    "failed_breakout",
+    "sideways_chop",
+    "gap_down_after_entry",
+    "news_reversal",
+    "stale_quote",
+    "wide_spread",
+    "partial_fill",
+    "broker_reject",
+    "rate_limit",
+  ];
+  return validKinds.includes(kind as MockScenarioKind)
+    ? (kind as MockScenarioKind)
+    : null;
 }
 
 function computeMaxDrawdown(trades: Trade[]): {

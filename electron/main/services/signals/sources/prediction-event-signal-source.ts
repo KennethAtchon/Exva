@@ -12,6 +12,7 @@ import type {
   SignalSourceSnapshot,
 } from "../ISignalSource";
 import { createLogger } from "../../infra/log";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 
 type PredictionEventConfig = {
   triggerKind?: PredictionEventTriggerKind;
@@ -297,10 +298,10 @@ async function fetchGammaMarkets(): Promise<PolymarketMarketRow[]> {
 }
 
 function safeParseConfig(configJson: string): PredictionEventConfig {
-  try {
-    const parsed = JSON.parse(configJson) as PredictionEventConfig;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
+  const parsed = safeJsonParse<PredictionEventConfig>(
+    configJson,
+    undefined,
+    "prediction-event.config",
+  );
+  return parsed && typeof parsed === "object" ? parsed : {};
 }

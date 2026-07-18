@@ -4,6 +4,7 @@ import type { AppServices } from "../app-services";
 import type { EventBus } from "../infra/event-bus";
 import type { ControlRepo } from "../../db/repositories/control/control-repo";
 import type { Capability, CapabilityContext } from "./capability";
+import { resolveSession } from "./resolve-session";
 
 export interface ConfirmationDecision {
   decision: "confirm" | "reject" | "cancel";
@@ -25,15 +26,82 @@ export interface ControlToolRuntime {
   addAutoApproved(confirmClass: string): void;
 }
 
-function summarizeResult(result: unknown): string {
-  if (result == null) return "Done.";
-  if (typeof result === "object") {
-    const rejected = (result as { rejected?: unknown }).rejected === true;
-    if (rejected) return "Skipped by operator.";
-    const error = (result as { error?: unknown }).error;
-    if (typeof error === "string") return `Failed: ${error}`;
+function summarizeResult(
+  result: unknown,
+  affectedEntity: string | null,
+): string {
+  if (result == null) {
+    return affectedEntity ? `Done (${affectedEntity}).` : "Done.";
   }
-  return "Done.";
+  if (typeof result === "object") {
+    const obj = result as Record<string, unknown>;
+    if (obj.rejected === true) return "Skipped by operator.";
+    if (typeof obj.error === "string") return `Failed: ${obj.error}`;
+    if (typeof obj.reason === "string" && obj.ok === false) {
+      return `Failed: ${obj.reason}`;
+    }
+    const bits: string[] = [];
+    if (affectedEntity) bits.push(affectedEntity);
+    if (typeof obj.id === "string") bits.push(`id=${obj.id}`);
+    if (typeof obj.sessionId === "string")
+      bits.push(`session=${obj.sessionId}`);
+    if (typeof obj.status === "string") bits.push(String(obj.status));
+    if (typeof obj.count === "number") bits.push(`${obj.count} items`);
+    if (Array.isArray(obj.paused)) bits.push(`paused ${obj.paused.length}`);
+    if (Array.isArray(obj.closed)) bits.push(`closed ${obj.closed.length}`);
+    if (typeof obj.balanceUsd === "number") {
+      bits.push(`balance=$${Math.round(obj.balanceUsd)}`);
+    }
+    if (typeof obj.ok === "boolean") bits.push(obj.ok ? "ok" : "not ok");
+    if (typeof obj.complete === "boolean") {
+      bits.push(obj.complete ? "complete" : "incomplete");
+    }
+    if (bits.length > 0) return bits.join(" · ");
+  }
+  return affectedEntity ? `Done (${affectedEntity}).` : "Done.";
+}
+
+/** Resolve the session a capability targets from its input, if any. */
+function resolveTargetSessionId(
+  input: unknown,
+  services: AppServices,
+): string | null {
+  if (input == null || typeof input !== "object") return null;
+  const obj = input as Record<string, unknown>;
+  if (typeof obj.session === "string" && obj.session.length > 0) {
+    try {
+      return resolveSession(services, obj.session).id;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof obj.tradeId === "string" && obj.tradeId.length > 0) {
+    try {
+      const trade = services.repos.trades.require(obj.tradeId);
+      return trade.sessionId ?? null;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof obj.approvalId === "string" && obj.approvalId.length > 0) {
+    try {
+      return services.repos.tradeApprovals.require(obj.approvalId).sessionId;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function isOutOfScope(
+  ctx: CapabilityContext,
+  input: unknown,
+  services: AppServices,
+): boolean {
+  if (ctx.scope.kind !== "session" || ctx.scope.sessionId == null) return false;
+  const targetId = resolveTargetSessionId(input, services);
+  if (targetId == null) return false;
+  return targetId !== ctx.scope.sessionId;
 }
 
 async function runCapability(
@@ -90,7 +158,7 @@ async function runCapability(
       rt.bus.emit("control_tool_result", {
         ...base,
         status: "succeeded",
-        resultSummary: "Done.",
+        resultSummary: summarizeResult(result, affectedEntity),
         resultJson,
       });
       return result;
@@ -112,11 +180,19 @@ async function runCapability(
   }
 
   // Mutating capabilities: gate unless auto-approved.
+  // Auto-approve keys are confirmClass strings (coarse). Finer per-capability
+  // keys (e.g. `start_session`) were deferred — liveRisk / alwaysConfirm /
+  // outOfScope already force confirm for the high-risk cases.
   const risk = cap.risk?.(input, rt.services) ?? null;
-  const liveRisk = risk != null && /live/i.test(risk);
+  const liveRisk = risk?.level === "live";
+  const outOfScope = isOutOfScope(rt.ctx, input, rt.services);
+  const alwaysConfirm =
+    typeof cap.alwaysConfirm === "function"
+      ? cap.alwaysConfirm(input, rt.services)
+      : cap.alwaysConfirm === true;
+  const forceConfirm = alwaysConfirm || liveRisk || outOfScope;
   const needsConfirm =
-    cap.alwaysConfirm === true ||
-    liveRisk ||
+    forceConfirm ||
     !(cap.confirmClass && rt.ctx.autoApproved.has(cap.confirmClass));
 
   if (needsConfirm) {
@@ -142,9 +218,10 @@ async function runCapability(
       ...base,
       preview: summary,
       inputJson,
-      alwaysConfirm: cap.alwaysConfirm === true || liveRisk,
+      alwaysConfirm: forceConfirm,
       confirmClass: cap.confirmClass ?? null,
       risk,
+      outOfScope,
     });
 
     const decision = await rt.awaitConfirmation(toolCallId);
@@ -169,12 +246,7 @@ async function runCapability(
       });
       return { rejected: true, reason };
     }
-    if (
-      decision.alwaysApprove &&
-      cap.alwaysConfirm !== true &&
-      !liveRisk &&
-      cap.confirmClass
-    ) {
+    if (decision.alwaysApprove && !forceConfirm && cap.confirmClass) {
       rt.addAutoApproved(cap.confirmClass);
     }
     // Flip the card to running.
@@ -221,7 +293,7 @@ async function runCapability(
     rt.bus.emit("control_tool_result", {
       ...base,
       status: "succeeded",
-      resultSummary: summarizeResult(result),
+      resultSummary: summarizeResult(result, affectedEntity),
       resultJson,
     });
     return result;

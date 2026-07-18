@@ -12,6 +12,7 @@ import type {
   TradeApproval,
   WorkspaceSession,
 } from "@/lib/types";
+import { safeJsonParse } from "../../../services/infra/safe-json-parse";
 import {
   DEFAULT_MOCK_ACCOUNT_BALANCE_USD,
   DEFAULT_MOCK_EXECUTION_TIER,
@@ -281,12 +282,13 @@ export function toCapitalReservation(row: Row): CapitalReservation {
 
 function parseJsonArray(value: unknown): string[] {
   if (typeof value !== "string") return [];
-  try {
-    const parsed = JSON.parse(value) as unknown[];
-    return parsed.filter((entry): entry is string => typeof entry === "string");
-  } catch {
-    return [];
-  }
+  const parsed = safeJsonParse<unknown[]>(
+    value,
+    undefined,
+    "mappers.parseJsonArray",
+  );
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter((entry): entry is string => typeof entry === "string");
 }
 
 function nullableString(value: unknown): string | null {

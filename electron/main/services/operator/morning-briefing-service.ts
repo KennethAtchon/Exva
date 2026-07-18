@@ -152,11 +152,7 @@ export class MorningBriefingService {
         (await this.deps.narrate?.(doc)) ?? buildDeterministicNarrative(doc);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.deps.notifications.notify(
-        "Briefing narrative failed",
-        msg,
-        "WARN",
-      );
+      this.deps.notifications.notify("Briefing narrative failed", msg, "WARN");
       narrative = buildDeterministicNarrative(doc);
     }
 
@@ -187,11 +183,7 @@ export class MorningBriefingService {
       await this.deps.deliverSink?.(title, body);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.deps.notifications.notify(
-        "Briefing delivery failed",
-        msg,
-        "ERROR",
-      );
+      this.deps.notifications.notify("Briefing delivery failed", msg, "ERROR");
       throw err;
     }
 

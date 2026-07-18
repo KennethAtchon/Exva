@@ -130,4 +130,55 @@ describe("CoinbaseAdvancedTradeAdapter", () => {
       }),
     ).rejects.toThrow(/crypto only/i);
   });
+
+  it("throws BROKER_DATA when ticker price is missing", async () => {
+    mockExchange.fetchTicker.mockResolvedValue({
+      last: undefined,
+      close: undefined,
+      bid: undefined,
+    });
+    const adapter = new CoinbaseAdvancedTradeAdapter(credentials, "live");
+
+    await expect(adapter.getMarketSnapshot("BTC-USD")).rejects.toMatchObject({
+      code: "BROKER_DATA",
+    });
+  });
+
+  it("throws BROKER_DATA when buy fill average is missing", async () => {
+    mockExchange.createMarketBuyOrder.mockResolvedValue({
+      id: "cb-buy-bad",
+      average: undefined,
+      price: undefined,
+    });
+    const adapter = new CoinbaseAdvancedTradeAdapter(credentials, "live");
+
+    await expect(
+      adapter.placeOrder({
+        instrumentSymbol: "BTC-USD",
+        instrumentType: "crypto",
+        side: "BUY",
+        sizeUsd: 100,
+        clientOrderId: "cb-bad-fill",
+      }),
+    ).rejects.toMatchObject({ code: "BROKER_DATA" });
+  });
+
+  it("allows explicit zero USD balance when USDC is present", async () => {
+    mockExchange.fetchBalance.mockResolvedValue({
+      USD: { total: 0 },
+      USDC: { total: 50 },
+    });
+    const adapter = new CoinbaseAdvancedTradeAdapter(credentials, "live");
+    await expect(adapter.getAccountBalance()).resolves.toBe(50);
+  });
+
+  it("throws BROKER_DATA when quote currency totals are missing", async () => {
+    mockExchange.fetchBalance.mockResolvedValue({
+      BTC: { total: 1 },
+    });
+    const adapter = new CoinbaseAdvancedTradeAdapter(credentials, "live");
+    await expect(adapter.getAccountBalance()).rejects.toMatchObject({
+      code: "BROKER_DATA",
+    });
+  });
 });

@@ -9,6 +9,7 @@ import {
 } from "@/lib/strategy-config-ui";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
+import { confirm } from "@/components/ui/confirm-dialog";
 
 type HistoryEntry = {
   id: string;
@@ -88,13 +89,13 @@ export function ConfigHistoryDrawer({
     if (!selected) return;
     const expectedVersion = current?.version ?? currentVersion;
     if (expectedVersion == null) return;
-    if (
-      !window.confirm(
-        `Roll back to version ${selected.version}? The current config becomes a new history entry.`,
-      )
-    ) {
-      return;
-    }
+    const ok = await confirm({
+      title: `Roll back to version ${selected.version}?`,
+      description: "The current config becomes a new history entry.",
+      confirmLabel: "Roll back",
+      variant: "destructive",
+    });
+    if (!ok) return;
     setRollingBack(true);
     setError(null);
     try {

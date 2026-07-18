@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { env } from "../../config/env";
 import { createLogger } from "./log";
+import { safeJsonParse } from "./safe-json-parse";
 
 const logger = createLogger("db-backup");
 
@@ -61,10 +62,12 @@ export function resolveBackupDir(): string {
 export function readLastBackupMeta(): LastBackupMeta | null {
   try {
     if (!fs.existsSync(META_PATH)) return null;
-    const raw = JSON.parse(
+    const raw = safeJsonParse<LastBackupMeta>(
       fs.readFileSync(META_PATH, "utf8"),
-    ) as LastBackupMeta;
-    if (!raw.backedUpAt || !raw.backupPath) return null;
+      undefined,
+      "db-backup.meta",
+    );
+    if (!raw?.backedUpAt || !raw.backupPath) return null;
     return raw;
   } catch {
     return null;

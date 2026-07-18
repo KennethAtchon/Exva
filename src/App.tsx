@@ -9,6 +9,7 @@ import { SessionsHub } from "./hubs/SessionsHub";
 import { SignalsHub } from "./hubs/SignalsHub";
 import { ResearchHub } from "./hubs/ResearchHub";
 import { SettingsHub } from "./hubs/SettingsHub";
+import { AssistantHub } from "./hubs/AssistantHub";
 import { TradeDetail } from "./pages/TradeDetail";
 import { AutopsyPage } from "./hubs/panels/trade-autopsy-panel";
 import { DocsPage } from "./pages/DocsPage";
@@ -27,6 +28,12 @@ import { useExvaEvent } from "./hooks/useExvaEvent";
 import { usePolling } from "./hooks/usePolling";
 import type { SessionStatus } from "@/lib/types";
 import type { DevPanelFocus } from "./hubs/panels/dev-panel";
+import {
+  confirm,
+  DialogHost,
+  focusRingClass,
+  promptText,
+} from "@/components/ui/confirm-dialog";
 
 interface LiveReadinessReport {
   readyToStart: boolean;
@@ -268,13 +275,14 @@ export default function App() {
       } else if (action === "stop") {
         setStatus(await api.stopSession());
       } else if (action === "forceStop") {
-        if (
-          !window.confirm(
+        const ok = await confirm({
+          title: "Force stop session?",
+          description:
             "Force stop will end automated exit management for open positions. Continue?",
-          )
-        ) {
-          return;
-        }
+          confirmLabel: "Force stop",
+          variant: "destructive",
+        });
+        if (!ok) return;
         setStatus(await api.forceStopSession());
       }
     } catch (error) {
@@ -327,9 +335,14 @@ export default function App() {
       scope: "global",
       destructive: true,
       run: async () => {
-        const confirmation = window.prompt(
-          "Type FLATTEN to market-close every open position:",
-        );
+        const confirmation = await promptText({
+          title: "Flatten everything?",
+          description:
+            "Type FLATTEN to market-close every open position. This cannot be undone.",
+          placeholder: "FLATTEN",
+          matchValue: "FLATTEN",
+          confirmLabel: "Flatten all",
+        });
         if (confirmation) await api.killSwitchFlattenAll(confirmation);
       },
     },
@@ -399,6 +412,13 @@ export default function App() {
       run: () => useControlStore.getState().toggleSlideOver(),
     },
     {
+      id: "assistant.full",
+      title: "Open assistant full page",
+      keywords: "assistant chat control hub full",
+      scope: "global",
+      run: () => dispatchUi({ page: "assistant" }),
+    },
+    {
       id: "session.create-template",
       title: "Create session from template…",
       keywords: "create session preset template",
@@ -454,6 +474,8 @@ export default function App() {
             onReviewTrade={(tradeId) => dispatchUi({ autopsyTradeId: tradeId })}
           />
         );
+      case "assistant":
+        return <AssistantHub />;
       case "settings":
         return (
           <SettingsHub
@@ -568,15 +590,19 @@ export default function App() {
           onClose={() => dispatchUi({ autopsyTradeId: null })}
         />
       )}
+      <DialogHost />
       <button
         type="button"
-        title="Assistant"
+        title="Assistant (⌘K → Open assistant)"
+        aria-label="Open assistant"
         onClick={() => useControlStore.getState().toggleSlideOver()}
-        className="fixed bottom-10 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-sm bg-primary text-primary-foreground shadow-popover transition-opacity duration-hover hover:opacity-90"
+        className={`fixed bottom-10 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-sm bg-primary text-primary-foreground shadow-popover transition-opacity duration-hover hover:opacity-90 ${focusRingClass}`}
       >
         <Sparkles className="h-5 w-5" />
       </button>
-      <AssistantSlideOver />
+      <AssistantSlideOver
+        onOpenFullView={() => dispatchUi({ page: "assistant" })}
+      />
       {ui.liveReadinessSession && ui.liveReadinessReport ? (
         <LiveReadinessModal
           sessionId={ui.liveReadinessSession.id}

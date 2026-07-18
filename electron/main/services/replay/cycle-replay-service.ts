@@ -22,6 +22,7 @@ import type { InstrumentCacheRepo } from "../../db/repositories/market/instrumen
 import type { SqliteSessionExecutionStepsRepo } from "../../db/repositories/sessions/session-execution-steps-repo";
 import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { MarketSnapshot } from "../broker/adapters/broker-adapter";
+import { requireJsonParse, safeJsonParse } from "../infra/safe-json-parse";
 import type { MockOhlcvBar } from "../broker/adapters/mock-adapter";
 import { CandidateValidationService } from "../orchestration/policy/candidate-validation-service";
 import type { CandidateValidationResult } from "../orchestration/policy/candidate-validation-service";
@@ -139,24 +140,25 @@ export class CycleReplayService {
     const sessionId = firstMsg.session_id;
 
     let strategySnapshot: StrategySnapshot | null = null;
-    try {
-      strategySnapshot = JSON.parse(
-        firstMsg.strategy_snapshot_json,
-      ) as StrategySnapshot;
-    } catch {
-      return null;
-    }
+    strategySnapshot = safeJsonParse<StrategySnapshot>(
+      firstMsg.strategy_snapshot_json,
+      undefined,
+      "cycle-replay.strategySnapshot",
+    );
+    if (!strategySnapshot) return null;
 
     // selectedInstruments from cache (filter to cycles that match)
     const cacheRow = this.deps.instrumentCache.get(sessionId);
     const selectedInstruments: CycleFixture["selectedInstruments"] = [];
     if (cacheRow && cacheRow.cycleId === cycleId) {
-      try {
-        const parsed = JSON.parse(cacheRow.instruments) as Array<{
+      const parsed = safeJsonParse<
+        Array<{
           symbol: string;
           instrumentClass?: InstrumentClass;
           rationale?: string;
-        }>;
+        }>
+      >(cacheRow.instruments, undefined, "cycle-replay.instruments");
+      if (Array.isArray(parsed)) {
         for (const item of parsed) {
           selectedInstruments.push({
             symbol: item.symbol,
@@ -164,8 +166,6 @@ export class CycleReplayService {
             rationale: item.rationale ?? "",
           });
         }
-      } catch {
-        // leave empty
       }
     }
 
@@ -179,9 +179,10 @@ export class CycleReplayService {
       const toolCalls: CycleFixture["agentRuns"][number]["toolCalls"] = [];
       if (msg.tool_calls_json) {
         try {
-          const parsed = JSON.parse(msg.tool_calls_json) as Array<
-            RawToolCall | { toolCalls?: RawToolCall[] }
-          >;
+          const parsed = safeJsonParse<
+            Array<RawToolCall | { toolCalls?: RawToolCall[] }>
+          >(msg.tool_calls_json, undefined, "cycle-replay.tool_calls");
+          if (!parsed) throw new Error("malformed tool_calls_json");
           const rawCalls = normalizeToolCalls(parsed);
 
           for (const call of rawCalls) {
@@ -250,20 +251,22 @@ export class CycleReplayService {
 
       // Use market_snapshot_json if present
       if (msg.market_snapshot_json) {
-        try {
-          const snap = JSON.parse(msg.market_snapshot_json) as MarketSnapshot;
-          const sym = snap.instrumentSymbol;
-          if (!marketDataMap.has(sym)) {
-            marketDataMap.set(sym, {
-              symbol: sym,
-              quote: snap,
-              ohlcvBars: [],
-              newsHeadlines: [],
-              redditPosts: [],
-            });
-          }
-        } catch {
-          // skip
+        const snap = safeJsonParse<MarketSnapshot>(
+          msg.market_snapshot_json,
+          undefined,
+          "cycle-replay.market_snapshot",
+        );
+        if (
+          snap?.instrumentSymbol &&
+          !marketDataMap.has(snap.instrumentSymbol)
+        ) {
+          marketDataMap.set(snap.instrumentSymbol, {
+            symbol: snap.instrumentSymbol,
+            quote: snap,
+            ohlcvBars: [],
+            newsHeadlines: [],
+            redditPosts: [],
+          });
         }
       }
 
@@ -284,29 +287,27 @@ export class CycleReplayService {
       // Build prompt/output summaries
       let promptSummary = "";
       let outputSummary = "";
-      try {
-        const parsed = JSON.parse(msg.messages_json) as Array<{
-          role: string;
-          content: string | unknown[];
-        }>;
-        const userMsg = parsed.find((m) => m.role === "user");
+      const messagesParsed = safeJsonParse<
+        Array<{ role: string; content: string | unknown[] }>
+      >(msg.messages_json, undefined, "cycle-replay.messages_json");
+      if (messagesParsed) {
+        const userMsg = messagesParsed.find((m) => m.role === "user");
         const content =
           typeof userMsg?.content === "string"
             ? userMsg.content
             : JSON.stringify(userMsg?.content ?? "");
         promptSummary = content.slice(0, 200);
-      } catch {
-        // skip
       }
       if (msg.output_json) {
-        try {
-          outputSummary = JSON.stringify(JSON.parse(msg.output_json)).slice(
-            0,
-            200,
-          );
-        } catch {
-          outputSummary = msg.output_json.slice(0, 200);
-        }
+        const outputParsed = safeJsonParse(
+          msg.output_json,
+          undefined,
+          "cycle-replay.output_json",
+        );
+        outputSummary =
+          outputParsed == null
+            ? msg.output_json.slice(0, 200)
+            : JSON.stringify(outputParsed).slice(0, 200);
       }
 
       agentRuns.push({
@@ -395,7 +396,11 @@ export class CycleReplayService {
   }
 
   loadFixture(filePath: string): CycleFixture {
-    const raw = JSON.parse(fs.readFileSync(filePath, "utf-8")) as unknown;
+    const raw = requireJsonParse(
+      fs.readFileSync(filePath, "utf-8"),
+      undefined,
+      `Invalid fixture JSON at ${filePath}`,
+    );
     if (!raw || typeof raw !== "object") {
       throw new Error(`Invalid fixture at ${filePath}: not an object`);
     }
@@ -441,11 +446,7 @@ function normalizeToolCalls(
 }
 
 function safeParseJson(value: string): unknown {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
+  return safeJsonParse(value, undefined, "cycle-replay.safeParseJson");
 }
 
 export class CycleReplayRunner {
@@ -664,16 +665,16 @@ function buildDecision(
     .reverse()
     .find((m) => m.role === "decision");
   if (decisionMsg?.output_json) {
-    try {
-      const out = JSON.parse(decisionMsg.output_json) as {
-        action?: string;
-        side?: string;
-        symbol?: string;
-        size_usd?: number;
-        sizeUsd?: number;
-        confidence?: number;
-        reasoning?: string;
-      };
+    const out = safeJsonParse<{
+      action?: string;
+      side?: string;
+      symbol?: string;
+      size_usd?: number;
+      sizeUsd?: number;
+      confidence?: number;
+      reasoning?: string;
+    }>(decisionMsg.output_json, undefined, "cycle-replay.decision");
+    if (out) {
       return {
         action: out.action === "trade" ? "trade" : "no_trade",
         side: out.side === "BUY" || out.side === "SELL" ? out.side : undefined,
@@ -682,8 +683,6 @@ function buildDecision(
         confidence: out.confidence ?? 0,
         reasoning: out.reasoning ?? "",
       };
-    } catch {
-      // fall through to default
     }
   }
   return { action: "no_trade", confidence: 0, reasoning: "" };

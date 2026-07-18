@@ -14,6 +14,7 @@ import type {
   SignalSourceSnapshot,
 } from "../ISignalSource";
 import { createLogger } from "../../infra/log";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 
 export const DEFAULT_NEWS_RSS_URLS = [
   "https://www.prnewswire.com/rss/news-releases-list.rss",
@@ -413,10 +414,10 @@ const COMMON_WORDS = new Set([
 ]);
 
 function safeParseConfig(configJson: string): NewsSourceConfig {
-  try {
-    const parsed = JSON.parse(configJson) as NewsSourceConfig;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
+  const parsed = safeJsonParse<NewsSourceConfig>(
+    configJson,
+    undefined,
+    "news-source.config",
+  );
+  return parsed && typeof parsed === "object" ? parsed : {};
 }

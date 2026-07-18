@@ -65,6 +65,7 @@ export class OpenAiAdapter implements ProviderAdapter {
       schema: opts.schema,
       terminalToolNames: opts.terminalToolNames,
       prepareStep: opts.prepareStep,
+      onTextDelta: opts.onTextDelta,
     });
   }
 

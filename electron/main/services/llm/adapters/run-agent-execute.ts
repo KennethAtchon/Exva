@@ -73,6 +73,7 @@ export interface RunAgentExecuteParams<T> {
   schema?: z.ZodType<T>;
   terminalToolNames?: string[];
   prepareStep?: PrepareStepFunction<ToolSet>;
+  onTextDelta?: (text: string) => void;
 }
 
 function splitSystem(messages: LLMMessage[]): {
@@ -294,6 +295,7 @@ export async function executeRunAgent<T = undefined>(
     maxRetries: 0,
   } as const;
 
+  let accumulatedText = "";
   const onStepFinish = (step: StepResult<ToolSet>, stepIndex: number) => {
     if (params.abortSignal?.aborted) {
       return;
@@ -318,6 +320,10 @@ export async function executeRunAgent<T = undefined>(
       }
     }
     if (step.text) {
+      accumulatedText = accumulatedText
+        ? `${accumulatedText}\n${step.text}`
+        : step.text;
+      params.onTextDelta?.(accumulatedText);
       logger.info(
         {
           ...agentLogContext(params),

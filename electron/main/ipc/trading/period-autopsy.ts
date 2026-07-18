@@ -13,6 +13,8 @@ import { AppError } from "@electron/shared/infra/errors";
 import type { AppServices } from "../../services/app-services";
 import { assertSessionInWorkspaceEnvironment } from "../environment-guards";
 import { handle } from "../handle";
+import { ipcPayloadUnknownSchema } from "../payload-schemas";
+import { requireJsonParse } from "../../services/infra/safe-json-parse";
 
 const filtersSchema = z.object({
   instrumentClasses: z.array(z.string()).default([]),
@@ -82,129 +84,180 @@ const exportSchema = z.object({
 });
 
 export function registerPeriodAutopsyHandlers(services: AppServices): void {
-  handle(ipcMain, channels.autopsy.period.run, async (payload) => {
-    const input = runSchema.parse(payload) as PeriodAutopsyRunInput;
-    if (input.scope === "session") {
-      if (!input.sessionId) {
-        throw new AppError(
-          "sessionId is required for session-scoped autopsy.",
-          "VALIDATION_FAILED",
-        );
+  handle(
+    ipcMain,
+    channels.autopsy.period.run,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const input = runSchema.parse(payload) as PeriodAutopsyRunInput;
+      if (input.scope === "session") {
+        if (!input.sessionId) {
+          throw new AppError(
+            "sessionId is required for session-scoped autopsy.",
+            "VALIDATION_FAILED",
+          );
+        }
+        assertSessionInWorkspaceEnvironment(services, input.sessionId);
       }
-      assertSessionInWorkspaceEnvironment(services, input.sessionId);
-    }
-    return services.periodAutopsy.run(input);
-  });
+      return services.periodAutopsy.run(input);
+    },
+  );
 
-  handle(ipcMain, channels.autopsy.period.preview, async (payload) => {
-    const input = runSchema.parse(payload) as PeriodAutopsyRunInput;
-    if (input.scope === "session") {
-      if (!input.sessionId) {
-        throw new AppError(
-          "sessionId is required for session-scoped autopsy.",
-          "VALIDATION_FAILED",
-        );
+  handle(
+    ipcMain,
+    channels.autopsy.period.preview,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const input = runSchema.parse(payload) as PeriodAutopsyRunInput;
+      if (input.scope === "session") {
+        if (!input.sessionId) {
+          throw new AppError(
+            "sessionId is required for session-scoped autopsy.",
+            "VALIDATION_FAILED",
+          );
+        }
+        assertSessionInWorkspaceEnvironment(services, input.sessionId);
       }
-      assertSessionInWorkspaceEnvironment(services, input.sessionId);
-    }
-    return services.periodAutopsy.preview(input);
-  });
+      return services.periodAutopsy.preview(input);
+    },
+  );
 
-  handle(ipcMain, channels.autopsy.period.list, async (payload) => {
-    const input = listSchema.parse(payload);
-    if (input.scope === "session") {
-      if (!input.sessionId) {
-        throw new AppError(
-          "sessionId is required for session-scoped autopsy.",
-          "VALIDATION_FAILED",
-        );
+  handle(
+    ipcMain,
+    channels.autopsy.period.list,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const input = listSchema.parse(payload);
+      if (input.scope === "session") {
+        if (!input.sessionId) {
+          throw new AppError(
+            "sessionId is required for session-scoped autopsy.",
+            "VALIDATION_FAILED",
+          );
+        }
+        assertSessionInWorkspaceEnvironment(services, input.sessionId);
       }
-      assertSessionInWorkspaceEnvironment(services, input.sessionId);
-    }
-    return services.periodAutopsy.listByScope(input);
-  });
+      return services.periodAutopsy.listByScope(input);
+    },
+  );
 
-  handle(ipcMain, channels.autopsy.period.get, async (payload) => {
-    const { periodAutopsyId } = getSchema.parse(payload);
-    const record = services.periodAutopsy.getById(periodAutopsyId);
-    if (record.scope === "session" && record.sessionId) {
-      assertSessionInWorkspaceEnvironment(services, record.sessionId);
-    }
-    return record;
-  });
-
-  handle(ipcMain, channels.autopsy.period.lessons.list, async (payload) => {
-    const input = lessonsListSchema.parse(
-      payload,
-    ) as PeriodAutopsyLessonsListInput;
-    if (input.scope === "session") {
-      if (!input.sessionId) {
-        throw new AppError(
-          "sessionId is required for session-scoped autopsy.",
-          "VALIDATION_FAILED",
-        );
+  handle(
+    ipcMain,
+    channels.autopsy.period.get,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const { periodAutopsyId } = getSchema.parse(payload);
+      const record = services.periodAutopsy.getById(periodAutopsyId);
+      if (record.scope === "session" && record.sessionId) {
+        assertSessionInWorkspaceEnvironment(services, record.sessionId);
       }
-      assertSessionInWorkspaceEnvironment(services, input.sessionId);
-    }
-    return services.periodAutopsy.listLessons(input);
-  });
+      return record;
+    },
+  );
 
-  handle(ipcMain, channels.autopsy.period.lessons.update, async (payload) => {
-    const input = updateLessonSchema.parse(payload) as UpdateLessonInput;
-    services.periodAutopsy.updateLesson(input.lessonId, input);
-    return { ok: true as const };
-  });
-
-  handle(ipcMain, channels.autopsy.period.lessons.add, async (payload) => {
-    const input = addLessonSchema.parse(payload) as PeriodAutopsyAddLessonInput;
-    if (input.scope === "session") {
-      if (!input.sessionId) {
-        throw new AppError(
-          "sessionId is required for session-scoped autopsy.",
-          "VALIDATION_FAILED",
-        );
+  handle(
+    ipcMain,
+    channels.autopsy.period.lessons.list,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const input = lessonsListSchema.parse(
+        payload,
+      ) as PeriodAutopsyLessonsListInput;
+      if (input.scope === "session") {
+        if (!input.sessionId) {
+          throw new AppError(
+            "sessionId is required for session-scoped autopsy.",
+            "VALIDATION_FAILED",
+          );
+        }
+        assertSessionInWorkspaceEnvironment(services, input.sessionId);
       }
-      assertSessionInWorkspaceEnvironment(services, input.sessionId);
-    }
-    return services.periodAutopsy.addLesson(input);
-  });
+      return services.periodAutopsy.listLessons(input);
+    },
+  );
 
-  handle(ipcMain, channels.autopsy.period.lessons.promote, async (payload) => {
-    const input = promoteLessonSchema.parse(
-      payload,
-    ) as PeriodAutopsyPromoteLessonInput;
-    if (input.targetScope === "session") {
-      if (!input.targetSessionId) {
-        throw new AppError(
-          "targetSessionId is required for session-scoped autopsy.",
-          "VALIDATION_FAILED",
-        );
+  handle(
+    ipcMain,
+    channels.autopsy.period.lessons.update,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const input = updateLessonSchema.parse(payload) as UpdateLessonInput;
+      services.periodAutopsy.updateLesson(input.lessonId, input);
+      return { ok: true as const };
+    },
+  );
+
+  handle(
+    ipcMain,
+    channels.autopsy.period.lessons.add,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const input = addLessonSchema.parse(
+        payload,
+      ) as PeriodAutopsyAddLessonInput;
+      if (input.scope === "session") {
+        if (!input.sessionId) {
+          throw new AppError(
+            "sessionId is required for session-scoped autopsy.",
+            "VALIDATION_FAILED",
+          );
+        }
+        assertSessionInWorkspaceEnvironment(services, input.sessionId);
       }
-      assertSessionInWorkspaceEnvironment(services, input.targetSessionId);
-    }
-    return services.periodAutopsy.promoteLesson(input);
-  });
+      return services.periodAutopsy.addLesson(input);
+    },
+  );
 
-  handle(ipcMain, channels.autopsy.period.export, async (payload, event) => {
-    const { periodAutopsyId, format } = exportSchema.parse(payload) as {
-      periodAutopsyId: string;
-      format: ExportFormat;
-    };
-    const record = services.periodAutopsy.getById(periodAutopsyId);
-    if (record.scope === "session" && record.sessionId) {
-      assertSessionInWorkspaceEnvironment(services, record.sessionId);
-    }
-    const lessons =
-      services.repos.autopsyLessons.listByPeriodAutopsy(periodAutopsyId);
-    const trades = services.repos.trades.listByIds(
-      JSON.parse(record.tradeIdsJson) as string[],
-    );
-    return services.autopsyExport.exportPeriod(
-      format,
-      record,
-      lessons,
-      trades,
-      event.sender,
-    );
-  });
+  handle(
+    ipcMain,
+    channels.autopsy.period.lessons.promote,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const input = promoteLessonSchema.parse(
+        payload,
+      ) as PeriodAutopsyPromoteLessonInput;
+      if (input.targetScope === "session") {
+        if (!input.targetSessionId) {
+          throw new AppError(
+            "targetSessionId is required for session-scoped autopsy.",
+            "VALIDATION_FAILED",
+          );
+        }
+        assertSessionInWorkspaceEnvironment(services, input.targetSessionId);
+      }
+      return services.periodAutopsy.promoteLesson(input);
+    },
+  );
+
+  handle(
+    ipcMain,
+    channels.autopsy.period.export,
+    ipcPayloadUnknownSchema,
+    async (payload, event) => {
+      const { periodAutopsyId, format } = exportSchema.parse(payload) as {
+        periodAutopsyId: string;
+        format: ExportFormat;
+      };
+      const record = services.periodAutopsy.getById(periodAutopsyId);
+      if (record.scope === "session" && record.sessionId) {
+        assertSessionInWorkspaceEnvironment(services, record.sessionId);
+      }
+      const lessons =
+        services.repos.autopsyLessons.listByPeriodAutopsy(periodAutopsyId);
+      const trades = services.repos.trades.listByIds(
+        requireJsonParse<string[]>(
+          record.tradeIdsJson,
+          undefined,
+          "Invalid period autopsy tradeIdsJson",
+        ),
+      );
+      return services.autopsyExport.exportPeriod(
+        format,
+        record,
+        lessons,
+        trades,
+        event.sender,
+      );
+    },
+  );
 }

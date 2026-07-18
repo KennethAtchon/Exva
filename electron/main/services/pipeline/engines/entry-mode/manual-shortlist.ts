@@ -4,6 +4,7 @@ import { AppError } from "@electron/shared/infra/errors";
 import { classifyInstrumentBySymbol } from "@electron/shared/instruments/instrument-classification";
 import type { AIPhaseContext } from "../../phases/types";
 import { registerEngine, type EntryModeEngine } from "../registry";
+import { safeJsonParse } from "../../../infra/safe-json-parse";
 
 function buildManualShortlistSelection(
   session: WorkspaceSession,
@@ -82,14 +83,14 @@ function parseManualInstrumentLine(line: string): {
   instrumentMetadataJson?: string | null;
 } {
   if (line.startsWith("{")) {
-    try {
-      const parsed = JSON.parse(line) as {
-        symbol: string;
-        instrumentClass: InstrumentClass;
-        instrumentDisplayName?: string;
-        predictionOutcome?: "YES" | "NO" | null;
-        instrumentMetadataJson?: string | null;
-      };
+    const parsed = safeJsonParse<{
+      symbol: string;
+      instrumentClass: InstrumentClass;
+      instrumentDisplayName?: string;
+      predictionOutcome?: "YES" | "NO" | null;
+      instrumentMetadataJson?: string | null;
+    }>(line, undefined, "manual-shortlist.line");
+    if (parsed?.symbol && parsed.instrumentClass) {
       return {
         symbol: parsed.symbol,
         instrumentClass: parsed.instrumentClass,
@@ -97,8 +98,6 @@ function parseManualInstrumentLine(line: string): {
         predictionOutcome: parsed.predictionOutcome ?? null,
         instrumentMetadataJson: parsed.instrumentMetadataJson ?? null,
       };
-    } catch {
-      // Malformed JSON — fall through and treat as a plain symbol
     }
   }
   const symbol = line.startsWith("pm:") ? line : line.toUpperCase();

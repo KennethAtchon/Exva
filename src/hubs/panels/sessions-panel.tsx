@@ -18,6 +18,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui";
+import { confirm } from "@/components/ui/confirm-dialog";
+import { PanelLoading } from "@/components/ui/skeleton";
 import {
   SessionExecutionProgress,
   deriveProgress,
@@ -37,8 +39,10 @@ import { CreateEditSessionModal } from "@/components/sessions/CreateEditSessionM
 import { LiveReadinessModal } from "@/components/sessions/LiveReadinessModal";
 import { SessionDetailDrawer } from "@/components/sessions/SessionDetailDrawer";
 import { SessionTemplatesModal } from "@/components/sessions/SessionTemplatesModal";
+import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SESSION_STATUS_HELP_IDS } from "@/lib/help-glossary";
+import { useControlStore } from "@/store/controlStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
 const mergeReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
@@ -149,7 +153,13 @@ const executeLifecycleAction = async ({
     if (action === "resume") await api.resumeSession();
     if (action === "stop") await api.stopSession();
     if (action === "forceStop") {
-      if (!window.confirm(FORCE_STOP_CONFIRM_MESSAGE)) {
+      const ok = await confirm({
+        title: "Force stop session?",
+        description: FORCE_STOP_CONFIRM_MESSAGE,
+        confirmLabel: "Force stop",
+        variant: "destructive",
+      });
+      if (!ok) {
         dispatchData({ actionSessionId: null });
         return;
       }
@@ -436,6 +446,21 @@ const FocusedSessionHeader = ({
         {viewMode === "global" ? (
           <Badge variant="purple">global view</Badge>
         ) : null}
+        <Button
+          size="sm"
+          variant="outline"
+          className="ml-auto"
+          title="Ask assistant about this session"
+          onClick={() =>
+            useControlStore.getState().openSlideOver({
+              kind: "session",
+              sessionId: session.id,
+            })
+          }
+        >
+          <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+          Ask assistant
+        </Button>
       </div>
       {session.objective ? (
         <p className="mt-1 mb-0 max-w-2xl font-sans text-body text-text2">
@@ -828,19 +853,22 @@ export const SessionsMasterDetail = ({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
-          {data.loading ? (
-            <p className="px-1 py-4 font-sans text-body text-text3">
-              Loading sessions…
-            </p>
-          ) : null}
+          {data.loading ? <PanelLoading className="p-2" rows={4} /> : null}
           {!data.loading && filteredSessions.length === 0 ? (
             <EmptyState
+              title={
+                filters.search ||
+                filters.statusFilter !== "all" ||
+                filters.instrumentFilter !== "all"
+                  ? "No matching sessions"
+                  : "No sessions yet"
+              }
               message={
                 filters.search ||
                 filters.statusFilter !== "all" ||
                 filters.instrumentFilter !== "all"
-                  ? "No sessions matched the current filters."
-                  : "No sessions yet. Create one to start paper trading."
+                  ? "Clear filters or search to see more sessions."
+                  : "Create a session to start paper trading. The pipeline runs while a session is active."
               }
               actionLabel="New session"
               onAction={() => {
@@ -933,6 +961,7 @@ export const SessionsMasterDetail = ({
           >
             {!runTabSession ? (
               <EmptyState
+                title="No session selected"
                 message="Select a session from the list to view pipeline trace and controls."
                 className="mt-4"
               />

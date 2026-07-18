@@ -9,6 +9,7 @@ import type {
   Trade,
   TradeDecisionPayload,
 } from "@/lib/types";
+import type { CapabilityRisk } from "@electron/shared/domain/control";
 import type { ExvaEventName } from "@electron/shared/ipc/channels";
 
 export interface ExvaEventMap {
@@ -149,7 +150,8 @@ export interface ExvaEventMap {
     inputJson: string;
     alwaysConfirm: boolean;
     confirmClass: string | null;
-    risk: string | null;
+    risk: CapabilityRisk | null;
+    outOfScope: boolean;
   };
   control_turn_complete: {
     conversationId: string;

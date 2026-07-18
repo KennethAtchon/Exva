@@ -19,6 +19,7 @@ import {
 } from "@electron/shared/domain/autopsy";
 import { AppError } from "@electron/shared/infra/errors";
 import { z } from "zod";
+import { safeJsonParse } from "../infra/safe-json-parse";
 import type { AgentMessagesRepo } from "../../db/repositories/agents/agent-messages-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import type { EventsRepo } from "../../db/repositories/system/events-repo";
@@ -1200,11 +1201,10 @@ function parsePhaseJson<T extends z.ZodTypeAny>(
 ): z.infer<T> | null {
   const json = extractJson(text);
   if (!json) return null;
-  try {
-    return schema.parse(JSON.parse(json) as unknown);
-  } catch {
-    return null;
-  }
+  const raw = safeJsonParse(json, undefined, "period-autopsy.phaseJson");
+  if (raw == null) return null;
+  const parsed = schema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
 }
 
 function extractJson(text: string): string | null {

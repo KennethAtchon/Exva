@@ -12,11 +12,13 @@ import {
 import { VirtualList } from "@/components/hub/VirtualList";
 import { api } from "@/lib/exva";
 import { formatIpcError } from "@/lib/ipc-error";
+import { formatPercent } from "@/lib/format";
 import { fmt } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import type { ExecutionMode, InstrumentClass } from "@/lib/types";
 import { useTradeStore } from "@/store/tradeStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
+import { PanelLoading } from "@/components/ui/skeleton";
 import { HubEmptyState, HubQueryError } from "@/hubs/dna";
 
 type Filter = "all" | "open" | "closed";
@@ -404,6 +406,7 @@ export const TradesPage = ({
   const selectedId = useTradeStore((s) => s.selectedId);
   const setSelected = useTradeStore((s) => s.setSelected);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(allTrades.length === 0);
 
   const apiFilters = useMemo(() => {
     const f: {
@@ -449,6 +452,7 @@ export const TradesPage = ({
     sessionsData?.sessions.map((s) => ({ id: s.id, name: s.name })) ?? [];
 
   useEffect(() => {
+    setLoading(true);
     void api
       .getActiveTrades(Object.keys(apiFilters).length ? apiFilters : undefined)
       .then((rows) => {
@@ -457,7 +461,8 @@ export const TradesPage = ({
       })
       .catch((err) => {
         setLoadError(formatIpcError(err).display);
-      });
+      })
+      .finally(() => setLoading(false));
   }, [apiFilters, setTrades, viewMode, focusedSessionId]);
 
   const trades = allTrades.filter(
@@ -533,9 +538,7 @@ export const TradesPage = ({
         <StatTile
           label="Win rate"
           value={
-            closed.length
-              ? `${Math.round((wins.length / closed.length) * 100)}%`
-              : "—"
+            closed.length ? formatPercent(wins.length / closed.length, 0) : "—"
           }
         />
         <StatTile label="Total trades" value={String(allTrades.length)} />
@@ -583,6 +586,7 @@ export const TradesPage = ({
               <HubQueryError
                 message={loadError}
                 onRetry={() => {
+                  setLoading(true);
                   void api
                     .getActiveTrades(
                       Object.keys(apiFilters).length ? apiFilters : undefined,
@@ -593,10 +597,13 @@ export const TradesPage = ({
                     })
                     .catch((err) => {
                       setLoadError(formatIpcError(err).display);
-                    });
+                    })
+                    .finally(() => setLoading(false));
                 }}
                 className="m-2"
               />
+            ) : loading && trades.length === 0 ? (
+              <PanelLoading />
             ) : (
               <VirtualList
                 items={trades}

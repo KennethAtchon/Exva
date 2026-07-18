@@ -11,6 +11,7 @@ import {
 } from "@electron/shared/domain/autopsy";
 import { AppError } from "@electron/shared/infra/errors";
 import { z } from "zod";
+import { safeJsonParse } from "../infra/safe-json-parse";
 import type { AgentMessagesRepo } from "../../db/repositories/agents/agent-messages-repo";
 import type { AutopsyLessonsRepo } from "../../db/repositories/trades/autopsy-lessons-repo";
 import type { AutopsiesRepo } from "../../db/repositories/trades/autopsies-repo";
@@ -355,14 +356,12 @@ function parseSynthesis(text: string): {
 } | null {
   const jsonText = extractJson(text);
   if (!jsonText) return null;
-  try {
-    const raw = JSON.parse(jsonText) as unknown;
-    const parsed = synthesisOutputSchema.parse(raw);
-    const { lessons, qualityGrade, qualityScore, ...structured } = parsed;
-    return { structured, qualityGrade, qualityScore, lessons };
-  } catch {
-    return null;
-  }
+  const raw = safeJsonParse(jsonText, undefined, "trade-autopsy.synthesis");
+  if (raw == null) return null;
+  const parsed = synthesisOutputSchema.safeParse(raw);
+  if (!parsed.success) return null;
+  const { lessons, qualityGrade, qualityScore, ...structured } = parsed.data;
+  return { structured, qualityGrade, qualityScore, lessons };
 }
 
 function extractJson(text: string): string | null {

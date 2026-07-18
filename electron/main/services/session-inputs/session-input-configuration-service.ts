@@ -12,6 +12,7 @@ import { SessionInputSubscriptionRepo } from "./session-input-subscription-repo"
 import { ExperienceTemplateRepo } from "../experience-catalog/experience-template-repo";
 import { InputProfileRepo } from "../experience-catalog/input-profile-repo";
 import { InstrumentSetRepo } from "../instruments/instrument-set-repo";
+import { requireJsonParse } from "../infra/safe-json-parse";
 import { SourceDefinitionRepo } from "../signals/source-definition-repo";
 import { SubscriptionValidator } from "./subscription-validator";
 import { CatalogValidator } from "../experience-catalog/catalog-validator";
@@ -216,7 +217,13 @@ function profileToDraft(
     instrumentSetRevision: profile.instrumentSetRevision,
     cadence:
       typeof profile.cadence === "string"
-        ? parseCadence(JSON.parse(profile.cadence))
+        ? parseCadence(
+            requireJsonParse(
+              profile.cadence,
+              undefined,
+              "Invalid input profile cadence JSON",
+            ),
+          )
         : profile.cadence,
     analysisTimeframe: profile.analysisTimeframe,
     marketCalendarId: profile.marketCalendarId,

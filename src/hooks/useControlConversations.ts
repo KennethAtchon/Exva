@@ -11,6 +11,7 @@ export function useControlConversations(options?: { autoCreate?: boolean }) {
   const [loading, setLoading] = useState(true);
   const activeId = useControlStore((s) => s.activeConversationId);
   const setActive = useControlStore((s) => s.setActiveConversation);
+  const pendingScope = useControlStore((s) => s.pendingScope);
 
   const refresh = useCallback(async () => {
     const result = await api.control.listConversations();
@@ -57,6 +58,15 @@ export function useControlConversations(options?: { autoCreate?: boolean }) {
       setLoading(true);
       const list = await refresh();
       if (cancelled) return;
+
+      // Prefer a freshly requested scope (e.g. "Ask assistant" from a session).
+      if (pendingScope && autoCreate) {
+        useControlStore.getState().clearPendingScope();
+        await createNew(pendingScope);
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
       const current = useControlStore.getState().activeConversationId;
       if (!current || !list.some((c) => c.id === current)) {
         if (list.length > 0) {
@@ -65,14 +75,14 @@ export function useControlConversations(options?: { autoCreate?: boolean }) {
           await createNew();
         }
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-    // reason: run once per autoCreate activation; createNew/refresh are stable
+    // reason: re-run when slide-over opens or a scoped open is requested
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoCreate]);
+  }, [autoCreate, pendingScope]);
 
   return {
     conversations,

@@ -18,6 +18,7 @@ import {
 } from "../../signals/scoring/selector-candidate-merger";
 export type { SelectorCandidate };
 import { scoreCandidate } from "../../signals/scoring/selector-scoring-engine";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 import { verificationOutputSchema } from "./selector.schemas";
 import type { z } from "zod";
 
@@ -27,8 +28,8 @@ export function parseWorkerToolTrace(
   raw: string | null,
 ): SelectorCandidate["selectorTraces"] {
   if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw) as Array<{
+  const parsed = safeJsonParse<
+    Array<{
       step: number;
       toolCalls?: Array<{
         step: number;
@@ -36,15 +37,13 @@ export function parseWorkerToolTrace(
         argsJson: string;
         resultJson: string;
       }>;
-    }>;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map((step) => ({
-      step: step.step,
-      toolCalls: step.toolCalls ?? [],
-    }));
-  } catch {
-    return [];
-  }
+    }>
+  >(raw);
+  if (!Array.isArray(parsed)) return [];
+  return parsed.map((step) => ({
+    step: step.step,
+    toolCalls: step.toolCalls ?? [],
+  }));
 }
 
 function maxNullable(a: number | null, b: number | null): number | null {

@@ -7,6 +7,7 @@ import {
   resolveMockSymbolForUrl,
   substituteMockSymbol,
 } from "../broker/mock/mock-discovery-fixtures";
+import { safeJsonParse } from "../infra/safe-json-parse";
 
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_CONTENT_CHARS = 8000;
@@ -123,11 +124,8 @@ function stripHtml(html: string): string {
 
 function normalizeContent(raw: string, contentType: string): string {
   if (contentType.includes("application/json")) {
-    try {
-      return JSON.stringify(JSON.parse(raw), null, 2);
-    } catch {
-      return raw.trim();
-    }
+    const parsed = safeJsonParse(raw, undefined, "fetch-url-tool.normalize");
+    return parsed == null ? raw.trim() : JSON.stringify(parsed, null, 2);
   }
   if (contentType.includes("text/plain")) {
     return raw.trim();

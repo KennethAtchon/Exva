@@ -6,6 +6,7 @@ import {
   SectionHeader,
   StatTile,
 } from "@/components/ui/primitives";
+import { PanelLoading } from "@/components/ui/skeleton";
 import { fmt } from "@/lib/formatters";
 import { formatIpcError } from "@/lib/ipc-error";
 import { api } from "@/lib/exva";
@@ -49,7 +50,7 @@ export const CostBreakdownPage = () => {
   }
 
   if (isPending || !d || !stats) {
-    return <div className="font-sans text-body text-text3">Loading…</div>;
+    return <PanelLoading />;
   }
 
   const budget = stats.api_budget;

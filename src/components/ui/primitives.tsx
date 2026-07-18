@@ -2,7 +2,27 @@ import type { ReactNode } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { fmt } from "@/lib/formatters";
+import { formatPnl, formatCurrency } from "@/lib/format";
+
+/** Compact uppercase section label (formerly custom-ui `SectionTitle`). */
+export function SectionTitle({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <h2
+      className={cn(
+        "m-0 font-mono text-micro font-medium uppercase tracking-wider text-text3",
+        className,
+      )}
+    >
+      {children}
+    </h2>
+  );
+}
 
 export function SectionHeader({
   eyebrow,
@@ -67,30 +87,64 @@ export function StatTile({
 
 export function EmptyState({
   icon,
+  title,
   message,
+  action,
   actionLabel,
   onAction,
   className,
+  centered = false,
 }: {
   icon?: ReactNode;
-  message: string;
+  title?: string;
+  message?: string;
+  action?: ReactNode;
   actionLabel?: string;
   onAction?: () => void;
   className?: string;
+  /** Centered hub-style empty state (no card border). */
+  centered?: boolean;
 }) {
+  const actionNode =
+    action ??
+    (actionLabel && onAction ? (
+      <Button size="sm" variant="secondary" onClick={onAction}>
+        {actionLabel}
+      </Button>
+    ) : null);
+
   return (
     <div
       className={cn(
-        "flex flex-col items-start gap-3 rounded-sm border border-border bg-surface p-6",
+        centered
+          ? "flex flex-col items-center justify-center px-6 py-12 text-center"
+          : "flex flex-col items-start gap-3 rounded-sm border border-border bg-surface p-6",
         className,
       )}
     >
       {icon ? <div className="text-text3">{icon}</div> : null}
-      <p className="max-w-md font-sans text-body text-text2">{message}</p>
-      {actionLabel && onAction ? (
-        <Button size="sm" variant="secondary" onClick={onAction}>
-          {actionLabel}
-        </Button>
+      {title ? (
+        <div
+          className={cn(
+            "font-sans text-head text-text1",
+            centered ? "mb-2" : undefined,
+          )}
+        >
+          {title}
+        </div>
+      ) : null}
+      {message ? (
+        <p
+          className={cn(
+            "max-w-md font-sans text-body text-text2",
+            centered && "mx-auto mb-0 leading-relaxed",
+          )}
+        >
+          {message}
+        </p>
+      ) : null}
+      {actionNode ? (
+        <div className={cn(centered && "mt-4")}>{actionNode}</div>
       ) : null}
     </div>
   );
@@ -127,7 +181,9 @@ export function PnL({
   }
   const positive = value > 0;
   const negative = value < 0;
-  const formatted = showSign ? fmt.pnl(value) : fmt.usd(Math.abs(value));
+  const formatted = showSign
+    ? formatPnl(value)
+    : formatCurrency(Math.abs(value));
   return (
     <span
       className={cn(

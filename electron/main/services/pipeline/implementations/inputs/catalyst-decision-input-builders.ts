@@ -7,6 +7,7 @@ import {
   catalystAnalystOutputSchema,
   type CatalystAnalystOutput,
 } from "../../../signals/aggregators/catalyst-two-call-aggregator";
+import { safeJsonParse } from "../../../infra/safe-json-parse";
 
 function syntheticDecisionRun(
   sessionId: string,
@@ -54,8 +55,8 @@ function syntheticDecisionRun(
 function parseAnalystFromFundamental(
   rawSummary: string,
 ): CatalystAnalystOutput {
-  const parsed = JSON.parse(rawSummary) as Record<string, unknown>;
-  if (parsed.kind !== "catalyst-analyst") {
+  const parsed = safeJsonParse<Record<string, unknown>>(rawSummary);
+  if (!parsed || parsed.kind !== "catalyst-analyst") {
     throw new Error(
       "Expected catalyst-analyst payload in fundamental rawSummary.",
     );

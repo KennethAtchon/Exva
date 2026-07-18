@@ -7,6 +7,7 @@ import {
   SectionHeader,
   Switch,
 } from "@/components/ui";
+import { confirm } from "@/components/ui/confirm-dialog";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { AiPhasesSection } from "@/components/strategy/AiPhasesSection";
 import { CostSummaryCard } from "@/components/strategy/CostSummaryCard";
@@ -104,13 +105,14 @@ const LockedWarning = ({
           variant="destructive"
           size="sm"
           onClick={async () => {
-            if (
-              !window.confirm(
+            const ok = await confirm({
+              title: "Force stop session?",
+              description:
                 "Force stop will end automated exit management for open positions. Continue?",
-              )
-            ) {
-              return;
-            }
+              confirmLabel: "Force stop",
+              variant: "destructive",
+            });
+            if (!ok) return;
             const next = await api.forceStopSession();
             setSessionStatus(next);
             await loadStrategy(focusedSessionId);
@@ -283,7 +285,13 @@ const PresetPanel = ({
       });
     }}
     onDeletePreset={async (id) => {
-      if (!window.confirm("Delete this preset?")) return;
+      const ok = await confirm({
+        title: "Delete this preset?",
+        description: "This cannot be undone.",
+        confirmLabel: "Delete",
+        variant: "destructive",
+      });
+      if (!ok) return;
       await api.deleteStrategyConfigPreset({ id });
       await loadGlobalPresets();
     }}

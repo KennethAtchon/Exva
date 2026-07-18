@@ -268,7 +268,11 @@ function isWeekendGap(prevIso: string, curIso: string): boolean {
   const curDay = cur.getUTCDay();
   const deltaMs = cur.getTime() - prev.getTime();
   // Fri → Mon (~3d) or Fri → Tue holiday-ish up to 4d
-  if (prevDay === 5 && (curDay === 1 || curDay === 2) && deltaMs <= 4.5 * DAY_MS) {
+  if (
+    prevDay === 5 &&
+    (curDay === 1 || curDay === 2) &&
+    deltaMs <= 4.5 * DAY_MS
+  ) {
     return true;
   }
   // Thu → Mon (holiday Friday)

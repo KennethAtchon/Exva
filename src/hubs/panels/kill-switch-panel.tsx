@@ -4,6 +4,9 @@ import { formatIpcError } from "@/lib/ipc-error";
 import { HubPane, HubQueryError } from "@/hubs/dna";
 import { Button, Input } from "@/components/ui";
 import { Badge } from "@/components/custom-ui";
+import { EmptyState } from "@/components/ui/primitives";
+import { PanelLoading } from "@/components/ui/skeleton";
+import { formatPercent } from "@/lib/format";
 import { fmt } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +33,7 @@ export function KillSwitchPanel() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(() => {
     void api
@@ -41,7 +45,8 @@ export function KillSwitchPanel() {
       .catch((err) => {
         setLoadError(formatIpcError(err).display);
         setGauges([]);
-      });
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -85,6 +90,9 @@ export function KillSwitchPanel() {
         ) : null}
         {message ? (
           <div className="font-mono text-micro text-text2">{message}</div>
+        ) : null}
+        {loading && gauges.length === 0 && !loadError ? (
+          <PanelLoading className="p-0" />
         ) : null}
         <ul className="m-0 list-none divide-y divide-border p-0">
           {gauges.map((g) => {
@@ -132,7 +140,7 @@ export function KillSwitchPanel() {
                     <GaugeBar
                       label="DD"
                       pct={ddPct}
-                      value={`${(g.drawdownFraction * 100).toFixed(1)}%`}
+                      value={formatPercent(g.drawdownFraction, 1)}
                     />
                   </div>
                 </div>
@@ -155,9 +163,13 @@ export function KillSwitchPanel() {
               </li>
             );
           })}
-          {gauges.length === 0 ? (
-            <li className="px-1 py-4 text-caption text-text3">
-              No sessions to monitor.
+          {!loading && gauges.length === 0 && !loadError ? (
+            <li className="list-none px-0 py-2">
+              <EmptyState
+                title="No sessions to monitor"
+                message="Start or resume a session to see kill-switch gauges here."
+                className="border-0 bg-transparent p-2"
+              />
             </li>
           ) : null}
         </ul>

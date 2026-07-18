@@ -11,6 +11,7 @@ import type {
 import { executeRunAgent } from "./run-agent-execute";
 import { buildOpenRouterReasoningOptions } from "./reasoning-options";
 import type { LLMCallTrace } from "../llm-types";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 
 function readUsage(
   usage:
@@ -51,12 +52,14 @@ export class OpenRouterAdapter implements ProviderAdapter {
     if (reasoning) {
       opts.fetch = async (url, init) => {
         if (init?.body && typeof init.body === "string") {
-          try {
-            const body = JSON.parse(init.body) as Record<string, unknown>;
+          const body = safeJsonParse<Record<string, unknown>>(
+            init.body,
+            undefined,
+            "openrouter-adapter.fetch.body",
+          );
+          if (body) {
             body.reasoning = reasoning;
             return fetch(url, { ...init, body: JSON.stringify(body) });
-          } catch {
-            // Fall through to the default fetch if the body is not JSON.
           }
         }
         return fetch(url, init);
@@ -91,6 +94,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
       schema: opts.schema,
       terminalToolNames: opts.terminalToolNames,
       prepareStep: opts.prepareStep,
+      onTextDelta: opts.onTextDelta,
     });
   }
 

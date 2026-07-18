@@ -16,6 +16,7 @@ import {
 } from "@electron/shared/quant/prediction-edge";
 import { requireExperience } from "../../../../experiences/index";
 import { createLogger } from "../../../infra/log";
+import { safeJsonParse } from "../../../infra/safe-json-parse";
 import { kalshiDefaultCommissionBps } from "@electron/shared/quant/kalshi-fees";
 
 const logger = createLogger("prediction-edge-input");
@@ -83,11 +84,7 @@ function syntheticDecisionRun(signal: TradeSignal): LLMRunResult<TradeSignal> {
 
 function parseMetadata(json: string | null | undefined): PredictionMetadata {
   if (!json) return {};
-  try {
-    return JSON.parse(json) as PredictionMetadata;
-  } catch {
-    return {};
-  }
+  return safeJsonParse<PredictionMetadata>(json) ?? {};
 }
 
 function hoursToResolution(
@@ -160,15 +157,10 @@ export const predictionEdgeInputBuilder: EngineInputBuilder = {
         const base = requireExperience(ctx.session.experienceId)
           .researchContract.costs;
         // Kalshi venue: inject schedule fee when commission is unset / zero.
-        let venue = "";
-        try {
-          venue = String(
-            JSON.parse(ctx.instrument.instrumentMetadataJson ?? "{}")?.venue ??
-              "",
-          ).toLowerCase();
-        } catch {
-          venue = "";
-        }
+        const meta = safeJsonParse<{ venue?: unknown }>(
+          ctx.instrument.instrumentMetadataJson ?? "{}",
+        );
+        const venue = String(meta?.venue ?? "").toLowerCase();
         if (venue === "kalshi" && (base.commissionBps ?? 0) === 0) {
           return {
             ...base,

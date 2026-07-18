@@ -5,6 +5,7 @@ import {
   hashSelectorDefinition,
 } from "../pipeline/engines/cache/selector-instrument-cache";
 import type { OrchestratorDeps } from "../session/session-types";
+import { safeJsonParse } from "../infra/safe-json-parse";
 
 export type InstrumentCacheView = {
   instruments: Array<{ symbol: string; instrumentClass: string }> | null;
@@ -31,11 +32,11 @@ export class InstrumentCacheService {
         definitionHashMatches: true,
       };
     }
+    const instruments = safeJsonParse<
+      Array<{ symbol: string; instrumentClass: string }>
+    >(row.instruments, undefined, "instrument-cache-service");
     return {
-      instruments: JSON.parse(row.instruments) as Array<{
-        symbol: string;
-        instrumentClass: string;
-      }>,
+      instruments: Array.isArray(instruments) ? instruments : null,
       selectedAt: row.selectedAt,
       definitionHashMatches: row.definitionHash === currentHash,
     };

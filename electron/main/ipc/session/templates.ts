@@ -11,49 +11,66 @@ import { sessionTemplatePayloadSchema } from "@electron/shared/validation/schema
 import type { AppServices } from "../../services/app-services";
 import { assertSessionInWorkspaceEnvironment } from "../environment-guards";
 import { handle } from "../handle";
+import { safeJsonParse } from "../../services/infra/safe-json-parse";
 
 const idSchema = z.object({ id: z.string().min(1) });
+const sessionIdSchema = z.object({ sessionId: z.string().min(1) });
 
 export function registerTemplateHandlers(services: AppServices): void {
-  handle(ipcMain, channels.templates.list, async (payload) => {
-    const filters = templateListFiltersSchema.parse(payload) ?? {};
-    const prefs = services.repos.workspacePreferences.get();
-    const requiredMode = executionModeForEnvironment(
-      prefs.globalEnvironmentMode,
-    );
-    const templates = services.sessionTemplates.list(filters).filter((item) => {
-      const row = services.repos.sessionTemplates.get(item.id);
-      if (!row) return false;
-      const parsed = sessionTemplatePayloadSchema.safeParse(
-        JSON.parse(row.templatePayloadJson),
+  handle(
+    ipcMain,
+    channels.templates.list,
+    templateListFiltersSchema,
+    async (filters) => {
+      const prefs = services.repos.workspacePreferences.get();
+      const requiredMode = executionModeForEnvironment(
+        prefs.globalEnvironmentMode,
       );
-      return (
-        parsed.success && parsed.data.identity.executionMode === requiredMode
-      );
-    });
-    return { templates };
-  });
+      const templates = services.sessionTemplates
+        .list(filters ?? {})
+        .filter((item) => {
+          const row = services.repos.sessionTemplates.get(item.id);
+          if (!row) return false;
+          const templatePayload = safeJsonParse(
+            row.templatePayloadJson,
+            undefined,
+            "templates.list.payload",
+          );
+          if (templatePayload == null) return false;
+          const parsed =
+            sessionTemplatePayloadSchema.safeParse(templatePayload);
+          return (
+            parsed.success &&
+            parsed.data.identity.executionMode === requiredMode
+          );
+        });
+      return { templates };
+    },
+  );
 
-  handle(ipcMain, channels.templates.create, async (payload) => {
-    const input = templateCreateInputSchema.parse(payload);
-    return services.sessionTemplates.create(input);
-  });
+  handle(
+    ipcMain,
+    channels.templates.create,
+    templateCreateInputSchema,
+    async (input) => services.sessionTemplates.create(input),
+  );
 
-  handle(ipcMain, channels.templates.delete, async (payload) => {
-    const { id } = idSchema.parse(payload);
+  handle(ipcMain, channels.templates.delete, idSchema, async ({ id }) => {
     services.sessionTemplates.delete(id);
     return { deleted: true as const };
   });
 
-  handle(ipcMain, channels.templates.use, async (payload) => {
-    const { id } = idSchema.parse(payload);
+  handle(ipcMain, channels.templates.use, idSchema, async ({ id }) => {
     const row = services.repos.sessionTemplates.get(id);
     if (!row) {
       throw new AppError(`Template ${id} was not found`, "NOT_FOUND", { id });
     }
-    const parsed = sessionTemplatePayloadSchema.safeParse(
-      JSON.parse(row.templatePayloadJson),
+    const templatePayload = safeJsonParse(
+      row.templatePayloadJson,
+      undefined,
+      "templates.use.payload",
     );
+    const parsed = sessionTemplatePayloadSchema.safeParse(templatePayload);
     const prefs = services.repos.workspacePreferences.get();
     const requiredMode = executionModeForEnvironment(
       prefs.globalEnvironmentMode,
@@ -74,13 +91,10 @@ export function registerTemplateHandlers(services: AppServices): void {
   handle(
     ipcMain,
     channels.templates.buildPayloadFromSession,
-    async (payload) => {
-      const { sessionId } = z
-        .object({ sessionId: z.string().min(1) })
-        .parse(payload);
+    sessionIdSchema,
+    async ({ sessionId }) => {
       assertSessionInWorkspaceEnvironment(services, sessionId);
       return services.sessionTemplates.buildPayloadFromSession(sessionId);
     },
   );
-  void AppError;
 }

@@ -1,6 +1,8 @@
 import type { z } from "zod";
+import type { CapabilityRisk } from "@electron/shared/domain/control";
 import type { AppServices } from "../app-services";
 
+export type { CapabilityRisk };
 export type CapabilityKind = "read" | "mutating";
 
 export interface CapabilityContext {
@@ -18,8 +20,11 @@ export interface Capability<Input = unknown> {
   kind: CapabilityKind;
   /** For mutating caps: class key used by the "don't ask again" opt-in. */
   confirmClass?: string;
-  /** Forces confirmation even when the class was auto-approved (trades, live broker). */
-  alwaysConfirm?: boolean;
+  /**
+   * Forces confirmation even when the class was auto-approved (trades, live broker).
+   * May be a predicate when the gate depends on input (e.g. approve vs reject).
+   */
+  alwaysConfirm?: boolean | ((input: Input, services: AppServices) => boolean);
   /** Fed to the model. */
   description: string;
   inputSchema: z.ZodType<Input>;
@@ -27,8 +32,8 @@ export interface Capability<Input = unknown> {
   describe(input: Input, services: AppServices): string;
   /** Marks the touched entity for the audit log, e.g. `session:${input.id}`. */
   affectedEntity?(input: Input): string | null;
-  /** Optional risk note (e.g. live-broker warning) shown on the ConfirmationCard. */
-  risk?(input: Input, services: AppServices): string | null;
+  /** Optional structured risk (live/normal) shown on the ConfirmationCard. */
+  risk?(input: Input, services: AppServices): CapabilityRisk | null;
   /** Delegates to existing AppServices methods — never reaches into the DB directly. */
   execute(
     input: Input,

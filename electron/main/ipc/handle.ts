@@ -1,15 +1,16 @@
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { BrowserWindow } from "electron";
-import { toIpcError } from "@shared/infra/errors";
+import { AppError, toIpcError } from "@shared/infra/errors";
+import type { z } from "zod";
 import { createLogger } from "../services/infra/log";
 import { payloadMeta } from "../services/infra/log-safety";
 
 const logger = createLogger("ipc");
 
-type Handler<T> = (
-  payload: unknown,
+type Handler<TIn, TOut> = (
+  payload: TIn,
   event: IpcMainInvokeEvent,
-) => Promise<T> | T;
+) => Promise<TOut> | TOut;
 
 /**
  * Verify the IPC invocation came from our own renderer window — not from a
@@ -27,10 +28,15 @@ function isTrustedSender(event: IpcMainInvokeEvent): boolean {
   return ownedByWindow;
 }
 
-export function handle<T>(
+/**
+ * Register an IPC invoke handler with Zod payload validation at the boundary.
+ * Schema is required so new channels cannot forget validation.
+ */
+export function handle<TSchema extends z.ZodType, TOut>(
   ipcMain: IpcMain,
   channel: string,
-  handler: Handler<T>,
+  schema: TSchema,
+  handler: Handler<z.infer<TSchema>, TOut>,
 ): void {
   ipcMain.handle(channel, async (event, payload) => {
     if (!isTrustedSender(event)) {
@@ -54,7 +60,17 @@ export function handle<T>(
       "ipc invoke start",
     );
     try {
-      const result = await handler(payload, event);
+      const parsed = schema.safeParse(payload);
+      if (!parsed.success) {
+        throw new AppError("Invalid IPC payload", "INVALID_PAYLOAD", {
+          channel,
+          issues: parsed.error.issues.map((issue) => ({
+            path: issue.path.join("."),
+            message: issue.message,
+          })),
+        });
+      }
+      const result = await handler(parsed.data, event);
       logger.debug(
         { channel, durationMs: Date.now() - startedAt },
         "ipc invoke success",

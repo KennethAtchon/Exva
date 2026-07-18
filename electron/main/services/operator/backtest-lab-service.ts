@@ -14,6 +14,7 @@ import {
 } from "../backtest/replay-engine";
 import { getStrategyDefinitionRegistry } from "../strategies";
 import { requireExperience } from "../../experiences";
+import { safeJsonParse } from "../infra/safe-json-parse";
 
 export interface BacktestLabRunInput {
   experienceId: string;
@@ -216,7 +217,7 @@ export class BacktestLabService {
   }> {
     const original = this.deps.backtestRuns.getById(runId);
     if (!original) throw new Error(`backtest run not found: ${runId}`);
-    let spec: {
+    const spec = safeJsonParse<{
       folds: number;
       foldConfig?: FoldConfig;
       strategyId: string;
@@ -224,21 +225,21 @@ export class BacktestLabService {
       symbols: string[];
       timeframe: TradingTimeframe;
       exitPolicy?: ExitPolicyConfig;
-    };
-    try {
-      spec = JSON.parse(original.foldConfigJson) as typeof spec;
-    } catch {
+    }>(original.foldConfigJson, undefined, "backtest-lab.foldConfig");
+    if (!spec) {
       throw new Error(`backtest run ${runId} has invalid foldConfigJson`);
     }
     if (!spec.strategyId || !spec.symbols?.length || !spec.timeframe) {
-      throw new Error(`backtest run ${runId} foldConfigJson missing required fields`);
+      throw new Error(
+        `backtest run ${runId} foldConfigJson missing required fields`,
+      );
     }
-    let costs: Partial<BacktestCosts> | undefined;
-    try {
-      costs = JSON.parse(original.costModelJson) as Partial<BacktestCosts>;
-    } catch {
-      costs = undefined;
-    }
+    const costs =
+      safeJsonParse<Partial<BacktestCosts>>(
+        original.costModelJson,
+        undefined,
+        "backtest-lab.costModel",
+      ) ?? undefined;
     const { run, result } = await this.run({
       experienceId: original.experienceId,
       strategyId: spec.strategyId,
@@ -269,11 +270,13 @@ export class BacktestLabService {
       .map((id) => this.deps.backtestRuns.getById(id))
       .filter((r): r is BacktestRun => r != null);
     const metrics = runs.map((r) => {
-      try {
-        return JSON.parse(r.metricsJson) as Record<string, unknown>;
-      } catch {
-        return {};
-      }
+      return (
+        safeJsonParse<Record<string, unknown>>(
+          r.metricsJson,
+          undefined,
+          "backtest-lab.metrics",
+        ) ?? {}
+      );
     });
     const hashMatches = runs.map((r, i) => {
       const m = metrics[i];

@@ -166,6 +166,7 @@ import { AlphaSourceScanService } from "./signals/alpha-source-scan-service";
 import type { ExperienceTemplateService } from "./experience-catalog/experience-template-service";
 import { INPUT_PROFILE_IDS } from "./experience-catalog/input-profile-seeds";
 import { TEMPLATE_IDS } from "./experience-catalog/experience-template-seeds";
+import { safeJsonParse } from "./infra/safe-json-parse";
 
 export interface AppServices {
   /** Shared deps shape for IPC helpers (e.g. instrument cache fingerprint). */
@@ -214,6 +215,8 @@ export interface AppServices {
   brokerBalanceCache: BrokerBalanceCacheService;
   brokerAllocationGate: BrokerAllocationGate;
   balanceTicker: BrokerBalanceTicker;
+  /** Stop interval tickers (balance / label / drift). Wired into ShutdownCoordinator. */
+  stopBackgroundTickers: () => void;
   capitalReservation: CapitalReservationService;
   eventBus: EventBus;
   notifications: NotificationService;
@@ -565,6 +568,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
   // reason: forward reference — createTradeMonitor closure reads runtimeManager before it's assigned below
   // eslint-disable-next-line prefer-const
   let runtimeManager: SessionRuntimeManager;
+  // reason: killSwitch is constructed after orchestrator deps; order path reads via this ref
+  let killSwitchRef: KillSwitchService | null = null;
   const orchestratorDepsBase: OrchestratorDeps = {
     sessionRepo: repos.session,
     strategyContextService: strategyContext,
@@ -600,6 +605,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     signalSourcesRepo,
     calendarEventsRepo,
     supervisor,
+    isOrderHalted: () => killSwitchRef?.isHalted() ?? false,
   };
 
   const runtimeManagerDeps: SessionRuntimeManagerDeps = {
@@ -770,6 +776,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     preflight: runPreflight,
     orchestratorDeps: orchestratorDepsBase,
     liveReadiness,
+    clearOrderHalt: () => killSwitchRef?.clearHalt(),
   });
   pauseSessionForSupervisor = async (sessionId, reason) => {
     const status = repos.session.getStatus(sessionId);
@@ -846,6 +853,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerRouting,
     eventBus,
     instrumentNormalizer,
+    () => killSwitchRef?.isHalted() ?? false,
   );
 
   // -------------------------------------------------------------------------
@@ -1108,6 +1116,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
       });
     },
   });
+  killSwitchRef = killSwitch;
 
   const prevSendDigest = nightlyResearch.sendDigest;
   nightlyResearch.sendDigest = (summary) => {
@@ -1135,6 +1144,11 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerBalanceCache,
     brokerAllocationGate,
     balanceTicker,
+    stopBackgroundTickers: () => {
+      balanceTicker.stop();
+      labelBuilderTicker.stop();
+      driftMonitorTicker.stop();
+    },
     capitalReservation,
     eventBus,
     notifications,
@@ -1231,15 +1245,11 @@ function extractPredictedProbability(
   decisionJson: string | null,
 ): number | null {
   if (!decisionJson) return null;
-  try {
-    const parsed = JSON.parse(decisionJson) as {
-      edge?: { predictedProbability?: number | null };
-    };
-    const p = parsed.edge?.predictedProbability;
-    return typeof p === "number" && Number.isFinite(p) ? p : null;
-  } catch {
-    return null;
-  }
+  const parsed = safeJsonParse<{
+    edge?: { predictedProbability?: number | null };
+  }>(decisionJson, undefined, "app-services.decisionJson");
+  const p = parsed?.edge?.predictedProbability;
+  return typeof p === "number" && Number.isFinite(p) ? p : null;
 }
 
 async function seedEnvBackedAccountSecrets(

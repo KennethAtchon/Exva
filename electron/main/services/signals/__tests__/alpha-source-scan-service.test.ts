@@ -25,6 +25,9 @@ describe("AlphaSourceScanService", () => {
       });
     }
 
+    // Relative to now — cluster scan uses a 7-day as-of window.
+    const form4FiledA = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const form4FiledB = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000);
     form4Transactions.upsert({
       accessionNumber: "a1",
       cik: "1",
@@ -37,8 +40,8 @@ describe("AlphaSourceScanService", () => {
       pricePerShare: 20,
       totalValueUsd: 200_000,
       isOpenMarketBuy: true,
-      filedAt: "2026-07-10T12:00:00.000Z",
-      transactionDate: "2026-07-09",
+      filedAt: form4FiledA.toISOString(),
+      transactionDate: form4FiledA.toISOString().slice(0, 10),
       documentUrl: null,
     });
     form4Transactions.upsert({
@@ -53,8 +56,8 @@ describe("AlphaSourceScanService", () => {
       pricePerShare: 21,
       totalValueUsd: 168_000,
       isOpenMarketBuy: true,
-      filedAt: "2026-07-11T12:00:00.000Z",
-      transactionDate: "2026-07-10",
+      filedAt: form4FiledB.toISOString(),
+      transactionDate: form4FiledB.toISOString().slice(0, 10),
       documentUrl: null,
     });
 

@@ -12,7 +12,9 @@ import {
   DialogTitle,
   Input,
 } from "@/components/ui";
+import { PanelLoading } from "@/components/ui/skeleton";
 import { api } from "@/lib/exva";
+import { formatCurrency, formatFixed, formatPercent } from "@/lib/format";
 import { fmt } from "@/lib/formatters";
 import type {
   AutopsyLesson,
@@ -138,7 +140,7 @@ function ExportMenu({
             className="fixed inset-0 z-40"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute right-0 z-50 mt-2 min-w-[180px] rounded-xl border border-border bg-card p-1 shadow-xl">
+          <div className="absolute right-0 z-50 mt-2 min-w-[180px] rounded-xl border border-border bg-surface2 p-1 shadow-xl">
             {(
               [
                 ["Markdown (.md)", "markdown"],
@@ -207,7 +209,7 @@ function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-[14px] border border-border bg-card">
+    <div className="rounded-[14px] border border-border bg-surface2">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
@@ -296,7 +298,7 @@ export function PeriodAutopsyPage({
       ? "Global"
       : `Session: ${sessions.find((item) => item.id === sessionId)?.name ?? "Select session"}`;
 
-  const { data: autopsiesData } = useQuery({
+  const { data: autopsiesData, isLoading: autopsiesLoading } = useQuery({
     queryKey: ["period-autopsies", scope, sessionId],
     queryFn: () =>
       api.listPeriodAutopsies({
@@ -595,7 +597,7 @@ export function PeriodAutopsyPage({
               {previewQuery.data ? (
                 <HelpTooltip
                   topic="Run period autopsy"
-                  body={`Estimated model cost for this run: about $${previewQuery.data.estimatedCostUsd.toFixed(2)}.`}
+                  body={`Estimated model cost for this run: about ${formatCurrency(previewQuery.data.estimatedCostUsd)}.`}
                 />
               ) : null}
             </div>
@@ -860,7 +862,7 @@ export function PeriodAutopsyPage({
                 </select>
                 <div className="text-xs text-text3">
                   {previewQuery.data
-                    ? `${previewQuery.data.tradeCount} trades · ~$${previewQuery.data.estimatedCostUsd.toFixed(2)} est.`
+                    ? `${previewQuery.data.tradeCount} trades · ~${formatCurrency(previewQuery.data.estimatedCostUsd)} est.`
                     : "Preview unavailable."}
                 </div>
               </div>
@@ -897,8 +899,10 @@ export function PeriodAutopsyPage({
               </div>
             ) : null}
 
-            {!selectedAutopsy ? (
-              <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[20px] border border-dashed border-border bg-card px-8 text-center">
+            {autopsiesLoading && !selectedAutopsy ? (
+              <PanelLoading className="min-h-[360px]" rows={5} />
+            ) : !selectedAutopsy ? (
+              <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[20px] border border-dashed border-border bg-surface2 px-8 text-center">
                 <div className="text-4xl opacity-30">⚕</div>
                 <div className="mt-4 text-xl font-semibold text-text1">
                   No period autopsy yet for {scopeLabel}.
@@ -916,7 +920,7 @@ export function PeriodAutopsyPage({
               </div>
             ) : parsed ? (
               <>
-                <div className="rounded-[14px] border border-border bg-card px-4 py-4">
+                <div className="rounded-[14px] border border-border bg-surface2 px-4 py-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <div className="text-sm text-text2">
@@ -948,7 +952,7 @@ export function PeriodAutopsyPage({
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <VerdictCard
                     label="Win rate"
-                    value={`${(parsed.performancePatterns.winRate * 100).toFixed(1)}%`}
+                    value={formatPercent(parsed.performancePatterns.winRate, 1)}
                   />
                   <VerdictCard
                     label="Trades"
@@ -985,7 +989,7 @@ export function PeriodAutopsyPage({
                       <span className="rounded-sm border border-border bg-surface2 px-2 py-0.5 font-mono text-micro text-text2">
                         {selectedAutopsy.qualityGrade}
                         {selectedAutopsy.qualityScore != null
-                          ? ` · ${selectedAutopsy.qualityScore.toFixed(0)}`
+                          ? ` · ${formatFixed(selectedAutopsy.qualityScore, 0)}`
                           : ""}
                       </span>
                     ) : null}
@@ -1126,14 +1130,14 @@ export function PeriodAutopsyPage({
                 </Section>
               </>
             ) : (
-              <div className="rounded-[14px] border border-border bg-card px-4 py-4 text-sm text-text2">
+              <div className="rounded-[14px] border border-border bg-surface2 px-4 py-4 text-sm text-text2">
                 Structured results were unavailable for this autopsy version.
               </div>
             )}
           </div>
 
           <div className="w-full shrink-0 space-y-4 xl:sticky xl:top-24 xl:w-[320px]">
-            <div className="rounded-[14px] border border-border bg-card px-4 py-4">
+            <div className="rounded-[14px] border border-border bg-surface2 px-4 py-4">
               <div className="mb-3 text-sm font-semibold text-text1">
                 Scope Summary
               </div>
@@ -1175,7 +1179,7 @@ export function PeriodAutopsyPage({
               />
             </div>
 
-            <div className="rounded-[14px] border border-border bg-card px-4 py-4">
+            <div className="rounded-[14px] border border-border bg-surface2 px-4 py-4">
               <div className="mb-3 text-sm font-semibold text-text1">
                 Past Autopsies
               </div>
@@ -1220,7 +1224,7 @@ export function PeriodAutopsyPage({
             className="flex-1"
             onClick={() => setHistoryOpen(false)}
           />
-          <div className="h-full w-[min(420px,100vw)] overflow-auto border-l border-border bg-card px-5 py-5">
+          <div className="h-full w-[min(420px,100vw)] overflow-auto border-l border-border bg-surface2 px-5 py-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <div className="text-lg font-semibold text-text1">
@@ -1276,11 +1280,11 @@ export function PeriodAutopsyPage({
       ) : null}
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent className="border-border bg-card">
+        <DialogContent className="border-border bg-surface2">
           <DialogHeader>
             <DialogTitle>
-              Estimated cost: $
-              {previewQuery.data?.estimatedCostUsd.toFixed(2) ?? "0.00"}.
+              Estimated cost:{" "}
+              {formatCurrency(previewQuery.data?.estimatedCostUsd ?? 0)}.
               Proceed?
             </DialogTitle>
             <DialogDescription>

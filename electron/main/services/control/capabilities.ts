@@ -3,39 +3,85 @@ import { sessionCreateInputSchema } from "@electron/shared/validation/schemas";
 import type { AppServices } from "../app-services";
 import { runWithProviderCallScopeAsync } from "../infra/provider-call-log";
 import { defineCapability, type Capability } from "./capability";
-
-const CONFIRM_CLASS = {
-  sessionLifecycle: "session_lifecycle",
-  strategyWrite: "strategy_write",
-  signalWrite: "signal_write",
-  tradeExecution: "trade_execution",
-  autopsy: "autopsy",
-} as const;
-
-function resolveSession(services: AppServices, ref: string) {
-  const sessions = services.repos.session.list({ includeArchived: true });
-  const byId = sessions.find((s) => s.id === ref);
-  if (byId) return byId;
-  const lower = ref.trim().toLowerCase();
-  const byName = sessions.find((s) => s.name.toLowerCase() === lower);
-  if (byName) return byName;
-  const partial = sessions.filter((s) => s.name.toLowerCase().includes(lower));
-  if (partial.length === 1) return partial[0];
-  throw new Error(
-    partial.length > 1
-      ? `Ambiguous session "${ref}" — matches ${partial.map((s) => s.name).join(", ")}.`
-      : `No session matching "${ref}".`,
-  );
-}
-
-const OPEN_TRADE_STATUSES = new Set(["open", "pending"]);
-
-const sessionRefSchema = z.object({
-  session: z
-    .string()
-    .min(1)
-    .describe("Session id or name (partial name allowed)."),
-});
+import {
+  decideApprovalCap,
+  listPendingApprovals,
+} from "./capabilities-approvals";
+import {
+  getBrokerRouting,
+  refreshBrokerBalance,
+  resetPaperBalance,
+  updateBrokerRouting,
+} from "./capabilities-brokers";
+import {
+  flattenAll,
+  getKillGauges,
+  killSession,
+  pauseAllSessions,
+} from "./capabilities-kill-switch";
+import {
+  createTemplate,
+  deleteTemplate,
+  getBacktest,
+  getDataCoverage,
+  getPeriodAutopsy,
+  getProviderHealth,
+  listAutopsyLessons,
+  listBacktests,
+  listPeriodAutopsies,
+  listTemplates,
+  promoteLesson,
+  runBackfill,
+  runBacktest,
+  useTemplate,
+} from "./capabilities-labs";
+import {
+  getCostBreakdown,
+  getDashboardStats,
+  getEquityCurve,
+  getLatestBriefing,
+  getTradeDetail,
+  listEvents,
+  listExperienceScorecards,
+  listExperiencesCap,
+} from "./capabilities-reads";
+import {
+  archiveSession,
+  clearFailedStep,
+  duplicateSession,
+  forceStopSession,
+  getExecutionProgress,
+  getLiveReadiness,
+  pauseAfterCurrentStep,
+  retryStep,
+  updateSession,
+} from "./capabilities-sessions";
+import {
+  createSignalSource,
+  deleteSignalSource,
+  listDeadLetters,
+  listSessionSignalEvents,
+  replayDeadLetter,
+  testSignalSource,
+  updateSignalSource,
+} from "./capabilities-signals";
+import {
+  applyStrategyPreset,
+  rollbackStrategyConfig,
+  saveAiSettings,
+  saveResearchPosture,
+  saveSelectorSettings,
+  saveTimeframeConfig,
+  saveTradeRules,
+  updateStrategyConfig,
+} from "./capabilities-strategy";
+import {
+  CONFIRM_CLASS,
+  emptyInputSchema,
+  OPEN_TRADE_STATUSES,
+  sessionRefSchema,
+} from "./capabilities-shared";
+import { resolveSession } from "./resolve-session";
 
 // --- Read capabilities ---
 
@@ -45,9 +91,7 @@ const listSessions = defineCapability<Record<string, never>>({
   kind: "read",
   description:
     "List all trading sessions with their status, experience, execution mode, and open trade count.",
-  inputSchema: z.object({}).strict() as unknown as z.ZodType<
-    Record<string, never>
-  >,
+  inputSchema: emptyInputSchema,
   describe: () => "List all sessions and their current status.",
   execute: (_input, services) => {
     const result = services.sessionListing.list({ includeArchived: false });
@@ -104,9 +148,7 @@ const listActiveTrades = defineCapability<Record<string, never>>({
   kind: "read",
   description:
     "List all open positions across sessions with symbol, side, notional, broker, and unrealized context.",
-  inputSchema: z.object({}).strict() as unknown as z.ZodType<
-    Record<string, never>
-  >,
+  inputSchema: emptyInputSchema,
   describe: () => "List all open trades and total open notional.",
   execute: (_input, services) => {
     const trades = services.repos.trades
@@ -152,9 +194,7 @@ const listSignalSources = defineCapability<Record<string, never>>({
   kind: "read",
   description:
     "List all signal sources with type, enabled state, runtime status, and how many sessions subscribe to each.",
-  inputSchema: z.object({}).strict() as unknown as z.ZodType<
-    Record<string, never>
-  >,
+  inputSchema: emptyInputSchema,
   describe: () => "List all signal sources and their enabled state.",
   execute: (_input, services) => ({ sources: services.signals.listSources() }),
 });
@@ -190,9 +230,7 @@ const listBrokers = defineCapability<Record<string, never>>({
   kind: "read",
   description:
     "List configured broker accounts with type, paper/live mode, and supported instrument classes.",
-  inputSchema: z.object({}).strict() as unknown as z.ZodType<
-    Record<string, never>
-  >,
+  inputSchema: emptyInputSchema,
   describe: () => "List configured broker accounts.",
   execute: (_input, services) =>
     services.repos.brokerAccounts.list().map((b) => ({
@@ -222,7 +260,10 @@ const createSession = defineCapability<
     `Create session "${input.name}" (${input.experienceId ?? "edgar-catalyst"}, ${input.executionMode}) with ${input.brokerAssignments.length} broker assignment(s).`,
   risk: (input) =>
     input.executionMode === "live_allowed"
-      ? "This session is configured for a LIVE broker account."
+      ? {
+          level: "live",
+          note: "This session is configured for a LIVE broker account.",
+        }
       : null,
   execute: (input, services) => services.sessionWrites.create(input),
 });
@@ -242,6 +283,34 @@ function lifecycleCapability(
     inputSchema: sessionRefSchema,
     describe: (input) => `${verb} session "${input.session}".`,
     affectedEntity: () => null,
+    risk: (input, services) => {
+      try {
+        const session = resolveSession(services, input.session);
+        if (session.executionMode === "live_allowed") {
+          return {
+            level: "live",
+            note: `This ${verb.toLowerCase()}s a session configured for a LIVE broker account.`,
+          };
+        }
+        const brokerIds =
+          services.repos.sessionBrokerAssignments.listBrokerAccountIds(
+            session.id,
+          );
+        if (brokerIds.length === 0) return null;
+        const brokers = services.repos.brokerAccounts.list();
+        const hasLive = brokerIds.some(
+          (id) => brokers.find((b) => b.id === id)?.mode === "live",
+        );
+        return hasLive
+          ? {
+              level: "live",
+              note: `This ${verb.toLowerCase()}s a session with a LIVE broker account assigned.`,
+            }
+          : null;
+      } catch {
+        return null;
+      }
+    },
     execute: async (input, services) => {
       const session = resolveSession(services, input.session);
       const status = await action(services, session.id);
@@ -357,7 +426,10 @@ const forceCloseTrade = defineCapability<{ tradeId: string }>({
         .list()
         .find((b) => b.id === trade.brokerAccountId);
       return broker?.mode === "live"
-        ? "This closes a position on a LIVE broker account."
+        ? {
+            level: "live",
+            note: "This closes a position on a LIVE broker account.",
+          }
         : null;
     } catch {
       return null;
@@ -435,7 +507,7 @@ const runPeriodAutopsy = defineCapability<{
 });
 
 export const CONTROL_CAPABILITIES: Capability<unknown>[] = [
-  // read
+  // read — core
   listSessions,
   getSessionStatus,
   listActiveTrades,
@@ -443,7 +515,32 @@ export const CONTROL_CAPABILITIES: Capability<unknown>[] = [
   listSignalSources,
   getSignalReadiness,
   listBrokers,
-  // mutating
+  // read — P0/P1/P2 parity
+  listPendingApprovals,
+  getKillGauges,
+  getDashboardStats,
+  getCostBreakdown,
+  getTradeDetail,
+  getEquityCurve,
+  getLatestBriefing,
+  listEvents,
+  listExperiencesCap,
+  listExperienceScorecards,
+  getExecutionProgress,
+  getLiveReadiness,
+  testSignalSource,
+  listSessionSignalEvents,
+  listDeadLetters,
+  listTemplates,
+  listBacktests,
+  getBacktest,
+  listPeriodAutopsies,
+  getPeriodAutopsy,
+  listAutopsyLessons,
+  getDataCoverage,
+  getProviderHealth,
+  getBrokerRouting,
+  // mutating — core
   createSession,
   startSession,
   pauseSession,
@@ -454,4 +551,41 @@ export const CONTROL_CAPABILITIES: Capability<unknown>[] = [
   disableSignalSource,
   forceCloseTrade,
   runPeriodAutopsy,
+  // mutating — P0
+  decideApprovalCap,
+  pauseAllSessions,
+  killSession,
+  flattenAll,
+  // mutating — P1 strategy
+  saveResearchPosture,
+  saveTradeRules,
+  saveTimeframeConfig,
+  saveAiSettings,
+  saveSelectorSettings,
+  updateStrategyConfig,
+  applyStrategyPreset,
+  rollbackStrategyConfig,
+  // mutating — P1 sessions
+  updateSession,
+  archiveSession,
+  duplicateSession,
+  forceStopSession,
+  retryStep,
+  clearFailedStep,
+  pauseAfterCurrentStep,
+  // mutating — P1 signals
+  createSignalSource,
+  updateSignalSource,
+  deleteSignalSource,
+  replayDeadLetter,
+  // mutating — P2
+  useTemplate,
+  createTemplate,
+  deleteTemplate,
+  runBacktest,
+  promoteLesson,
+  runBackfill,
+  refreshBrokerBalance,
+  resetPaperBalance,
+  updateBrokerRouting,
 ];

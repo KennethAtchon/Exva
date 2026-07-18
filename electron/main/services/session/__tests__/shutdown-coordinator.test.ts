@@ -52,4 +52,24 @@ describe("ShutdownCoordinator", () => {
     expect(stopSession).toHaveBeenCalledTimes(1);
     expect(closeDb).toHaveBeenCalledTimes(1);
   });
+
+  it("stops background services before closing the database", async () => {
+    const closeDb = vi.fn();
+    const stopBackgroundServices = vi.fn();
+    const coordinator = new ShutdownCoordinator(
+      {
+        listActive: () => [],
+        stopSession: vi.fn(),
+        shutdownAll: vi.fn(),
+      } as never,
+      { info: vi.fn(), error: vi.fn() } as never,
+      closeDb,
+      stopBackgroundServices,
+    );
+
+    await coordinator.shutdown();
+
+    expect(stopBackgroundServices).toHaveBeenCalledTimes(1);
+    expect(closeDb).toHaveBeenCalledTimes(1);
+  });
 });

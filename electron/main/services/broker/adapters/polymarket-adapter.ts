@@ -4,6 +4,7 @@ import { AppError } from "@electron/shared/infra/errors";
 import type { BrokerInteractionLogger } from "../broker-interaction-logger";
 import { traceBrokerInteraction } from "../broker-interaction-logger";
 import { createLogger } from "../../infra/log";
+import { requireJsonParse } from "../../infra/safe-json-parse";
 import {
   AssetType,
   ClobClient,
@@ -1251,7 +1252,11 @@ function parsePredictionMetadata(
     logger.error({ err }, "polymarket: order missing instrument metadata");
     throw err;
   }
-  const parsed = JSON.parse(raw) as Partial<PredictionInstrumentMetadata>;
+  const parsed = requireJsonParse<Partial<PredictionInstrumentMetadata>>(
+    raw,
+    undefined,
+    "Invalid prediction-market instrument metadata JSON",
+  );
   if (!parsed.conditionId || !parsed.outcomeTokenId) {
     const err = new AppError(
       "Prediction-market metadata must include conditionId and outcomeTokenId.",

@@ -5,6 +5,11 @@ import ccxt from "ccxt";
 import type { Balances, Order } from "ccxt";
 import { createLogger } from "../../infra/log";
 import type { BrokerInteractionLogger } from "../broker-interaction-logger";
+import {
+  brokerDataError,
+  requireFiniteNumber,
+  requirePositivePrice,
+} from "../broker-errors";
 import type {
   BrokerAdapter,
   BrokerOrder,
@@ -44,12 +49,27 @@ function brokerProductToCcxtSymbol(productId: string): string {
 }
 
 function quoteBalanceUsd(bal: Balances): number {
-  const pick = (code: string) => {
+  const pick = (code: string): number | null => {
     const row = bal[code];
-    if (!row || typeof row !== "object") return 0;
-    return Number((row as { total?: number }).total ?? 0);
+    if (!row || typeof row !== "object") return null;
+    // Explicit 0 is valid; missing/undefined total must not coerce to 0.
+    return requireFiniteNumber(
+      (row as { total?: unknown }).total,
+      `${code}.total`,
+      {
+        broker: "coinbase",
+      },
+    );
   };
-  return pick("USD") + pick("USDC");
+  const usd = pick("USD");
+  const usdc = pick("USDC");
+  if (usd === null && usdc === null) {
+    throw brokerDataError(
+      "Coinbase balance response missing USD and USDC totals",
+      { broker: "coinbase" },
+    );
+  }
+  return (usd ?? 0) + (usdc ?? 0);
 }
 
 /**
@@ -149,7 +169,11 @@ export class CoinbaseAdvancedTradeAdapter implements BrokerAdapter {
     const ex = this.getExchange();
     const symbol = brokerProductToCcxtSymbol(instrumentSymbol);
     const ticker = await ex.fetchTicker(symbol);
-    const price = Number(ticker.last ?? ticker.close ?? ticker.bid ?? 0);
+    const raw = ticker.last ?? ticker.close ?? ticker.bid;
+    const price = requirePositivePrice(raw, "ticker.price", {
+      broker: "coinbase",
+      symbol,
+    });
     return {
       instrumentSymbol,
       price,
@@ -191,30 +215,31 @@ export class CoinbaseAdvancedTradeAdapter implements BrokerAdapter {
     const symbol = brokerProductToCcxtSymbol(order.instrumentSymbol);
     await ex.loadMarkets();
 
-    let filledAvg = 0;
+    let filledAvg: number;
     let ccxtOrder: Order;
 
     try {
       if (order.side === "BUY") {
         ccxtOrder = await ex.createMarketBuyOrder(symbol, order.sizeUsd);
-        filledAvg = Number(ccxtOrder.average ?? ccxtOrder.price ?? 0);
+        filledAvg = requirePositivePrice(
+          ccxtOrder.average ?? ccxtOrder.price,
+          "order.filledAvgPrice",
+          { broker: "coinbase", symbol, side: "BUY" },
+        );
       } else {
         const ticker = await ex.fetchTicker(symbol);
-        const ref = Number(ticker.last ?? ticker.close ?? ticker.bid ?? 0);
-        if (!ref) {
-          const err = new AppError(
-            "Could not price market for sell order",
-            "BROKER_ERROR",
-          );
-          logger.error(
-            { err, symbol },
-            "coinbase placeOrder: no price for sell",
-          );
-          throw err;
-        }
+        const ref = requirePositivePrice(
+          ticker.last ?? ticker.close ?? ticker.bid,
+          "ticker.price",
+          { broker: "coinbase", symbol, side: "SELL" },
+        );
         const baseAmount = order.sizeUsd / ref;
         ccxtOrder = await ex.createMarketSellOrder(symbol, baseAmount);
-        filledAvg = Number(ccxtOrder.average ?? ccxtOrder.price ?? ref);
+        filledAvg = requirePositivePrice(
+          ccxtOrder.average ?? ccxtOrder.price ?? ref,
+          "order.filledAvgPrice",
+          { broker: "coinbase", symbol, side: "SELL" },
+        );
       }
     } catch (err) {
       logger.error(

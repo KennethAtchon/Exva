@@ -8,6 +8,7 @@ export class ShutdownCoordinator {
     private readonly runtimeManager: SessionRuntimeManager,
     private readonly logger: Logger,
     private readonly closeDb: () => void,
+    private readonly stopBackgroundServices?: () => void,
   ) {}
 
   async shutdown(): Promise<void> {
@@ -32,6 +33,15 @@ export class ShutdownCoordinator {
     }
 
     await this.runtimeManager.shutdownAll?.();
+
+    try {
+      this.stopBackgroundServices?.();
+    } catch (error) {
+      this.logger.error(
+        { err: error },
+        "graceful shutdown: background service stop failed",
+      );
+    }
 
     this.closeDb();
     this.logger.info("graceful shutdown complete");

@@ -2,6 +2,7 @@ import type { DbClient } from "../../../db/client";
 import { signalEvents } from "../../../db/schema";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { SignalEvent } from "@electron/shared/domain";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 
 export class SignalEventsRepo {
   constructor(private readonly db: DbClient) {}
@@ -176,12 +177,21 @@ export class SignalEventsRepo {
       companyName: row.companyName,
       documentUrl: row.documentUrl,
       accessionNumber: row.accessionNumber,
-      payloadJson: JSON.parse(row.payloadJson) as Record<string, unknown>,
+      payloadJson:
+        safeJsonParse<Record<string, unknown>>(
+          row.payloadJson,
+          undefined,
+          "signal-events.payloadJson",
+        ) ?? {},
       filedAt: row.filedAt,
       detectedAt: row.detectedAt,
       kind: row.kind,
       payloadV2: row.payloadV2
-        ? (JSON.parse(row.payloadV2) as Record<string, unknown>)
+        ? (safeJsonParse<Record<string, unknown>>(
+            row.payloadV2,
+            undefined,
+            "signal-events.payloadV2",
+          ) ?? null)
         : null,
       dedupeKey: row.dedupeKey,
       ttl: row.ttl,

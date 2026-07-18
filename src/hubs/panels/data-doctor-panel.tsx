@@ -4,6 +4,7 @@ import { formatIpcError } from "@/lib/ipc-error";
 import { HubQueryError } from "@/hubs/dna";
 import { Button } from "@/components/ui";
 import { EmptyState, SectionHeader } from "@/components/ui/primitives";
+import { PanelLoading } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -12,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Cell = {
@@ -51,6 +53,7 @@ export function DataDoctorPanel() {
   const [runningChecks, setRunningChecks] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(() => {
     void Promise.all([api.dataDoctorCoverage(), api.dataDoctorProviderHealth()])
@@ -61,7 +64,8 @@ export function DataDoctorPanel() {
       })
       .catch((err) => {
         setLoadError(formatIpcError(err).display);
-      });
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -129,8 +133,13 @@ export function DataDoctorPanel() {
         <div className="font-mono text-caption text-text2">{message}</div>
       ) : null}
 
-      {checks.length === 0 && !loadError ? (
-        <EmptyState message="No coverage rows yet. Ingest bars or run a session first, then run checks." />
+      {loading && checks.length === 0 && !loadError ? (
+        <PanelLoading />
+      ) : checks.length === 0 && !loadError ? (
+        <EmptyState
+          title="No coverage rows yet"
+          message="Ingest bars or run a session first, then run checks."
+        />
       ) : (
         <div className="overflow-hidden rounded-sm border border-border bg-surface">
           <Table>
@@ -197,7 +206,7 @@ function buildChecks(
       name: `Provider · ${p.provider}`,
       pass,
       detail: p.enabled
-        ? `err ${(p.errorRate * 100).toFixed(0)}% · ${p.successCount24h} ok / ${p.errorCount24h} err`
+        ? `err ${formatPercent(p.errorRate, 0)} · ${p.successCount24h} ok / ${p.errorCount24h} err`
         : "disabled",
       action: (
         <Button

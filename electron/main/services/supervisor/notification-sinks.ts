@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { env } from "../../config/env";
 import { createLogger } from "../infra/log";
+import { safeJsonParse } from "../infra/safe-json-parse";
 
 const logger = createLogger("notification-sinks");
 
@@ -48,10 +49,12 @@ const DEFAULT_ROUTING: NotificationRoutingConfig = {
 export function readNotificationRoutingConfig(): NotificationRoutingConfig {
   try {
     if (!fs.existsSync(CONFIG_PATH)) return { ...DEFAULT_ROUTING };
-    const raw = JSON.parse(
+    const raw = safeJsonParse<Partial<NotificationRoutingConfig>>(
       fs.readFileSync(CONFIG_PATH, "utf8"),
-    ) as Partial<NotificationRoutingConfig>;
-    return { ...DEFAULT_ROUTING, ...raw };
+      undefined,
+      "notification-routing.config",
+    );
+    return { ...DEFAULT_ROUTING, ...(raw ?? {}) };
   } catch {
     return { ...DEFAULT_ROUTING };
   }
@@ -283,16 +286,16 @@ export function parseTelegramSecretJson(
   raw: string | null | undefined,
 ): TelegramCredentials | null {
   if (!raw?.trim()) return null;
-  try {
-    const parsed = JSON.parse(raw) as { botToken?: string; chatId?: string };
-    if (!parsed.botToken?.trim() || !parsed.chatId?.trim()) return null;
-    return {
-      botToken: parsed.botToken.trim(),
-      chatId: parsed.chatId.trim(),
-    };
-  } catch {
-    return null;
-  }
+  const parsed = safeJsonParse<{ botToken?: string; chatId?: string }>(
+    raw,
+    undefined,
+    "telegram.secretJson",
+  );
+  if (!parsed?.botToken?.trim() || !parsed.chatId?.trim()) return null;
+  return {
+    botToken: parsed.botToken.trim(),
+    chatId: parsed.chatId.trim(),
+  };
 }
 
 export function telegramCredsFromEnv(): TelegramCredentials | null {

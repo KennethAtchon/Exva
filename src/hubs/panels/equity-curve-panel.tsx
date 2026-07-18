@@ -3,7 +3,9 @@ import { api } from "@/lib/exva";
 import { formatIpcError } from "@/lib/ipc-error";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { fmt } from "@/lib/formatters";
-import { PnL } from "@/components/ui/primitives";
+import { EmptyState, PnL } from "@/components/ui/primitives";
+import { PanelLoading } from "@/components/ui/skeleton";
+import { focusRingClass } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { HubQueryError } from "@/hubs/dna";
 
@@ -35,8 +37,10 @@ export function EquityCurvePanel({ showAiCost = false, className }: Props) {
   const [weekPnl, setWeekPnl] = useState<number | null>(null);
   const [stale, setStale] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const load = (r: Range = range) => {
+    setLoading(true);
     void api
       .equityCurve(r)
       .then((res) => {
@@ -57,7 +61,8 @@ export function EquityCurvePanel({ showAiCost = false, className }: Props) {
         setPoints([]);
         setDayPnl(null);
         setWeekPnl(null);
-      });
+      })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -95,6 +100,7 @@ export function EquityCurvePanel({ showAiCost = false, className }: Props) {
               onClick={() => setRange(r)}
               className={cn(
                 "rounded-sm border px-2 py-0.5 font-mono text-micro transition-colors duration-hover",
+                focusRingClass,
                 range === r
                   ? "border-hairline bg-surface2 text-text1"
                   : "border-transparent text-text3 hover:text-text2",
@@ -125,10 +131,14 @@ export function EquityCurvePanel({ showAiCost = false, className }: Props) {
         </div>
       </div>
 
-      {points.length < 2 ? (
-        <div className="flex h-36 items-center justify-center rounded-sm border border-border bg-bg font-sans text-caption text-text3">
-          No equity snapshots yet — they accumulate hourly and on trade close.
-        </div>
+      {loading && points.length < 2 ? (
+        <PanelLoading className="h-36 py-6" rows={2} />
+      ) : points.length < 2 ? (
+        <EmptyState
+          title="No equity snapshots yet"
+          message="They accumulate hourly and on trade close."
+          className="h-36 justify-center border-border bg-bg py-6"
+        />
       ) : (
         <div className="rounded-sm border border-border bg-bg p-2">
           <svg

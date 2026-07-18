@@ -4,6 +4,7 @@ import type { SessionStrategyContextService } from "../../session/session-strate
 import type { BrokerRegistry } from "../../broker/broker-registry";
 import type { EventBus } from "../../infra/event-bus";
 import { createLogger } from "../../infra/log";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 import type { SessionRepo } from "../../../db/repositories/sessions/session-repo";
 import type { CapitalReservationService } from "../../risk/capital-reservation-service";
 import type { HoldingStyle, InstrumentClass } from "@/lib/types";
@@ -552,12 +553,12 @@ export class TradeMonitor {
 
 function readResolutionTime(raw: string | null | undefined): Date | null {
   if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as { resolutionTime?: string | null };
-    if (!parsed.resolutionTime) return null;
-    const date = new Date(parsed.resolutionTime);
-    return Number.isNaN(date.getTime()) ? null : date;
-  } catch {
-    return null;
-  }
+  const parsed = safeJsonParse<{ resolutionTime?: string | null }>(
+    raw,
+    undefined,
+    "trade-monitor.resolutionTime",
+  );
+  if (!parsed?.resolutionTime) return null;
+  const date = new Date(parsed.resolutionTime);
+  return Number.isNaN(date.getTime()) ? null : date;
 }

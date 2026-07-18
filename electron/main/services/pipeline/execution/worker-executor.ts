@@ -22,6 +22,7 @@ import { buildWorkerPrompt } from "../prompting/worker-prompt-builder";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { resolveScriptedWorkerOutput } from "../../broker/mock/mock-scenario-worker-outputs";
 import { createLogger } from "../../infra/log";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 import type { AISpendTracker } from "./ai-spend-tracker";
 import { assertSessionDataSpendAvailable } from "../../tools/data-spend-guard";
 import { createOutcomeError } from "../../orchestration/cycle/runtime-outcome";
@@ -528,11 +529,7 @@ export function extractWorkerSubmission(
   for (const step of trace.steps) {
     for (const call of step.toolCalls) {
       if (call.tool !== terminalToolName || !call.argsJson) continue;
-      try {
-        submission = JSON.parse(call.argsJson);
-      } catch {
-        submission = call.argsJson;
-      }
+      submission = safeJsonParse(call.argsJson) ?? call.argsJson;
     }
   }
   return submission;

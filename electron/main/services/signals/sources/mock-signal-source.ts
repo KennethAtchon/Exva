@@ -9,6 +9,7 @@ import type {
   SignalSourceActivityEntry,
   SignalSourceSnapshot,
 } from "../ISignalSource";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 
 export type MockSignalSourceConfig = {
   /** Ticker to emit on each fire (defaults to NVDA). */
@@ -146,9 +147,11 @@ export class MockSignalSource implements ISignalSource {
 }
 
 function safeParseConfig(raw: string): MockSignalSourceConfig {
-  try {
-    return JSON.parse(raw) as MockSignalSourceConfig;
-  } catch {
-    return {};
-  }
+  return (
+    safeJsonParse<MockSignalSourceConfig>(
+      raw,
+      undefined,
+      "mock-signal-source.config",
+    ) ?? {}
+  );
 }

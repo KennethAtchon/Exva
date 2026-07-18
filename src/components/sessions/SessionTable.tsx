@@ -1,5 +1,6 @@
 import { Badge } from "@/components/custom-ui";
 import { Button, HelpTooltip } from "@/components/ui";
+import { confirm } from "@/components/ui/confirm-dialog";
 import type { SessionSummary } from "@/lib/exva";
 import { SESSION_STATUS_HELP_IDS } from "@/lib/help-glossary";
 import { cn } from "@/lib/utils";
@@ -221,8 +222,16 @@ const SessionControls = ({
         <HelpTooltip glossaryId="force-stop">
           <Button
             onClick={() => {
-              if (!window.confirm(FORCE_STOP_CONFIRM_MESSAGE)) return;
-              onLifecycle(session, "forceStop");
+              void (async () => {
+                const ok = await confirm({
+                  title: "Force stop session?",
+                  description: FORCE_STOP_CONFIRM_MESSAGE,
+                  confirmLabel: "Force stop",
+                  variant: "destructive",
+                });
+                if (!ok) return;
+                onLifecycle(session, "forceStop");
+              })();
             }}
             variant="ghost"
             className={forceStopButtonClass}

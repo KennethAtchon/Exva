@@ -21,11 +21,12 @@ export function runSeed(
   dbClient?: DbClient,
 ): void {
   const builtIn = buildBuiltInDuckDuckGoProviderAccount();
-  const openRouterKey = env.openRouterKey;
-  const openRouterModel = env.openRouterModel;
+  // Never auto-seed credentials into vitest DBs — suites assert empty-provider paths.
+  const openRouterKey = env.isTest ? null : env.openRouterKey;
+  const openRouterModel = env.isTest ? null : env.openRouterModel;
   const hasOpenRouterSeed = Boolean(openRouterKey && openRouterModel);
-  const alpacaApiKey = env.alpacaApiKey;
-  const alpacaSecretKey = env.alpacaSecretKey;
+  const alpacaApiKey = env.isTest ? null : env.alpacaApiKey;
+  const alpacaSecretKey = env.isTest ? null : env.alpacaSecretKey;
   const hasAlpacaSeed = Boolean(alpacaApiKey && alpacaSecretKey);
 
   db.insert(schema.providerAccounts)

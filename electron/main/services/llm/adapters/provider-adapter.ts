@@ -47,6 +47,11 @@ export interface AgentRunOptions<T = undefined> {
   schema?: z.ZodType<T>;
   terminalToolNames?: string[];
   prepareStep?: PrepareStepFunction<ToolSet>;
+  /**
+   * Optional progressive text callback. Adapters that use generateText emit
+   * accumulated step text (not true token deltas) via onStepFinish.
+   */
+  onTextDelta?: (text: string) => void;
 }
 
 export interface ModelEntry {

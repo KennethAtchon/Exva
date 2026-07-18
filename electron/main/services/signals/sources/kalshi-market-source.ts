@@ -13,6 +13,7 @@ import type {
   SignalSourceSnapshot,
 } from "../ISignalSource";
 import { createLogger } from "../../infra/log";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 
 /** Kalshi taker fee ~1.75¢ per contract at mid (~175 bps on $1 notional mid). */
 export const KALSHI_FEE_BPS = 175;
@@ -309,10 +310,10 @@ export async function fetchKalshiMarkets(
 }
 
 function safeParseConfig(configJson: string): KalshiMarketSourceConfig {
-  try {
-    const parsed = JSON.parse(configJson) as KalshiMarketSourceConfig;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
+  const parsed = safeJsonParse<KalshiMarketSourceConfig>(
+    configJson,
+    undefined,
+    "kalshi-market-source.config",
+  );
+  return parsed && typeof parsed === "object" ? parsed : {};
 }

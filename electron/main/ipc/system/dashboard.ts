@@ -5,6 +5,10 @@ import type { AppServices } from "../../services/app-services";
 import { resolveExecutionModeFilter } from "../../services/session/environment-scope";
 import { buildCalendarAttentionQueue } from "../../services/signals/calendar/calendar-attention";
 import { handle } from "../handle";
+import {
+  ipcNoPayloadSchema,
+  ipcPayloadUnknownSchema,
+} from "../payload-schemas";
 
 function resolveCostBreakdownDateRange(payload: unknown): "today" | "all" {
   if (!payload || typeof payload !== "object") return "today";
@@ -43,7 +47,7 @@ function aggregateUptimeMin(services: AppServices): number {
 }
 
 export function registerDashboardHandlers(services: AppServices): void {
-  handle(ipcMain, channels.dashboard.getStats, async () => {
+  handle(ipcMain, channels.dashboard.getStats, ipcNoPayloadSchema, async () => {
     const prefs = services.repos.workspacePreferences.get();
     const focused = services.repos.session.getFocused();
     const focusedInEnv =
@@ -87,56 +91,66 @@ export function registerDashboardHandlers(services: AppServices): void {
     };
   });
 
-  handle(ipcMain, channels.dashboard.getCostBreakdown, async (payload) => {
-    const prefs = services.repos.workspacePreferences.get();
-    const focused = services.repos.session.getFocused();
-    const focusedInEnv =
-      focused &&
-      sessionMatchesEnvironment(
-        focused.executionMode,
-        prefs.globalEnvironmentMode,
-      )
-        ? focused
-        : null;
-    const envSessionIds = focusedInEnv
-      ? undefined
-      : sessionsInWorkspaceEnvironment(services).map((session) => session.id);
-    return services.repos.stats.costBreakdown({
-      sessionId: focusedInEnv?.id ?? null,
-      sessionIds: envSessionIds,
-      dateRange: resolveCostBreakdownDateRange(payload),
-    });
-  });
+  handle(
+    ipcMain,
+    channels.dashboard.getCostBreakdown,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const prefs = services.repos.workspacePreferences.get();
+      const focused = services.repos.session.getFocused();
+      const focusedInEnv =
+        focused &&
+        sessionMatchesEnvironment(
+          focused.executionMode,
+          prefs.globalEnvironmentMode,
+        )
+          ? focused
+          : null;
+      const envSessionIds = focusedInEnv
+        ? undefined
+        : sessionsInWorkspaceEnvironment(services).map((session) => session.id);
+      return services.repos.stats.costBreakdown({
+        sessionId: focusedInEnv?.id ?? null,
+        sessionIds: envSessionIds,
+        dateRange: resolveCostBreakdownDateRange(payload),
+      });
+    },
+  );
 
-  handle(ipcMain, channels.dashboard.getCalendarAttention, async () => {
-    const events = services.calendarEventsRepo.listUpcoming({
-      withinHours: 72,
-    });
-    const holdings: Array<{
-      sessionId: string;
-      sessionName: string;
-      symbol: string;
-      quantity: number;
-    }> = [];
-    for (const session of sessionsInWorkspaceEnvironment(services)) {
-      const open = services.repos.trades.listOpenAndPending(session.id);
-      for (const trade of open) {
-        if (trade.status !== "open") continue;
-        holdings.push({
-          sessionId: session.id,
-          sessionName: session.name,
-          symbol: trade.instrumentSymbol,
-          quantity: Math.max(
-            1,
-            Math.round(
-              trade.position_size_usd / Math.max(trade.entry_price ?? 1, 1),
+  handle(
+    ipcMain,
+    channels.dashboard.getCalendarAttention,
+    ipcNoPayloadSchema,
+    async () => {
+      const events = services.calendarEventsRepo.listUpcoming({
+        withinHours: 72,
+      });
+      const holdings: Array<{
+        sessionId: string;
+        sessionName: string;
+        symbol: string;
+        quantity: number;
+      }> = [];
+      for (const session of sessionsInWorkspaceEnvironment(services)) {
+        const open = services.repos.trades.listOpenAndPending(session.id);
+        for (const trade of open) {
+          if (trade.status !== "open") continue;
+          holdings.push({
+            sessionId: session.id,
+            sessionName: session.name,
+            symbol: trade.instrumentSymbol,
+            quantity: Math.max(
+              1,
+              Math.round(
+                trade.position_size_usd / Math.max(trade.entry_price ?? 1, 1),
+              ),
             ),
-          ),
-        });
+          });
+        }
       }
-    }
-    return {
-      items: buildCalendarAttentionQueue({ events, holdings }),
-    };
-  });
+      return {
+        items: buildCalendarAttentionQueue({ events, holdings }),
+      };
+    },
+  );
 }

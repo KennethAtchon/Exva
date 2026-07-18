@@ -15,7 +15,7 @@ export function ScopeChip({
       : "Workspace (session deleted)"
     : "Workspace";
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-micro font-medium text-muted-foreground">
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-surface2 px-2 py-0.5 text-micro font-medium text-text2">
       {isSession ? (
         <Layers className="h-3 w-3" />
       ) : (

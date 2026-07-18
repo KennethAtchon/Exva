@@ -52,6 +52,9 @@ app.whenReady().then(async () => {
         clearInstanceLock();
         services?.db.sqlite.close();
       },
+      () => {
+        services?.stopBackgroundTickers();
+      },
     );
     logger.info({ servicesReadyMs }, "app services initialized");
     await seedBrokerAllocations(services);

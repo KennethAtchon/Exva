@@ -17,20 +17,21 @@ import type {
   ControlToolKind,
   ControlConfirmation,
 } from "@electron/shared/domain/control";
+import { safeJsonParse } from "../../../services/infra/safe-json-parse";
 
 type ConversationRow = typeof controlConversations.$inferSelect;
 type MessageRow = typeof controlMessages.$inferSelect;
 type ToolCallRow = typeof controlToolCalls.$inferSelect;
 
 function toConversation(row: ConversationRow): ControlConversation {
-  let autoApproved: string[] = [];
-  try {
-    const parsed = JSON.parse(row.autoApprovedJson) as unknown;
-    if (Array.isArray(parsed))
-      autoApproved = parsed.filter((v): v is string => typeof v === "string");
-  } catch {
-    autoApproved = [];
-  }
+  const parsed = safeJsonParse<unknown>(
+    row.autoApprovedJson,
+    undefined,
+    "control-repo.autoApproved",
+  );
+  const autoApproved = Array.isArray(parsed)
+    ? parsed.filter((v): v is string => typeof v === "string")
+    : [];
   return {
     id: row.id,
     title: row.title,

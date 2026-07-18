@@ -95,6 +95,7 @@ export class SignalBus {
     private readonly brokerRouting: BrokerRoutingService,
     private readonly eventBus: EventBus,
     private readonly instrumentNormalizer: InstrumentNormalizer,
+    private readonly isOrderHalted: () => boolean = () => false,
   ) {}
 
   /** Must be called before any signals are processed. */
@@ -306,6 +307,14 @@ export class SignalBus {
       brokerType: adapter.brokerType,
     });
     const clientOrderId = `debug-force-${crypto.randomUUID()}`;
+
+    if (this.isOrderHalted()) {
+      throw new AppError(
+        "Force trade refused: kill switch is engaged",
+        "FORBIDDEN",
+        { sessionId },
+      );
+    }
 
     const result = await runWithProviderCallScopeAsync(
       { sessionId },

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChatHistoryModal } from "@/components/autopsy/ChatHistoryModal";
 import { LessonsPanel } from "@/components/autopsy/LessonsPanel";
+import { formatFixed } from "@/lib/format";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
 import {
@@ -15,6 +16,7 @@ import {
   type TradeAutopsyRecord,
 } from "@/lib/autopsy-types";
 import { HelpTooltip, PnL } from "@/components/ui";
+import { PanelLoading } from "@/components/ui/skeleton";
 import type { Trade } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -300,7 +302,10 @@ function GradeBanner({
             className="font-mono text-title font-bold"
             style={{ color: gs.color }}
           >
-            {autopsy.qualityScore?.toFixed(0) ?? "—"}/100
+            {autopsy.qualityScore != null
+              ? formatFixed(autopsy.qualityScore, 0)
+              : "—"}
+            /100
           </span>
           <span className={metaDotClass}>·</span>
           <span className={metaMonoClass}>{autopsy.modelId}</span>
@@ -1013,6 +1018,9 @@ export function AutopsyPage({
                 />
               )}
 
+              {autopsiesLoading && autopsies.length === 0 ? (
+                <PanelLoading />
+              ) : null}
               {!autopsiesLoading && autopsies.length === 0 && (
                 <div className={emptyStateClass}>
                   <div className="mb-3.5 text-hero opacity-25">⚕</div>
@@ -1024,10 +1032,12 @@ export function AutopsyPage({
                     trade.
                   </div>
                   <button
+                    type="button"
                     disabled={isGenerating}
                     onClick={() => generateMutation.mutate()}
                     className={cn(
                       generateBtnClass,
+                      "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-info-border",
                       isGenerating && "opacity-70",
                     )}
                   >

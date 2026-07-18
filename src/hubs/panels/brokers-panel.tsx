@@ -3,6 +3,9 @@ import { Badge, Card } from "@/components/custom-ui";
 import { Button, HelpTooltip } from "@/components/ui";
 import { api } from "@/lib/exva";
 import type { BrokerAccountWithState } from "@/lib/types";
+import { EmptyState } from "@/components/ui/primitives";
+import { PanelLoading } from "@/components/ui/skeleton";
+import { formatPercent } from "@/lib/format";
 import { fmt } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
@@ -254,7 +257,9 @@ const BrokerCard = ({
             <span>
               {broker.activeSessionCount} / {broker.maxSessions} active sessions
             </span>
-            <span>{allocationPct.toFixed(1)}% used</span>
+            <span>
+              {formatPercent(allocationPct, 1, { asRatio: false })} used
+            </span>
           </div>
         </div>
 
@@ -427,19 +432,13 @@ export const BrokersPage = ({
 
       {ui.error ? <div className={errorBannerClass}>{ui.error}</div> : null}
 
-      {ui.loading && visibleBrokers.length === 0 ? (
-        <div className={emptyStateClass}>Loading broker balances…</div>
-      ) : null}
+      {ui.loading && visibleBrokers.length === 0 ? <PanelLoading /> : null}
       {!ui.loading && visibleBrokers.length === 0 ? (
-        <div className={emptyStateClass}>
-          <div className="mb-2 font-sans text-head text-text1">
-            No {environmentMode} broker accounts configured yet
-          </div>
-          <p className="mx-auto max-w-md font-sans text-body leading-relaxed text-text3">
-            Connect brokers on the Accounts page first. Sessions need assigned
-            broker accounts before they can launch.
-          </p>
-        </div>
+        <EmptyState
+          centered
+          title={`No ${environmentMode} broker accounts configured yet`}
+          message="Connect brokers on the Accounts page first. Sessions need assigned broker accounts before they can launch."
+        />
       ) : null}
 
       <div className="grid gap-3.5">
@@ -531,9 +530,6 @@ export const BrokersPage = ({
     </div>
   );
 };
-
-const emptyStateClass =
-  "rounded-sm border border-dashed border-border p-6 text-center font-sans text-body text-text3";
 
 const errorBannerClass =
   "rounded-sm border border-error-border bg-error-dim p-3 font-sans text-body text-error";

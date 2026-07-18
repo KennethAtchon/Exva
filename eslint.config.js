@@ -165,6 +165,12 @@ export default tseslint.config(
           message:
             "Use a CSS var token from styles.css or a Tailwind semantic class. See THEMING.md.",
         },
+        {
+          selector:
+            "CallExpression[callee.object.name='ipcMain'][callee.property.name='handle']",
+          message:
+            "Use handle() from electron/main/ipc/handle.ts instead of ipcMain.handle directly.",
+        },
       ],
       "theming/no-static-inline-styles": "error",
       "theming/no-arbitrary-token-escape": "error",
@@ -177,7 +183,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["electron/main/config/env.ts"],
+    files: ["electron/main/config/env.ts", "electron/main/ipc/handle.ts"],
     rules: {
       "no-restricted-syntax": "off",
     },

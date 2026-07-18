@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import type { DbClient } from "../../client";
 import { briefings } from "../../schema";
+import { safeJsonParse } from "../../../services/infra/safe-json-parse";
 
 export interface BriefingDoc {
   date: string;
@@ -99,27 +100,26 @@ export class BriefingsRepo {
 }
 
 function toBriefing(row: typeof briefings.$inferSelect): BriefingRow {
-  let doc: BriefingDoc;
-  try {
-    doc = JSON.parse(row.docJson) as BriefingDoc;
-  } catch {
-    doc = {
-      date: row.date,
-      yesterdayPnlUsd: 0,
-      openPositions: 0,
-      tradesOpened: 0,
-      tradesClosed: 0,
-      tradeSummaries: [],
-      ladderNotes: [],
-      calibrationNotes: [],
-      calendarEvents: [],
-      alarms: [],
-      aiSpendUsd: 0,
-      aiBudgetUsd: 0,
-      dataCoverageStatus: "unknown",
-      headlineNumbers: { pnl: 0, trades: 0, open: 0 },
-    };
-  }
+  const doc: BriefingDoc = safeJsonParse<BriefingDoc>(
+    row.docJson,
+    undefined,
+    "briefings.doc",
+  ) ?? {
+    date: row.date,
+    yesterdayPnlUsd: 0,
+    openPositions: 0,
+    tradesOpened: 0,
+    tradesClosed: 0,
+    tradeSummaries: [],
+    ladderNotes: [],
+    calibrationNotes: [],
+    calendarEvents: [],
+    alarms: [],
+    aiSpendUsd: 0,
+    aiBudgetUsd: 0,
+    dataCoverageStatus: "unknown",
+    headlineNumbers: { pnl: 0, trades: 0, open: 0 },
+  };
   return {
     date: row.date,
     doc,

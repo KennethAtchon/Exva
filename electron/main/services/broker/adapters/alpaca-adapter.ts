@@ -8,6 +8,7 @@ import { getUsEquitySession } from "@electron/shared/instruments/us-equity-sessi
 import { AppError } from "@electron/shared/infra/errors";
 import { createHash } from "node:crypto";
 import { createLogger } from "../../infra/log";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 import type { BrokerInteractionLogger } from "../broker-interaction-logger";
 import { inferAlpacaHttpCallType } from "../broker-interaction-logger";
 import type {
@@ -1207,11 +1208,7 @@ function parseAlpacaStreamMessage(raw: unknown): unknown {
       : Buffer.isBuffer(raw)
         ? raw.toString("utf8")
         : String(raw);
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
+  return safeJsonParse(text, undefined, "alpaca-adapter.ws-message");
 }
 
 /**

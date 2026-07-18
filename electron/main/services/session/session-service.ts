@@ -91,6 +91,7 @@ export class SessionService {
     const session = this.deps.sessionRepo.requireById(sessionId);
     this.assertTransition(session.status, "active");
     await this.deps.runtimeManager.resumeSession(sessionId);
+    this.deps.clearOrderHalt?.();
     this.emitSessionEvent(sessionId, "INFO", "Session resumed.", "session");
     return this.getStatus(sessionId);
   }

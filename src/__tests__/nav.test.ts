@@ -8,6 +8,7 @@ const APP_SWITCH_PAGES: PageKey[] = [
   "sessions",
   "signals",
   "research",
+  "assistant",
   "settings",
   "docs",
 ];
@@ -36,12 +37,13 @@ describe("nav contract", () => {
     }
   });
 
-  it("primary rail is five hubs; docs is a secondary rail item", () => {
+  it("primary rail is six hubs; docs is a secondary rail item", () => {
     expect(NAV_PRIMARY_IDS).toEqual([
       "dashboard",
       "sessions",
       "signals",
       "research",
+      "assistant",
       "settings",
     ]);
     expect(NAV_ITEMS.map((i) => i.id)).toEqual([...NAV_PRIMARY_IDS, "docs"]);

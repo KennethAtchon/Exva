@@ -17,6 +17,7 @@ import type { ExperiencePresetIds } from "@electron/shared/domain/signal-descrip
 import type { ExperienceResearchContract } from "@electron/shared/domain/research-contract";
 import type { ProcessingMode } from "@electron/shared/domain/enums";
 import type { BrokerRequirement } from "@electron/shared/domain/experience";
+import { requireJsonParse } from "../infra/safe-json-parse";
 
 export class ExperienceTemplateRepo {
   constructor(private readonly db: DbClient) {}
@@ -179,13 +180,21 @@ function rowToRevision(
     strategyId: row.strategyId,
     promptVariantKey: row.promptVariantKey as ProcessingMode,
     brokerRequirement: row.brokerRequirement as BrokerRequirement,
-    inputContract: JSON.parse(row.inputContractJson) as TemplateInputContract,
-    defaultPresetIds: JSON.parse(
+    inputContract: requireJsonParse<TemplateInputContract>(
+      row.inputContractJson,
+      undefined,
+      "Invalid experience template inputContractJson",
+    ),
+    defaultPresetIds: requireJsonParse<ExperiencePresetIds>(
       row.defaultPresetIdsJson,
-    ) as ExperiencePresetIds,
-    researchContract: JSON.parse(
+      undefined,
+      "Invalid experience template defaultPresetIdsJson",
+    ),
+    researchContract: requireJsonParse<ExperienceResearchContract>(
       row.researchContractJson,
-    ) as ExperienceResearchContract,
+      undefined,
+      "Invalid experience template researchContractJson",
+    ),
     universePolicy: row.universePolicy as UniversePolicy,
   };
 }

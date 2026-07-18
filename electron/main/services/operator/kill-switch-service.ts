@@ -38,8 +38,14 @@ export interface FlattenResult {
  * Emergency policy: exits may skip the normal entry RiskEngine gate. Cancel
  * and liquidate still require broker identity, terminal confirmation, and
  * capital release only after reconciliation.
+ *
+ * Global order halt: pauseAll / flattenAll / killSession set a synchronous
+ * halt flag checked immediately before broker submission. Operators clear it
+ * by resuming any session ({@link clearHalt}).
  */
 export class KillSwitchService {
+  private halted = false;
+
   constructor(
     private readonly deps: {
       sessions: SessionRepo;
@@ -54,7 +60,22 @@ export class KillSwitchService {
     },
   ) {}
 
+  /** True while a kill-switch action has engaged the last-mile order gate. */
+  isHalted(): boolean {
+    return this.halted;
+  }
+
+  /** Clear the last-mile order halt (called when an operator resumes a session). */
+  clearHalt(): void {
+    this.halted = false;
+  }
+
+  private engageHalt(): void {
+    this.halted = true;
+  }
+
   async pauseAll(): Promise<{ paused: string[]; skipped: string[] }> {
+    this.engageHalt();
     const active = this.deps.sessions.listByStatuses([
       "active",
       "attention_required",
@@ -84,6 +105,7 @@ export class KillSwitchService {
   }
 
   async killSession(sessionId: string): Promise<{ status: string }> {
+    this.engageHalt();
     await this.deps.sessionService.pause(sessionId);
     await this.deps.supervisor.raiseDailyLoss(
       sessionId,

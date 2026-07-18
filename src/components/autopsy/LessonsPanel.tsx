@@ -5,6 +5,7 @@ import type {
   LessonSeverity,
   LessonStatus,
 } from "@/lib/autopsy-types";
+import { confirm, focusRingClass } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -248,20 +249,23 @@ function LessonRow({
             {promoteSessionId ? (
               <button
                 type="button"
-                className="rounded-sm border border-border bg-transparent px-2.5 py-0.5 text-caption text-text2"
+                className={`rounded-sm border border-border bg-transparent px-2.5 py-0.5 text-caption text-text2 ${focusRingClass}`}
                 onClick={(event) => {
                   event.stopPropagation();
-                  if (
-                    window.confirm(
-                      "Add to the session lesson ledger? This lesson will appear in future period autopsies.",
-                    )
-                  ) {
+                  void (async () => {
+                    const ok = await confirm({
+                      title: "Promote to session ledger?",
+                      description:
+                        "Add to the session lesson ledger? This lesson will appear in future period autopsies.",
+                      confirmLabel: "Promote",
+                    });
+                    if (!ok) return;
                     void onPromoteLesson(
                       lesson.id,
                       "session",
                       promoteSessionId,
                     );
-                  }
+                  })();
                 }}
               >
                 Promote → Session
@@ -269,16 +273,19 @@ function LessonRow({
             ) : null}
             <button
               type="button"
-              className="rounded-sm border border-border bg-transparent px-2.5 py-0.5 text-caption text-text2"
+              className={`rounded-sm border border-border bg-transparent px-2.5 py-0.5 text-caption text-text2 ${focusRingClass}`}
               onClick={(event) => {
                 event.stopPropagation();
-                if (
-                  window.confirm(
-                    "Add to the global lesson ledger? This lesson will appear in future period autopsies.",
-                  )
-                ) {
+                void (async () => {
+                  const ok = await confirm({
+                    title: "Promote to global ledger?",
+                    description:
+                      "Add to the global lesson ledger? This lesson will appear in future period autopsies.",
+                    confirmLabel: "Promote",
+                  });
+                  if (!ok) return;
                   void onPromoteLesson(lesson.id, "global");
-                }
+                })();
               }}
             >
               Promote → Global

@@ -12,6 +12,7 @@ import {
   emptySessionAiSettings,
   isOffHoursTrading,
 } from "@electron/shared/domain/session";
+import { safeJsonParse } from "../infra/safe-json-parse";
 
 export type SessionStrategyConfigJson = StrategySnapshot & {
   aiSettings: Pick<SessionAiSettings, "workerGuidanceMarkdown">;
@@ -47,13 +48,13 @@ export function parseSessionStrategyConfigJson(
   updatedAt: string,
 ): SessionStrategyContext | null {
   if (!raw?.trim()) return null;
-  try {
-    const parsed = JSON.parse(raw) as SessionStrategyConfigJson;
-    if (parsed.version !== 5) return null;
-    return strategyConfigToContext(sessionId, parsed, updatedAt);
-  } catch {
-    return null;
-  }
+  const parsed = safeJsonParse<SessionStrategyConfigJson>(
+    raw,
+    undefined,
+    "session-strategy-config",
+  );
+  if (!parsed || parsed.version !== 5) return null;
+  return strategyConfigToContext(sessionId, parsed, updatedAt);
 }
 
 export function strategyConfigToContext(

@@ -17,6 +17,8 @@ import { AddAiProviderModal } from "@/components/accounts/AddAiProviderModal";
 import { AddSearchProviderModal } from "@/components/accounts/AddSearchProviderModal";
 import { AddBrokerModal } from "@/components/accounts/AddBrokerModal";
 import { HelpTooltip } from "@/components/ui";
+import { confirm, focusRingClass } from "@/components/ui/confirm-dialog";
+import { PanelLoading } from "@/components/ui/skeleton";
 import {
   MOCK_EXECUTION_TIER_LABELS,
   MOCK_SCENARIO_KINDS,
@@ -123,9 +125,12 @@ export const AccountsPage = () => {
           ["active", "paused", "attention_required"].includes(s.status),
       );
       if (activeLive.length > 0) {
-        const ok = confirm(
-          `You have ${activeLive.length} active live session(s). Switching to Paper will hide them — they will continue running.\n\nSwitch anyway?`,
-        );
+        const ok = await confirm({
+          title: "Switch to Paper?",
+          description: `You have ${activeLive.length} active live session(s). Switching to Paper will hide them — they will continue running.`,
+          confirmLabel: "Switch to Paper",
+          variant: "destructive",
+        });
         if (!ok) return;
       }
     }
@@ -240,6 +245,7 @@ export const AccountsPage = () => {
   const [prefsDraft, setPrefsDraft] = useState<WorkspacePreferences | null>(
     null,
   );
+  const [formError, setFormError] = useState<string | null>(null);
   const applyWorkspaceDrafts = useCallback(
     (workspace: NonNullable<typeof workspaceData>) => {
       const provKey = workspace.prefs.defaultModelProviderKey ?? "";
@@ -270,6 +276,7 @@ export const AccountsPage = () => {
     refetch: refetchProviders,
     isError: providersIsError,
     error: providersError,
+    isPending: providersPending,
   } = useQuery({
     queryKey: ["accounts-providers"],
     queryFn: () => api.listProviders(),
@@ -279,6 +286,7 @@ export const AccountsPage = () => {
     refetch: refetchWorkspace,
     isError: workspaceIsError,
     error: workspaceError,
+    isPending: workspacePending,
   } = useQuery({
     queryKey: ["accounts-workspace", environmentMode],
     queryFn: async () => {
@@ -294,6 +302,7 @@ export const AccountsPage = () => {
       };
     },
   });
+  const accountsLoading = providersPending || workspacePending;
 
   const aiProviders =
     providersData?.providers.filter((p) => p.category === "ai") ?? [];
@@ -395,6 +404,7 @@ export const AccountsPage = () => {
     const trimmed = editApiKey.trim();
     if (!trimmed) return;
     setRowSavingId(p.id);
+    setFormError(null);
     try {
       const metadata =
         p.providerType === "openrouter"
@@ -417,25 +427,33 @@ export const AccountsPage = () => {
       void refetchWorkspace();
       cancelEditProviderKey();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Could not save provider key.");
+      setFormError(
+        e instanceof Error ? e.message : "Could not save provider key.",
+      );
     } finally {
       setRowSavingId(null);
     }
   };
 
   const deleteProvider = async (p: ProviderAccount) => {
-    const ok = window.confirm(
-      `Delete provider "${p.name}"? This removes the stored key from keychain.`,
-    );
+    const ok = await confirm({
+      title: `Delete provider "${p.name}"?`,
+      description: "This removes the stored key from keychain.",
+      confirmLabel: "Delete",
+      variant: "destructive",
+    });
     if (!ok) return;
     setRowSavingId(p.id);
+    setFormError(null);
     try {
       await api.deleteProvider(p.id);
       if (editingProviderId === p.id) cancelEditProviderKey();
       void refetchProviders();
       void refetchWorkspace();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Could not delete provider.");
+      setFormError(
+        e instanceof Error ? e.message : "Could not delete provider.",
+      );
     } finally {
       setRowSavingId(null);
     }
@@ -455,6 +473,7 @@ export const AccountsPage = () => {
             type="button"
             className={cn(
               envToggleButtonClass,
+              focusRingClass,
               environmentMode === "paper" && envTogglePaperActiveClass,
             )}
             onClick={() => handleToggleEnvironment("paper")}
@@ -465,6 +484,7 @@ export const AccountsPage = () => {
             type="button"
             className={cn(
               envToggleButtonClass,
+              focusRingClass,
               environmentMode === "live" && envToggleLiveActiveClass,
             )}
             onClick={() => handleToggleEnvironment("live")}
@@ -488,8 +508,15 @@ export const AccountsPage = () => {
           className="m-0"
         />
       ) : null}
+      {formError ? (
+        <p className="m-0 font-sans text-caption text-error" role="alert">
+          {formError}
+        </p>
+      ) : null}
 
-      <div className={twoColumnLayoutClass}>
+      {accountsLoading ? <PanelLoading rows={5} /> : null}
+
+      <div className={cn(twoColumnLayoutClass, accountsLoading && "hidden")}>
         <div className={columnClass}>
           <Card>
             <div className={cardHeaderRowClass}>
@@ -703,6 +730,7 @@ export const AccountsPage = () => {
                 }
                 onClick={async () => {
                   setSavingDefaultModel(true);
+                  setFormError(null);
                   try {
                     await api.saveWorkspaceDefaultModel({
                       providerKey: defaultModelProviderKey,
@@ -713,7 +741,7 @@ export const AccountsPage = () => {
                     setSavedDefaultModel(true);
                     setTimeout(() => setSavedDefaultModel(false), 2500);
                   } catch (e) {
-                    alert(
+                    setFormError(
                       e instanceof Error
                         ? e.message
                         : "Could not save default model.",
@@ -722,10 +750,13 @@ export const AccountsPage = () => {
                     setSavingDefaultModel(false);
                   }
                 }}
-                className={saveDefaultModelBtnClass(
-                  savingDefaultModel ||
-                    !defaultModelProviderKey ||
-                    !defaultModelModelId,
+                className={cn(
+                  saveDefaultModelBtnClass(
+                    savingDefaultModel ||
+                      !defaultModelProviderKey ||
+                      !defaultModelModelId,
+                  ),
+                  focusRingClass,
                 )}
               >
                 {savingDefaultModel
@@ -808,12 +839,14 @@ export const AccountsPage = () => {
                     <button
                       type="button"
                       onClick={async () => {
-                        if (
-                          !confirm(
-                            `Remove broker “${b.name}”? Routing rows that reference it will be deleted.`,
-                          )
-                        )
-                          return;
+                        const ok = await confirm({
+                          title: `Remove broker “${b.name}”?`,
+                          description:
+                            "Routing rows that reference it will be deleted.",
+                          confirmLabel: "Remove",
+                          variant: "destructive",
+                        });
+                        if (!ok) return;
                         await api.deleteBrokerAccount(b.id);
                         void refetchWorkspace();
                       }}
@@ -881,15 +914,16 @@ export const AccountsPage = () => {
                   return acc;
                 }, []);
                 if (rows.length < ROUTABLE_INSTRUMENT_CLASSES.length) {
-                  alert(
+                  setFormError(
                     "Pick a default broker for stock, crypto, futures, options, and prediction markets.",
                   );
                   return;
                 }
+                setFormError(null);
                 await api.saveBrokerRoutingDefaults(rows);
                 void refetchWorkspace();
               }}
-              className={accentActionBtnMt8Class}
+              className={cn(accentActionBtnMt8Class, focusRingClass)}
             >
               Save routing defaults
             </button>

@@ -3,6 +3,7 @@ import type { DbClient } from "../../db/client";
 import { sourceDefinitions, sourceDefinitionRevisions } from "../../db/schema";
 import type { SourceDefinition } from "@electron/shared/domain/experience-inputs/catalog";
 import type { LiveSignalSourceType } from "@electron/shared/domain/signals";
+import { requireJsonParse } from "../infra/safe-json-parse";
 
 export interface SourceDefinitionCreateInput {
   id: string;
@@ -66,7 +67,14 @@ export class SourceDefinitionRepo {
       )
       .get();
     if (!row) return null;
-    return { revision: row.revision, config: JSON.parse(row.configJson) };
+    return {
+      revision: row.revision,
+      config: requireJsonParse<Record<string, unknown>>(
+        row.configJson,
+        undefined,
+        "Invalid source definition configJson",
+      ),
+    };
   }
 
   private getLatestRevision(
@@ -83,7 +91,14 @@ export class SourceDefinitionRepo {
     const latest = rows.reduce((max, r) =>
       r.revision > max.revision ? r : max,
     );
-    return { revision: latest.revision, config: JSON.parse(latest.configJson) };
+    return {
+      revision: latest.revision,
+      config: requireJsonParse<Record<string, unknown>>(
+        latest.configJson,
+        undefined,
+        "Invalid source definition configJson",
+      ),
+    };
   }
 
   create(input: SourceDefinitionCreateInput): SourceDefinition {

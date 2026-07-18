@@ -5,6 +5,7 @@ import type {
   DecisionTraceRecord,
   TradeDecisionTrace,
 } from "@electron/shared/domain";
+import { safeJsonParse } from "../../../services/infra/safe-json-parse";
 
 export interface DecisionTraceMeta {
   cycleId: string;
@@ -126,10 +127,12 @@ export class DecisionTraceRepo {
   }
 
   private parse(json: string): TradeDecisionTrace {
-    try {
-      return JSON.parse(json) as TradeDecisionTrace;
-    } catch {
-      return {};
-    }
+    return (
+      safeJsonParse<TradeDecisionTrace>(
+        json,
+        undefined,
+        "decision-trace-repo",
+      ) ?? {}
+    );
   }
 }

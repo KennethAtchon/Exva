@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/primitives";
 
 /**
  * Shared hub DNA — Terminal Ledger tokens only.
@@ -331,19 +332,12 @@ export function HubEmptyState({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "flex flex-col items-center justify-center px-6 py-12 text-center",
-        className,
-      )}
-    >
-      <div className="mb-2 font-sans text-head text-text1">{title}</div>
-      {body ? (
-        <p className="mx-auto mb-0 max-w-md font-sans text-body leading-relaxed text-text2">
-          {body}
-        </p>
-      ) : null}
-      {action ? <div className="mt-4">{action}</div> : null}
-    </div>
+    <EmptyState
+      centered
+      title={title}
+      message={body}
+      action={action}
+      className={className}
+    />
   );
 }

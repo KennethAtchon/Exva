@@ -9,6 +9,8 @@ import {
 } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AgentLabel, Dot } from "@/components/custom-ui";
+import { EmptyState as UiEmptyState } from "@/components/ui/primitives";
+import { formatCompact, formatFixed } from "@/lib/format";
 import { fmt } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/exva";
@@ -495,9 +497,7 @@ const CollapsibleText = ({
           onClick={() => setExpanded((v) => !v)}
           className={devClass.expandBtn}
         >
-          {expanded
-            ? "collapse"
-            : `show all (${(text.length / 1000).toFixed(1)}k)`}
+          {expanded ? "collapse" : `show all (${formatCompact(text.length)})`}
         </button>
       )}
     </div>
@@ -1024,16 +1024,19 @@ const EventTimeline = ({
 
         {!loading && filtered.length === 0 && (
           <div className={devClass.centerEmpty}>
-            <div className={cn(devClass.mono10, "text-text3")}>
-              {events.length === 0
-                ? "No developer events have been recorded yet."
-                : "No events match these filters."}
-            </div>
-            {events.length === 0 && (
-              <div className={cn(devClass.mono9, "mt-1.5 text-text3")}>
-                Start a session or run a diagnostic to create events.
-              </div>
-            )}
+            <UiEmptyState
+              title={
+                events.length === 0
+                  ? "No developer events yet"
+                  : "No matching events"
+              }
+              message={
+                events.length === 0
+                  ? "Start a session or run a diagnostic to create events."
+                  : "Try clearing filters to see more events."
+              }
+              className="border-0 bg-transparent"
+            />
           </div>
         )}
 
@@ -2011,7 +2014,7 @@ const ExportResultDrawer = ({
     </div>
     <div className={cn(devClass.mono9, "text-text3")}>
       {result.redactionCount} field{result.redactionCount !== 1 ? "s" : ""}{" "}
-      redacted · {(result.sizeBytes / 1024).toFixed(0)} KB
+      redacted · {formatFixed(result.sizeBytes / 1024, 0)} KB
     </div>
     {result.warnings.map((w) => (
       <div key={w} className={cn(devClass.mono9, "text-warning")}>

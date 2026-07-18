@@ -91,6 +91,7 @@ export class AnthropicAdapter implements ProviderAdapter {
       schema: opts.schema,
       terminalToolNames: opts.terminalToolNames,
       prepareStep: opts.prepareStep,
+      onTextDelta: opts.onTextDelta,
     });
   }
 

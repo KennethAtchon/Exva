@@ -25,31 +25,45 @@ export function ConfirmationCard({
   const confirm = item.confirm;
   const [showInput, setShowInput] = useState(false);
   const [alwaysApprove, setAlwaysApprove] = useState(false);
-  const [deciding, setDeciding] = useState(false);
+  const deciding = item.status !== "awaiting_confirm";
   if (!confirm) return null;
 
   const canAlwaysAllow = !confirm.alwaysConfirm && confirm.confirmClass != null;
+  const riskIsLive = confirm.risk?.level === "live";
 
   return (
-    <div className="rounded-xl border border-amber-500/40 bg-amber-500/[0.07] px-4 py-3">
+    <div className="rounded-xl border border-warning-border bg-warning-dim px-4 py-3">
       <div className="flex items-center gap-2">
-        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-        <span className="text-sm font-semibold text-foreground">
+        <AlertTriangle className="h-4 w-4 text-warning" />
+        <span className="text-sm font-semibold text-text1">
           Confirm: {item.label}
         </span>
       </div>
-      <p className="mt-2 text-body text-foreground">{confirm.preview}</p>
+      <p className="mt-2 text-body text-text1">{confirm.preview}</p>
+
+      {confirm.outOfScope ? (
+        <p className="mt-2 rounded-md border border-warning-border bg-surface/40 px-2.5 py-1.5 text-caption font-medium text-warning">
+          Out of conversation scope — this targets a different session than the
+          one this chat is scoped to.
+        </p>
+      ) : null}
 
       {confirm.risk ? (
-        <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-caption font-medium text-destructive">
-          {confirm.risk}
+        <p
+          className={
+            riskIsLive
+              ? "mt-2 rounded-md border border-error-border bg-error-dim px-2.5 py-1.5 text-caption font-medium text-error"
+              : "mt-2 rounded-md border border-warning-border bg-surface/40 px-2.5 py-1.5 text-caption font-medium text-warning"
+          }
+        >
+          {confirm.risk.note}
         </p>
       ) : null}
 
       <button
         type="button"
         onClick={() => setShowInput((v) => !v)}
-        className="mt-2 flex items-center gap-1 text-micro text-muted-foreground hover:text-foreground"
+        className="mt-2 flex items-center gap-1 text-micro text-text3 hover:text-text1"
       >
         {showInput ? (
           <ChevronDown className="h-3 w-3" />
@@ -59,7 +73,7 @@ export function ConfirmationCard({
         {showInput ? "Hide" : "Show"} full input
       </button>
       {showInput ? (
-        <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-muted/50 p-2 font-mono text-micro text-foreground">
+        <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-surface2 p-2 font-mono text-micro text-text1">
           {prettyJson(confirm.inputJson)}
         </pre>
       ) : null}
@@ -69,7 +83,6 @@ export function ConfirmationCard({
           size="sm"
           disabled={deciding}
           onClick={() => {
-            setDeciding(true);
             onConfirm(item.id, canAlwaysAllow ? alwaysApprove : false);
           }}
         >
@@ -80,25 +93,25 @@ export function ConfirmationCard({
           variant="outline"
           disabled={deciding}
           onClick={() => {
-            setDeciding(true);
             onReject(item.id);
           }}
         >
           Reject
         </Button>
         {canAlwaysAllow ? (
-          <label className="ml-1 flex items-center gap-1.5 text-caption text-muted-foreground">
+          <label className="ml-1 flex items-center gap-1.5 text-caption text-text3">
             <input
               type="checkbox"
-              className="h-3.5 w-3.5 accent-primary"
+              className="h-3.5 w-3.5 accent-info"
               checked={alwaysApprove}
               onChange={(e) => setAlwaysApprove(e.target.checked)}
+              disabled={deciding}
             />
             Don&apos;t ask again for this action type
           </label>
         ) : null}
       </div>
-      <p className="mt-2 text-micro text-muted-foreground">
+      <p className="mt-2 text-micro text-text3">
         The assistant is paused until you decide.
       </p>
     </div>

@@ -1,6 +1,10 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { EventSourceType } from "@/lib/types";
-import { Badge as UIBadge, Card as UICard } from "@/components/ui";
+import {
+  Badge as UIBadge,
+  Card as UICard,
+  SectionTitle as UISectionTitle,
+} from "@/components/ui";
 import {
   Select,
   SelectContent,
@@ -24,7 +28,7 @@ const badgeTone = cva(
   {
     variants: {
       variant: {
-        default: "border-transparent bg-muted text-muted-foreground",
+        default: "border-transparent bg-surface3 text-text3",
         success: "border-success-border bg-success-dim text-success",
         danger: "border-error-border bg-error-dim text-error",
         warn: "border-warning-border bg-warning-dim text-warning",
@@ -40,6 +44,7 @@ const badgeTone = cva(
   },
 );
 
+/** App semantic badge — wraps `ui/Badge` with status tones. */
 export const Badge = ({
   children,
   variant = "default",
@@ -104,12 +109,10 @@ export const AgentLabel = ({ type }: { type: EventSourceType }) => {
   );
 };
 
-export const SectionTitle = ({ children }: { children: ReactNode }) => (
-  <h2 className="m-0 font-mono text-micro font-medium uppercase tracking-wider text-text3">
-    {children}
-  </h2>
-);
+/** Re-export canonical section label from `ui/primitives`. */
+export const SectionTitle = UISectionTitle;
 
+/** Card wrapper preserving accent/padding convenience used by panels. */
 export const Card = ({
   children,
   style,

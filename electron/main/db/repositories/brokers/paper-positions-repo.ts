@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { DbClient } from "../../client";
 import { paperPositions } from "../../schema";
+import { safeJsonParse } from "../../../services/infra/safe-json-parse";
 
 export interface PaperPositionRow {
   brokerOrderId: string;
@@ -119,12 +120,12 @@ export class PaperPositionsRepo {
 }
 
 function mapRow(row: typeof paperPositions.$inferSelect): PaperPositionRow {
-  let metadata: Record<string, unknown> = {};
-  try {
-    metadata = JSON.parse(row.metadataJson) as Record<string, unknown>;
-  } catch {
-    metadata = {};
-  }
+  const metadata =
+    safeJsonParse<Record<string, unknown>>(
+      row.metadataJson,
+      undefined,
+      "paper-positions.metadata",
+    ) ?? {};
   return {
     brokerOrderId: row.brokerOrderId,
     accountId: row.accountId,

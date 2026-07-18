@@ -31,14 +31,17 @@ export async function launchExva(): Promise<LaunchedExva> {
     "Resources",
     "app.asar",
   );
+  // Packaged app is self-contained (no Vite). Source launch (`.`) needs a
+  // running renderer dev server — opt in with EXVA_E2E_SOURCE=1.
   const hasPackagedApp = await fs
     .access(packagedApp)
     .then(() => true)
     .catch(() => false);
+  const useSource = process.env.EXVA_E2E_SOURCE === "1" || !hasPackagedApp;
   const app = await electron.launch({
-    args: hasPackagedApp
-      ? [packagedApp, `--user-data-dir=${userDataDir}`]
-      : [".", `--user-data-dir=${userDataDir}`],
+    args: useSource
+      ? [".", `--user-data-dir=${userDataDir}`]
+      : [packagedApp, `--user-data-dir=${userDataDir}`],
     env: launchEnv(),
   });
   const window = await app.firstWindow({ timeout: 30_000 });

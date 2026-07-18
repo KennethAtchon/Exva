@@ -2,6 +2,7 @@ import { createSign, constants as cryptoConstants } from "node:crypto";
 import type { ConnectionTestResult, InstrumentClass } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
 import { createLogger } from "../../infra/log";
+import { requireJsonParse, safeJsonParse } from "../../infra/safe-json-parse";
 import type { BrokerInteractionLogger } from "../broker-interaction-logger";
 import { classifyHttpBrokerError } from "../broker-errors";
 import {
@@ -92,7 +93,11 @@ export class KalshiAdapter implements BrokerAdapter {
   ) {
     this.credentials =
       typeof credentialsJson === "string"
-        ? (JSON.parse(credentialsJson) as KalshiCredentials)
+        ? requireJsonParse<KalshiCredentials>(
+            credentialsJson,
+            undefined,
+            "Invalid Kalshi credentials JSON",
+          )
         : credentialsJson;
     if (!this.credentials.keyId || !this.credentials.privateKeyPem) {
       throw new AppError(
@@ -452,11 +457,7 @@ function parseKalshiMessage(raw: unknown): unknown {
           : raw instanceof ArrayBuffer
             ? new TextDecoder().decode(raw)
             : String(raw);
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
+  return safeJsonParse(text, undefined, "kalshi-adapter.ws-message");
 }
 
 /**

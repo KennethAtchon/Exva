@@ -11,6 +11,7 @@ import type { BrokerRoutingRepo } from "../../db/repositories/brokers/broker-rou
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import type { SessionTemplatesRepo } from "../../db/repositories/sessions/session-templates-repo";
 import type { SessionStrategyContextService } from "./session-strategy-context-service";
+import { requireJsonParse } from "../infra/safe-json-parse";
 
 export interface TemplateListItem {
   id: string;
@@ -106,7 +107,11 @@ export class SessionTemplateService {
     }
 
     const parsed = sessionTemplatePayloadSchema.safeParse(
-      JSON.parse(template.templatePayloadJson),
+      requireJsonParse(
+        template.templatePayloadJson,
+        undefined,
+        "Invalid session template payload JSON",
+      ),
     );
     if (!parsed.success) {
       throw new AppError(

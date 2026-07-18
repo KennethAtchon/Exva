@@ -9,7 +9,7 @@ export function AndonCordCard({
   onDismiss: (lessonId: string) => void | Promise<void>;
 }) {
   return (
-    <div className="rounded-[14px] border border-border bg-card">
+    <div className="rounded-[14px] border border-border bg-surface2">
       <div className="border-b border-border px-4 py-3 text-sm font-semibold text-text1">
         Andon Cord
       </div>

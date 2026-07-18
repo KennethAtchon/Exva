@@ -24,168 +24,210 @@ import {
   assertSessionInWorkspaceEnvironment,
 } from "../environment-guards";
 import { handle } from "../handle";
+import {
+  ipcNoPayloadSchema,
+  ipcPayloadUnknownSchema,
+} from "../payload-schemas";
 
 export function registerSessionHandlers(services: AppServices): void {
-  handle(ipcMain, channels.session.start, async () => {
+  handle(ipcMain, channels.session.start, ipcNoPayloadSchema, async () => {
     assertFocusedSessionMatchesWorkspace(services);
     return services.session.start();
   });
-  handle(ipcMain, channels.session.pause, async () => {
+  handle(ipcMain, channels.session.pause, ipcNoPayloadSchema, async () => {
     assertFocusedSessionMatchesWorkspace(services);
     return services.session.pause();
   });
-  handle(ipcMain, channels.session.resume, async () => {
+  handle(ipcMain, channels.session.resume, ipcNoPayloadSchema, async () => {
     assertFocusedSessionMatchesWorkspace(services);
     return services.session.resume();
   });
-  handle(ipcMain, channels.session.stop, async () => {
+  handle(ipcMain, channels.session.stop, ipcNoPayloadSchema, async () => {
     assertFocusedSessionMatchesWorkspace(services);
     return services.session.stop();
   });
-  handle(ipcMain, channels.session.forceStop, async () => {
+  handle(ipcMain, channels.session.forceStop, ipcNoPayloadSchema, async () => {
     assertFocusedSessionMatchesWorkspace(services);
     return services.session.forceStop();
   });
-  handle(ipcMain, channels.session.getStatus, async () => {
+  handle(ipcMain, channels.session.getStatus, ipcNoPayloadSchema, async () => {
     const focused = services.repos.session.getFocused();
     if (!focused) return "idle" as const;
     assertSessionInWorkspaceEnvironment(services, focused.id);
     return services.session.getStatus(focused.id);
   });
-  handle(ipcMain, channels.session.getExecutionProgress, async (payload) => {
-    const { sessionId } = sessionExecutionProgressSchema.parse(payload);
-    const { cycleId, steps } =
-      services.repos.sessionExecutionSteps.getLatestCycleState(sessionId);
-    const openTradeCount = countOpenTrades(services.repos.trades, sessionId);
-    const monitoringStep = steps.find((step) => step.stage === "monitoring");
-    const monitoringActive =
-      openTradeCount > 0 &&
-      steps.every(
-        (step) => step.status === "succeeded" || step.status === "skipped",
-      ) &&
-      monitoringStep?.status === "succeeded";
-    return {
-      steps: steps.map((step) => ({
-        stage: step.stage,
-        status: step.status,
-        attempt: step.attempt,
-        nextRetryAt: step.nextRetryAt,
-        lastErrorCode: step.lastErrorCode,
-        lastErrorMessage: step.lastErrorMessage,
-        outcome: step.outcome,
-        retryable: step.retryable,
-        updatedAt: step.updatedAt,
-      })),
-      cycleId,
-      openTradeCount,
-      monitoringActive,
-    };
-  });
-  handle(ipcMain, channels.session.retryStep, async (payload) => {
-    const { sessionId, cycleId, stage } =
-      sessionExecutionStepActionSchema.parse(payload);
-    const session = services.repos.session.requireById(sessionId);
-    if (
-      session.status !== "active" &&
-      session.status !== "attention_required"
-    ) {
+  handle(
+    ipcMain,
+    channels.session.getExecutionProgress,
+    sessionExecutionProgressSchema,
+    async ({ sessionId }) => {
+      const { cycleId, steps } =
+        services.repos.sessionExecutionSteps.getLatestCycleState(sessionId);
+      const openTradeCount = countOpenTrades(services.repos.trades, sessionId);
+      const monitoringStep = steps.find((step) => step.stage === "monitoring");
+      const monitoringActive =
+        openTradeCount > 0 &&
+        steps.every(
+          (step) => step.status === "succeeded" || step.status === "skipped",
+        ) &&
+        monitoringStep?.status === "succeeded";
       return {
-        ok: false as const,
-        reason: "Session must be active or attention_required.",
+        steps: steps.map((step) => ({
+          stage: step.stage,
+          status: step.status,
+          attempt: step.attempt,
+          nextRetryAt: step.nextRetryAt,
+          lastErrorCode: step.lastErrorCode,
+          lastErrorMessage: step.lastErrorMessage,
+          outcome: step.outcome,
+          retryable: step.retryable,
+          updatedAt: step.updatedAt,
+        })),
+        cycleId,
+        openTradeCount,
+        monitoringActive,
       };
-    }
-    const step = services.repos.sessionExecutionSteps.get(
-      sessionId,
-      cycleId,
-      stage,
-    );
-    if (!step || (step.status !== "failed" && step.status !== "retrying")) {
-      return {
-        ok: false as const,
-        reason: "Step is not retryable in its current state.",
-      };
-    }
-    if (
-      (stage === "risk_gate" || stage === "broker_order") &&
-      step.status !== "failed"
-    ) {
-      return {
-        ok: false as const,
-        reason: `${stage} cannot be retried while mid-flight.`,
-      };
-    }
-    return services.runtimeManager.retryStep(sessionId, cycleId, stage);
-  });
-  handle(ipcMain, channels.session.pauseAfterCurrentStep, async (payload) => {
-    const { sessionId } = sessionIdParamSchema.parse(payload);
-    services.runtimeManager.pauseAfterCurrentStep(sessionId);
-    return { ok: true as const };
-  });
-  handle(ipcMain, channels.session.clearFailedStep, async (payload) => {
-    const { sessionId, cycleId, stage } =
-      sessionExecutionStepActionSchema.parse(payload);
-    const step = services.repos.sessionExecutionSteps.get(
-      sessionId,
-      cycleId,
-      stage,
-    );
-    if (!step || (step.status !== "failed" && step.status !== "retrying")) {
-      return {
-        ok: false as const,
-        reason: "No failed step exists for that stage.",
-      };
-    }
-    services.repos.sessionExecutionSteps.clearFailed(sessionId, cycleId, stage);
-    return { ok: true as const };
-  });
-
-  handle(ipcMain, channels.session.list, async (payload) => {
-    const parsed = sessionListFiltersSchema.parse(payload) ?? {};
-    const prefs = services.repos.workspacePreferences.get();
-    const executionMode = resolveExecutionModeFilter(prefs, parsed);
-    return services.sessionListing.list({
-      ...parsed,
-      executionMode,
-    });
-  });
-
-  handle(ipcMain, channels.session.create, async (payload) => {
-    const input = sessionCreateInputSchema.parse(payload);
-    assertExecutionModeMatchesWorkspace(services, input.executionMode);
-    return services.sessionWrites.create(input);
-  });
-
-  handle(ipcMain, channels.session.update, async (payload) => {
-    const { id, input } = sessionUpdateInputSchema.parse(payload);
-    assertExecutionModeMatchesWorkspace(services, input.executionMode);
-    return services.sessionWrites.update(id, input);
-  });
-
-  handle(ipcMain, channels.session.focus, async (payload) => {
-    const { id } = sessionFocusSchema.parse(payload);
-    const session = services.repos.session.requireById(id);
-    const prefs = services.repos.workspacePreferences.get();
-    if (
-      !sessionMatchesEnvironment(
-        session.executionMode,
-        prefs.globalEnvironmentMode,
-      )
-    ) {
-      throw new AppError(
-        `Session "${session.name}" is not in the current ${prefs.globalEnvironmentMode} workspace environment.`,
-        "VALIDATION_FAILED",
-        {
-          sessionId: id,
-          sessionExecutionMode: session.executionMode,
-          globalEnvironmentMode: prefs.globalEnvironmentMode,
-        },
+    },
+  );
+  handle(
+    ipcMain,
+    channels.session.retryStep,
+    sessionExecutionStepActionSchema,
+    async ({ sessionId, cycleId, stage }) => {
+      const session = services.repos.session.requireById(sessionId);
+      if (
+        session.status !== "active" &&
+        session.status !== "attention_required"
+      ) {
+        return {
+          ok: false as const,
+          reason: "Session must be active or attention_required.",
+        };
+      }
+      const step = services.repos.sessionExecutionSteps.get(
+        sessionId,
+        cycleId,
+        stage,
       );
-    }
-    services.repos.session.setFocus(id);
-    return { workspaceViewMode: "session" as const, focusedSessionId: id };
-  });
+      if (!step || (step.status !== "failed" && step.status !== "retrying")) {
+        return {
+          ok: false as const,
+          reason: "Step is not retryable in its current state.",
+        };
+      }
+      if (
+        (stage === "risk_gate" || stage === "broker_order") &&
+        step.status !== "failed"
+      ) {
+        return {
+          ok: false as const,
+          reason: `${stage} cannot be retried while mid-flight.`,
+        };
+      }
+      return services.runtimeManager.retryStep(sessionId, cycleId, stage);
+    },
+  );
+  handle(
+    ipcMain,
+    channels.session.pauseAfterCurrentStep,
+    sessionIdParamSchema,
+    async ({ sessionId }) => {
+      services.runtimeManager.pauseAfterCurrentStep(sessionId);
+      return { ok: true as const };
+    },
+  );
+  handle(
+    ipcMain,
+    channels.session.clearFailedStep,
+    sessionExecutionStepActionSchema,
+    async ({ sessionId, cycleId, stage }) => {
+      const step = services.repos.sessionExecutionSteps.get(
+        sessionId,
+        cycleId,
+        stage,
+      );
+      if (!step || (step.status !== "failed" && step.status !== "retrying")) {
+        return {
+          ok: false as const,
+          reason: "No failed step exists for that stage.",
+        };
+      }
+      services.repos.sessionExecutionSteps.clearFailed(
+        sessionId,
+        cycleId,
+        stage,
+      );
+      return { ok: true as const };
+    },
+  );
 
-  handle(ipcMain, channels.session.goGlobal, async () => {
+  handle(
+    ipcMain,
+    channels.session.list,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const parsed = sessionListFiltersSchema.parse(payload) ?? {};
+      const prefs = services.repos.workspacePreferences.get();
+      const executionMode = resolveExecutionModeFilter(prefs, parsed);
+      return services.sessionListing.list({
+        ...parsed,
+        executionMode,
+      });
+    },
+  );
+
+  handle(
+    ipcMain,
+    channels.session.create,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const input = sessionCreateInputSchema.parse(payload);
+      assertExecutionModeMatchesWorkspace(services, input.executionMode);
+      return services.sessionWrites.create(input);
+    },
+  );
+
+  handle(
+    ipcMain,
+    channels.session.update,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const { id, input } = sessionUpdateInputSchema.parse(payload);
+      assertExecutionModeMatchesWorkspace(services, input.executionMode);
+      return services.sessionWrites.update(id, input);
+    },
+  );
+
+  handle(
+    ipcMain,
+    channels.session.focus,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const { id } = sessionFocusSchema.parse(payload);
+      const session = services.repos.session.requireById(id);
+      const prefs = services.repos.workspacePreferences.get();
+      if (
+        !sessionMatchesEnvironment(
+          session.executionMode,
+          prefs.globalEnvironmentMode,
+        )
+      ) {
+        throw new AppError(
+          `Session "${session.name}" is not in the current ${prefs.globalEnvironmentMode} workspace environment.`,
+          "VALIDATION_FAILED",
+          {
+            sessionId: id,
+            sessionExecutionMode: session.executionMode,
+            globalEnvironmentMode: prefs.globalEnvironmentMode,
+          },
+        );
+      }
+      services.repos.session.setFocus(id);
+      return { workspaceViewMode: "session" as const, focusedSessionId: id };
+    },
+  );
+
+  handle(ipcMain, channels.session.goGlobal, ipcNoPayloadSchema, async () => {
     const sessions = services.repos.session
       .list({ includeArchived: false })
       .filter((session) => session.status !== "archived");
@@ -199,62 +241,88 @@ export function registerSessionHandlers(services: AppServices): void {
     return { workspaceViewMode: "global" as const, focusedSessionId: null };
   });
 
-  handle(ipcMain, channels.session.archive, async (payload) => {
-    const { id } = sessionArchiveSchema.parse(payload);
-    assertSessionInWorkspaceEnvironment(services, id);
-    const session = services.repos.session.requireById(id);
-    if (session.status === "active" || session.status === "paused") {
-      throw new AppError(
-        "Stop the session before archiving it.",
-        "INVALID_TRANSITION",
-        { id },
-      );
-    }
-    services.repos.session.setStatus("archived", id);
-    if (session.isFocused) {
-      services.repos.session.clearFocus();
-    }
-    return { archived: true };
-  });
+  handle(
+    ipcMain,
+    channels.session.archive,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const { id } = sessionArchiveSchema.parse(payload);
+      assertSessionInWorkspaceEnvironment(services, id);
+      const session = services.repos.session.requireById(id);
+      if (session.status === "active" || session.status === "paused") {
+        throw new AppError(
+          "Stop the session before archiving it.",
+          "INVALID_TRANSITION",
+          { id },
+        );
+      }
+      services.repos.session.setStatus("archived", id);
+      if (session.isFocused) {
+        services.repos.session.clearFocus();
+      }
+      return { archived: true };
+    },
+  );
 
-  handle(ipcMain, channels.session.duplicate, async (payload) => {
-    const { sourceId, name } = sessionDuplicateInputSchema.parse(payload);
-    assertSessionInWorkspaceEnvironment(services, sourceId);
-    const session = services.repos.session.duplicate(sourceId, { name });
-    return { id: session.id, status: "draft" as const };
-  });
+  handle(
+    ipcMain,
+    channels.session.duplicate,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const { sourceId, name } = sessionDuplicateInputSchema.parse(payload);
+      assertSessionInWorkspaceEnvironment(services, sourceId);
+      const session = services.repos.session.duplicate(sourceId, { name });
+      return { id: session.id, status: "draft" as const };
+    },
+  );
 
-  handle(ipcMain, channels.session.instrumentCacheGet, async (payload) => {
-    const { sessionId } = sessionIdParamSchema.parse(payload);
-    assertSessionInWorkspaceEnvironment(services, sessionId);
-    const session = services.repos.session.requireById(sessionId);
-    return services.instrumentCacheService.getView(session);
-  });
+  handle(
+    ipcMain,
+    channels.session.instrumentCacheGet,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const { sessionId } = sessionIdParamSchema.parse(payload);
+      assertSessionInWorkspaceEnvironment(services, sessionId);
+      const session = services.repos.session.requireById(sessionId);
+      return services.instrumentCacheService.getView(session);
+    },
+  );
 
-  handle(ipcMain, channels.session.instrumentCacheClear, async (payload) => {
-    const { sessionId } = sessionIdParamSchema.parse(payload);
-    assertSessionInWorkspaceEnvironment(services, sessionId);
-    const session = services.repos.session.requireById(sessionId);
-    if (!isSessionEditable(session.status)) {
-      throw new AppError(
-        "Stop the session before clearing the instrument cache.",
-        "LOCKED",
-        { sessionId },
-      );
-    }
-    services.instrumentCacheService.clear(sessionId);
-    return { cleared: true as const };
-  });
+  handle(
+    ipcMain,
+    channels.session.instrumentCacheClear,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const { sessionId } = sessionIdParamSchema.parse(payload);
+      assertSessionInWorkspaceEnvironment(services, sessionId);
+      const session = services.repos.session.requireById(sessionId);
+      if (!isSessionEditable(session.status)) {
+        throw new AppError(
+          "Stop the session before clearing the instrument cache.",
+          "LOCKED",
+          { sessionId },
+        );
+      }
+      services.instrumentCacheService.clear(sessionId);
+      return { cleared: true as const };
+    },
+  );
 
-  handle(ipcMain, channels.session.getLiveReadiness, async (payload) => {
-    const { sessionId } = sessionIdParamSchema.parse(payload);
-    assertSessionInWorkspaceEnvironment(services, sessionId);
-    return services.liveReadiness.check(sessionId);
-  });
+  handle(
+    ipcMain,
+    channels.session.getLiveReadiness,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const { sessionId } = sessionIdParamSchema.parse(payload);
+      assertSessionInWorkspaceEnvironment(services, sessionId);
+      return services.liveReadiness.check(sessionId);
+    },
+  );
 
   handle(
     ipcMain,
     channels.session.acknowledgeLiveReadiness,
+    ipcPayloadUnknownSchema,
     async (payload) => {
       const { sessionId } = sessionIdParamSchema.parse(payload);
       const report = await services.liveReadiness.check(sessionId);
@@ -279,6 +347,7 @@ export function registerSessionHandlers(services: AppServices): void {
   handle(
     ipcMain,
     channels.session.testLiveBrokerConnection,
+    ipcPayloadUnknownSchema,
     async (payload) => {
       const { sessionId } = sessionIdParamSchema.parse(payload);
       const assignedIds =
@@ -300,19 +369,29 @@ export function registerSessionHandlers(services: AppServices): void {
     },
   );
 
-  handle(ipcMain, channels.session.debugInjectSignal, async (payload) => {
-    const parsed = debugInjectSignalSchema.parse(payload);
-    services.signals.debugInjectSignal(parsed.sessionId, {
-      kind: parsed.kind,
-      payload: parsed.payload,
-      symbol: parsed.symbol,
-    });
-    return { ok: true };
-  });
+  handle(
+    ipcMain,
+    channels.session.debugInjectSignal,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const parsed = debugInjectSignalSchema.parse(payload);
+      services.signals.debugInjectSignal(parsed.sessionId, {
+        kind: parsed.kind,
+        payload: parsed.payload,
+        symbol: parsed.symbol,
+      });
+      return { ok: true };
+    },
+  );
 
-  handle(ipcMain, channels.session.debugForceTrade, async (payload) => {
-    const { sessionId } = sessionIdParamSchema.parse(payload);
-    assertSessionInWorkspaceEnvironment(services, sessionId);
-    return services.signals.debugForceTrade(sessionId);
-  });
+  handle(
+    ipcMain,
+    channels.session.debugForceTrade,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const { sessionId } = sessionIdParamSchema.parse(payload);
+      assertSessionInWorkspaceEnvironment(services, sessionId);
+      return services.signals.debugForceTrade(sessionId);
+    },
+  );
 }

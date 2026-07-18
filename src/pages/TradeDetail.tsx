@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AgentLabel, Badge } from "@/components/custom-ui";
+import { formatFixed } from "@/lib/format";
 import { fmt } from "@/lib/formatters";
 import type { HelpGlossaryId } from "@/lib/help-glossary";
 import { api } from "@/lib/exva";
@@ -371,13 +372,13 @@ const TradeExitAnalytics = ({
             [
               "Spread at entry",
               trade.spread_at_entry_bps != null
-                ? `${trade.spread_at_entry_bps.toFixed(1)} bps`
+                ? `${formatFixed(trade.spread_at_entry_bps, 1)} bps`
                 : EMPTY_VALUE,
             ],
             [
               "Slippage",
               trade.slippage_bps != null
-                ? `${trade.slippage_bps.toFixed(1)} bps`
+                ? `${formatFixed(trade.slippage_bps, 1)} bps`
                 : EMPTY_VALUE,
             ],
             [

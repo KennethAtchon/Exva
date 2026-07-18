@@ -10,6 +10,7 @@ import type { AIPhaseServices } from "../../phases/services";
 import { registerEngine, type CacheEngine } from "../registry";
 import type { AIPhaseContext } from "../../phases/types";
 import { resolveSessionInstrumentClasses } from "../../../session/effective-instrument-classes";
+import { safeJsonParse } from "../../../infra/safe-json-parse";
 
 export type SelectorDefinitionFingerprint = {
   selectionMode: SelectionMode;
@@ -159,7 +160,7 @@ export const SELECTOR_INSTRUMENT_CACHE_ENGINE: CacheEngine<InstrumentSelection> 
         return null;
       }
       if (cached.definitionHash !== fingerprint) return null;
-      const parsed = JSON.parse(cached.instruments) as unknown;
+      const parsed = safeJsonParse(cached.instruments);
       if (!Array.isArray(parsed) || parsed.length === 0) return null;
       return { instruments: parsed };
     },

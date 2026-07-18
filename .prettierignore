@@ -13,3 +13,7 @@ bun.lock
 docs/.DS_Store
 docs/hello.json
 **/.DS_Store
+
+# Generated artifacts
+research/output
+test-results

@@ -28,7 +28,7 @@ export const PendingApprovalsPanel = ({
 
   return (
     <>
-      <Card className="rounded-[14px] border border-border bg-card px-[22px] py-[18px]">
+      <Card className="rounded-[14px] border border-border bg-surface2 px-[22px] py-[18px]">
         <div className="mb-1 flex items-center gap-2.5">
           <SectionTitle>Pending approvals</SectionTitle>
           <HelpTooltip glossaryId="approval-queue" />

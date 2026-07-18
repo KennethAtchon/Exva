@@ -1,4 +1,5 @@
 import type { InstrumentClass, Trade } from "@/lib/types";
+import { AppError } from "@electron/shared/infra/errors";
 import {
   adapterCapabilitiesOf,
   type OrderRequest,
@@ -96,6 +97,22 @@ export async function placeRoutedOrder(
       "order skipped: adapter does not support order shape",
     );
     return null;
+  }
+
+  if (ctx.deps.isOrderHalted?.()) {
+    ctx.deps.logger.warn(
+      {
+        sessionId: ctx.sessionId,
+        tradeId: trade.id,
+        brokerAccountId,
+        clientOrderId,
+      },
+      "order refused: kill-switch halt engaged",
+    );
+    throw new AppError("Order refused: kill switch is engaged", "FORBIDDEN", {
+      sessionId: ctx.sessionId,
+      tradeId: trade.id,
+    });
   }
 
   let result;

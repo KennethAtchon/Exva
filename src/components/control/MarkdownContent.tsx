@@ -1,93 +1,181 @@
-import { Fragment } from "react";
-import type { ReactNode } from "react";
+import { useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Check, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DocMermaid } from "@/components/docs/DocMermaid";
 
-const INLINE_TOKEN_RE =
-  /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*)/g;
+const proseClass = cn(
+  "space-y-3 text-sm text-text1",
+  "[&_h1]:text-base [&_h1]:font-semibold [&_h1]:text-text1",
+  "[&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-text1",
+  "[&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-text1",
+  "[&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-text1",
+  "[&_p]:whitespace-pre-wrap [&_p]:break-words [&_p]:leading-relaxed",
+  "[&_a]:text-info [&_a]:underline [&_a]:underline-offset-4",
+  "[&_strong]:font-semibold [&_strong]:text-text1",
+  "[&_em]:italic",
+  "[&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5",
+  "[&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-5",
+  "[&_li]:text-text1",
+  "[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-text2",
+  "[&_hr]:border-border",
+  "[&_table]:w-full [&_table]:border-collapse [&_table]:text-left [&_table]:text-caption",
+  "[&_th]:border [&_th]:border-border [&_th]:bg-surface2 [&_th]:px-2 [&_th]:py-1.5 [&_th]:font-medium [&_th]:text-text2",
+  "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1.5 [&_td]:text-text1",
+  "[&_input[type=checkbox]]:mr-2",
+);
 
-function renderInline(text: string): ReactNode[] {
-  const nodes: ReactNode[] = [];
-  let lastIndex = 0;
+type FenceInfo = {
+  lang: string;
+  body: string;
+};
 
-  for (const match of text.matchAll(INLINE_TOKEN_RE)) {
-    const index = match.index ?? 0;
-    if (index > lastIndex) {
-      nodes.push(text.slice(lastIndex, index));
+/** Peel an unclosed trailing fence so streaming doesn't open a runaway `<pre>`. */
+function splitTrailingIncompleteFence(content: string): {
+  markdown: string;
+  incomplete: FenceInfo | null;
+} {
+  const normalized = content.replace(/\r\n/g, "\n");
+  const lines = normalized.split("\n");
+  let inFence = false;
+  let fenceLang = "";
+  let fenceStart = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].startsWith("```")) continue;
+    if (!inFence) {
+      inFence = true;
+      fenceLang = lines[i].slice(3).trim().toLowerCase();
+      fenceStart = i;
+    } else {
+      inFence = false;
+      fenceLang = "";
+      fenceStart = -1;
     }
-
-    if (match[2] && match[3]) {
-      nodes.push(
-        <a
-          key={`link-${index}`}
-          href={match[3]}
-          target="_blank"
-          rel="noreferrer"
-          className="text-primary underline underline-offset-4"
-        >
-          {match[2]}
-        </a>,
-      );
-    } else if (match[4]) {
-      nodes.push(
-        <code
-          key={`code-${index}`}
-          className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]"
-        >
-          {match[4]}
-        </code>,
-      );
-    } else if (match[5]) {
-      nodes.push(<strong key={`strong-${index}`}>{match[5]}</strong>);
-    } else if (match[6]) {
-      nodes.push(<em key={`em-${index}`}>{match[6]}</em>);
-    }
-
-    lastIndex = index + match[0].length;
   }
 
-  if (lastIndex < text.length) {
-    nodes.push(text.slice(lastIndex));
+  if (!inFence || fenceStart < 0) {
+    return { markdown: normalized, incomplete: null };
   }
 
-  return nodes;
+  return {
+    markdown: lines.slice(0, fenceStart).join("\n"),
+    incomplete: {
+      lang: fenceLang,
+      body: lines.slice(fenceStart + 1).join("\n"),
+    },
+  };
 }
 
-function renderInlineWithBreaks(text: string): ReactNode[] {
-  return text.split("\n").flatMap((line, index, arr) => {
-    const segment = renderInline(line);
-    if (index === arr.length - 1) return segment;
-    return [...segment, <br key={`br-${index}`} />];
-  });
-}
-
-function isUnorderedListLine(line: string): boolean {
-  return /^\s*[-*]\s+/.test(line);
-}
-
-function isOrderedListLine(line: string): boolean {
-  return /^\s*\d+\.\s+/.test(line);
-}
-
-function isHeadingLine(line: string): boolean {
-  return /^#{1,6}\s+/.test(line);
-}
-
-function isQuoteLine(line: string): boolean {
-  return /^>\s?/.test(line);
-}
-
-function isFenceLine(line: string): boolean {
-  return /^```/.test(line);
-}
-
-function isBlockStart(line: string): boolean {
+function InlineCode({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    isHeadingLine(line) ||
-    isQuoteLine(line) ||
-    isFenceLine(line) ||
-    isUnorderedListLine(line) ||
-    isOrderedListLine(line)
+    <code
+      className={cn(
+        "rounded bg-surface2 px-1 py-0.5 font-mono text-[0.9em] text-text1",
+        className,
+      )}
+    >
+      {children}
+    </code>
   );
+}
+
+function CodeBlock({ language, code }: { language: string; code: string }) {
+  const [copied, setCopied] = useState(false);
+  const label = language || "text";
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard may be unavailable in some environments.
+    }
+  };
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-surface2">
+      <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
+        <span className="font-mono text-micro uppercase tracking-wider text-text3">
+          {label}
+        </span>
+        <button
+          type="button"
+          onClick={() => void copy()}
+          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-micro text-text3 transition-colors hover:bg-surface3 hover:text-text1"
+          title="Copy code"
+        >
+          {copied ? (
+            <Check className="h-3 w-3 text-success" />
+          ) : (
+            <Copy className="h-3 w-3" />
+          )}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <pre className="max-h-80 overflow-auto px-3 py-2 font-mono text-xs text-text1">
+        <code>{code}</code>
+      </pre>
+    </div>
+  );
+}
+
+function IncompleteFence({ lang, body }: FenceInfo) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-dashed border-border bg-surface2/80">
+      <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
+        <span className="font-mono text-micro uppercase tracking-wider text-text3">
+          {lang || "text"}
+        </span>
+        <span className="font-mono text-micro text-text3">Streaming…</span>
+      </div>
+      <pre className="max-h-48 overflow-auto px-3 py-2 font-mono text-xs text-text2">
+        <code>{body}</code>
+      </pre>
+    </div>
+  );
+}
+
+function MarkdownCode({
+  className,
+  children,
+  ...props
+}: ComponentPropsWithoutRef<"code"> & { node?: unknown }) {
+  const match = /language-(\w+)/.exec(className ?? "");
+  const language = match?.[1]?.toLowerCase() ?? "";
+  const raw = String(children).replace(/\n$/, "");
+  const isBlock =
+    Boolean(match) || (typeof children === "string" && children.includes("\n"));
+
+  if (!isBlock) {
+    return (
+      <InlineCode className={className} {...props}>
+        {children}
+      </InlineCode>
+    );
+  }
+
+  if (language === "mermaid") {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return <IncompleteFence lang="mermaid" body="" />;
+    }
+    return (
+      <div className="[&_.mb-6]:mb-0">
+        <DocMermaid chart={trimmed} />
+      </div>
+    );
+  }
+
+  return <CodeBlock language={language} code={raw} />;
 }
 
 export function MarkdownContent({
@@ -97,117 +185,29 @@ export function MarkdownContent({
   content: string;
   className?: string;
 }) {
-  const lines = content.replace(/\r\n/g, "\n").split("\n");
-  const blocks: ReactNode[] = [];
-
-  for (let i = 0; i < lines.length; ) {
-    const line = lines[i];
-
-    if (!line.trim()) {
-      i += 1;
-      continue;
-    }
-
-    if (isFenceLine(line)) {
-      const body: string[] = [];
-      i += 1;
-      while (i < lines.length && !isFenceLine(lines[i])) {
-        body.push(lines[i]);
-        i += 1;
-      }
-      i += i < lines.length ? 1 : 0;
-      blocks.push(
-        <pre
-          key={`code-block-${blocks.length}`}
-          className="overflow-x-auto rounded-2xl border border-border bg-card px-3 py-2 font-mono text-xs text-foreground"
-        >
-          <code>{body.join("\n")}</code>
-        </pre>,
-      );
-      continue;
-    }
-
-    if (isHeadingLine(line)) {
-      const [, hashes, title] = line.match(/^(#{1,6})\s+(.*)$/) ?? [];
-      const level = hashes?.length ?? 2;
-      const Tag = `h${level}` as keyof JSX.IntrinsicElements;
-      const headingClass =
-        level <= 2
-          ? "text-base font-semibold text-foreground"
-          : "text-sm font-semibold text-foreground";
-      blocks.push(
-        <Tag key={`heading-${blocks.length}`} className={headingClass}>
-          {renderInline(title ?? line)}
-        </Tag>,
-      );
-      i += 1;
-      continue;
-    }
-
-    if (isQuoteLine(line)) {
-      const quoteLines: string[] = [];
-      while (i < lines.length && isQuoteLine(lines[i])) {
-        quoteLines.push(lines[i].replace(/^>\s?/, ""));
-        i += 1;
-      }
-      blocks.push(
-        <blockquote
-          key={`quote-${blocks.length}`}
-          className="border-l-2 border-border pl-3 text-muted-foreground"
-        >
-          {renderInlineWithBreaks(quoteLines.join("\n"))}
-        </blockquote>,
-      );
-      continue;
-    }
-
-    if (isUnorderedListLine(line) || isOrderedListLine(line)) {
-      const ordered = isOrderedListLine(line);
-      const ListTag = ordered ? "ol" : "ul";
-      const items: string[] = [];
-      while (
-        i < lines.length &&
-        (ordered ? isOrderedListLine(lines[i]) : isUnorderedListLine(lines[i]))
-      ) {
-        items.push(lines[i].replace(/^\s*(?:[-*]|\d+\.)\s+/, ""));
-        i += 1;
-      }
-      blocks.push(
-        <ListTag
-          key={`list-${blocks.length}`}
-          className={cn(
-            "space-y-1 pl-5 text-foreground",
-            ordered ? "list-decimal" : "list-disc",
-          )}
-        >
-          {items.map((item, index) => (
-            <li key={`item-${index}`}>{renderInline(item)}</li>
-          ))}
-        </ListTag>,
-      );
-      continue;
-    }
-
-    const paragraph: string[] = [];
-    while (i < lines.length && lines[i].trim() && !isBlockStart(lines[i])) {
-      paragraph.push(lines[i]);
-      i += 1;
-    }
-    blocks.push(
-      <p
-        key={`paragraph-${blocks.length}`}
-        className="whitespace-pre-wrap break-words leading-relaxed text-foreground"
-      >
-        {renderInlineWithBreaks(paragraph.join("\n"))}
-      </p>,
-    );
-  }
+  const { markdown, incomplete } = splitTrailingIncompleteFence(content);
 
   return (
-    <div className={cn("space-y-3 text-sm", className)}>
-      {blocks.map((block, index) => (
-        <Fragment key={index}>{block}</Fragment>
-      ))}
+    <div className={cn(proseClass, className)}>
+      {markdown.trim() ? (
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            code: MarkdownCode,
+            pre: ({ children }) => <>{children}</>,
+            a: ({ href, children }) => (
+              <a href={href} target="_blank" rel="noreferrer">
+                {children}
+              </a>
+            ),
+          }}
+        >
+          {markdown}
+        </ReactMarkdown>
+      ) : null}
+      {incomplete ? (
+        <IncompleteFence lang={incomplete.lang} body={incomplete.body} />
+      ) : null}
     </div>
   );
 }

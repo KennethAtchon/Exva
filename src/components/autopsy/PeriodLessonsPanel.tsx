@@ -136,9 +136,9 @@ export function PeriodLessonsPanel({
   }
 
   return (
-    <div className="rounded-[14px] border border-border bg-card">
+    <div className="rounded-[14px] border border-border bg-surface2">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="text-caption font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+        <div className="text-caption font-semibold uppercase tracking-[0.1em] text-text3">
           LESSONS
         </div>
         <Button

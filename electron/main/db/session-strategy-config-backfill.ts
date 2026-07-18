@@ -27,6 +27,10 @@ import {
 import { sessionTemplatePayloadSchema } from "@electron/shared/validation/schemas";
 import { assembleFullDocFromComponentPresets } from "./builtin-config-presets";
 import * as schema from "./schema";
+import {
+  requireJsonParse,
+  safeJsonParse,
+} from "../services/infra/safe-json-parse";
 
 export type BackfillResult = {
   sessionsBackfilled: number;
@@ -493,7 +497,11 @@ function backfillPresetsFromLegacy(
       .prepare(`SELECT id, label, is_built_in, preset_json FROM risk_presets`)
       .all() as LegacyPresetRow[];
     for (const row of rows) {
-      const preset = JSON.parse(row.preset_json) as RiskPreset;
+      const preset = requireJsonParse<RiskPreset>(
+        row.preset_json,
+        undefined,
+        `Invalid risk_presets.preset_json for ${row.id}`,
+      );
       const doc: SessionStrategyConfigPartialDoc = {
         schemaVersion: SESSION_STRATEGY_CONFIG_SCHEMA_VERSION,
         risk: mergeRisk({ riskPresetId: preset.id, ...preset.values }),
@@ -520,7 +528,11 @@ function backfillPresetsFromLegacy(
       )
       .all() as LegacyPresetRow[];
     for (const row of rows) {
-      const preset = JSON.parse(row.preset_json) as TimeframePreset;
+      const preset = requireJsonParse<TimeframePreset>(
+        row.preset_json,
+        undefined,
+        `Invalid timeframe_presets.preset_json for ${row.id}`,
+      );
       const doc: SessionStrategyConfigPartialDoc = {
         schemaVersion: SESSION_STRATEGY_CONFIG_SCHEMA_VERSION,
         timeframe: mergeTimeframe({
@@ -550,7 +562,11 @@ function backfillPresetsFromLegacy(
       )
       .all() as LegacyPresetRow[];
     for (const row of rows) {
-      const preset = JSON.parse(row.preset_json) as ResearchPosturePreset;
+      const preset = requireJsonParse<ResearchPosturePreset>(
+        row.preset_json,
+        undefined,
+        `Invalid research_posture_presets.preset_json for ${row.id}`,
+      );
       const doc: SessionStrategyConfigPartialDoc = {
         schemaVersion: SESSION_STRATEGY_CONFIG_SCHEMA_VERSION,
         researchPosture: mergeResearchPosture({
@@ -580,7 +596,11 @@ function backfillPresetsFromLegacy(
       )
       .all() as LegacyPresetRow[];
     for (const row of rows) {
-      const preset = JSON.parse(row.preset_json) as TradeRulesPreset;
+      const preset = requireJsonParse<TradeRulesPreset>(
+        row.preset_json,
+        undefined,
+        `Invalid trade_rules_presets.preset_json for ${row.id}`,
+      );
       const doc: SessionStrategyConfigPartialDoc = {
         schemaVersion: SESSION_STRATEGY_CONFIG_SCHEMA_VERSION,
         tradeRules: mergeTradeRules({
@@ -609,7 +629,11 @@ function backfillPresetsFromLegacy(
       .prepare(`SELECT id, name, is_built_in, preset_json FROM global_presets`)
       .all() as LegacyPresetRow[];
     for (const row of rows) {
-      const preset = JSON.parse(row.preset_json) as GlobalStrategyPreset;
+      const preset = requireJsonParse<GlobalStrategyPreset>(
+        row.preset_json,
+        undefined,
+        `Invalid global_strategy_presets.preset_json for ${row.id}`,
+      );
       const doc = assembleFullDocFromComponentPresets({
         posturePresetId: preset.posturePresetId,
         rulesPresetId: preset.rulesPresetId,
@@ -634,7 +658,11 @@ function backfillPresetsFromLegacy(
   // session_templates remain a distinct feature; still map copies into
   // config_presets kind:full for strategy preset reuse when present.
   for (const row of db.select().from(schema.sessionTemplates).all()) {
-    const parsed = JSON.parse(row.templatePayloadJson) as unknown;
+    const parsed = safeJsonParse(
+      row.templatePayloadJson,
+      undefined,
+      "session-strategy-config-backfill.templatePayload",
+    );
     const payload = sessionTemplatePayloadSchema.safeParse(parsed);
     if (!payload.success) {
       throw new Error(

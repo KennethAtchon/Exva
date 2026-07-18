@@ -6,6 +6,7 @@ import type {
   PhaseTraceFrontierV1,
 } from "@electron/shared/ai/ai-phase-trace";
 import type { LLMCallTrace } from "../../llm/llm-types";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 import { buildStrategyPromptContext } from "../prompting/strategy-prompt-context";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 
@@ -350,9 +351,5 @@ function renderOutputText(value: unknown): string {
 
 function safeParseJson(raw: string | null): unknown {
   if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  return safeJsonParse(raw, undefined, "trace-assembler");
 }

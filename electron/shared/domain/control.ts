@@ -2,6 +2,14 @@
 
 export type ControlScopeKind = "workspace" | "session";
 
+/** Structured risk for mutating capabilities — drives live gating (not regex on prose). */
+export type CapabilityRiskLevel = "live" | "normal";
+
+export interface CapabilityRisk {
+  level: CapabilityRiskLevel;
+  note: string;
+}
+
 export type ControlMessageRole = "user" | "assistant" | "system";
 
 export type ControlMessageStatus =

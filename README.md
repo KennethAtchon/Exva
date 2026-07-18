@@ -60,12 +60,11 @@ Useful commands:
 
 ## Important Docs
 
-- `docs/USAGE.md` - day-to-day local usage.
-- `docs/folder-structure.md` - annotated codebase map after the folder restructure.
-- `docs/architecture/electron.md` - Electron process boundaries and app wiring.
-- `docs/architecture/ai-runtime.md` - end-to-end trading runtime.
-- `docs/architecture/pipeline-runtime.md` - pipeline internals.
-- `docs/engineering/README.md` - engineering docs index.
+- `docs/engineering/README.md` - engineering docs index (logging, debugging, QA, e2e).
+- `docs/engineering/CODING_GUIDELINES.md` - coding conventions for this repo.
+- `docs/specs/index.md` - product and technical specs index.
+- `docs/plans/index.md` - active and historical plans.
+- `docs/reviews/index.md` - architecture and audit reviews.
 
 ## Current Architecture Notes
 

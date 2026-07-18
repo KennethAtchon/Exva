@@ -53,6 +53,20 @@ function parseArgs(): {
   };
 }
 
+/**
+ * Bun loads repo `.env` into the parent and re-loads it in child `bun run`
+ * processes. Strip credential seed vars and force NODE_ENV=test so `runSeed`
+ * never auto-configures AI/broker accounts into vitest DBs.
+ */
+function testEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env, NODE_ENV: "test" };
+  delete env.OPEN_ROUTER_KEY;
+  delete env.OPEN_ROUTER_MODEL;
+  delete env.ALPACA_API_KEY;
+  delete env.ALPACA_SECRET_KEY;
+  return env;
+}
+
 function runStep(step: Step): StepResult {
   const startedAt = Date.now();
   console.log(`\n▶ ${step.label}`);
@@ -61,7 +75,7 @@ function runStep(step: Step): StepResult {
   const result: SpawnSyncReturns<string> = spawnSync(step.command, step.args, {
     cwd: ROOT,
     stdio: "inherit",
-    env: process.env,
+    env: testEnv(),
   });
 
   const durationMs = Date.now() - startedAt;
@@ -104,6 +118,13 @@ function buildSteps(options: ReturnType<typeof parseArgs>): Step[] {
   if (options.criticalOnly) {
     return steps;
   }
+
+  // Critical tests rebuild better-sqlite3 for host Node; Electron needs ABI 130.
+  steps.push({
+    label: "Rebuild better-sqlite3 for Electron",
+    command: "bunx",
+    args: ["electron-rebuild", "-f", "-w", "better-sqlite3"],
+  });
 
   steps.push(
     options.fullE2e

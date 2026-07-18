@@ -1,6 +1,7 @@
 import { and, asc, desc, gte, lte } from "drizzle-orm";
 import type { DbClient } from "../../client";
 import { equitySnapshots } from "../../schema";
+import { safeJsonParse } from "../../../services/infra/safe-json-parse";
 
 export interface EquitySnapshotRow {
   id: string;
@@ -83,18 +84,18 @@ export class EquitySnapshotsRepo {
 function toSnapshot(
   row: typeof equitySnapshots.$inferSelect,
 ): EquitySnapshotRow {
-  let perAccount: Record<string, number> = {};
-  let perExperience: Record<string, number> = {};
-  try {
-    perAccount = JSON.parse(row.perAccountJson) as Record<string, number>;
-  } catch {
-    perAccount = {};
-  }
-  try {
-    perExperience = JSON.parse(row.perExperienceJson) as Record<string, number>;
-  } catch {
-    perExperience = {};
-  }
+  const perAccount =
+    safeJsonParse<Record<string, number>>(
+      row.perAccountJson,
+      undefined,
+      "equity-snapshots.perAccount",
+    ) ?? {};
+  const perExperience =
+    safeJsonParse<Record<string, number>>(
+      row.perExperienceJson,
+      undefined,
+      "equity-snapshots.perExperience",
+    ) ?? {};
   return {
     id: row.id,
     ts: row.ts,

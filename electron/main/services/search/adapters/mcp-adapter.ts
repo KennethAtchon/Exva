@@ -2,6 +2,7 @@ import { AppError } from "@electron/shared/infra/errors";
 import { parseProviderMetadata } from "@electron/shared/instruments/search-providers";
 import type { ProviderAccount } from "@/lib/types";
 import type { SearchAdapter, SearchToolResult } from "../search-types";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 
 function clampSnippet(text: string, max = 2000): string {
   return text.length <= max ? text : `${text.slice(0, max)}…`;
@@ -160,11 +161,9 @@ export class McpSearchAdapter implements SearchAdapter {
 
     let payload: unknown = structured;
     if (typeof structured === "string") {
-      try {
-        payload = JSON.parse(structured);
-      } catch {
-        payload = structured;
-      }
+      payload =
+        safeJsonParse(structured, undefined, "mcp-adapter.structured") ??
+        structured;
     }
 
     return adaptMcpPayload(payload, query);

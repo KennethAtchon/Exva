@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
 export function AssistantRuntimeMeta() {
@@ -8,13 +7,13 @@ export function AssistantRuntimeMeta() {
     : "Not configured";
 
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-      <Badge variant="outline" className="font-normal text-micro">
-        Model {modelLabel}
-      </Badge>
-      <Badge variant="outline" className="font-normal text-micro">
-        Web search off
-      </Badge>
+    <div className="space-y-1.5 text-caption text-text2">
+      <div>
+        <span className="font-mono text-micro uppercase tracking-wider text-text3">
+          Model
+        </span>
+        <p className="mt-0.5 break-all font-sans text-text1">{modelLabel}</p>
+      </div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   resolveMockRehearsalTicker,
 } from "@electron/shared/instruments/mock-rehearsal";
 import type { SignalSourcesRepo } from "../services/signals/repos/signal-sources-repo";
+import { safeJsonParse } from "../services/infra/safe-json-parse";
 
 export type MockRehearsalSignalConfig = {
   ticker: string;
@@ -27,27 +28,30 @@ export function buildMockRehearsalConfigJson(
 export function parseMockRehearsalConfigJson(
   configJson: string,
 ): MockRehearsalSignalConfig {
-  try {
-    const parsed = JSON.parse(configJson) as Partial<MockRehearsalSignalConfig>;
-    return {
-      ticker:
-        typeof parsed.ticker === "string" && parsed.ticker.length > 0
-          ? parsed.ticker
-          : resolveMockRehearsalTicker(),
-      instrumentClass:
-        parsed.instrumentClass === "stock" ||
-        parsed.instrumentClass === "crypto" ||
-        parsed.instrumentClass === "futures" ||
-        parsed.instrumentClass === "prediction_market"
-          ? parsed.instrumentClass
-          : "stock",
-      ...(typeof parsed.intervalMs === "number"
-        ? { intervalMs: parsed.intervalMs }
-        : {}),
-    };
-  } catch {
+  const parsed = safeJsonParse<Partial<MockRehearsalSignalConfig>>(
+    configJson,
+    undefined,
+    "mock-rehearsal.config",
+  );
+  if (!parsed) {
     return { ticker: resolveMockRehearsalTicker(), instrumentClass: "stock" };
   }
+  return {
+    ticker:
+      typeof parsed.ticker === "string" && parsed.ticker.length > 0
+        ? parsed.ticker
+        : resolveMockRehearsalTicker(),
+    instrumentClass:
+      parsed.instrumentClass === "stock" ||
+      parsed.instrumentClass === "crypto" ||
+      parsed.instrumentClass === "futures" ||
+      parsed.instrumentClass === "prediction_market"
+        ? parsed.instrumentClass
+        : "stock",
+    ...(typeof parsed.intervalMs === "number"
+      ? { intervalMs: parsed.intervalMs }
+      : {}),
+  };
 }
 
 export function ensureMockRehearsalSignalSource(

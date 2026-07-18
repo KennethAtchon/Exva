@@ -5,6 +5,7 @@ import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-ac
 import type { PaperBalancesRepo } from "../../db/repositories/brokers/paper-balances-repo";
 import type { PaperPositionsRepo } from "../../db/repositories/brokers/paper-positions-repo";
 import type { SecretsService } from "../infra/secrets-service";
+import { requireJsonParse } from "../infra/safe-json-parse";
 import type { SupervisorService } from "../supervisor/supervisor-service";
 import { createInstrumentedBrokerAdapter } from "./instrumented-broker-adapter";
 import { createBrokerInteractionLogger } from "./broker-interaction-logger";
@@ -140,7 +141,11 @@ export class BrokerRegistry {
   ): BrokerAdapter {
     switch (account.brokerType) {
       case "alpaca": {
-        const parsed = JSON.parse(credsJson) as BrokerCredentials;
+        const parsed = requireJsonParse<BrokerCredentials>(
+          credsJson,
+          undefined,
+          "Invalid Alpaca credentials JSON",
+        );
         if (parsed.provider !== "alpaca") {
           throw new AppError(
             "Invalid Alpaca credentials payload",
@@ -150,7 +155,11 @@ export class BrokerRegistry {
         return new AlpacaAdapter(parsed, () => new Date(), interactionLogger);
       }
       case "coinbase_advanced_trade": {
-        const parsed = JSON.parse(credsJson) as CoinbaseAdvancedCredentials;
+        const parsed = requireJsonParse<CoinbaseAdvancedCredentials>(
+          credsJson,
+          undefined,
+          "Invalid Coinbase credentials JSON",
+        );
         return new CoinbaseAdvancedTradeAdapter(
           parsed,
           account.mode,
@@ -158,16 +167,20 @@ export class BrokerRegistry {
         );
       }
       case "tradovate": {
-        const parsed = JSON.parse(credsJson) as TradovateCredentials;
+        const parsed = requireJsonParse<TradovateCredentials>(
+          credsJson,
+          undefined,
+          "Invalid Tradovate credentials JSON",
+        );
         return new TradovateAdapter(parsed, account.mode, interactionLogger);
       }
       case "polymarket": {
-        const parsed = JSON.parse(credsJson) as {
+        const parsed = requireJsonParse<{
           privateKey: string;
           funderAddress: string;
           host?: string;
           chainId?: number;
-        };
+        }>(credsJson, undefined, "Invalid Polymarket credentials JSON");
         return new PolymarketAdapter(parsed, account.mode, interactionLogger, {
           accountId: account.id,
           paperBalances: this.paperBalancesRepo,

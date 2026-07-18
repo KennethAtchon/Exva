@@ -14,6 +14,7 @@ import type {
   SignalSourceSnapshot,
 } from "../ISignalSource";
 import { createLogger } from "../../infra/log";
+import { safeJsonParse } from "../../infra/safe-json-parse";
 import type { CalendarEventsRepo } from "../../../db/repositories/signals/calendar-events-repo";
 import { MACRO_CALENDAR_SEED_2026_2027 } from "./macro-calendar-seed";
 
@@ -279,10 +280,10 @@ function normalizeEarningsPayload(
 }
 
 function safeParseConfig(configJson: string): CalendarSourceConfig {
-  try {
-    const parsed = JSON.parse(configJson) as CalendarSourceConfig;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
+  const parsed = safeJsonParse<CalendarSourceConfig>(
+    configJson,
+    undefined,
+    "calendar-source.config",
+  );
+  return parsed && typeof parsed === "object" ? parsed : {};
 }

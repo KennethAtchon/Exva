@@ -7,7 +7,14 @@ import { sessionMatchesEnvironment } from "@electron/shared/domain/environment-m
 import type { AppServices } from "../../services/app-services";
 import { resolveExecutionModeFilter } from "../../services/session/environment-scope";
 import { assertSessionInWorkspaceEnvironment } from "../environment-guards";
+import { z } from "zod";
 import { handle } from "../handle";
+import { safeJsonParse } from "../../services/infra/safe-json-parse";
+
+const approvalListPayloadSchema = z.preprocess(
+  (value) => value ?? {},
+  approvalListFiltersSchema,
+);
 
 export async function decideApproval(
   services: AppServices,
@@ -91,80 +98,90 @@ export async function decideApproval(
 }
 
 function parseConfidenceFromSummary(json: string): number | undefined {
-  try {
-    const o = JSON.parse(json) as { confidence?: number };
-    return typeof o.confidence === "number" ? o.confidence : undefined;
-  } catch {
-    return undefined;
+  const o = safeJsonParse<{ confidence?: number }>(json);
+  return typeof o?.confidence === "number" ? o.confidence : undefined;
+}
+
+export function listApprovals(
+  services: AppServices,
+  filters?: { status?: "pending" | "approved" | "rejected" },
+): {
+  workspaceViewMode: "session" | "global";
+  approvals: ApprovalSummary[];
+} {
+  const prefs = services.repos.workspacePreferences.get();
+  const focused = services.repos.session.getFocused();
+  const focusedInEnv =
+    focused &&
+    sessionMatchesEnvironment(
+      focused.executionMode,
+      prefs.globalEnvironmentMode,
+    )
+      ? focused
+      : null;
+  const workspaceViewMode = focusedInEnv
+    ? ("session" as const)
+    : ("global" as const);
+
+  const status = filters?.status ?? "pending";
+
+  const excludeArchivedSessions =
+    workspaceViewMode === "global" ? !prefs.globalIncludeArchived : true;
+  const envExecutionMode = resolveExecutionModeFilter(prefs, {});
+  const envSessions = services.repos.session.list({
+    includeArchived: !excludeArchivedSessions,
+    executionMode: envExecutionMode,
+  });
+  const envSessionIds = new Set(envSessions.map((session) => session.id));
+
+  const sessionIds =
+    workspaceViewMode === "session" && focusedInEnv
+      ? [focusedInEnv.id]
+      : [...envSessionIds];
+
+  if (sessionIds.length === 0) {
+    return { workspaceViewMode, approvals: [] };
   }
+
+  const rows = services.repos.tradeApprovals.listAll({
+    status,
+    sessionIds,
+    excludeArchivedSessions,
+  });
+
+  const nameById = new Map(envSessions.map((s) => [s.id, s.name]));
+
+  const summaries: ApprovalSummary[] = rows.map((a) => {
+    const broker = services.repos.brokerAccounts.find(a.brokerAccountId);
+    return {
+      ...a,
+      sessionName: nameById.get(a.sessionId) ?? a.sessionId,
+      brokerName: broker?.name ?? "—",
+      confidenceScore: parseConfidenceFromSummary(a.decisionSummaryJson),
+    };
+  });
+
+  return { workspaceViewMode, approvals: summaries };
 }
 
 export function registerApprovalHandlers(services: AppServices): void {
-  handle(ipcMain, channels.approvals.list, async (payload) => {
-    const filters = approvalListFiltersSchema.parse(payload ?? {});
+  handle(
+    ipcMain,
+    channels.approvals.list,
+    approvalListPayloadSchema,
+    async (filters) => listApprovals(services, filters),
+  );
 
-    const prefs = services.repos.workspacePreferences.get();
-    const focused = services.repos.session.getFocused();
-    const focusedInEnv =
-      focused &&
-      sessionMatchesEnvironment(
-        focused.executionMode,
-        prefs.globalEnvironmentMode,
-      )
-        ? focused
-        : null;
-    const workspaceViewMode = focusedInEnv
-      ? ("session" as const)
-      : ("global" as const);
-
-    const status = filters?.status ?? "pending";
-
-    const excludeArchivedSessions =
-      workspaceViewMode === "global" ? !prefs.globalIncludeArchived : true;
-    const envExecutionMode = resolveExecutionModeFilter(prefs, {});
-    const envSessions = services.repos.session.list({
-      includeArchived: !excludeArchivedSessions,
-      executionMode: envExecutionMode,
-    });
-    const envSessionIds = new Set(envSessions.map((session) => session.id));
-
-    const sessionIds =
-      workspaceViewMode === "session" && focusedInEnv
-        ? [focusedInEnv.id]
-        : [...envSessionIds];
-
-    if (sessionIds.length === 0) {
-      return { workspaceViewMode, approvals: [] };
-    }
-
-    const rows = services.repos.tradeApprovals.listAll({
-      status,
-      sessionIds,
-      excludeArchivedSessions,
-    });
-
-    const sessions = envSessions;
-    const nameById = new Map(sessions.map((s) => [s.id, s.name]));
-
-    const summaries: ApprovalSummary[] = rows.map((a) => {
-      const broker = services.repos.brokerAccounts.find(a.brokerAccountId);
-      return {
-        ...a,
-        sessionName: nameById.get(a.sessionId) ?? a.sessionId,
-        brokerName: broker?.name ?? "—",
-        confidenceScore: parseConfidenceFromSummary(a.decisionSummaryJson),
-      };
-    });
-
-    return { workspaceViewMode, approvals: summaries };
-  });
-
-  handle(ipcMain, channels.approvals.decide, async (payload) => {
-    const body = approvalDecideSchema.parse(payload);
-    return decideApproval(services, {
-      approvalId: body.id,
-      decision: body.decision,
-      decisionNote: body.decisionNote,
-    });
-  });
+  handle(
+    ipcMain,
+    channels.approvals.decide,
+    approvalDecideSchema,
+    async (body) => {
+      return decideApproval(services, {
+        approvalId: body.id,
+        decision: body.decision,
+        decisionNote: body.decisionNote,
+      });
+    },
+  );
 }

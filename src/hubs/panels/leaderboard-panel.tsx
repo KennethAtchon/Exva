@@ -3,6 +3,7 @@ import { Badge } from "@/components/custom-ui";
 import { HelpTooltip } from "@/components/ui";
 import { EmptyState, PnL } from "@/components/ui/primitives";
 import { api, type ExperienceScorecardSummary } from "@/lib/exva";
+import { formatPercent } from "@/lib/format";
 import { fmt } from "@/lib/formatters";
 import {
   Table,
@@ -13,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
+const pct = (n: number) => formatPercent(n, 1);
 
 export function LeaderboardPage({
   embedded = false,

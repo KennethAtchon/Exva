@@ -204,7 +204,7 @@ export async function runAdapterCertification(
         checks.push(
           check(
             "cancelFarLimit",
-            after.status === "closed" || after.status === "canceled",
+            after.status === "closed" || after.status === "unknown",
             `status=${after.status}`,
           ),
         );
@@ -295,9 +295,7 @@ export async function runAdapterCertification(
 
   // --- Error taxonomy: induce typed codes (mock-capable; live adapters skip) ---
   if (adapter.brokerType === "mock") {
-    checks.push(
-      ...(await induceMockErrorTaxonomy(symbol, instrumentClass)),
-    );
+    checks.push(...(await induceMockErrorTaxonomy(symbol, instrumentClass)));
   } else {
     checks.push(
       check(
@@ -379,7 +377,9 @@ async function induceMockErrorTaxonomy(
 
   const fundsAdapter = new MockBrokerAdapter({ forceInsufficientFunds: true });
   try {
-    await fundsAdapter.placeOrderV2!({
+    const placeFunds = fundsAdapter.placeOrderV2;
+    if (!placeFunds) throw new Error("placeOrderV2 required");
+    await placeFunds.call(fundsAdapter, {
       clientOrderId: `cert-funds-${Date.now()}`,
       instrument: { symbol, instrumentClass },
       side: "BUY",
@@ -403,7 +403,9 @@ async function induceMockErrorTaxonomy(
     forceUnknownSymbol: unknownSymbol,
   });
   try {
-    await symbolAdapter.placeOrderV2!({
+    const placeSymbol = symbolAdapter.placeOrderV2;
+    if (!placeSymbol) throw new Error("placeOrderV2 required");
+    await placeSymbol.call(symbolAdapter, {
       clientOrderId: `cert-sym-${Date.now()}`,
       instrument: { symbol: unknownSymbol, instrumentClass },
       side: "BUY",

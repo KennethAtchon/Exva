@@ -28,9 +28,7 @@ describe("adapter certification (mock)", () => {
       report.checks.some((c) => c.name === "getAccountBalance" && c.ok),
     ).toBe(true);
     expect(
-      report.checks.some(
-        (c) => c.name === "taxonomyBROKER_AUTH" && c.ok,
-      ),
+      report.checks.some((c) => c.name === "taxonomyBROKER_AUTH" && c.ok),
     ).toBe(true);
     expect(
       report.checks.some(
@@ -38,9 +36,7 @@ describe("adapter certification (mock)", () => {
       ),
     ).toBe(true);
     expect(
-      report.checks.some(
-        (c) => c.name === "taxonomyUNKNOWN_SYMBOL" && c.ok,
-      ),
+      report.checks.some((c) => c.name === "taxonomyUNKNOWN_SYMBOL" && c.ok),
     ).toBe(true);
   });
 });

@@ -97,6 +97,11 @@ export interface OrchestratorDeps {
   calendarEventsRepo?: import("../../db/repositories/signals/calendar-events-repo").CalendarEventsRepo;
   /** Optional supervisor for consecutive-skip / drawdown / drift alarms. */
   supervisor?: import("../supervisor/supervisor-service").SupervisorService;
+  /**
+   * Last-mile kill-switch gate. Synchronous — checked immediately before
+   * adapter order submission. Optional for worker stubs / unit tests.
+   */
+  isOrderHalted?: () => boolean;
 }
 
 /** Per-check failure (preflight runner adds `check` name). */
@@ -186,4 +191,6 @@ export interface SessionLifecycleDeps {
       checks: { name: string; passed: boolean }[];
     }>;
   };
+  /** Clears kill-switch last-mile order halt when an operator resumes. */
+  clearOrderHalt?: () => void;
 }

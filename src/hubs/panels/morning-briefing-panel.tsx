@@ -3,6 +3,7 @@ import { api } from "@/lib/exva";
 import { formatIpcError } from "@/lib/ipc-error";
 import { HubEmptyState, HubPane, HubQueryError } from "@/hubs/dna";
 import { Button } from "@/components/ui";
+import { PanelLoading } from "@/components/ui/skeleton";
 import { fmt } from "@/lib/formatters";
 
 type Briefing = {
@@ -29,8 +30,10 @@ export function MorningBriefingPanel() {
   const [briefing, setBriefing] = useState<Briefing | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const load = () => {
+    setLoading(true);
     void api
       .briefingLatest()
       .then((r) => {
@@ -40,7 +43,8 @@ export function MorningBriefingPanel() {
       .catch((err) => {
         setError(formatIpcError(err).display);
         setBriefing(null);
-      });
+      })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -68,7 +72,9 @@ export function MorningBriefingPanel() {
         </Button>
       }
     >
-      {!briefing ? (
+      {loading && !briefing && !error ? (
+        <PanelLoading />
+      ) : !briefing ? (
         error ? (
           <HubQueryError message={error} onRetry={load} />
         ) : (

@@ -21,6 +21,7 @@ import type {
 } from "@/lib/types";
 import type { PhaseRuntimeSummary } from "@electron/shared/ai/ai-phase";
 import type { AndonCordPayload } from "@electron/shared/domain/autopsy";
+import type { CapabilityRisk } from "@electron/shared/domain/control";
 
 export interface SessionSummary {
   id: string;
@@ -325,7 +326,8 @@ export type ExvaEventMap = {
     inputJson: string;
     alwaysConfirm: boolean;
     confirmClass: string | null;
-    risk: string | null;
+    risk: CapabilityRisk | null;
+    outOfScope: boolean;
   };
   control_turn_complete: {
     conversationId: string;

@@ -111,6 +111,25 @@ describe("operator power tools (finish-line 08)", () => {
     expect(ok.complete).toBe(true);
   });
 
+  it("engages order halt on pauseAll and clears via clearHalt", async () => {
+    const kill = new KillSwitchService({
+      sessions: { listByStatuses: () => [] } as never,
+      trades: { listOpenAndPending: () => [] } as never,
+      sessionService: { pause: async () => undefined } as never,
+      liveReadiness: {} as never,
+      supervisor: {} as never,
+      eventBus: new EventBus(),
+      broker: {} as never,
+      capitalReservation: { releaseOnClose: () => undefined } as never,
+      loadGauges: () => [],
+    });
+    expect(kill.isHalted()).toBe(false);
+    await kill.pauseAll();
+    expect(kill.isHalted()).toBe(true);
+    kill.clearHalt();
+    expect(kill.isHalted()).toBe(false);
+  });
+
   it("flatten leaves trades open when broker identity is missing", async () => {
     const updateStatus = vi.fn();
     const releaseOnClose = vi.fn();

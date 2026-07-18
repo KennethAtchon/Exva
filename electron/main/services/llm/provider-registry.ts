@@ -2,6 +2,7 @@ import { AppError } from "@electron/shared/infra/errors";
 import type { ProviderAccount } from "@/lib/types";
 import type { ProviderAccountsRepo } from "../../db/repositories/workspace/provider-accounts-repo";
 import type { SecretsService } from "../infra/secrets-service";
+import { safeJsonParse } from "../infra/safe-json-parse";
 import { AnthropicAdapter } from "./adapters/anthropic-adapter";
 import { OpenAiAdapter } from "./adapters/openai-adapter";
 import { OpenRouterAdapter } from "./adapters/openrouter-adapter";
@@ -13,17 +14,15 @@ type OpenRouterMetadata = {
 
 function parseMetadata(value: string | null): OpenRouterMetadata {
   if (!value) return {};
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (typeof parsed !== "object" || parsed === null) return {};
-    const baseUrl =
-      typeof (parsed as { baseUrl?: unknown }).baseUrl === "string"
-        ? (parsed as { baseUrl: string }).baseUrl
-        : undefined;
-    return { baseUrl };
-  } catch {
-    return {};
-  }
+  const parsed = safeJsonParse<Record<string, unknown>>(
+    value,
+    undefined,
+    "provider-registry.metadata",
+  );
+  if (!parsed || typeof parsed !== "object") return {};
+  const baseUrl =
+    typeof parsed.baseUrl === "string" ? parsed.baseUrl : undefined;
+  return { baseUrl };
 }
 
 export class ProviderRegistry {
