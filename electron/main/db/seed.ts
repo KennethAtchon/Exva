@@ -14,6 +14,8 @@ export const SEEDED_OPENROUTER_PROVIDER_ID = "seed-openrouter";
 export const SEEDED_OPENROUTER_SECRET_REF = "provider:seed-openrouter";
 export const SEEDED_ALPACA_BROKER_ID = "seed-alpaca-paper";
 export const SEEDED_ALPACA_SECRET_REF = "broker:seed-alpaca-paper";
+export const SEEDED_POLYMARKET_BROKER_ID = "seed-polymarket-paper";
+export const SEEDED_POLYMARKET_SECRET_REF = "broker:seed-polymarket-paper";
 
 /** Idempotent defaults applied after Drizzle SQL migrations (workspace row, built-in search provider). */
 export function runSeed(
@@ -124,6 +126,29 @@ export function runSeed(
         mockScenarioKind: null,
         mockExecutionTier: null,
         secretRef: SEEDED_ALPACA_SECRET_REF,
+        updatedAt: new Date().toISOString(),
+      })
+      .onConflictDoNothing()
+      .run();
+  }
+
+  // Credential-free hover account — no secret to gate on (unlike Alpaca/OpenRouter).
+  if (!env.isTest) {
+    db.insert(schema.brokerAccounts)
+      .values({
+        id: SEEDED_POLYMARKET_BROKER_ID,
+        name: "Polymarket Hover (Seeded)",
+        brokerType: "polymarket",
+        supportedInstrumentClasses: JSON.stringify(["prediction_market"]),
+        mode: "paper",
+        maxSessions: 4,
+        allocationEnforcement: "hard",
+        balanceRefreshIntervalMin: 5,
+        balanceCacheUsd: null,
+        balanceCachedAt: null,
+        mockScenarioKind: null,
+        mockExecutionTier: null,
+        secretRef: SEEDED_POLYMARKET_SECRET_REF,
         updatedAt: new Date().toISOString(),
       })
       .onConflictDoNothing()

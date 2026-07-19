@@ -69,18 +69,22 @@ export function AssistantHub() {
         eyebrow="Control"
         title="Assistant"
         subtitle="Full-page workspace for longer control conversations."
-        actions={
-          <Button size="sm" onClick={() => void createNew()}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            New chat
-          </Button>
-        }
       />
       <HubBody scroll={false} className="overflow-hidden">
         <div className="grid h-full min-h-0 flex-1 grid-cols-[minmax(240px,280px)_minmax(0,1fr)]">
           <aside className="flex min-h-0 flex-col border-r border-border bg-surface">
-            <div className="border-b border-hairline px-4 py-2.5 font-mono text-micro uppercase tracking-wider text-text3">
-              Conversations
+            <div className="flex items-center justify-between gap-2 border-b border-hairline px-3 py-2">
+              <span className="font-mono text-micro uppercase tracking-wider text-text3">
+                Conversations
+              </span>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => void createNew()}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                New
+              </Button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-2">
               {loading && conversations.length === 0 ? (
@@ -154,25 +158,27 @@ export function AssistantHub() {
           </aside>
 
           <section className="flex min-h-0 min-w-0 flex-col bg-bg">
-            <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="truncate font-sans text-head text-text1">
-                    {convo.conversation?.title ?? "New conversation"}
-                  </span>
-                  <ScopeChip conversation={convo.conversation} />
-                </div>
+            <header className="flex items-center gap-3 border-b border-border px-4 py-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <span className="min-w-0 flex-1 truncate font-sans text-head text-text1">
+                  {convo.conversation?.title ?? "New conversation"}
+                </span>
+                <ScopeChip
+                  conversation={convo.conversation}
+                  className="max-w-[40%] shrink-0 justify-end"
+                />
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-0.5">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       size="icon"
                       variant="ghost"
+                      className="h-6 w-6"
                       title="Assistant settings"
                       aria-label="Assistant settings"
                     >
-                      <Settings2 className="h-4 w-4" />
+                      <Settings2 className="h-3.5 w-3.5" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent
@@ -185,16 +191,18 @@ export function AssistantHub() {
                 <Button
                   size="icon"
                   variant="ghost"
+                  className="h-6 w-6"
                   title="Rename conversation"
                   aria-label="Rename conversation"
                   disabled={!convo.conversation}
                   onClick={() => setRenameOpen(true)}
                 >
-                  <Pencil className="h-4 w-4" />
+                  <Pencil className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   size="icon"
                   variant="ghost"
+                  className="h-6 w-6"
                   title="Delete conversation"
                   aria-label="Delete conversation"
                   disabled={!convo.conversation}
@@ -203,7 +211,7 @@ export function AssistantHub() {
                     void remove(convo.conversation.id);
                   }}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </header>

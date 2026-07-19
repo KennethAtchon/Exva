@@ -105,19 +105,105 @@ export function AssistantSlideOver({
               }
             }}
           >
-            <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <DialogTitle className="mb-0.5 font-mono text-micro uppercase tracking-wider text-text3">
+            <header className="flex flex-col gap-2 border-b border-border px-4 py-3">
+              <div className="flex items-center gap-2">
+                <DialogTitle className="mb-0 min-w-0 flex-1 font-mono text-micro uppercase tracking-wider text-text3">
                   Assistant
                 </DialogTitle>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-0.5">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        title="Assistant settings"
+                        aria-label="Assistant settings"
+                      >
+                        <Settings2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="end"
+                      className="w-72 border-border bg-surface p-3"
+                    >
+                      <AssistantRuntimeMeta />
+                    </PopoverContent>
+                  </Popover>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    title="Rename conversation"
+                    aria-label="Rename conversation"
+                    onClick={() => setRenameOpen(true)}
+                    disabled={!convo.conversation}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    title="Delete conversation"
+                    aria-label="Delete conversation"
+                    disabled={!convo.conversation}
+                    onClick={() => {
+                      if (!convo.conversation) return;
+                      void remove(convo.conversation.id);
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    title="New conversation"
+                    aria-label="New conversation"
+                    onClick={() => void createNew()}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                  {onOpenFullView ? (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      title="Open full view"
+                      aria-label="Open full view"
+                      onClick={() => {
+                        onOpenFullView();
+                        close();
+                      }}
+                    >
+                      <SquareArrowOutUpRight className="h-3.5 w-3.5" />
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    title="Close"
+                    aria-label="Close"
+                    onClick={close}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="min-w-0 max-w-[60%]">
                   {conversations.length > 0 ? (
                     <Select
                       value={activeId ?? undefined}
                       onValueChange={(id) => setActive(id)}
                     >
-                      <SelectTrigger className="h-8 min-w-0 max-w-[200px] border-none bg-transparent px-0 font-sans text-head text-text1 shadow-none focus:ring-0">
-                        <SelectValue placeholder="New conversation" />
+                      <SelectTrigger className="h-8 w-auto max-w-full min-w-0 overflow-hidden border-none bg-transparent px-0 font-sans text-head text-text1 shadow-none focus:ring-0">
+                        <SelectValue
+                          className="min-w-0 truncate"
+                          placeholder="New conversation"
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {conversations.map((c) => (
@@ -128,87 +214,15 @@ export function AssistantSlideOver({
                       </SelectContent>
                     </Select>
                   ) : (
-                    <span className="truncate font-sans text-head text-text1">
+                    <span className="block truncate font-sans text-head text-text1">
                       {convo.conversation?.title ?? "New conversation"}
                     </span>
                   )}
-                  <ScopeChip conversation={convo.conversation} />
                 </div>
-              </div>
-              <div className="ml-auto flex items-center gap-1">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      title="Assistant settings"
-                      aria-label="Assistant settings"
-                    >
-                      <Settings2 className="h-4 w-4" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="end"
-                    className="w-72 border-border bg-surface p-3"
-                  >
-                    <AssistantRuntimeMeta />
-                  </PopoverContent>
-                </Popover>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  title="Rename conversation"
-                  aria-label="Rename conversation"
-                  onClick={() => setRenameOpen(true)}
-                  disabled={!convo.conversation}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  title="Delete conversation"
-                  aria-label="Delete conversation"
-                  disabled={!convo.conversation}
-                  onClick={() => {
-                    if (!convo.conversation) return;
-                    void remove(convo.conversation.id);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  title="New conversation"
-                  aria-label="New conversation"
-                  onClick={() => void createNew()}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-                {onOpenFullView ? (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    title="Open full view"
-                    aria-label="Open full view"
-                    onClick={() => {
-                      onOpenFullView();
-                      close();
-                    }}
-                  >
-                    <SquareArrowOutUpRight className="h-4 w-4" />
-                  </Button>
-                ) : null}
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  title="Close"
-                  aria-label="Close"
-                  onClick={close}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                <ScopeChip
+                  conversation={convo.conversation}
+                  className="ml-auto max-w-[40%] shrink-0 justify-end"
+                />
               </div>
             </header>
 

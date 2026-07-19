@@ -55,7 +55,9 @@ export class BrokerRegistry {
 
     const account = this.brokerAccountsRepo.require(brokerAccountId);
     const secret = await this.secrets.get(account.secretRef);
-    if (!secret && account.brokerType !== "mock") {
+    const credentialFreePaper =
+      account.brokerType === "polymarket" && account.mode === "paper";
+    if (!secret && account.brokerType !== "mock" && !credentialFreePaper) {
       throw new AppError(
         `No secret for broker account: ${brokerAccountId}`,
         "MISSING_SECRET",
@@ -176,8 +178,8 @@ export class BrokerRegistry {
       }
       case "polymarket": {
         const parsed = requireJsonParse<{
-          privateKey: string;
-          funderAddress: string;
+          privateKey?: string;
+          funderAddress?: string;
           host?: string;
           chainId?: number;
         }>(credsJson, undefined, "Invalid Polymarket credentials JSON");

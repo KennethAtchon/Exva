@@ -344,6 +344,23 @@ describe("PolymarketAdapter", () => {
       expect(onParityWarning).toHaveBeenCalled();
     });
 
+    it("constructs with empty credentials: testConnection, ghost fill, paper balance", async () => {
+      const adapter = new PolymarketAdapter({}, "paper");
+      const conn = await adapter.testConnection();
+      expect(conn).toMatchObject({
+        ok: true,
+        account_balance: DEFAULT_PAPER_STARTING_BALANCE_USD,
+      });
+
+      const order = await adapter.placeOrder(buy);
+      expect(order.brokerOrderId).toMatch(/^ghost-/);
+      expect(order.filledAvgPrice).toBeCloseTo(0.62, 2);
+
+      const balance = await adapter.getAccountBalance();
+      expect(balance).toBeLessThan(DEFAULT_PAPER_STARTING_BALANCE_USD);
+      expect(clobClientMethods.createAndPostMarketOrder).not.toHaveBeenCalled();
+    });
+
     describe("restart rehydration (persisted paper positions)", () => {
       function setupPersistence() {
         const db = createTestDb();
@@ -481,6 +498,14 @@ describe("PolymarketAdapter", () => {
         );
         db.sqlite.close();
       });
+    });
+  });
+
+  it("rejects authed live calls with BROKER_ERROR when credentials are blank", async () => {
+    const adapter = new PolymarketAdapter({}, "live");
+    await expect(adapter.getAccountBalance()).rejects.toMatchObject({
+      code: "BROKER_ERROR",
+      message: expect.stringMatching(/private key and funder address/i),
     });
   });
 });

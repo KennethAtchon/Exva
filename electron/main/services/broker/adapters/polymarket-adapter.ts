@@ -84,8 +84,8 @@ export type PolymarketAdapterOptions = {
 };
 
 type PolymarketCredentials = {
-  privateKey: string;
-  funderAddress: string;
+  privateKey?: string;
+  funderAddress?: string;
   host?: string;
   chainId?: number;
 };
@@ -1174,8 +1174,8 @@ export class PolymarketAdapter
   }
 
   private async createAuthedClient(): Promise<ClobClient> {
-    const privateKey = this.credentials.privateKey.trim();
-    const funderAddress = this.credentials.funderAddress.trim();
+    const privateKey = this.credentials.privateKey?.trim() ?? "";
+    const funderAddress = this.credentials.funderAddress?.trim() ?? "";
     if (!privateKey || !funderAddress) {
       const err = new AppError(
         "Polymarket credentials require private key and funder address.",

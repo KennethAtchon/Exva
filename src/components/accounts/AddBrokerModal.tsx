@@ -66,10 +66,12 @@ const CredentialFields = ({
   brokerType,
   form,
   dispatch,
+  mode,
 }: {
   brokerType: BrokerType;
   form: FormState;
   dispatch: React.Dispatch<Partial<FormState>>;
+  mode: "paper" | "live";
 }) => {
   const {
     apiKey,
@@ -165,6 +167,15 @@ const CredentialFields = ({
   }
 
   if (brokerType === "polymarket") {
+    if (mode === "paper") {
+      return (
+        <div className="mt-1 text-caption text-text3">
+          Paper (hover) mode — no credentials required. Orders fill locally
+          against live Polymarket prices; balance is virtual. Add credentials
+          later by re-adding the account in Live mode.
+        </div>
+      );
+    }
     return (
       <>
         <div className="mb-3">
@@ -357,7 +368,7 @@ export const AddBrokerModal = ({
       case "tradovate":
         return { username, password };
       case "polymarket":
-        return { privateKey, funderAddress };
+        return environmentMode === "paper" ? {} : { privateKey, funderAddress };
       case "kalshi":
         return { keyId: apiKey, privateKeyPem: privateKey };
       case "tradier":
@@ -527,6 +538,7 @@ export const AddBrokerModal = ({
           brokerType={brokerType}
           form={form}
           dispatch={dispatchForm}
+          mode={environmentMode}
         />
 
         <TestResult message={message} testOk={testOk} />

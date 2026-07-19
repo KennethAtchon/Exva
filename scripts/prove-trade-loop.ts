@@ -19,6 +19,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import BetterSqlite3 from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { env } from "../electron/main/config/env";
@@ -36,7 +37,7 @@ import { SqliteSessionExecutionStepsRepo } from "../electron/main/db/repositorie
 import { PaperScorecardService } from "../electron/main/services/analytics/paper-scorecard-service";
 import { PolymarketAdapter } from "../electron/main/services/broker/adapters/polymarket-adapter";
 
-const ROOT = path.join(import.meta.dir, "..");
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const MOCK_TEST =
   "electron/main/services/orchestration/__tests__/mock-trade-rehearsal.integration.test.ts";
@@ -433,22 +434,18 @@ async function provePolymarket(): Promise<void> {
     const paperBalances = new PaperBalancesRepo(scratchDb);
     const paperPositions = new PaperPositionsRepo(scratchDb);
 
-    const credentials = {
-      privateKey:
-        "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      funderAddress: "0x0000000000000000000000000000000000000001",
-    };
     const metadata = JSON.stringify({ conditionId, outcomeTokenId });
+    const paperOpts = {
+      accountId,
+      paperBalances,
+      paperPositions,
+    };
 
     const firstAdapter = new PolymarketAdapter(
-      credentials,
+      {},
       "paper",
       undefined,
-      {
-        accountId,
-        paperBalances,
-        paperPositions,
-      },
+      paperOpts,
     );
 
     let placed;
@@ -487,14 +484,10 @@ async function provePolymarket(): Promise<void> {
     // --- forced restart: brand-new adapter instance, zero in-memory state,
     // reading only from the persisted store (proves survival, not memory). ---
     const rebuiltAdapter = new PolymarketAdapter(
-      credentials,
+      {},
       "paper",
       undefined,
-      {
-        accountId,
-        paperBalances,
-        paperPositions,
-      },
+      paperOpts,
     );
     const statusAfterRestart = await rebuiltAdapter.getOrderStatus(
       placed.brokerOrderId,

@@ -5,6 +5,43 @@ import { BrokerAccountsRepo } from "../../../db/repositories/brokers/broker-acco
 import { BrokerRegistry } from "../broker-registry";
 import { MockBrokerAdapter } from "../adapters/mock-adapter";
 import { AlpacaAdapter } from "../adapters/alpaca-adapter";
+import { PolymarketAdapter } from "../adapters/polymarket-adapter";
+import { DEFAULT_PAPER_STARTING_BALANCE_USD } from "../../../db/repositories/brokers/paper-balances-repo";
+
+const clobClientMethods = vi.hoisted(() => ({
+  getOk: vi.fn(),
+  getBalanceAllowance: vi.fn(),
+  getMarket: vi.fn(),
+  getLastTradePrice: vi.fn(),
+  getTickSize: vi.fn(),
+  createAndPostMarketOrder: vi.fn(),
+  createAndPostOrder: vi.fn(),
+  cancelOrder: vi.fn(),
+  getOrder: vi.fn(),
+  createOrDeriveApiKey: vi.fn(),
+}));
+
+vi.mock("@polymarket/clob-client", () => ({
+  AssetType: { COLLATERAL: "COLLATERAL" },
+  OrderType: { FOK: "FOK", GTC: "GTC" },
+  Side: { BUY: "BUY", SELL: "SELL" },
+  ClobClient: vi.fn(function () {
+    return clobClientMethods;
+  }),
+}));
+
+vi.mock("viem", () => ({
+  createWalletClient: vi.fn(() => ({})),
+  http: vi.fn(() => ({})),
+}));
+
+vi.mock("viem/accounts", () => ({
+  privateKeyToAccount: vi.fn(() => ({})),
+}));
+
+vi.mock("viem/chains", () => ({
+  polygon: { id: 137 },
+}));
 
 describe("BrokerRegistry", () => {
   let db = createTestDb();
@@ -13,6 +50,8 @@ describe("BrokerRegistry", () => {
   beforeEach(() => {
     db = createTestDb();
     secrets.get.mockReset();
+    Object.values(clobClientMethods).forEach((fn) => fn.mockReset());
+    clobClientMethods.getOk.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -110,6 +149,50 @@ describe("BrokerRegistry", () => {
     );
 
     await expect(registry.get("alpaca-1")).rejects.toMatchObject({
+      code: "MISSING_SECRET",
+    });
+  });
+
+  it("builds credential-free paper Polymarket without a stored secret", async () => {
+    insertBrokerAccount(db, {
+      id: "pm-paper-1",
+      brokerType: "polymarket",
+      supportedInstrumentClasses: ["prediction_market"],
+      mode: "paper",
+      secretRef: "secret:pm-paper-1",
+    });
+    secrets.get.mockResolvedValue(null);
+    const registry = new BrokerRegistry(
+      new BrokerAccountsRepo(db),
+      secrets as never,
+    );
+
+    const adapter = await registry.get("pm-paper-1");
+    expect(adapter).toBeInstanceOf(PolymarketAdapter);
+
+    const conn = await adapter.testConnection();
+    expect(conn).toMatchObject({
+      ok: true,
+      account_balance: DEFAULT_PAPER_STARTING_BALANCE_USD,
+    });
+    expect(conn.message).toMatch(/ghost|paper/i);
+  });
+
+  it("still throws MISSING_SECRET for live Polymarket with no secret", async () => {
+    insertBrokerAccount(db, {
+      id: "pm-live-1",
+      brokerType: "polymarket",
+      supportedInstrumentClasses: ["prediction_market"],
+      mode: "live",
+      secretRef: "secret:pm-live-1",
+    });
+    secrets.get.mockResolvedValue(null);
+    const registry = new BrokerRegistry(
+      new BrokerAccountsRepo(db),
+      secrets as never,
+    );
+
+    await expect(registry.get("pm-live-1")).rejects.toMatchObject({
       code: "MISSING_SECRET",
     });
   });
