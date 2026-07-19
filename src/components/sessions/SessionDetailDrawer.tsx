@@ -7,6 +7,7 @@ import {
 import { formatSignalSourceTimingSubtitle } from "@electron/shared/domain/signal-timing";
 import { Badge } from "@/components/custom-ui";
 import { api, listenEvent, type SessionSummary } from "@/lib/exva";
+import type { SessionActivitySnapshot } from "@electron/shared/domain/session-activity";
 import type {
   EventRow,
   InstrumentClass,
@@ -257,6 +258,7 @@ export const SessionDetailDrawer = ({
     cacheAction: string | null;
     executionProgress: SessionProgressState | null;
     researchFailure: string | null;
+    activity: SessionActivitySnapshot | null;
   };
   type Action =
     | { type: "resetExecutionState" }
@@ -265,6 +267,7 @@ export const SessionDetailDrawer = ({
         executionProgress: SessionProgressState | null;
       }
     | { type: "setResearchFailure"; researchFailure: string | null }
+    | { type: "setActivity"; activity: SessionActivitySnapshot | null }
     | { type: "setRecentEvents"; recentEvents: EventRow[] }
     | { type: "cacheLoadStart" }
     | { type: "cacheLoadSuccess"; instrumentCache: InstrumentCacheView | null }
@@ -284,6 +287,7 @@ export const SessionDetailDrawer = ({
     cacheAction: null,
     executionProgress: null,
     researchFailure: null,
+    activity: null,
   };
 
   function reducer(state: State, action: Action): State {
@@ -294,6 +298,8 @@ export const SessionDetailDrawer = ({
         return { ...state, executionProgress: action.executionProgress };
       case "setResearchFailure":
         return { ...state, researchFailure: action.researchFailure };
+      case "setActivity":
+        return { ...state, activity: action.activity };
       case "setRecentEvents":
         return { ...state, recentEvents: action.recentEvents };
       case "cacheLoadStart":
@@ -349,6 +355,7 @@ export const SessionDetailDrawer = ({
     cacheAction,
     executionProgress,
     researchFailure,
+    activity,
   } = state;
 
   const refreshExecutionProgress = async (sessionId: string) => {
@@ -411,6 +418,25 @@ export const SessionDetailDrawer = ({
       cancelled = true;
       for (const unsub of cleanup) unsub();
       dispatch({ type: "resetExecutionState" });
+    };
+  }, [session]);
+
+  useEffect(() => {
+    if (!session) {
+      dispatch({ type: "setActivity", activity: null });
+      return;
+    }
+    let cancelled = false;
+    void api.getSessionActivity(session.id).then((snapshot) => {
+      if (!cancelled) dispatch({ type: "setActivity", activity: snapshot });
+    });
+    const unsubPromise = listenEvent("session_activity_changed", (snapshot) => {
+      if (cancelled || snapshot.sessionId !== session.id) return;
+      dispatch({ type: "setActivity", activity: snapshot });
+    });
+    return () => {
+      cancelled = true;
+      void unsubPromise.then((unsub) => unsub());
     };
   }, [session]);
 
@@ -843,6 +869,54 @@ export const SessionDetailDrawer = ({
                   cacheAction={cacheAction}
                   onClearCache={() => void handleClearCache()}
                 />
+
+                {activity && (
+                  <Section
+                    title="Activity"
+                    body="What this session is doing right now, and every currently-active blocker or warning."
+                  >
+                    <div className="text-body text-text1">
+                      {activity.activity}
+                    </div>
+                    <div className="mt-1 text-caption text-text3">
+                      Last updated {formatTimestamp(activity.updatedAt)}
+                    </div>
+                    {activity.conditions.length > 0 ? (
+                      <div className="mt-3 grid gap-1.5">
+                        {activity.conditions.map((condition) => (
+                          <div
+                            key={condition.kind}
+                            className="grid grid-cols-[auto_1fr_auto] items-baseline gap-2.5 text-caption leading-[1.45]"
+                          >
+                            <Badge
+                              variant={
+                                condition.severity === "error"
+                                  ? "danger"
+                                  : condition.severity === "warn"
+                                    ? "warn"
+                                    : "blue"
+                              }
+                              size="sm"
+                            >
+                              {condition.kind.replace(/_/g, " ")}
+                            </Badge>
+                            <span className="text-text2">
+                              {condition.message}
+                            </span>
+                            <span className="whitespace-nowrap text-text3">
+                              since {formatTimestamp(condition.since)} ·{" "}
+                              {condition.count}x
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className={cn(mutedClass, "mt-2")}>
+                        No active blockers or warnings.
+                      </div>
+                    )}
+                  </Section>
+                )}
 
                 {(executionProgress || researchFailure) && (
                   <Section

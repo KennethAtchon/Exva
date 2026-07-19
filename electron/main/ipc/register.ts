@@ -7,6 +7,7 @@ import { registerDeveloperHandlers } from "./system/developer";
 import { registerOpsHandlers } from "./system/ops";
 import { registerEventHandlers } from "./system/events";
 import { registerSessionHandlers } from "./session/session";
+import { registerSessionActivityHandlers } from "./session/session-activity";
 import { registerSignalHandlers } from "./signals";
 import { registerStrategyHandlers } from "./workspace/strategy";
 import { registerStrategyConfigHandlers } from "./workspace/strategy-config";
@@ -31,6 +32,7 @@ export function registerIpcHandlers(services: AppServices): void {
   registerPeriodAutopsyHandlers(services);
   registerApprovalHandlers(services);
   registerSessionHandlers(services);
+  registerSessionActivityHandlers(services);
   registerStrategyHandlers(services);
   registerStrategyConfigHandlers(services);
   registerWorkspaceHandlers(services);

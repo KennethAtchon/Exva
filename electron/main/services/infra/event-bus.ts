@@ -10,6 +10,7 @@ import type {
   TradeDecisionPayload,
 } from "@/lib/types";
 import type { CapabilityRisk } from "@electron/shared/domain/control";
+import type { SessionActivitySnapshot } from "@electron/shared/domain/session-activity";
 import type { ExvaEventName } from "@electron/shared/ipc/channels";
 
 export interface ExvaEventMap {
@@ -175,6 +176,7 @@ export interface ExvaEventMap {
     total: number;
     marksStale: boolean;
   };
+  session_activity_changed: SessionActivitySnapshot;
 }
 
 export class EventBus {

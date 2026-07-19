@@ -678,6 +678,34 @@ export const events = sqliteTable(
   }),
 );
 
+export const sessionActivity = sqliteTable("session_activity", {
+  sessionId: text("session_id")
+    .primaryKey()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  activity: text("activity").notNull(),
+  conditionsJson: text("conditions_json").notNull().default("[]"),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const sessionActivityTransitions = sqliteTable(
+  "session_activity_transitions",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    activity: text("activity").notNull(),
+    conditionsJson: text("conditions_json").notNull().default("[]"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => ({
+    sessionCreatedIdx: index("idx_session_activity_transitions_session").on(
+      table.sessionId,
+      table.createdAt,
+    ),
+  }),
+);
+
 export const tradeApprovals = sqliteTable(
   "trade_approvals",
   {

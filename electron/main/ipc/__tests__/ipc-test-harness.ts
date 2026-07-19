@@ -359,6 +359,7 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     tradeAutopsy: {} as AppServices["tradeAutopsy"],
     autopsyExport: {} as AppServices["autopsyExport"],
     signals: {} as unknown as AppServices["signals"],
+    sessionActivityTracker: {} as unknown as AppServices["sessionActivityTracker"],
     controlRepo: {} as AppServices["controlRepo"],
     control: {} as AppServices["control"],
     ladderStates: new Map(),

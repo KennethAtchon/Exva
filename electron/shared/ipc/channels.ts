@@ -238,6 +238,10 @@ export const channels = {
     replace: "session-inputs:replace",
     migrate: "session-inputs:migrate",
   },
+  sessionActivity: {
+    list: "session-activity:list",
+    get: "session-activity:get",
+  },
 } as const;
 
 export const mainToRendererEvents = [
@@ -274,6 +278,7 @@ export const mainToRendererEvents = [
   "control_error",
   "backtest_progress",
   "equity_snapshot",
+  "session_activity_changed",
 ] as const;
 
 export type ExvaEventName = (typeof mainToRendererEvents)[number];

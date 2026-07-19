@@ -351,6 +351,7 @@ export type ExvaEventMap = {
     total: number;
     marksStale: boolean;
   };
+  session_activity_changed: import("../domain/session-activity").SessionActivitySnapshot;
 };
 
 export type ExvaEventName = keyof ExvaEventMap;

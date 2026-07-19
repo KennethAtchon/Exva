@@ -111,7 +111,7 @@ export const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   {
     id: "event-web-scout",
     prompt: SELECTOR_WORKERS_EVENT_WEB_SCOUT_PROMPT,
-    tools: ["search_web", "fetch_url"],
+    tools: ["list_markets", "search_web", "fetch_url"],
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: SELECTOR_DISCOVERY_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
@@ -121,8 +121,9 @@ export const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   {
     id: "event-prediction-scout",
     prompt: SELECTOR_WORKERS_EVENT_PREDICTION_SCOUT_PROMPT,
-    tools: ["search_web", "get_trending_symbols"],
+    tools: ["list_markets", "search_web", "get_trending_symbols"],
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
+    toolRequirements: { requiredAll: ["list_markets"], minToolCalls: 1 },
     strategyContext: SELECTOR_DISCOVERY_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "tool_result",

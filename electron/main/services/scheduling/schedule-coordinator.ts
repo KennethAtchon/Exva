@@ -52,6 +52,11 @@ export interface ScheduleCoordinatorDeps {
   calendarRegistry: MarketCalendarRegistry;
   emitSignals: ScheduledSignalEmitFn;
   resolveScheduledFanout: ResolveScheduledFanoutFn;
+  /** Observability hook: calendar lookup failed and we fell back to "open". */
+  onCalendarMisconfigured?: (
+    plan: ScheduledRuntimePlan,
+    errorMessage: string,
+  ) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -280,10 +285,12 @@ export class ScheduleCoordinator {
       const calendar = calendarRegistry.require(entry.plan.marketCalendarId);
       calendarOpen = calendar.isOpen();
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
       logger.warn(
         { groupKey: entry.plan.groupKey, err },
         "calendar lookup failed, treating as open",
       );
+      this.deps.onCalendarMisconfigured?.(entry.plan, errorMessage);
     }
     if (!calendarOpen) {
       return;

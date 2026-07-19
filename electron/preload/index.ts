@@ -362,6 +362,11 @@ const exva: ExvaApi = {
     get: (input: { sessionId: string }) => invoke("session-inputs:get", input),
     replace: (input: unknown) => invoke("session-inputs:replace", input),
   },
+  sessionActivity: {
+    list: () => invoke(channels.sessionActivity.list),
+    get: (input: { sessionId: string }) =>
+      invoke(channels.sessionActivity.get, input),
+  },
   developer: {
     getSettings: () => invoke(channels.developer.getSettings),
     updateSettings: (patch: unknown) =>

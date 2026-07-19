@@ -147,6 +147,10 @@ import { SignalService } from "./signals/signal-service";
 import { ControlRepo } from "../db/repositories/control/control-repo";
 import { ControlAgentService } from "./control/control-agent-service";
 import { bootstrapMockRehearsal } from "../experiences/mock-rehearsal-bootstrap";
+import { ensureLiveSignalSources } from "../experiences/ensure-live-signal-sources";
+import { SessionActivityRepo } from "../db/repositories/sessions/session-activity-repo";
+import { SessionActivityTracker } from "./sessions/session-activity-tracker";
+import { SessionInputSubscriptionRepo } from "./session-inputs/session-input-subscription-repo";
 import { seedExperienceCatalog } from "./experience-catalog/seed-experience-catalog";
 import { createExperienceTemplateService } from "./experience-catalog/experience-template-service";
 import { InstrumentSetService } from "./instruments/instrument-set-service";
@@ -160,7 +164,7 @@ import { CikTickerCache } from "./signals/cache/cik-ticker-cache";
 import { ScheduleCoordinator } from "./scheduling/schedule-coordinator";
 import { SessionInputRuntimePlanner } from "./scheduling/session-input-runtime-planner";
 import { ScheduledStrategyExecutor } from "./scheduling/scheduled-strategy-executor";
-import { MarketCalendarRegistry } from "./scheduling/market-calendar-registry";
+import { getMarketCalendarRegistry } from "./scheduling/market-calendar-registry";
 import { SubscriptionFanoutResolver } from "./signals/subscription-fanout-resolver";
 import { AlphaSourceScanService } from "./signals/alpha-source-scan-service";
 import type { ExperienceTemplateService } from "./experience-catalog/experience-template-service";
@@ -244,6 +248,7 @@ export interface AppServices {
   tradeAutopsy: TradeAutopsyService;
   autopsyExport: AutopsyExportService;
   signals: SignalService;
+  sessionActivityTracker: SessionActivityTracker;
   controlRepo: ControlRepo;
   control: ControlAgentService;
   /** In-memory promotion ladder states (experienceId → state). */
@@ -893,8 +898,12 @@ export async function createAppServices(app: App): Promise<AppServices> {
     adapterRegistry,
   );
 
-  const calendarRegistry = new MarketCalendarRegistry();
+  const calendarRegistry = getMarketCalendarRegistry();
   const fanoutResolver = new SubscriptionFanoutResolver(db);
+  // reason: sessionActivityTracker is constructed after signalRegistry, but
+  // these fail-loud hooks fire only at scan-tick runtime — set below.
+  const sessionActivityTrackerRef: { current: SessionActivityTracker | null } =
+    { current: null };
   const executor = new ScheduledStrategyExecutor({
     db,
     strategyRegistry,
@@ -906,6 +915,18 @@ export async function createAppServices(app: App): Promise<AppServices> {
         barCount,
       });
     },
+    onBarsFailed: (plan, symbol, errorMessage) => {
+      for (const { sessionId } of fanoutResolver.resolveScheduledFanout(
+        plan.subscriptionIds,
+      )) {
+        sessionActivityTrackerRef.current?.reportCondition(
+          sessionId,
+          "data_feed_failing",
+          "error",
+          `Bar fetch failed for ${symbol}: ${errorMessage}`,
+        );
+      }
+    },
   });
 
   const scheduleCoordinator = new ScheduleCoordinator({
@@ -915,6 +936,18 @@ export async function createAppServices(app: App): Promise<AppServices> {
     emitSignals: (signals, groupKey, subscriptions) =>
       signalBus.ingestScheduledGroupHit(signals, groupKey, subscriptions),
     resolveScheduledFanout: (ids) => fanoutResolver.resolveScheduledFanout(ids),
+    onCalendarMisconfigured: (plan, errorMessage) => {
+      for (const { sessionId } of fanoutResolver.resolveScheduledFanout(
+        plan.subscriptionIds,
+      )) {
+        sessionActivityTrackerRef.current?.reportCondition(
+          sessionId,
+          "calendar_misconfigured",
+          "error",
+          `Market calendar lookup failed, treated as open: ${errorMessage}`,
+        );
+      }
+    },
   });
 
   const planner = new SessionInputRuntimePlanner({ db, strategyRegistry });
@@ -982,6 +1015,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     },
   });
   signals.bootstrapFromDb();
+  ensureLiveSignalSources(signalSourcesRepo, signalRegistry);
   bootstrapMockRehearsal({
     sourcesRepo: signalSourcesRepo,
     registry: signalRegistry,
@@ -994,6 +1028,26 @@ export async function createAppServices(app: App): Promise<AppServices> {
       mockScenarioKind: broker.mockScenarioKind ?? null,
     })),
   });
+
+  const sessionActivityTracker = new SessionActivityTracker({
+    activityRepo: new SessionActivityRepo(db),
+    subscriptionRepo: new SessionInputSubscriptionRepo(db),
+    sourceDefinitionRepo: new SourceDefinitionRepo(db),
+    signalSourcesRepo,
+    signalRegistry,
+    sessionRepo: repos.session,
+    db,
+    bus: eventBus,
+    notify: (_sessionId, condition) => {
+      notifications.notify(
+        `Exva: ${condition.kind}`,
+        condition.message,
+        condition.severity === "error" ? "ERROR" : "WARN",
+      );
+    },
+  });
+  sessionActivityTracker.start();
+  sessionActivityTrackerRef.current = sessionActivityTracker;
 
   const controlRepo = new ControlRepo(db);
   // reason: ControlAgentService needs the fully-built container; resolve it lazily.
@@ -1156,6 +1210,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
       balanceTicker.stop();
       labelBuilderTicker.stop();
       driftMonitorTicker.stop();
+      sessionActivityTracker.stop();
     },
     capitalReservation,
     eventBus,
@@ -1184,6 +1239,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     tradeAutopsy,
     autopsyExport,
     signals,
+    sessionActivityTracker,
     controlRepo,
     control,
     ladderStates,

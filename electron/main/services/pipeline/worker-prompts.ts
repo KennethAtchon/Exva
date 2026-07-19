@@ -185,11 +185,19 @@ export const SELECTOR_WORKERS_EVENT_PREDICTION_SCOUT_PROMPT = `# Event predictio
 
 Surface trending prediction-market contracts where price action diverges from headline probability.
 
+## Required Process
+
+1. Call \`list_markets\` first. It returns the only real, currently-live prediction-market \`symbol\` values.
+2. Every candidate \`symbol\` you submit MUST be copied verbatim from a \`list_markets\` result. Never invent, guess, or reconstruct a symbol from web search or memory — invented symbols cannot be quoted and are rejected downstream.
+3. Optionally use \`search_web\` / \`get_trending_symbols\` to judge which of the listed markets has the most divergence between price and headline probability — not to discover new symbols.
+
 Favor contracts with measurable edge vs stated market odds (instrumentClass \`prediction_market\`). When finished, call the \`submit_result\` tool with your candidates; its schema defines every field.`;
 
 export const SELECTOR_WORKERS_EVENT_WEB_SCOUT_PROMPT = `# Event web scout
 
 Find up to 3 prediction-market or event-contract candidates with mispriced implied probability.
+
+If any candidate is instrumentClass \`prediction_market\`, its \`symbol\` MUST be copied verbatim from a \`list_markets\` call — never invent or reconstruct a prediction-market symbol from web search. \`search_web\`/\`fetch_url\` are for judging which listed market is mispriced, not for discovering symbols.
 
 Prioritize contracts with clear resolution dates, liquid order books, and fresh news flow. Only include symbols backed by current web evidence (instrumentClass \`prediction_market\`). When finished, call the \`submit_result\` tool with your candidates; its schema defines every field.`;
 

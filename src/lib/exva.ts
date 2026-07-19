@@ -120,6 +120,15 @@ export const api = {
     sessionId: string,
   ): Promise<SessionExecutionProgressResponse> =>
     bridge().session.getExecutionProgress(sessionId),
+  listSessionActivity: (): Promise<
+    import("@electron/shared/domain/session-activity").SessionActivitySnapshot[]
+  > => bridge().sessionActivity.list(),
+  getSessionActivity: (
+    sessionId: string,
+  ): Promise<
+    | import("@electron/shared/domain/session-activity").SessionActivitySnapshot
+    | null
+  > => bridge().sessionActivity.get({ sessionId }),
   retrySessionStep: (input: {
     sessionId: string;
     cycleId: string;

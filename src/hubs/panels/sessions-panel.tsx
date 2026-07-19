@@ -34,6 +34,7 @@ import {
   type SessionSummary,
 } from "@/lib/exva";
 import type { InstrumentClass, SessionStatus } from "@/lib/types";
+import type { SessionActivitySnapshot } from "@electron/shared/domain/session-activity";
 import { MOCK_REHEARSAL_SIGNAL_SOURCE_ID } from "@electron/shared/instruments/mock-rehearsal";
 import { CreateEditSessionModal } from "@/components/sessions/CreateEditSessionModal";
 import { LiveReadinessModal } from "@/components/sessions/LiveReadinessModal";
@@ -81,6 +82,7 @@ type DataState = {
     string,
     { phase: string; error: string; at: string }
   >;
+  activityBySessionId: Record<string, SessionActivitySnapshot>;
 };
 
 type UiState = {
@@ -213,17 +215,41 @@ const SessionListFilters = ({
   </div>
 );
 
+function activityChipVariant(
+  severity: SessionActivitySnapshot["conditions"][number]["severity"],
+): "danger" | "warn" | "blue" {
+  if (severity === "error") return "danger";
+  if (severity === "warn") return "warn";
+  return "blue";
+}
+
+const SEVERITY_RANK: Record<
+  SessionActivitySnapshot["conditions"][number]["severity"],
+  number
+> = { info: 0, attention: 1, warn: 2, error: 3 };
+
 const SessionListCard = ({
   session,
   progressPct,
+  activity,
   onSelect,
 }: {
   session: SessionSummary;
   progressPct: number | null;
+  activity: SessionActivitySnapshot | undefined;
   onSelect: (id: string) => void;
 }) => {
   const isActive = session.status === "active";
   const envLabel = session.executionMode === "live_allowed" ? "live" : "paper";
+  const worstCondition = activity?.conditions.reduce<
+    SessionActivitySnapshot["conditions"][number] | undefined
+  >(
+    (worst, condition) =>
+      !worst || SEVERITY_RANK[condition.severity] > SEVERITY_RANK[worst.severity]
+        ? condition
+        : worst,
+    undefined,
+  );
 
   return (
     <button
@@ -256,6 +282,13 @@ const SessionListCard = ({
         <span className="uppercase">{envLabel}</span>
         <span>·</span>
         <span>{session.openTradeCount} open</span>
+        {worstCondition ? (
+          <Badge variant={activityChipVariant(worstCondition.severity)} size="sm">
+            {worstCondition.kind.replace(/_/g, " ")}
+          </Badge>
+        ) : activity?.activity ? (
+          <span className="truncate text-text3">{activity.activity}</span>
+        ) : null}
       </div>
       <div className="mt-2 flex h-3 items-end gap-0.5">
         {[0.25, 0.45, 0.65, 0.85].map((height, index) => (
@@ -515,6 +548,7 @@ export const SessionsMasterDetail = ({
     actionSessionId: null,
     progressBySessionId: {},
     researchFailuresBySessionId: {},
+    activityBySessionId: {},
   });
 
   const [ui, dispatchUi] = useReducer<Reducer<UiState, Partial<UiState>>>(
@@ -680,6 +714,41 @@ export const SessionsMasterDetail = ({
       unsubsRef.current = [];
     };
   }, [refreshProgress]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.listSessionActivity().then((rows) => {
+      if (cancelled) return;
+      dispatchData({
+        activityBySessionId: Object.fromEntries(
+          rows.map((row) => [row.sessionId, row]),
+        ),
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const cleanup: Array<() => void> = [];
+
+    void listenEvent("session_activity_changed", (snapshot) => {
+      if (cancelled) return;
+      dispatchData({
+        activityBySessionId: {
+          ...dataRef.current.activityBySessionId,
+          [snapshot.sessionId]: snapshot,
+        },
+      });
+    }).then((unsub) => cleanup.push(unsub));
+
+    return () => {
+      cancelled = true;
+      for (const unsub of cleanup) unsub();
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -890,6 +959,7 @@ export const SessionsMasterDetail = ({
                 progressPct={
                   data.progressBySessionId[session.id]?.progressPct ?? null
                 }
+                activity={data.activityBySessionId[session.id]}
                 onSelect={(id) => void handleFocusSession(id)}
               />
             ))}

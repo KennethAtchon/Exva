@@ -776,6 +776,17 @@ export interface ExvaApi {
       import("@electron/shared/domain/experience-inputs/subscription").SessionInputConfiguration
     >;
   };
+  sessionActivity: {
+    list(): Promise<
+      import("@electron/shared/domain/session-activity").SessionActivitySnapshot[]
+    >;
+    get(input: {
+      sessionId: string;
+    }): Promise<
+      | import("@electron/shared/domain/session-activity").SessionActivitySnapshot
+      | null
+    >;
+  };
   palette: {
     query(input: { q: string; limit?: number }): Promise<{
       query: string;

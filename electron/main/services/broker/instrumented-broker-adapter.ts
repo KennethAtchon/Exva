@@ -91,11 +91,10 @@ export function createInstrumentedBrokerAdapter(
         "getOhlcv",
         `${instrumentSymbol}/${timeframe}?limit=${barCount}`,
         () => {
-          const getOhlcv = inner.getOhlcv;
-          if (!getOhlcv) {
+          if (!inner.getOhlcv) {
             throw new Error("Broker adapter getOhlcv unexpectedly unavailable");
           }
-          return getOhlcv(instrumentSymbol, timeframe, barCount);
+          return inner.getOhlcv(instrumentSymbol, timeframe, barCount);
         },
       ) as Promise<OhlcvBar[]>;
   }

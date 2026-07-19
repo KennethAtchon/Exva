@@ -42,6 +42,16 @@ export interface ScheduledStrategyExecutorDeps {
   getBars: GetBarsCallback;
   /** Maximum concurrent instrument evaluations. Default: 4. */
   concurrency?: number;
+  /**
+   * Observability hook: a per-instrument bar fetch failed. Per-instrument
+   * isolation (one bar outage must not kill the scan batch) is unchanged —
+   * this is fail-loud reporting only, never a control-flow input.
+   */
+  onBarsFailed?: (
+    plan: ScheduledRuntimePlan,
+    symbol: string,
+    errorMessage: string,
+  ) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -149,7 +159,9 @@ export class ScheduledStrategyExecutor {
         instrumentClass,
       );
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
       logger.warn({ symbol: displaySymbol, err }, "getBars failed");
+      this.deps.onBarsFailed?.(plan, displaySymbol, errorMessage);
       // Per-instrument isolation: one bar outage must not kill the scan batch.
       // Caller sees fewer signals; schedule coordinator still ticks.
       return null;

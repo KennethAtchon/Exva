@@ -14,6 +14,7 @@ import type { BrokerRegistry } from "../../broker/broker-registry";
 import type { MockOhlcvBar } from "../../broker/adapters/mock-adapter";
 import type { MockWebSearchItem } from "../../broker/mock/mock-discovery-fixtures";
 import { createMarketTools } from "../../tools/market-tools";
+import { createPredictionMarketTools } from "../../tools/prediction-market-tools";
 import { createFetchUrlTool } from "../../tools/fetch-url-tool";
 import { createTrendingSymbolsTool } from "../../tools/trending-symbols-tool";
 import type { MOCK_TRENDING_SYMBOLS } from "../../tools/trending-symbols-tool";
@@ -31,6 +32,7 @@ export const SUPPORTED_TOOL_IDS = [
   "get_trending_symbols",
   "get_quote",
   "get_ohlcv",
+  "list_markets",
 ] as const;
 
 export const DEFAULT_SUBMIT_TOOL_DESCRIPTION =
@@ -137,6 +139,14 @@ export async function buildWorkerTools(
       cycleId: ctx.cycleId,
       mockSymbols: ctx.mockTrendingData,
     });
+  }
+
+  if (idSet.has("list_markets") && ctx.brokerRouting) {
+    const predictionMarketTools = createPredictionMarketTools({
+      sessionId: ctx.sessionId,
+      brokerRouting: ctx.brokerRouting,
+    });
+    tools.list_markets = predictionMarketTools.list_markets;
   }
 
   const needsMarket = idSet.has("get_quote") || idSet.has("get_ohlcv");

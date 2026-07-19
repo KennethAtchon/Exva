@@ -111,6 +111,35 @@ describe("createInstrumentedBrokerAdapter", () => {
     });
   });
 
+  it("calls a class-based inner adapter's getOhlcv with `this` intact (regression for detached-method bug)", async () => {
+    // A plain-object mock's methods don't depend on `this`, so it can't
+    // reproduce the real bug: instrumented-broker-adapter.ts used to
+    // destructure `const getOhlcv = inner.getOhlcv`, losing `this` — any
+    // class-based adapter calling `this.xyz()` inside getOhlcv then threw.
+    class ClassAdapter {
+      readonly brokerType = "mock";
+      readonly supportedInstrumentClasses = ["stock"] as const;
+      readonly launchCapable = true;
+      private now(): string {
+        return "2026-01-01T00:00:00.000Z";
+      }
+      async getOhlcv() {
+        const ts = this.now();
+        return [{ ts, open: 1, high: 2, low: 0.5, close: 1.5, volume: 100 }];
+      }
+    }
+    const inner = new ClassAdapter() as unknown as BrokerAdapter;
+    const adapter = createInstrumentedBrokerAdapter(inner, {
+      apiCallLogRepo: { insert: vi.fn() } as unknown as ApiCallLogRepo,
+      brokerAccountId: "broker-1",
+      provider: "alpaca",
+    });
+
+    await expect(
+      adapter.getOhlcv?.("SPY", "1h", 10),
+    ).resolves.toMatchObject([{ ts: "2026-01-01T00:00:00.000Z" }]);
+  });
+
   it("omits getOhlcv when the inner adapter does not implement it", () => {
     const inner = createMockAdapter();
     delete inner.getOhlcv;
