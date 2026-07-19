@@ -24,4 +24,15 @@ export function registerSessionActivityHandlers(services: AppServices): void {
       return services.sessionActivityTracker.getSnapshot(sessionId);
     },
   );
+
+  handle(
+    ipcMain,
+    channels.sessionActivity.listTransitions,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const { sessionId } = sessionIdParamSchema.parse(payload);
+      assertSessionInWorkspaceEnvironment(services, sessionId);
+      return services.sessionActivityTracker.listTransitions(sessionId);
+    },
+  );
 }

@@ -5,7 +5,10 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
 } from "react";
+import { useExvaEvent } from "@/hooks/useExvaEvent";
+import { formatTimestamp } from "@/lib/format";
 import { Badge, Dot, ShadcnSelect } from "@/components/custom-ui";
 import {
   Button,
@@ -182,7 +185,7 @@ const executeLifecycleAction = async ({
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-type SessionsTab = "run" | "trades" | "config";
+export type SessionsTab = "run" | "activity" | "trades" | "config";
 
 const SessionListFilters = ({
   statusFilter,
@@ -1021,6 +1024,7 @@ export const SessionsMasterDetail = ({
         >
           <TabsList className="shrink-0 px-5">
             <TabsTrigger value="run">Run</TabsTrigger>
+            <TabsTrigger value="activity">Activity</TabsTrigger>
             <TabsTrigger value="trades">Trades</TabsTrigger>
             <TabsTrigger value="config">Config</TabsTrigger>
           </TabsList>
@@ -1166,6 +1170,21 @@ export const SessionsMasterDetail = ({
                 pausedCount={pausedCount}
                 openTrades={openTrades}
               />
+            )}
+          </TabsContent>
+
+          <TabsContent
+            value="activity"
+            className="mt-0 min-h-0 flex-1 overflow-y-auto px-5 pb-5 data-[state=inactive]:hidden"
+          >
+            {!runTabSession ? (
+              <EmptyState
+                title="No session selected"
+                message="Select a session from the list to view its activity timeline."
+                className="mt-4"
+              />
+            ) : (
+              <SessionActivityTab sessionId={runTabSession.id} />
             )}
           </TabsContent>
 
@@ -1384,6 +1403,75 @@ const SessionRunTab = ({
     </div>
   </div>
 );
+
+const SessionActivityTab = ({ sessionId }: { sessionId: string }) => {
+  const [transitions, setTransitions] = useState<SessionActivitySnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async (id: string) => {
+    setLoading(true);
+    try {
+      const rows = await api.listSessionActivityTransitions(id);
+      setTransitions(rows);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load(sessionId);
+  }, [sessionId, load]);
+
+  useExvaEvent("session_activity_changed", (snapshot) => {
+    if (snapshot.sessionId === sessionId) void load(sessionId);
+  });
+
+  if (loading && transitions.length === 0) {
+    return <div className="mt-4 px-1 text-body text-text3">Loading...</div>;
+  }
+  if (transitions.length === 0) {
+    return (
+      <EmptyState
+        title="No activity yet"
+        message="Timeline entries appear once this session starts a cycle, receives a signal, or a condition is detected."
+        className="mt-4"
+      />
+    );
+  }
+
+  return (
+    <div className="mt-4 flex flex-col gap-2 px-1 pb-5">
+      {transitions.map((entry, i) => (
+        <div
+          key={`${entry.updatedAt}-${i}`}
+          className="rounded-sm border border-border bg-surface p-3"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-sans text-body text-text1">
+              {entry.activity}
+            </span>
+            <span className="whitespace-nowrap font-mono text-micro text-text3">
+              {formatTimestamp(entry.updatedAt)}
+            </span>
+          </div>
+          {entry.conditions.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {entry.conditions.map((condition) => (
+                <Badge
+                  key={condition.kind}
+                  variant={activityChipVariant(condition.severity)}
+                  size="sm"
+                >
+                  {condition.kind.replace(/_/g, " ")}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const RunMetric = ({ label, value }: { label: string; value: string }) => (
   <div>

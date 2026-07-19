@@ -129,6 +129,11 @@ export const api = {
     | import("@electron/shared/domain/session-activity").SessionActivitySnapshot
     | null
   > => bridge().sessionActivity.get({ sessionId }),
+  listSessionActivityTransitions: (
+    sessionId: string,
+  ): Promise<
+    import("@electron/shared/domain/session-activity").SessionActivitySnapshot[]
+  > => bridge().sessionActivity.listTransitions({ sessionId }),
   retrySessionStep: (input: {
     sessionId: string;
     cycleId: string;

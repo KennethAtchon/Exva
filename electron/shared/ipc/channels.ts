@@ -241,6 +241,7 @@ export const channels = {
   sessionActivity: {
     list: "session-activity:list",
     get: "session-activity:get",
+    listTransitions: "session-activity:list-transitions",
   },
 } as const;
 

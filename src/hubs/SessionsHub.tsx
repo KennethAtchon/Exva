@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { HelpTooltip } from "@/components/ui";
 import { HubBody, HubFrame, HubHeader } from "./dna";
-import { SessionsMasterDetail } from "./panels/sessions-panel";
+import {
+  SessionsMasterDetail,
+  type SessionsTab,
+} from "./panels/sessions-panel";
 import type { SessionStatus } from "@/lib/types";
 import type { DevPanelFocus } from "./panels/dev-panel";
-
-type SessionsTab = "run" | "trades" | "config";
 
 type Props = {
   initialStatusFilter?: SessionStatus | "all";

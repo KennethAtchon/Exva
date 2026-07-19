@@ -336,4 +336,9 @@ export class SessionActivityTracker {
   listSnapshots(): SessionActivitySnapshot[] {
     return this.deps.activityRepo.list();
   }
+
+  /** Most-recent-first history of activity/condition transitions for a session. */
+  listTransitions(sessionId: string, limit?: number): SessionActivitySnapshot[] {
+    return this.deps.activityRepo.listTransitions(sessionId, limit);
+  }
 }
