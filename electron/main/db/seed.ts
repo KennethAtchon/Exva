@@ -1,5 +1,5 @@
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { env } from "../config/env";
 import {
   BUILT_IN_DUCKDUCKGO_PROVIDER_ID,
@@ -9,6 +9,7 @@ import * as schema from "./schema";
 import type { DbClient } from "./client";
 import { seedExperienceCatalog } from "../services/experience-catalog/seed-experience-catalog";
 import { seedBuiltinConfigPresets } from "./builtin-config-presets";
+import { DEFAULT_PAPER_STARTING_BALANCE_USD } from "./repositories/brokers/paper-balances-repo";
 
 export const SEEDED_OPENROUTER_PROVIDER_ID = "seed-openrouter";
 export const SEEDED_OPENROUTER_SECRET_REF = "provider:seed-openrouter";
@@ -16,6 +17,12 @@ export const SEEDED_ALPACA_BROKER_ID = "seed-alpaca-paper";
 export const SEEDED_ALPACA_SECRET_REF = "broker:seed-alpaca-paper";
 export const SEEDED_POLYMARKET_BROKER_ID = "seed-polymarket-paper";
 export const SEEDED_POLYMARKET_SECRET_REF = "broker:seed-polymarket-paper";
+/**
+ * Starting paper USDC for the seeded Polymarket Hover account. Set high enough
+ * that stress-test sessions requesting large broker allocations pass preflight
+ * (the shared paper default of $1k is too small for those).
+ */
+export const SEEDED_POLYMARKET_STARTING_BALANCE_USD = 100_000;
 
 /** Idempotent defaults applied after Drizzle SQL migrations (workspace row, built-in search provider). */
 export function runSeed(
@@ -152,6 +159,39 @@ export function runSeed(
         updatedAt: new Date().toISOString(),
       })
       .onConflictDoNothing()
+      .run();
+
+    // Seed the paper balance up front so it doesn't lazily default to $1k on
+    // first read — stress-test sessions request far larger allocations.
+    db.insert(schema.paperBalances)
+      .values({
+        accountId: SEEDED_POLYMARKET_BROKER_ID,
+        currency: "USD",
+        balance: SEEDED_POLYMARKET_STARTING_BALANCE_USD,
+        startingBalance: SEEDED_POLYMARKET_STARTING_BALANCE_USD,
+        updatedAt: new Date().toISOString(),
+      })
+      .onConflictDoNothing()
+      .run();
+
+    // Existing installs may already hold a lazily-created $1k row that the
+    // insert above skips. Upgrade it only while it's still the untouched
+    // default (startingBalance unchanged) so real paper-trading state is safe.
+    db.update(schema.paperBalances)
+      .set({
+        balance: SEEDED_POLYMARKET_STARTING_BALANCE_USD,
+        startingBalance: SEEDED_POLYMARKET_STARTING_BALANCE_USD,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(
+        and(
+          eq(schema.paperBalances.accountId, SEEDED_POLYMARKET_BROKER_ID),
+          eq(
+            schema.paperBalances.startingBalance,
+            DEFAULT_PAPER_STARTING_BALANCE_USD,
+          ),
+        ),
+      )
       .run();
   }
 

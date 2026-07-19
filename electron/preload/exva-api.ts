@@ -527,6 +527,7 @@ export interface ExvaApi {
       conversation: ControlConversation;
       messages: ControlMessage[];
       toolCalls: ControlToolCall[];
+      streaming: boolean;
     }>;
     createConversation(input?: {
       title?: string;

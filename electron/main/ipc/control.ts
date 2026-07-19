@@ -39,6 +39,9 @@ export function registerControlHandlers(services: AppServices): void {
         conversation: controlRepo.requireConversation(id),
         messages: controlRepo.listMessages(id),
         toolCalls: controlRepo.listToolCalls(id),
+        // Backend truth so a freshly-mounted panel (reopened / switched surface)
+        // knows a turn is still running and keeps the composer disabled.
+        streaming: control.isStreaming(id),
       };
     },
   );

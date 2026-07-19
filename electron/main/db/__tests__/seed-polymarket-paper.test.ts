@@ -7,11 +7,12 @@ import {
   runSeed,
   SEEDED_POLYMARKET_BROKER_ID,
   SEEDED_POLYMARKET_SECRET_REF,
+  SEEDED_POLYMARKET_STARTING_BALANCE_USD,
 } from "../seed";
 import { BrokerAccountsRepo } from "../repositories/brokers/broker-accounts-repo";
+import { PaperBalancesRepo } from "../repositories/brokers/paper-balances-repo";
 import { BrokerRegistry } from "../../services/broker/broker-registry";
 import { PolymarketAdapter } from "../../services/broker/adapters/polymarket-adapter";
-import { DEFAULT_PAPER_STARTING_BALANCE_USD } from "../repositories/brokers/paper-balances-repo";
 
 const clobClientMethods = vi.hoisted(() => ({
   getOk: vi.fn(),
@@ -110,6 +111,8 @@ describe("seed-polymarket-paper", () => {
     const registry = new BrokerRegistry(
       new BrokerAccountsRepo(db),
       secrets as never,
+      undefined,
+      new PaperBalancesRepo(db),
     );
 
     const adapter = await registry.get(SEEDED_POLYMARKET_BROKER_ID);
@@ -118,7 +121,7 @@ describe("seed-polymarket-paper", () => {
     const conn = await adapter.testConnection();
     expect(conn).toMatchObject({
       ok: true,
-      account_balance: DEFAULT_PAPER_STARTING_BALANCE_USD,
+      account_balance: SEEDED_POLYMARKET_STARTING_BALANCE_USD,
     });
     expect(conn.message).toMatch(/ghost|paper/i);
   });

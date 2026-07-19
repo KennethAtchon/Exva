@@ -43,7 +43,8 @@
     "doctor:fix:safe:dry": "bun run scripts/react-doctor-fix.ts --safe --dry-run",
     "doctor:fix:tiny-text": "bun run scripts/react-doctor-fix.ts --rule no-tiny-text",
     "logs:clear": "rm -f \"$HOME/.exva/logs\"/*.log",
-    "clean": "rm -rf node_modules && rm -rf dist && rm -rf .vite"
+    "clean": "rm -rf node_modules && rm -rf dist && rm -rf .vite",
+    "clean:everything": "bun run clean && bun run logs:clear && bun install && bun run db:reset && bun run build"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.0",

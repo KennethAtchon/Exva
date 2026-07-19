@@ -1,1 +1,0 @@
-ALTER TABLE `sessions` DROP COLUMN `input_migration_state`;

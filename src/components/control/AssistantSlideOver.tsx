@@ -229,6 +229,7 @@ export function AssistantSlideOver({
             <ConversationTranscript
               items={convo.items}
               error={convo.error}
+              streaming={convo.streaming}
               examples={ASSISTANT_EXAMPLES}
               shortcutHint={ASSISTANT_SHORTCUT_HINT}
               onPickExample={(text) => void convo.send(text)}

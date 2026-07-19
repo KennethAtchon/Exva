@@ -170,6 +170,25 @@ function mapServerItems(
   for (const c of toolCalls) {
     const label = humanizeCapability(c.capability);
     const inputSummary = summarizeInputJson(c.inputJson);
+    // A call persisted as awaiting_confirm has no live confirm payload once the
+    // panel is reopened/refetched. Rebuild a minimal one so the ConfirmationCard
+    // (Confirm/Reject) still renders — otherwise it shows as a dead "Needs you"
+    // card with no way to respond. Rich fields (risk/preview) only exist on the
+    // live event and are re-applied if it arrives; missing them still lets the
+    // operator decide, which is what matters.
+    const confirm: ToolItemConfirm | undefined =
+      c.status === "awaiting_confirm"
+        ? {
+            preview: inputSummary
+              ? `Confirm ${label} — ${inputSummary}`
+              : `Confirm ${label}`,
+            inputJson: c.inputJson,
+            alwaysConfirm: false,
+            confirmClass: null,
+            risk: null,
+            outOfScope: false,
+          }
+        : undefined;
     items.push({
       at: c.startedAt,
       item: {
@@ -183,6 +202,7 @@ function mapServerItems(
         status: c.status,
         resultSummary: deriveResultSummary(c),
         resultJson: c.resultJson,
+        confirm,
       },
     });
   }
@@ -200,6 +220,11 @@ export function useControlConversation(conversationId: string | null) {
   const [loading, setLoading] = useState(false);
   const idRef = useRef(conversationId);
   idRef.current = conversationId;
+  // Lets the confirmation-required handler trigger auto-approve without a
+  // declaration-order dance (confirm is defined further down).
+  const confirmRef = useRef<(toolCallId: string, always?: boolean) => void>(
+    () => {},
+  );
 
   const refetch = useCallback(async () => {
     if (!conversationId) {
@@ -211,6 +236,9 @@ export function useControlConversation(conversationId: string | null) {
     if (idRef.current !== conversationId) return;
     setConversation(detail.conversation);
     setItems(mapServerItems(detail.messages, detail.toolCalls));
+    // Trust the backend on whether a turn is still running so a reopened or
+    // switched panel keeps the composer disabled instead of erroring on send.
+    setStreaming(detail.streaming);
   }, [conversationId]);
 
   useEffect(() => {
@@ -250,6 +278,7 @@ export function useControlConversation(conversationId: string | null) {
     useCallback(
       (p) => {
         if (p.conversationId !== idRef.current) return;
+        setStreaming(true);
         upsertTool(p.toolCallId, (prev) => ({
           kind: "tool",
           id: p.toolCallId,
@@ -273,6 +302,7 @@ export function useControlConversation(conversationId: string | null) {
     useCallback(
       (p) => {
         if (p.conversationId !== idRef.current) return;
+        setStreaming(true);
         upsertTool(p.toolCallId, (prev) => ({
           kind: "tool",
           id: p.toolCallId,
@@ -293,6 +323,14 @@ export function useControlConversation(conversationId: string | null) {
             outOfScope: p.outOfScope,
           },
         }));
+        // "Bypass all questions": auto-approve when the operator opted in.
+        // Live (real-money) actions are always held back for a manual decision.
+        if (
+          useControlStore.getState().autoApproveTools &&
+          p.risk?.level !== "live"
+        ) {
+          confirmRef.current(p.toolCallId);
+        }
       },
       [upsertTool],
     ),
@@ -325,6 +363,7 @@ export function useControlConversation(conversationId: string | null) {
     "control_delta",
     useCallback((p) => {
       if (p.conversationId !== idRef.current) return;
+      setStreaming(true);
       const liveId = `live-${p.turnId}`;
       setItems((prev) => {
         const idx = prev.findIndex((i) => i.id === liveId);
@@ -461,6 +500,7 @@ export function useControlConversation(conversationId: string | null) {
     },
     [conversationId, upsertTool],
   );
+  confirmRef.current = confirm;
 
   const reject = useCallback(
     async (toolCallId: string) => {

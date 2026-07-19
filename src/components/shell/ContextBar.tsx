@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Sparkles } from "lucide-react";
 import type { DashboardStats, SessionStatus } from "@/lib/types";
 import { Dot } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui";
 import { api, type SessionSummary } from "@/lib/exva";
 import { useWorkspaceStore } from "@/store/workspaceStore";
+import { useControlStore } from "@/store/controlStore";
 import { sessionMatchesEnvironment } from "@/lib/environment-mode";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { getNavItem, type PageKey } from "@/lib/nav";
@@ -393,6 +394,20 @@ export function ContextBar({
             className="font-mono text-caption"
           >
             ⌘K
+          </Button>
+        </HelpTooltip>
+
+        <HelpTooltip
+          topic="Assistant"
+          body="Open the assistant panel (⌘K → Open assistant)."
+        >
+          <Button
+            size="icon"
+            variant="secondary"
+            aria-label="Open assistant"
+            onClick={() => useControlStore.getState().toggleSlideOver()}
+          >
+            <Sparkles className="h-4 w-4" />
           </Button>
         </HelpTooltip>
       </div>

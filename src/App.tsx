@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
 import { RuntimeEventToast } from "./components/RuntimeEventToast";
 import { Shell } from "./components/shell";
 import type { PageKey } from "./lib/nav";
@@ -31,7 +30,6 @@ import type { DevPanelFocus } from "./hubs/panels/dev-panel";
 import {
   confirm,
   DialogHost,
-  focusRingClass,
   promptText,
 } from "@/components/ui/confirm-dialog";
 
@@ -598,15 +596,6 @@ export default function App() {
         />
       )}
       <DialogHost />
-      <button
-        type="button"
-        title="Assistant (⌘K → Open assistant)"
-        aria-label="Open assistant"
-        onClick={() => useControlStore.getState().toggleSlideOver()}
-        className={`fixed bottom-10 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-sm bg-primary text-primary-foreground shadow-popover transition-opacity duration-hover hover:opacity-90 ${focusRingClass}`}
-      >
-        <Sparkles className="h-5 w-5" />
-      </button>
       <AssistantSlideOver
         onOpenFullView={() => dispatchUi({ page: "assistant" })}
       />

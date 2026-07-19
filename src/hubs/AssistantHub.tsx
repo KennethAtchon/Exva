@@ -106,22 +106,22 @@ export function AssistantHub() {
                         type="button"
                         onClick={() => setActive(c.id)}
                         className={cn(
-                          "flex w-full flex-col gap-0.5 rounded-sm px-3 py-2 pr-14 text-left transition-colors duration-hover",
+                          "flex w-full min-w-0 flex-col gap-0.5 rounded-sm px-3 py-2 pr-16 text-left transition-colors duration-hover",
                           active
                             ? "bg-surface2 text-text1"
-                            : "text-text2 hover:bg-surface2/60 hover:text-text1",
+                            : "text-text2 hover:bg-surface2 hover:text-text1",
                         )}
                       >
-                        <span className="truncate font-sans text-label">
+                        <span className="block truncate font-sans text-label">
                           {c.title}
                         </span>
-                        <span className="font-mono text-micro text-text3">
+                        <span className="block truncate font-mono text-micro text-text3">
                           {c.scopeKind === "session" ? "Session" : "Workspace"}
                           {" · "}
                           {c.messageCount} msg
                         </span>
                       </button>
-                      <div className="absolute right-1 top-1.5 flex opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100">
+                      <div className="absolute right-1 top-1.5 flex rounded-sm bg-surface2 opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100">
                         <Button
                           size="icon"
                           variant="ghost"
@@ -219,6 +219,7 @@ export function AssistantHub() {
             <ConversationTranscript
               items={convo.items}
               error={convo.error}
+              streaming={convo.streaming}
               examples={ASSISTANT_EXAMPLES}
               shortcutHint={ASSISTANT_SHORTCUT_HINT}
               onPickExample={(text) => void convo.send(text)}

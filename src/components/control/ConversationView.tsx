@@ -146,9 +146,28 @@ function MessageBubble({
   );
 }
 
+function ThinkingIndicator() {
+  return (
+    <div className="flex items-start gap-2" aria-live="polite">
+      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-info-dim text-info">
+        <Sparkles className="h-3.5 w-3.5" />
+      </div>
+      <div className="flex items-center gap-2 pt-1 text-sm text-text2">
+        <span className="flex gap-1">
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-info [animation-delay:-0.3s]" />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-info [animation-delay:-0.15s]" />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-info" />
+        </span>
+        <span className="text-micro text-text3">Working on it…</span>
+      </div>
+    </div>
+  );
+}
+
 export function ConversationTranscript({
   items,
   error,
+  streaming,
   examples,
   onPickExample,
   onConfirm,
@@ -159,6 +178,7 @@ export function ConversationTranscript({
 }: {
   items: ControlItem[];
   error: string | null;
+  streaming?: boolean;
   examples?: string[];
   onPickExample?: (text: string) => void;
   onConfirm: (toolCallId: string, alwaysApprove?: boolean) => void;
@@ -181,6 +201,17 @@ export function ConversationTranscript({
     }
     return null;
   })();
+
+  // Show a "working" indicator while a turn is in flight but nothing live is
+  // already visible — the gap after Send, and between tool calls — so the user
+  // never mistakes a busy assistant for a stalled or errored one.
+  const tail = items[items.length - 1];
+  const tailShowsActivity =
+    (tail?.kind === "message" &&
+      tail.role === "assistant" &&
+      tail.status === "streaming") ||
+    (tail?.kind === "tool" && tail.status === "awaiting_confirm");
+  const showThinking = Boolean(streaming) && !tailShowsActivity;
 
   const updateAtBottom = () => {
     const el = scrollRef.current;
@@ -210,7 +241,7 @@ export function ConversationTranscript({
     } else if (grew) {
       setShowJump(true);
     }
-  }, [items]);
+  }, [items, showThinking]);
 
   const jumpToBottom = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -279,6 +310,7 @@ export function ConversationTranscript({
             <ToolCallCard key={item.id} item={item} />
           ),
         )}
+        {showThinking ? <ThinkingIndicator /> : null}
         {error ? (
           <div className="rounded-xl border border-error-border bg-error-dim px-4 py-3 text-sm text-error">
             {error}
