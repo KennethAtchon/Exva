@@ -31,6 +31,11 @@ import {
 } from "../order-contract-v2";
 import { createStreamingOrderEventFeed } from "../streaming-order-event-feed";
 import type { OrderEvent } from "../order-contract-v2";
+import {
+  brokerDataError,
+  requireFiniteNumber,
+  requirePositivePrice,
+} from "../broker-errors";
 
 const logger = createLogger("alpaca-adapter");
 
@@ -172,7 +177,10 @@ export class AlpacaAdapter implements BrokerAdapter {
     );
     return {
       instrumentSymbol,
-      price: Number(trade.trade?.p ?? 0),
+      price: requirePositivePrice(trade.trade?.p, "trade.price", {
+        broker: "alpaca",
+        symbol: instrumentSymbol,
+      }),
       timestamp: trade.trade?.t ?? new Date().toISOString(),
     };
   }
@@ -187,7 +195,10 @@ export class AlpacaAdapter implements BrokerAdapter {
     const trade = data.trades?.[instrumentSymbol];
     return {
       instrumentSymbol,
-      price: Number(trade?.p ?? 0),
+      price: requirePositivePrice(trade?.p, "trade.price", {
+        broker: "alpaca",
+        symbol: instrumentSymbol,
+      }),
       timestamp: trade?.t ?? new Date().toISOString(),
     };
   }
@@ -208,7 +219,10 @@ export class AlpacaAdapter implements BrokerAdapter {
     const trade = data.trades?.[instrumentSymbol];
     return {
       instrumentSymbol,
-      price: Number(trade?.p ?? 0),
+      price: requirePositivePrice(trade?.p, "trade.price", {
+        broker: "alpaca",
+        symbol: instrumentSymbol,
+      }),
       timestamp: trade?.t ?? new Date().toISOString(),
     };
   }
@@ -377,13 +391,29 @@ export class AlpacaAdapter implements BrokerAdapter {
           assetClass === "us_option"
         );
       })
-      .map((row) => ({
-        instrumentSymbol: row.symbol,
-        instrumentType: mapAlpacaAssetClass(row.asset_class),
-        side: Number(row.qty) >= 0 ? ("long" as const) : ("short" as const),
-        sizeUsd: Math.abs(Number(row.market_value ?? 0)),
-        unrealizedPnl: Number(row.unrealized_pl ?? 0),
-      }));
+      .map((row) => {
+        const qty = requireFiniteNumber(row.qty, "position.qty", {
+          broker: "alpaca",
+          symbol: row.symbol,
+        });
+        const marketValue = requireFiniteNumber(
+          row.market_value,
+          "position.market_value",
+          { broker: "alpaca", symbol: row.symbol },
+        );
+        const unrealizedPnl = requireFiniteNumber(
+          row.unrealized_pl,
+          "position.unrealized_pl",
+          { broker: "alpaca", symbol: row.symbol },
+        );
+        return {
+          instrumentSymbol: row.symbol,
+          instrumentType: mapAlpacaAssetClass(row.asset_class),
+          side: qty >= 0 ? ("long" as const) : ("short" as const),
+          sizeUsd: Math.abs(marketValue),
+          unrealizedPnl,
+        };
+      });
   }
 
   async closeOrder(orderId: string): Promise<CloseResult> {
@@ -416,7 +446,11 @@ export class AlpacaAdapter implements BrokerAdapter {
       const pos = await this.request<{ unrealized_pl?: string }>(
         `/v2/positions/${encodeURIComponent(symbol)}`,
       );
-      realizedPnlUsd = Number(pos.unrealized_pl ?? 0);
+      realizedPnlUsd = requireFiniteNumber(
+        pos.unrealized_pl,
+        "position.unrealized_pl",
+        { broker: "alpaca", symbol },
+      );
     } catch (err) {
       logger.warn(
         { err, symbol },
@@ -589,7 +623,11 @@ export class AlpacaAdapter implements BrokerAdapter {
           ? "closed"
           : "open",
       latestPrice: order.filled_avg_price
-        ? Number(order.filled_avg_price)
+        ? requirePositivePrice(
+            order.filled_avg_price,
+            "order.filled_avg_price",
+            { broker: "alpaca", orderId },
+          )
         : null,
       realizedPnlUsd: null,
     };
@@ -1110,18 +1148,23 @@ function resolveAccountBalance(account: {
   equity?: string;
   portfolio_value?: string;
 }): number {
-  const parsed = [
-    account.cash,
-    account.buying_power,
-    account.equity,
-    account.portfolio_value,
-  ]
-    .map((value) => (value == null ? null : Number(value)))
-    .filter(
-      (value): value is number => value != null && Number.isFinite(value),
-    );
-
-  return parsed.find((value) => value > 0) ?? parsed[0] ?? 0;
+  const fields: Array<[string, string | undefined]> = [
+    ["account.cash", account.cash],
+    ["account.buying_power", account.buying_power],
+    ["account.equity", account.equity],
+    ["account.portfolio_value", account.portfolio_value],
+  ];
+  const parsed: number[] = [];
+  for (const [field, value] of fields) {
+    if (value == null || value === "") continue;
+    parsed.push(requireFiniteNumber(value, field, { broker: "alpaca" }));
+  }
+  if (parsed.length === 0) {
+    throw brokerDataError("Alpaca account response missing balance fields", {
+      broker: "alpaca",
+    });
+  }
+  return parsed.find((value) => value > 0) ?? parsed[0];
 }
 
 /** Map an Alpaca `asset_class` to our instrument model (defaults to stock). */
@@ -1256,17 +1299,41 @@ function mapAlpacaTradeUpdate(raw: unknown): OrderEvent[] {
   else if (event === "rejected") kind = "rejected";
   else if (event === "new" || event === "accepted") kind = "accepted";
   if (!kind) return [];
+  const orderId = msg.data.order.id;
+  const filledAvgPriceRaw =
+    msg.data.price ?? msg.data.order.filled_avg_price ?? undefined;
+  const filledQtyRaw = msg.data.qty ?? msg.data.order.filled_qty ?? undefined;
+  let filledAvgPrice: number | undefined;
+  if (kind === "fill" || kind === "partial_fill") {
+    filledAvgPrice = requirePositivePrice(
+      filledAvgPriceRaw,
+      "trade_update.filledAvgPrice",
+      { broker: "alpaca", orderId },
+    );
+  } else if (filledAvgPriceRaw != null && filledAvgPriceRaw !== "") {
+    const n = requireFiniteNumber(
+      filledAvgPriceRaw,
+      "trade_update.filledAvgPrice",
+      { broker: "alpaca", orderId },
+    );
+    filledAvgPrice = n > 0 ? n : undefined;
+  }
+  let filledQty: number | undefined;
+  if (filledQtyRaw != null && filledQtyRaw !== "") {
+    const n = requireFiniteNumber(filledQtyRaw, "trade_update.filledQty", {
+      broker: "alpaca",
+      orderId,
+    });
+    filledQty = n > 0 ? n : undefined;
+  }
   return [
     {
-      brokerOrderId: msg.data.order.id,
+      brokerOrderId: orderId,
       clientOrderId: msg.data.order.client_order_id,
       kind,
       ts: msg.data.timestamp ?? new Date().toISOString(),
-      filledAvgPrice:
-        Number(msg.data.price ?? msg.data.order.filled_avg_price ?? 0) ||
-        undefined,
-      filledQty:
-        Number(msg.data.qty ?? msg.data.order.filled_qty ?? 0) || undefined,
+      filledAvgPrice,
+      filledQty,
     },
   ];
 }

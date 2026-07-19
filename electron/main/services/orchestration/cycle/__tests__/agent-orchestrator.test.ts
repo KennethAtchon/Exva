@@ -444,6 +444,7 @@ function createDeps({
       listOpenAndPending: vi.fn(() => []),
     },
     capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       listActiveBySession: vi.fn(() => []),
       releaseOnFailure: vi.fn(),
       checkOrderFits: vi.fn(() => ({ ok: true })),

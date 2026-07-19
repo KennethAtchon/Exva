@@ -396,6 +396,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     brokerRegistry as never,
   );
   const capitalReservation = {
+    runInTransaction: <T>(fn: () => T) => fn(),
     checkSessionStartFits: () => ({ ok: true as const }),
     reserveForApproval: () => ({}) as never,
     releaseByApproval: () => undefined,

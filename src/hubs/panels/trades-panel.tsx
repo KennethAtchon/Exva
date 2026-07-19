@@ -8,6 +8,7 @@ import {
   Input,
   PnL,
   StatTile,
+  EmptyState,
 } from "@/components/ui";
 import { VirtualList } from "@/components/hub/VirtualList";
 import { api } from "@/lib/exva";
@@ -19,7 +20,7 @@ import type { ExecutionMode, InstrumentClass } from "@/lib/types";
 import { useTradeStore } from "@/store/tradeStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { PanelLoading } from "@/components/ui/skeleton";
-import { HubEmptyState, HubQueryError } from "@/hubs/dna";
+import { HubQueryError } from "@/hubs/dna";
 
 type Filter = "all" | "open" | "closed";
 
@@ -622,9 +623,10 @@ export const TradesPage = ({
                   />
                 )}
                 empty={
-                  <HubEmptyState
+                  <EmptyState
+                    centered
                     title="No trades yet"
-                    body="Start a paper session from an experience — fills and closes show up here."
+                    message="Start a paper session from an experience — fills and closes show up here."
                     className="py-8"
                   />
                 }

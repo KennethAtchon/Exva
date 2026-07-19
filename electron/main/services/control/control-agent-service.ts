@@ -17,12 +17,23 @@ import {
   type ControlToolRuntime,
 } from "./build-control-toolset";
 
-const CONTROL_SPEND_CAP_USD = 0.5;
-/** Raised for read-heavy multi-tool turns after capability parity expansion. */
+/** Per-turn caps — raised for read-heavy multi-tool turns after capability parity. */
+const CONTROL_SPEND_CAP_USD = 1.0;
 const CONTROL_MAX_STEPS = 20;
 const CONFIRMATION_TIMEOUT_MS = 5 * 60 * 1000;
-/** Cap each prior tool result when replaying into history (feeds the $0.50 budget). */
+/** Cap each prior tool result when replaying into history (feeds the spend budget). */
 const TOOL_HISTORY_RESULT_MAX_CHARS = 400;
+
+/** Optional UI context from the renderer for the app-state system prompt block. */
+interface ControlClientContext {
+  route?: string | null;
+  selectedSessionId?: string | null;
+}
+
+interface ControlTurnInput extends ControlClientContext {
+  conversationId: string;
+  message: string;
+}
 
 function compactToolResult(resultJson: string | null): string {
   if (resultJson == null) return "(no result)";
@@ -61,10 +72,8 @@ export class ControlAgentService {
   }
 
   /** Persists the user message, kicks off the turn, and returns immediately. */
-  startTurn(input: { conversationId: string; message: string }): {
-    turnId: string;
-  } {
-    const { conversationId, message } = input;
+  startTurn(input: ControlTurnInput): { turnId: string } {
+    const { conversationId, message, route, selectedSessionId } = input;
     if (this.active.has(conversationId)) {
       throw new AppError(
         "A turn is already streaming for this conversation.",
@@ -87,7 +96,12 @@ export class ControlAgentService {
       controller,
       pending: new Map(),
     });
-    void this.runTurn({ conversationId, turnId, controller }).catch((error) => {
+    void this.runTurn({
+      conversationId,
+      turnId,
+      controller,
+      clientContext: { route, selectedSessionId },
+    }).catch((error) => {
       this.emitError(conversationId, turnId, error);
     });
     return { turnId };
@@ -128,8 +142,9 @@ export class ControlAgentService {
     conversationId: string;
     turnId: string;
     controller: AbortController;
+    clientContext?: ControlClientContext;
   }): Promise<void> {
-    const { conversationId, turnId, controller } = args;
+    const { conversationId, turnId, controller, clientContext } = args;
     const repo = this.deps.repo;
     let costUsd = 0;
     try {
@@ -143,7 +158,10 @@ export class ControlAgentService {
         autoApproved: new Set(conversation.autoApproved),
       };
 
-      const stateBlock = this.buildAppStateContext(ctx.scope.sessionId);
+      const stateBlock = this.buildAppStateContext(
+        ctx.scope.sessionId,
+        clientContext,
+      );
       const history = this.loadHistory(conversationId);
       const messages: LLMMessage[] = [
         {
@@ -191,8 +209,8 @@ export class ControlAgentService {
               resolve(decision);
             });
           }),
-        addAutoApproved: (confirmClass) => {
-          ctx.autoApproved.add(confirmClass);
+        addAutoApproved: (key) => {
+          ctx.autoApproved.add(key);
           repo.setAutoApproved(conversationId, [...ctx.autoApproved]);
         },
       };
@@ -367,7 +385,10 @@ export class ControlAgentService {
   }
 
   /** Compact current-state snapshot appended to the system prompt each turn. */
-  private buildAppStateContext(scopeSessionId: string | null): string {
+  private buildAppStateContext(
+    scopeSessionId: string | null,
+    client?: ControlClientContext,
+  ): string {
     const services = this.deps.getServices();
     const lines: string[] = ["## Current app state"];
     try {
@@ -443,6 +464,12 @@ export class ControlAgentService {
       );
     } catch {
       lines.push("- Kill switch gauges: unavailable.");
+    }
+    if (client?.route) {
+      lines.push(`- Current UI route: ${client.route}.`);
+    }
+    if (client?.selectedSessionId) {
+      lines.push(`- Selected session: ${client.selectedSessionId}.`);
     }
     if (scopeSessionId) {
       lines.push(`- This conversation is scoped to session ${scopeSessionId}.`);

@@ -113,6 +113,45 @@ export interface DecisionRiskInput {
   nowMs?: number;
 }
 
+function isPositiveFinite(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
+}
+
+/** When `price` is present, require a finite positive value or deny the decision. */
+function denyUnlessPositivePrice(input: {
+  price: number | undefined;
+  id: string;
+  label: string;
+  reason: string;
+  logMessage: string;
+  checks: DecisionCheck[];
+  buildTrace: (
+    allowed: boolean,
+    reason: string | null,
+    gateType: RiskGateType | null,
+    finalSizeUsd: number | null,
+  ) => RiskGateTrace;
+}): RiskResult<OrderRequest> | null {
+  const { price } = input;
+  if (price == null) return null;
+  const ok = isPositiveFinite(price);
+  input.checks.push({
+    id: input.id,
+    label: input.label,
+    pass: ok,
+    detail: ok ? null : input.reason,
+    value: price,
+  });
+  if (ok) return null;
+  logger.warn({ price }, input.logMessage);
+  return {
+    allowed: false,
+    reason: input.reason,
+    gateType: "position_size",
+    trace: input.buildTrace(false, input.reason, "position_size", null),
+  };
+}
+
 export class RiskEngine {
   preflightSession(input: SessionPreflight): RiskResult {
     if (!input.brokerConnected) {
@@ -235,6 +274,28 @@ export class RiskEngine {
         ),
       };
     }
+    const quotePriceDenial = denyUnlessPositivePrice({
+      price: input.quoteSnapshot?.price,
+      id: "quote_price",
+      label: "Quote price valid",
+      reason: "Quote price must be a finite number greater than zero",
+      logMessage: "risk decision denied due to invalid quote price",
+      checks,
+      buildTrace,
+    });
+    if (quotePriceDenial) return quotePriceDenial;
+
+    const placementPriceDenial = denyUnlessPositivePrice({
+      price: input.placementQuoteSnapshot?.price,
+      id: "placement_quote_price",
+      label: "Placement quote price valid",
+      reason: "Placement quote price must be a finite number greater than zero",
+      logMessage: "risk decision denied due to invalid placement quote price",
+      checks,
+      buildTrace,
+    });
+    if (placementPriceDenial) return placementPriceDenial;
+
     let order = { ...input.order };
     if (
       input.sizingMode === "atr_vol_target" &&

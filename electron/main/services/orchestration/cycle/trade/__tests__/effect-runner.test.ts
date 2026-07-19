@@ -435,9 +435,11 @@ function createContext(options?: { humanApprovalRequired?: boolean }) {
     agentRunsRepo: { insert: vi.fn() },
     agentMessagesRepo: { insert: vi.fn() },
     tradeApprovalsRepo: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       createPending: vi.fn(() => ({ id: "approval-1" })),
     },
     capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       reserveForOrder: vi.fn(),
       reserveForApproval: vi.fn(),
       releaseByApproval: vi.fn(),

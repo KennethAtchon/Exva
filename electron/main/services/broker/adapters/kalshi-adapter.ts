@@ -4,7 +4,15 @@ import { AppError } from "@electron/shared/infra/errors";
 import { createLogger } from "../../infra/log";
 import { requireJsonParse, safeJsonParse } from "../../infra/safe-json-parse";
 import type { BrokerInteractionLogger } from "../broker-interaction-logger";
-import { classifyHttpBrokerError } from "../broker-errors";
+import {
+  brokerDataError,
+  classifyHttpBrokerError,
+  firstPositive,
+  optionalFiniteNumber,
+  optionalPositivePrice,
+  requireFiniteNumber,
+  requirePositivePrice,
+} from "../broker-errors";
 import {
   KALSHI_CAPABILITIES,
   adapterSupportsOrder,
@@ -64,10 +72,26 @@ function fpDollars(n: number): string {
   return n.toFixed(4);
 }
 
-function parseFp(value: string | number | undefined | null): number {
-  if (value == null) return 0;
-  const n = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(n) ? n : 0;
+function centsToDollars(
+  cents: unknown,
+  field: string,
+  details?: Record<string, unknown>,
+): number {
+  return requireFiniteNumber(cents, field, details) / 100;
+}
+
+/** Prefer dollar FP string; fall back to cents. Absent both → NaN. */
+function dollarsOrCents(
+  dollars: string | number | undefined | null,
+  cents: number | undefined | null,
+  dollarsField: string,
+  centsField: string,
+  details?: Record<string, unknown>,
+): number {
+  const fromDollars = optionalFiniteNumber(dollars, dollarsField, details);
+  if (fromDollars != null) return fromDollars;
+  if (cents != null) return centsToDollars(cents, centsField, details);
+  return Number.NaN;
 }
 
 /**
@@ -134,9 +158,14 @@ export class KalshiAdapter implements BrokerAdapter {
       balance?: number;
       portfolio_value?: number;
     }>("GET", "/trade-api/v2/portfolio/balance");
-    // Kalshi returns cents.
-    const cents = data.balance ?? data.portfolio_value ?? 0;
-    return cents / 100;
+    // Kalshi returns cents. Explicit 0 is valid; absent fields are not.
+    const centsRaw = data.balance ?? data.portfolio_value;
+    if (centsRaw === undefined || centsRaw === null) {
+      throw brokerDataError("Kalshi balance response missing balance fields", {
+        broker: "kalshi",
+      });
+    }
+    return centsToDollars(centsRaw, "balance", { broker: "kalshi" });
   }
 
   async getPositions(): Promise<BrokerPosition[]> {
@@ -153,20 +182,36 @@ export class KalshiAdapter implements BrokerAdapter {
     const rows = data.market_positions ?? [];
     return rows
       .map((row) => {
-        const qty = parseFp(row.position_fp ?? row.position);
+        const symbol = row.ticker;
+        if (!symbol) return null;
+        const qtyRaw = row.position_fp ?? row.position;
+        if (qtyRaw === undefined || qtyRaw === null || qtyRaw === "") {
+          return null;
+        }
+        const qty = requireFiniteNumber(qtyRaw, "position.qty", {
+          broker: "kalshi",
+          symbol,
+        });
         if (qty === 0) return null;
         const position: BrokerPosition = {
-          instrumentSymbol: row.ticker ?? "",
+          instrumentSymbol: symbol,
           instrumentType: "prediction_market",
           side: qty > 0 ? "long" : "short",
-          sizeUsd: Math.abs(row.market_exposure ?? 0) / 100,
-          unrealizedPnl: (row.realized_pnl ?? 0) / 100,
+          sizeUsd: Math.abs(
+            centsToDollars(row.market_exposure, "position.market_exposure", {
+              broker: "kalshi",
+              symbol,
+            }),
+          ),
+          unrealizedPnl: centsToDollars(
+            row.realized_pnl,
+            "position.realized_pnl",
+            { broker: "kalshi", symbol },
+          ),
         };
         return position;
       })
-      .filter(
-        (p): p is BrokerPosition => p != null && p.instrumentSymbol !== "",
-      );
+      .filter((p): p is BrokerPosition => p != null);
   }
 
   async getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot> {
@@ -183,23 +228,49 @@ export class KalshiAdapter implements BrokerAdapter {
         volume?: number;
       };
     }>("GET", `/trade-api/v2/markets/${encodeURIComponent(instrumentSymbol)}`);
-    const m = data.market ?? {};
-    const bid =
-      parseFp(m.yes_bid_dollars) || (m.yes_bid != null ? m.yes_bid / 100 : 0);
-    const ask =
-      parseFp(m.yes_ask_dollars) || (m.yes_ask != null ? m.yes_ask / 100 : 0);
-    const last =
-      parseFp(m.last_price_dollars) ||
-      (m.last_price != null ? m.last_price / 100 : 0) ||
-      (bid && ask ? (bid + ask) / 2 : bid || ask);
-    const mid = bid && ask ? (bid + ask) / 2 : last;
+    const m = data.market;
+    if (!m) {
+      throw brokerDataError("Kalshi market response missing market", {
+        broker: "kalshi",
+        symbol: instrumentSymbol,
+      });
+    }
+    const details = { broker: "kalshi", symbol: instrumentSymbol };
+    const bid = dollarsOrCents(
+      m.yes_bid_dollars,
+      m.yes_bid,
+      "market.yes_bid_dollars",
+      "market.yes_bid",
+      details,
+    );
+    const ask = dollarsOrCents(
+      m.yes_ask_dollars,
+      m.yes_ask,
+      "market.yes_ask_dollars",
+      "market.yes_ask",
+      details,
+    );
+    const last = dollarsOrCents(
+      m.last_price_dollars,
+      m.last_price,
+      "market.last_price_dollars",
+      "market.last_price",
+      details,
+    );
+    const mid = bid > 0 && ask > 0 ? (bid + ask) / 2 : Number.NaN;
+    const price = requirePositivePrice(
+      firstPositive(last, mid, bid, ask),
+      "market.price",
+      details,
+    );
     return {
       instrumentSymbol,
       instrumentDisplayName: m.title ?? null,
-      price: mid,
-      bid: bid || undefined,
-      ask: ask || undefined,
-      spreadPct: bid && ask && mid > 0 ? ((ask - bid) / mid) * 100 : undefined,
+      price,
+      bid: bid > 0 ? bid : undefined,
+      ask: ask > 0 ? ask : undefined,
+      spreadPct:
+        bid > 0 && ask > 0 ? ((ask - bid) / price) * 100 : undefined,
       volume: m.volume,
       timestamp: new Date().toISOString(),
     };
@@ -283,12 +354,28 @@ export class KalshiAdapter implements BrokerAdapter {
       average_fill_price?: string;
     }>("POST", "/trade-api/v2/portfolio/events/orders", body);
 
-    const fillCount = parseFp(data.fill_count);
-    const avg = parseFp(data.average_fill_price) || price;
+    const fillCount =
+      optionalFiniteNumber(data.fill_count, "order.fill_count", {
+        broker: "kalshi",
+      }) ?? 0;
+    if (fillCount <= 0) {
+      return {
+        brokerOrderId: data.order_id ?? order.clientOrderId,
+        // Unfilled: BrokerOrderResult requires a number; 0 means no fill.
+        filledAvgPrice: 0,
+      };
+    }
+    const avgRaw = data.average_fill_price;
+    const hasAvg = avgRaw != null && avgRaw !== "";
+    const avg = requirePositivePrice(
+      hasAvg ? avgRaw : price,
+      hasAvg ? "order.average_fill_price" : "order.limit_price",
+      { broker: "kalshi" },
+    );
     return {
       brokerOrderId: data.order_id ?? order.clientOrderId,
-      filledAvgPrice: fillCount > 0 ? avg : 0,
-      filledSizeUsd: fillCount > 0 ? fillCount * avg : undefined,
+      filledAvgPrice: avg,
+      filledSizeUsd: fillCount * avg,
     };
   }
 
@@ -324,8 +411,11 @@ export class KalshiAdapter implements BrokerAdapter {
       statusRaw === "executed" ||
       statusRaw === "canceled" ||
       statusRaw === "cancelled";
-    const price =
-      parseFp(o.average_fill_price) || parseFp(o.yes_price_dollars) || null;
+    const price = optionalPositivePrice(
+      o.average_fill_price ?? o.yes_price_dollars,
+      "order.average_fill_price",
+      { broker: "kalshi", orderId },
+    );
     return {
       brokerOrderId: o.order_id ?? orderId,
       status: closed ? "closed" : statusRaw ? "open" : "unknown",
@@ -341,6 +431,7 @@ export class KalshiAdapter implements BrokerAdapter {
     }
     return {
       brokerOrderId: orderId,
+      // Cancel-only close: OrderStatus.realizedPnlUsd is null → CloseResult needs 0.
       realizedPnlUsd: status.realizedPnlUsd ?? 0,
     };
   }
@@ -486,14 +577,21 @@ function mapKalshiFillMessage(raw: unknown): OrderEvent[] {
     };
   };
   if (msg.type !== "fill" || !msg.msg?.order_id) return [];
+  const details = { broker: "kalshi", orderId: msg.msg.order_id };
+  const price = optionalFiniteNumber(
+    msg.msg.yes_price_dollars,
+    "fill.yes_price_dollars",
+    details,
+  );
+  const qty = optionalFiniteNumber(msg.msg.count_fp, "fill.count_fp", details);
   return [
     {
       brokerOrderId: msg.msg.order_id,
       clientOrderId: msg.msg.client_order_id,
       kind: "fill",
       ts: new Date(msg.msg.ts_ms ?? Date.now()).toISOString(),
-      filledAvgPrice: parseFp(msg.msg.yes_price_dollars) || undefined,
-      filledQty: parseFp(msg.msg.count_fp) || undefined,
+      filledAvgPrice: price != null && price > 0 ? price : undefined,
+      filledQty: qty != null && qty > 0 ? qty : undefined,
     },
   ];
 }

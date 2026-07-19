@@ -486,9 +486,17 @@ export async function createAppServices(app: App): Promise<AppServices> {
   });
   supervisor.start();
   brokerRegistry.setSupervisor(supervisor);
-  void secrets.get("notify:telegram").then((raw) => {
-    telegramCredsCache = parseTelegramSecretJson(raw);
-  });
+  void secrets
+    .get("notify:telegram")
+    .then((raw) => {
+      telegramCredsCache = parseTelegramSecretJson(raw);
+    })
+    .catch((error) => {
+      logger.warn(
+        { err: error },
+        "failed to preload telegram notify secret from keychain",
+      );
+    });
   const ladderStates = new Map<string, LadderState>();
   const makeLadderDeps = (): LadderAutomationDeps => ({
     getState: (experienceId) => ladderStates.get(experienceId) ?? null,

@@ -290,6 +290,7 @@ describe("§24.6 monitor independence and startup recovery", () => {
       },
       capitalReservationsRepo: {},
       capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
         listActiveBySession: () => [],
         releaseByApproval: vi.fn(),
         releaseOnFailure: vi.fn(),
@@ -326,6 +327,7 @@ describe("§24.6 monitor independence and startup recovery", () => {
       },
       capitalReservationsRepo: {},
       capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
         listActiveBySession: () => [],
         releaseByApproval: vi.fn(),
         releaseOnFailure: vi.fn(),
@@ -460,6 +462,7 @@ function createOrchestratorHarness() {
     logger: createLogger("resilience-doctrine"),
     tradesRepo: { listOpenAndPending: () => [] },
     capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       releaseByApproval: vi.fn(),
       releaseOnFailure: vi.fn(),
       listActiveBySession: () => [],
@@ -602,6 +605,7 @@ function createTradeHarness(sessionId: string) {
       clearFailed: vi.fn(),
     },
     capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       reserveForOrder: vi.fn(),
       releaseByApproval: vi.fn(),
       releaseOnFailure: vi.fn(),

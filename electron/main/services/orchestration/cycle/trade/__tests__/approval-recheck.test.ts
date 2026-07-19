@@ -172,6 +172,7 @@ function createContext(options?: {
     agentRunsRepo: { insert: vi.fn() },
     agentMessagesRepo: { insert: vi.fn() },
     capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       releaseByApproval: vi.fn(),
       updateReservedAmountForApproval: vi.fn(),
       convertApprovalToOpenOrder: vi.fn(),

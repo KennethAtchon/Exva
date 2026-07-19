@@ -6,6 +6,7 @@ import { HubPane } from "@/hubs/dna";
 import { Button, Input } from "@/components/ui";
 import { Badge } from "@/components/custom-ui";
 import { EmptyState } from "@/components/ui/primitives";
+import { PanelLoading } from "@/components/ui/skeleton";
 import { fmt } from "@/lib/formatters";
 
 type Strategy = { id: string; status: string };
@@ -43,6 +44,7 @@ export function BacktestLabPanel() {
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [compareView, setCompareView] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const refresh = () => {
     void Promise.all([
@@ -56,7 +58,8 @@ export function BacktestLabPanel() {
       })
       .catch((err) => {
         setError(formatIpcError(err).display);
-      });
+      })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -295,6 +298,11 @@ export function BacktestLabPanel() {
           }
         >
           <ul className="m-0 list-none divide-y divide-hairline p-0">
+            {loading && runs.length === 0 ? (
+              <li className="p-4">
+                <PanelLoading className="p-0" />
+              </li>
+            ) : null}
             {runs.map((run) => {
               let metrics: Record<string, unknown> = {};
               try {
@@ -333,7 +341,7 @@ export function BacktestLabPanel() {
                 </li>
               );
             })}
-            {runs.length === 0 ? (
+            {!loading && runs.length === 0 ? (
               <li className="p-4">
                 <EmptyState message="No backtest runs yet." />
               </li>

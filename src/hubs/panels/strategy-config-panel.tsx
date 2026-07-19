@@ -7,6 +7,7 @@ import {
   SectionHeader,
   Switch,
 } from "@/components/ui";
+import { PanelLoading } from "@/components/ui/skeleton";
 import { confirm } from "@/components/ui/confirm-dialog";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { AiPhasesSection } from "@/components/strategy/AiPhasesSection";
@@ -462,7 +463,7 @@ export const StrategyConfig = ({
   if (!researchPosture || !rules || !riskConfig || !timeframe || !aiSettings) {
     return (
       <div className="hub-panel-body flex flex-col gap-5">
-        <div className="text-text3">Loading strategy…</div>
+        <PanelLoading />
       </div>
     );
   }

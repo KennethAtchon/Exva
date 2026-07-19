@@ -7,6 +7,11 @@ import { toCapitalReservation } from "../system/mappers";
 export class CapitalReservationsRepo {
   constructor(private readonly client: DbClient) {}
 
+  /** Run multi-step money writes on the shared SQLite connection atomically. */
+  runInTransaction<T>(fn: () => T): T {
+    return this.client.db.transaction(fn);
+  }
+
   reserveForOrder(input: {
     sessionId: string;
     tradeId: string;

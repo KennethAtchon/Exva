@@ -392,7 +392,14 @@ export class TradingCycleContext {
       body: `Session ${this.sessionId.slice(0, 8)}… skipped ${count} times (${reason}).`,
       level: "ERROR",
     });
-    void this.deps.supervisor?.raiseConsecutiveSkip(this.sessionId, message);
+    void this.deps.supervisor
+      ?.raiseConsecutiveSkip(this.sessionId, message)
+      .catch((error) => {
+        this.deps.logger.error(
+          { err: error, sessionId: this.sessionId },
+          "failed to raise consecutive-skip supervisor alarm",
+        );
+      });
     this.setSessionStatus("attention_required");
   }
 

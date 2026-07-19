@@ -4,6 +4,7 @@ import type { SourceDefinition } from "@electron/shared/domain/experience-inputs
 import { Badge } from "@/components/custom-ui";
 import { Button, HelpTooltip, Switch } from "@/components/ui";
 import { EmptyState } from "@/components/ui/primitives";
+import { PanelLoading } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 export function EventSourcesPage({
@@ -60,14 +61,7 @@ export function EventSourcesPage({
       ) : null}
 
       {loading && sources.length === 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="h-32 animate-pulse rounded-sm border border-border bg-surface2"
-            />
-          ))}
-        </div>
+        <PanelLoading rows={4} />
       ) : error ? (
         <EmptyState
           message={error}

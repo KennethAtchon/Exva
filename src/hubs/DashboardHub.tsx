@@ -30,7 +30,6 @@ import { cn } from "@/lib/utils";
 import type { ApprovalSummary, Trade } from "@/lib/types";
 import {
   HubBody,
-  HubEmptyState,
   HubFrame,
   HubHeader,
   HubPane,
@@ -472,9 +471,10 @@ function RecentTradesPanel({
           <EmptyState message="No trades yet today. The pipeline runs automatically while a session is active." />
         </div>
       ) : recent.length === 0 ? (
-        <HubEmptyState
+        <EmptyState
+          centered
           title="No trades to show"
-          body="Trades appear here as the pipeline opens and closes positions."
+          message="Trades appear here as the pipeline opens and closes positions."
           className="py-8"
         />
       ) : (
@@ -606,9 +606,10 @@ function SessionsColumn({
         {sessionsError ? (
           <HubQueryError message={sessionsError} onRetry={onRetrySessions} />
         ) : sortedSessions.length === 0 ? (
-          <HubEmptyState
+          <EmptyState
+            centered
             title="No sessions"
-            body="Create a session from the Sessions hub to start the pipeline."
+            message="Create a session from the Sessions hub to start the pipeline."
             className="py-6"
           />
         ) : (
@@ -706,9 +707,10 @@ function PromotionLadder({
 
   if (sorted.length === 0) {
     return (
-      <HubEmptyState
+      <EmptyState
+        centered
         title="No scorecards yet"
-        body="Paper sessions populate the promotion ladder."
+        message="Paper sessions populate the promotion ladder."
         className="py-6"
       />
     );

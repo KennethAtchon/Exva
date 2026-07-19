@@ -37,7 +37,12 @@ import {
   GhostFillSimulator,
   type GhostQuote,
 } from "../mock/ghost-fill-simulator";
-import { brokerError } from "../broker-errors";
+import {
+  brokerError,
+  brokerDataError,
+  requireFiniteNumber,
+  requirePositivePrice,
+} from "../broker-errors";
 import {
   DEFAULT_PAPER_STARTING_BALANCE_USD,
   type PaperBalancesRepo,
@@ -168,7 +173,11 @@ export class PolymarketAdapter
       return {
         ok: true,
         message: "Polymarket CLOB connected",
-        account_balance: Number(balance.balance ?? 0),
+        account_balance: requireFiniteNumber(
+          balance.balance,
+          "balance.collateral",
+          { broker: "polymarket" },
+        ),
       };
     } catch (error) {
       logger.error({ err: error }, "polymarket testConnection: failed");
@@ -189,7 +198,9 @@ export class PolymarketAdapter
     const balance = await client.getBalanceAllowance({
       asset_type: AssetType.COLLATERAL,
     });
-    return Number(balance.balance ?? 0);
+    return requireFiniteNumber(balance.balance, "balance.collateral", {
+      broker: "polymarket",
+    });
   }
 
   async getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot> {
@@ -201,11 +212,20 @@ export class PolymarketAdapter
     const conditionId = parseConditionId(instrumentSymbol);
     const market = await client.getMarket(conditionId);
     const token = pickFirstToken(market);
+    if (!token || token.price == null) {
+      throw brokerDataError("Polymarket market response missing token price", {
+        broker: "polymarket",
+        symbol: instrumentSymbol,
+      });
+    }
     return {
       instrumentSymbol,
       instrumentDisplayName: readQuestion(market),
-      predictionOutcome: token?.outcome ?? null,
-      price: token?.price ?? 0,
+      predictionOutcome: token.outcome ?? null,
+      price: requirePositivePrice(token.price, "token.price", {
+        broker: "polymarket",
+        symbol: instrumentSymbol,
+      }),
       timestamp: new Date().toISOString(),
     };
   }
@@ -426,41 +446,48 @@ export class PolymarketAdapter
     const brokerOrderId = receipt.ghostOrderId;
 
     if (receipt.status === "filled" && receipt.filledAvgPrice != null) {
-      const sizeUsd = receipt.filledQty * receipt.filledAvgPrice;
-      if (order.side === "BUY") this.debitPaper(sizeUsd);
-      this.setGhostPosition(brokerOrderId, {
-        tokenId: metadata.outcomeTokenId,
-        conditionId: metadata.conditionId,
-        market: metadata.conditionId,
-        side: order.side,
-        sizeUsd,
-        shares: receipt.filledQty,
-        entryPrice: receipt.filledAvgPrice,
-        open: true,
-        resting: false,
-        order,
+      const filledAvgPrice = receipt.filledAvgPrice;
+      const sizeUsd = receipt.filledQty * filledAvgPrice;
+      this.runPaperTransaction(() => {
+        if (order.side === "BUY") this.debitPaper(sizeUsd);
+        this.setGhostPosition(brokerOrderId, {
+          tokenId: metadata.outcomeTokenId,
+          conditionId: metadata.conditionId,
+          market: metadata.conditionId,
+          side: order.side,
+          sizeUsd,
+          shares: receipt.filledQty,
+          entryPrice: filledAvgPrice,
+          open: true,
+          resting: false,
+          order,
+        });
       });
       logger.info(
         {
           brokerOrderId,
-          filledAvgPrice: receipt.filledAvgPrice,
+          filledAvgPrice,
           paperBalanceUsd: this.readPaperBalance(),
         },
         "polymarket ghost: order filled locally",
       );
       return {
         brokerOrderId,
-        filledAvgPrice: receipt.filledAvgPrice,
+        filledAvgPrice,
         filledSizeUsd: sizeUsd,
       };
     }
 
     // Resting limit — no debit until fill on poll.
-    const estPrice = order.limitPrice ?? quote.last;
+    const estPrice = requirePositivePrice(
+      order.limitPrice ?? quote.last,
+      "ghost.restingPrice",
+      { broker: "polymarket", orderId: brokerOrderId },
+    );
     const estQty =
       order.quantity.kind === "units"
         ? order.quantity.value
-        : order.quantity.value / Math.max(estPrice, 0.01);
+        : order.quantity.value / estPrice;
     this.setGhostPosition(brokerOrderId, {
       tokenId: metadata.outcomeTokenId,
       conditionId: metadata.conditionId,
@@ -479,20 +506,17 @@ export class PolymarketAdapter
     );
     return {
       brokerOrderId,
-      filledAvgPrice: order.limitPrice ?? 0,
+      // Resting: not filled yet; report limit/quote as the working price (never invent 0).
+      filledAvgPrice: estPrice,
     };
   }
 
   private async placeLimitOrderV2(
     order: BrokerOrderV2,
   ): Promise<BrokerOrderResult> {
-    const limitPrice = order.limitPrice;
-    if (limitPrice == null || !(limitPrice > 0)) {
-      throw new AppError(
-        "Polymarket limit order requires a positive limitPrice.",
-        "VALIDATION_FAILED",
-      );
-    }
+    const limitPrice = requirePositivePrice(order.limitPrice, "limitPrice", {
+      broker: "polymarket",
+    });
     if (order.instrument.instrumentClass !== "prediction_market") {
       throw new AppError(
         "Polymarket adapter supports prediction markets only",
@@ -603,7 +627,12 @@ export class PolymarketAdapter
     logger.info({ orderId }, "polymarket closeOrder: closing order");
     const client = await this.getAuthedClient();
     const order = await client.getOrder(orderId);
-    const matchedSize = Number(order.size_matched ?? order.original_size ?? 0);
+    const matchedSizeRaw = order.size_matched ?? order.original_size;
+    const matchedSize = requireFiniteNumber(
+      matchedSizeRaw,
+      "order.size_matched",
+      { broker: "polymarket", orderId },
+    );
     if (!order.asset_id || matchedSize <= 0) {
       logger.info(
         { orderId, matchedSize },
@@ -674,9 +703,11 @@ export class PolymarketAdapter
       (await this.resolveReferencePrice(readClient, ghost.tokenId));
     const proceeds = ghost.shares * exitPrice;
     const realizedPnlUsd = proceeds - ghost.sizeUsd;
-    this.creditPaper(proceeds);
-    ghost.open = false;
-    this.paperPositions?.setClosed(orderId);
+    this.runPaperTransaction(() => {
+      this.creditPaper(proceeds);
+      ghost.open = false;
+      this.paperPositions?.setClosed(orderId);
+    });
     logger.info(
       {
         orderId,
@@ -803,18 +834,21 @@ export class PolymarketAdapter
     );
     const receipt = this.ghosts.poll(orderId, quote);
     if (receipt?.status !== "filled" || receipt.filledAvgPrice == null) return;
-    const sizeUsd = receipt.filledQty * receipt.filledAvgPrice;
-    if (pos.side === "BUY") this.debitPaper(sizeUsd);
-    pos.resting = false;
-    pos.shares = receipt.filledQty;
-    pos.entryPrice = receipt.filledAvgPrice;
-    pos.sizeUsd = sizeUsd;
-    pos.open = true;
-    this.persistGhostPosition(orderId, pos);
+    const filledAvgPrice = receipt.filledAvgPrice;
+    const sizeUsd = receipt.filledQty * filledAvgPrice;
+    this.runPaperTransaction(() => {
+      if (pos.side === "BUY") this.debitPaper(sizeUsd);
+      pos.resting = false;
+      pos.shares = receipt.filledQty;
+      pos.entryPrice = filledAvgPrice;
+      pos.sizeUsd = sizeUsd;
+      pos.open = true;
+      this.persistGhostPosition(orderId, pos);
+    });
     logger.info(
       {
         brokerOrderId: orderId,
-        filledAvgPrice: receipt.filledAvgPrice,
+        filledAvgPrice,
         paperBalanceUsd: this.readPaperBalance(),
       },
       "polymarket ghost: resting limit filled on quote cross",
@@ -1021,6 +1055,11 @@ export class PolymarketAdapter
     return this.memoryPaperBalanceUsd;
   }
 
+  private runPaperTransaction(fn: () => void): void {
+    if (this.paperBalances) this.paperBalances.runInTransaction(fn);
+    else fn();
+  }
+
   private debitPaper(amount: number): void {
     if (this.paperBalances && this.accountId) {
       this.paperBalances.debit(this.accountId, amount);
@@ -1213,24 +1252,30 @@ export class PolymarketAdapter
       .catch((err: unknown) => {
         logger.warn(
           { err, tokenId },
-          "polymarket: could not fetch last trade price; defaulting to 0.5",
+          "polymarket: could not fetch last trade price",
         );
-        return null;
+        throw brokerDataError("Polymarket last trade price unavailable", {
+          broker: "polymarket",
+          tokenId,
+        });
       });
-    // reason: SDK getLastTradePrice returns number | { price: string | number } depending on market state
-    const price =
+    // SDK getLastTradePrice returns number | { price: string | number }.
+    const priceCandidate =
       typeof raw === "number"
         ? raw
-        : Number((raw as { price?: string | number } | null)?.price ?? 0);
-    return price > 0 ? price : 0.5;
+        : (raw as { price?: string | number } | null)?.price;
+    return requirePositivePrice(priceCandidate, "lastTradePrice", {
+      broker: "polymarket",
+      tokenId,
+    });
   }
 
   private async resolveOptionalPrice(
     client: ClobClient,
     tokenId: string,
   ): Promise<number | null> {
-    const price = await this.resolveReferencePrice(client, tokenId);
-    return Number.isFinite(price) ? price : null;
+    // resolveReferencePrice already rejects non-finite / non-positive values.
+    return this.resolveReferencePrice(client, tokenId);
   }
 
   private async resolveTickSize(
@@ -1296,13 +1341,15 @@ function resolveLimitSizeShares(order: BrokerOrderV2): number {
     }
     return order.quantity.value;
   }
-  const limitPrice = order.limitPrice ?? 0;
-  if (!(limitPrice > 0) || !(order.quantity.value > 0)) {
+  if (!(order.quantity.value > 0)) {
     throw new AppError(
-      "Polymarket limit+notional requires positive notional and limitPrice.",
+      "Polymarket limit+notional requires a positive notional.",
       "VALIDATION_FAILED",
     );
   }
+  const limitPrice = requirePositivePrice(order.limitPrice, "limitPrice", {
+    broker: "polymarket",
+  });
   return Number((order.quantity.value / limitPrice).toFixed(6));
 }
 
@@ -1339,8 +1386,15 @@ function pickFirstToken(
   if (!token) return null;
   const outcome =
     token.outcome === "YES" || token.outcome === "NO" ? token.outcome : null;
-  const price = token.price == null ? null : Number(token.price);
-  return { outcome, price };
+  if (token.price == null || token.price === "") {
+    return { outcome, price: null };
+  }
+  return {
+    outcome,
+    price: requireFiniteNumber(token.price, "token.price", {
+      broker: "polymarket",
+    }),
+  };
 }
 
 function readQuestion(market: unknown): string | null {

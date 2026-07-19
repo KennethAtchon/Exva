@@ -65,7 +65,10 @@ describe("SessionStartupRecoveryService", () => {
       ],
       openTrades: [{ id: "trade-open", status: "open" }],
       pendingApprovals: [],
-      capitalReservation: { releaseByApproval, releaseOnFailure },
+      capitalReservation: {
+        releaseByApproval,
+        releaseOnFailure,
+      },
     });
 
     const released = service.auditCapitalReservations("session-1");
@@ -258,6 +261,7 @@ function createService(input: {
     },
     capitalReservationsRepo: {},
     capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       releaseOnClose: vi.fn(),
       listActiveBySession: () => input.activeReservations ?? [],
       releaseByApproval: input.capitalReservation?.releaseByApproval ?? vi.fn(),

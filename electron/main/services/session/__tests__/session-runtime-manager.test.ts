@@ -73,6 +73,80 @@ describe("SessionRuntimeManager drain completion", () => {
     expect(sessionStatus).toBe("stopped");
   });
 
+  it("coalesces concurrent startSession calls into a single runtime create", async () => {
+    let resolveCreate: ((runtime: unknown) => void) | undefined;
+    const createRuntime = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve;
+        }),
+    );
+    const initialize = vi.fn(async () => undefined);
+    const runtime = {
+      sessionId: "session-1",
+      initialize,
+      pause: vi.fn(),
+      resume: vi.fn(),
+      drainStop: vi.fn(),
+      stop: vi.fn(),
+    };
+
+    const manager = new SessionRuntimeManager(
+      {
+        sessionRepo: {
+          requireById: () => ({
+            id: "session-1",
+            status: "draft",
+            instrumentScope: "SPY",
+          }),
+          setStatus: vi.fn(),
+          getStatus: vi.fn(() => "draft"),
+        },
+        tradesRepo: { listOpenAndPending: vi.fn(() => []) },
+        tradeApprovalsRepo: {},
+        sessionExecutionStepsRepo: {},
+        capitalReservationsRepo: {},
+        capitalReservation: {
+          runInTransaction: <T>(fn: () => T) => fn(),
+        },
+        brokerRegistry: {},
+        eventsRepo: {},
+        logger: {
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+          debug: vi.fn(),
+        },
+        bus: {
+          on: vi.fn(() => () => undefined),
+          setRuntimeStatus: vi.fn(),
+          clearRuntimeStatus: vi.fn(),
+          emit: vi.fn(),
+        },
+        signals: {
+          onSessionResumed: vi.fn(),
+          replayStartup: vi.fn(),
+        },
+        createOrchestrator: vi.fn(),
+        createTradeMonitor: vi.fn(),
+      } as never,
+      {
+        createRuntime,
+      } as unknown as SessionRuntimeHost,
+    );
+
+    const first = manager.startSession("session-1");
+    const second = manager.startSession("session-1");
+    expect(createRuntime).toHaveBeenCalledTimes(1);
+    resolveCreate?.(runtime);
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      runtime,
+      runtime,
+    ]);
+    expect(createRuntime).toHaveBeenCalledTimes(1);
+    expect(initialize).toHaveBeenCalledTimes(1);
+  });
+
   it("does not inject manual tickers on startup when the initial selector cycle already covers instrumentScope", async () => {
     let runtimeStatus = "starting";
     const initialize = vi.fn(async () => {
@@ -113,7 +187,9 @@ describe("SessionRuntimeManager drain completion", () => {
         tradeApprovalsRepo: {},
         sessionExecutionStepsRepo: {},
         capitalReservationsRepo: {},
-        capitalReservation: {},
+        capitalReservation: {
+          runInTransaction: <T>(fn: () => T) => fn(),
+        },
         brokerRegistry: {},
         eventsRepo: {},
         logger: {

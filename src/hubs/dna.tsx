@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/primitives";
 
 /**
  * Shared hub DNA — Terminal Ledger tokens only.
@@ -317,27 +316,5 @@ export function HubQueryError({
         </Button>
       ) : null}
     </div>
-  );
-}
-
-export function HubEmptyState({
-  title,
-  body,
-  action,
-  className,
-}: {
-  title: string;
-  body?: string;
-  action?: ReactNode;
-  className?: string;
-}) {
-  return (
-    <EmptyState
-      centered
-      title={title}
-      message={body}
-      action={action}
-      className={className}
-    />
   );
 }

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/exva";
 import { formatIpcError } from "@/lib/ipc-error";
-import { HubEmptyState, HubPane, HubQueryError } from "@/hubs/dna";
-import { Button } from "@/components/ui";
+import { HubPane, HubQueryError } from "@/hubs/dna";
+import { Button, EmptyState } from "@/components/ui";
 import { PanelLoading } from "@/components/ui/skeleton";
 import { fmt } from "@/lib/formatters";
 
@@ -78,9 +78,10 @@ export function MorningBriefingPanel() {
         error ? (
           <HubQueryError message={error} onRetry={load} />
         ) : (
-          <HubEmptyState
+          <EmptyState
+            centered
             title="No briefing yet"
-            body="Nightly digest assembles one automatically — or tap Assemble now."
+            message="Nightly digest assembles one automatically — or tap Assemble now."
             className="py-6"
           />
         )

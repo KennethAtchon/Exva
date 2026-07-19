@@ -213,13 +213,16 @@ export class KillSwitchService {
         return "attention";
       }
 
-      const updated = this.deps.trades.updateStatus(
-        trade.id,
-        "closed",
-        after.realizedPnlUsd ?? 0,
-        "flatten_cancel",
-      );
-      this.deps.capitalReservation.releaseOnClose(trade.id);
+      const updated = this.deps.capitalReservation.runInTransaction(() => {
+        const closed = this.deps.trades.updateStatus(
+          trade.id,
+          "closed",
+          after.realizedPnlUsd ?? 0,
+          "flatten_cancel",
+        );
+        this.deps.capitalReservation.releaseOnClose(trade.id);
+        return closed;
+      });
       this.deps.eventBus.emit("trade_closed", updated);
       return "canceled";
     } catch (err) {
@@ -274,13 +277,16 @@ export class KillSwitchService {
         return "attention";
       }
 
-      const updated = this.deps.trades.updateStatus(
-        trade.id,
-        "closed",
-        after.realizedPnlUsd ?? pnl,
-        "flatten_close",
-      );
-      this.deps.capitalReservation.releaseOnClose(trade.id);
+      const updated = this.deps.capitalReservation.runInTransaction(() => {
+        const closed = this.deps.trades.updateStatus(
+          trade.id,
+          "closed",
+          after.realizedPnlUsd ?? pnl,
+          "flatten_close",
+        );
+        this.deps.capitalReservation.releaseOnClose(trade.id);
+        return closed;
+      });
       this.deps.eventBus.emit("trade_closed", updated);
       return "closed";
     } catch (err) {

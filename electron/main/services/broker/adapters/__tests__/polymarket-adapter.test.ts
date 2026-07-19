@@ -484,3 +484,62 @@ describe("PolymarketAdapter", () => {
     });
   });
 });
+
+describe("PolymarketAdapter money-field validation", () => {
+  const credentials = {
+    privateKey:
+      "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    funderAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+  };
+
+  beforeEach(() => {
+    Object.values(clobClientMethods).forEach((fn) => fn.mockReset());
+    clobClientMethods.getOk.mockResolvedValue(true);
+    clobClientMethods.createOrDeriveApiKey.mockResolvedValue({
+      apiKey: "pm-key",
+      secret: "pm-secret",
+      passphrase: "pm-pass",
+    });
+  });
+
+  it("throws BROKER_DATA when collateral balance is missing", async () => {
+    clobClientMethods.getBalanceAllowance.mockResolvedValue({});
+    const adapter = new PolymarketAdapter(credentials);
+    await expect(adapter.getAccountBalance()).rejects.toMatchObject({
+      code: "BROKER_DATA",
+    });
+  });
+
+  it("throws BROKER_DATA when market snapshot has no token price", async () => {
+    clobClientMethods.getMarket.mockResolvedValue({
+      question: "Will event X happen?",
+      tokens: [{ token_id: "token-yes-1", outcome: "YES" }],
+    });
+    const adapter = new PolymarketAdapter(credentials);
+    await expect(adapter.getMarketSnapshot("pm:cond-1")).rejects.toMatchObject({
+      code: "BROKER_DATA",
+    });
+  });
+
+  it("throws BROKER_DATA when limit+notional is missing limitPrice", async () => {
+    const adapter = new PolymarketAdapter(credentials, "live");
+    await expect(
+      adapter.placeOrderV2({
+        clientOrderId: "pm-no-limit",
+        instrument: {
+          symbol: "pm:cond-1",
+          instrumentClass: "prediction_market",
+          metadataJson: JSON.stringify({
+            conditionId: "cond-1",
+            outcomeTokenId: "token-yes-1",
+          }),
+        },
+        side: "BUY",
+        quantity: { kind: "notional_usd", value: 25 },
+        orderType: "limit",
+        timeInForce: "gtc",
+        // limitPrice intentionally omitted
+      }),
+    ).rejects.toMatchObject({ code: "BROKER_DATA" });
+  });
+});

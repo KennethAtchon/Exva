@@ -412,6 +412,7 @@ function createHarness(options: {
       })),
     },
     capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       releaseOnClose: vi.fn(),
     },
     instrumentNormalizer: {

@@ -126,6 +126,7 @@ function createContext() {
     bus: { runtimeStatus: () => "active", emit: vi.fn() },
     logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     tradeApprovalsRepo: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       createPending: vi.fn(() => ({ id: "approval-1" })),
     },
     tradesRepo: {
@@ -133,6 +134,7 @@ function createContext() {
       updateStatus: vi.fn((id, status) => ({ id, status })),
     },
     capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       reserveForApproval: vi.fn(),
       releaseByApproval: vi.fn(),
     },

@@ -115,6 +115,7 @@ function createContext() {
       checkInstrumentConflict: () => ({ ok: true }),
     },
     capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       listActiveBySession: () => [],
     },
     sessionBrokerAssignmentsRepo: {

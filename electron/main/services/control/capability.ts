@@ -8,7 +8,10 @@ export type CapabilityKind = "read" | "mutating";
 export interface CapabilityContext {
   conversationId: string;
   scope: { kind: "workspace" | "session"; sessionId: string | null };
-  /** Capability-class keys pre-approved ("don't ask again") for this conversation. */
+  /**
+   * Capability keys pre-approved ("don't ask again") for this conversation.
+   * May also contain legacy confirmClass strings from older conversations.
+   */
   autoApproved: Set<string>;
 }
 
@@ -18,10 +21,13 @@ export interface Capability<Input = unknown> {
   /** Human label for ToolCallCard / ConfirmationCard headers. */
   label: string;
   kind: CapabilityKind;
-  /** For mutating caps: class key used by the "don't ask again" opt-in. */
+  /**
+   * Optional class for grouping related mutates. Auto-approve stores `key`;
+   * confirmClass remains a legacy fallback match for older conversations.
+   */
   confirmClass?: string;
   /**
-   * Forces confirmation even when the class was auto-approved (trades, live broker).
+   * Forces confirmation even when the capability was auto-approved (trades, live broker).
    * May be a predicate when the gate depends on input (e.g. approve vs reject).
    */
   alwaysConfirm?: boolean | ((input: Input, services: AppServices) => boolean);

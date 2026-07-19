@@ -431,6 +431,7 @@ function createHarness(
     workspacePreferencesRepo: {} as never,
     capitalReservationsRepo: {} as never,
     capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       reserveForOrder: vi.fn(),
       releaseByApproval: vi.fn(),
       convertApprovalToOpenOrder: vi.fn(),

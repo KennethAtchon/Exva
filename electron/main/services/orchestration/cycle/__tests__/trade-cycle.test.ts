@@ -322,6 +322,7 @@ function createContext(options: { runtimeActive: boolean }) {
     agentRunsRepo: { insert: vi.fn() },
     agentMessagesRepo: { insert: vi.fn() },
     capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       reserveForOrder: vi.fn(),
       releaseOnFailure: vi.fn(),
       convertOrderToPosition: vi.fn(),

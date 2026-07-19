@@ -101,7 +101,10 @@ describe("operator power tools (finish-line 08)", () => {
       supervisor: {} as never,
       eventBus: new EventBus(),
       broker: {} as never,
-      capitalReservation: { releaseOnClose: () => undefined } as never,
+      capitalReservation: {
+        runInTransaction: <T>(fn: () => T) => fn(),
+        releaseOnClose: () => undefined,
+      } as never,
       loadGauges: () => [],
     });
     await expect(kill.flattenAll("nope")).rejects.toThrow(/FLATTEN/);
@@ -120,7 +123,10 @@ describe("operator power tools (finish-line 08)", () => {
       supervisor: {} as never,
       eventBus: new EventBus(),
       broker: {} as never,
-      capitalReservation: { releaseOnClose: () => undefined } as never,
+      capitalReservation: {
+        runInTransaction: <T>(fn: () => T) => fn(),
+        releaseOnClose: () => undefined,
+      } as never,
       loadGauges: () => [],
     });
     expect(kill.isHalted()).toBe(false);
@@ -164,7 +170,10 @@ describe("operator power tools (finish-line 08)", () => {
         cancelOrder: vi.fn(),
         getOrderStatus: vi.fn(),
       } as never,
-      capitalReservation: { releaseOnClose } as never,
+      capitalReservation: {
+        runInTransaction: <T>(fn: () => T) => fn(),
+        releaseOnClose,
+      } as never,
       loadGauges: () => [],
     });
 
@@ -229,7 +238,10 @@ describe("operator power tools (finish-line 08)", () => {
         })),
         cancelOrder: vi.fn(),
       } as never,
-      capitalReservation: { releaseOnClose } as never,
+      capitalReservation: {
+        runInTransaction: <T>(fn: () => T) => fn(),
+        releaseOnClose,
+      } as never,
       loadGauges: () => [],
     });
 

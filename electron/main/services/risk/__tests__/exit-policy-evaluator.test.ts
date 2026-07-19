@@ -283,6 +283,26 @@ describe("ExitPolicyEvaluator — trailing_atr", () => {
 });
 
 describe("ExitPolicyEvaluator — stopLossType=none", () => {
+  it("skips exit math when entry or current price is zero/NaN", () => {
+    expect(
+      evaluator.evaluate(makeInput({ currentPrice: 0 })).shouldExit,
+    ).toBe(false);
+    expect(
+      evaluator.evaluate(
+        makeInput({
+          currentPrice: 90,
+          trade: {
+            id: "t1",
+            entryPrice: 0,
+            side: "BUY",
+            instrumentType: "stock",
+            highWaterMarkPrice: null,
+          },
+        }),
+      ).shouldExit,
+    ).toBe(false);
+  });
+
   it("no stop-loss check runs; price far below entry → shouldExit=false", () => {
     const result = evaluator.evaluate(
       makeInput({

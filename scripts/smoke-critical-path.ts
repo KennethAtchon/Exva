@@ -6,6 +6,11 @@
  * session lifecycle, resilience doctrine, and backtest math work.
  * Full mode also runs E2E launch smoke and the EDGAR backtest CLI.
  *
+ * HONESTY: these tests exercise MockAdapter / scratch DBs (and strip
+ * ALPACA_* / OPEN_ROUTER_* from the child env). They do not prove live
+ * broker adapter HTTP paths — use `bun run prove -- --mode=alpaca|polymarket`
+ * for recorded/ghost paper journeys against real venues.
+ *
  * Usage:
  *   bun run test:smoke              # critical tests + e2e launch + backtest
  *   bun run test:smoke:critical     # critical tests only

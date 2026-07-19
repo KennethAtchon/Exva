@@ -74,6 +74,67 @@ export function requirePositivePrice(
   return n;
 }
 
+/** First strictly positive candidate; skips non-positive / non-finite values. */
+export function firstPositive(
+  ...values: Array<number | undefined | null>
+): number | undefined {
+  for (const value of values) {
+    if (value != null && value > 0) return value;
+  }
+  return undefined;
+}
+
+/** Absent/empty → null; present but invalid → BROKER_DATA. */
+export function optionalFiniteNumber(
+  value: unknown,
+  field: string,
+  details?: Record<string, unknown>,
+): number | null {
+  if (value === undefined || value === null || value === "") return null;
+  return requireFiniteNumber(value, field, details);
+}
+
+/** Absent/empty → null; present but non-positive/invalid → BROKER_DATA. */
+export function optionalPositivePrice(
+  value: unknown,
+  field: string,
+  details?: Record<string, unknown>,
+): number | null {
+  if (value === undefined || value === null || value === "") return null;
+  return requirePositivePrice(value, field, details);
+}
+
+/** Absent/empty → NaN; present but invalid → BROKER_DATA. */
+export function optionalFiniteOrNaN(
+  value: unknown,
+  field: string,
+  details?: Record<string, unknown>,
+): number {
+  if (value === undefined || value === null || value === "") {
+    return Number.NaN;
+  }
+  return requireFiniteNumber(value, field, details);
+}
+
+/** Soft parse for optional quote legs: absent/invalid → NaN (no throw). */
+export function softFinite(value: unknown): number {
+  if (value === undefined || value === null || value === "") {
+    return Number.NaN;
+  }
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : Number.NaN;
+}
+
+/** Missing/nullish → 0; present but invalid → BROKER_DATA. */
+export function finiteOrZero(
+  value: unknown,
+  field: string,
+  details?: Record<string, unknown>,
+): number {
+  if (value == null) return 0;
+  return requireFiniteNumber(value, field, details);
+}
+
 export function classifyHttpBrokerError(input: {
   status: number;
   body: string;

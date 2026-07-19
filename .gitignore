@@ -27,4 +27,8 @@ src-tauri/gen/schemas
 .vite
 
 out/
-*.tsbuildinfo   
+*.tsbuildinfo
+
+# Research script outputs (ephemeral)
+research/output/**
+!research/output/.gitkeep

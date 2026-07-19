@@ -7,6 +7,7 @@ import type {
 } from "@/lib/exva";
 import type { CapabilityRisk } from "@electron/shared/domain/control";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
+import { useControlStore } from "@/store/controlStore";
 
 export interface ToolItemConfirm {
   preview: string;
@@ -392,7 +393,11 @@ export function useControlConversation(conversationId: string | null) {
       });
       setStreaming(true);
       try {
-        await api.control.send({ conversationId, message: text });
+        await api.control.send({
+          conversationId,
+          message: text,
+          ...useControlStore.getState().uiContext,
+        });
         // Heuristic auto-title after the first user message (avoids a cheap LLM round-trip).
         if (
           conversation?.title === "New conversation" ||

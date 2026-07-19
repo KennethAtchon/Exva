@@ -136,6 +136,7 @@ function createManager(
     workspacePreferencesRepo,
     capitalReservationsRepo: new CapitalReservationsRepo(db),
     capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       checkSessionStartFits: () => ({ ok: true as const }),
       reserveForApproval: () => ({}) as never,
       releaseByApproval: () => undefined,

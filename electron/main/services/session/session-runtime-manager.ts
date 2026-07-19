@@ -17,6 +17,11 @@ import type {
 
 export class SessionRuntimeManager {
   private readonly runtimes = new Map<string, ManagedSessionRuntime>();
+  /** Coalesces concurrent startSession calls for the same id (TOCTOU guard). */
+  private readonly startInFlight = new Map<
+    string,
+    Promise<ManagedSessionRuntime>
+  >();
   private readonly startupRecovery: SessionStartupRecoveryService;
   private readonly runtimeHost: SessionRuntimeHost;
 
@@ -30,7 +35,12 @@ export class SessionRuntimeManager {
       this.recoveryDeps(),
     );
     this.deps.bus.on("trade_closed", (trade) => {
-      void this.handleTradeClosedForDrain(trade);
+      void this.handleTradeClosedForDrain(trade).catch((error) => {
+        this.deps.logger.error(
+          { err: error, sessionId: trade.sessionId, tradeId: trade.id },
+          "failed to handle trade_closed for drain completion",
+        );
+      });
     });
   }
 
@@ -49,6 +59,28 @@ export class SessionRuntimeManager {
   }
 
   async startSession(sessionId: string): Promise<ManagedSessionRuntime> {
+    const existing = this.runtimes.get(sessionId);
+    if (existing) {
+      this.deps.logger.debug({ sessionId }, "runtime already active");
+      return existing;
+    }
+
+    const inFlight = this.startInFlight.get(sessionId);
+    if (inFlight) {
+      this.deps.logger.debug({ sessionId }, "runtime start already in flight");
+      return inFlight;
+    }
+
+    const startPromise = this.startSessionExclusive(sessionId).finally(() => {
+      this.startInFlight.delete(sessionId);
+    });
+    this.startInFlight.set(sessionId, startPromise);
+    return startPromise;
+  }
+
+  private async startSessionExclusive(
+    sessionId: string,
+  ): Promise<ManagedSessionRuntime> {
     const existing = this.runtimes.get(sessionId);
     if (existing) {
       this.deps.logger.debug({ sessionId }, "runtime already active");

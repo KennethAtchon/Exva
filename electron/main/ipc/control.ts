@@ -7,6 +7,12 @@ import { handle } from "./handle";
 import { ipcNoPayloadSchema, ipcPayloadUnknownSchema } from "./payload-schemas";
 import type { AppServices } from "../services/app-services";
 
+function optionalNonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 export function registerControlHandlers(services: AppServices): void {
   const { control, controlRepo } = services;
 
@@ -92,9 +98,11 @@ export function registerControlHandlers(services: AppServices): void {
     channels.control.send,
     ipcPayloadUnknownSchema,
     async (payload) => {
-      const { conversationId, message } = payload as {
+      const { conversationId, message, route, selectedSessionId } = payload as {
         conversationId: string;
         message: string;
+        route?: string | null;
+        selectedSessionId?: string | null;
       };
       if (!control.isEnabled()) {
         throw new AppError("The assistant is disabled.", "VALIDATION_FAILED");
@@ -102,7 +110,12 @@ export function registerControlHandlers(services: AppServices): void {
       if (!message.trim()) {
         throw new AppError("Message cannot be empty.", "VALIDATION_FAILED");
       }
-      return control.startTurn({ conversationId, message: message.trim() });
+      return control.startTurn({
+        conversationId,
+        message: message.trim(),
+        route: optionalNonEmptyString(route),
+        selectedSessionId: optionalNonEmptyString(selectedSessionId),
+      });
     },
   );
 

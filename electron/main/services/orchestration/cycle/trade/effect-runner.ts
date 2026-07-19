@@ -103,8 +103,10 @@ export async function runApprovalAndCapital(
     undefined,
   );
   if (!approved) {
-    ctx.deps.capitalReservation.releaseByApproval(approvalId);
-    const rejected = ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
+    const rejected = ctx.deps.capitalReservation.runInTransaction(() => {
+      ctx.deps.capitalReservation.releaseByApproval(approvalId);
+      return ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
+    });
     ctx.emitEvent(
       "WARN",
       trade.id,

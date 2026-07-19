@@ -324,6 +324,7 @@ function createHarness(
         ),
     },
     tradeApprovalsRepo: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       createPending: vi.fn(() => ({ id: "approval-1" })),
     },
     agentRunsRepo: { insert: vi.fn() },
@@ -347,6 +348,7 @@ function createHarness(
     workspacePreferencesRepo: {} as never,
     capitalReservationsRepo: {} as never,
     capitalReservation: {
+      runInTransaction: <T>(fn: () => T) => fn(),
       reserveForOrder: vi.fn(),
       reserveForApproval: vi.fn(),
       releaseByApproval: vi.fn(),

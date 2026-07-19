@@ -9,6 +9,7 @@ import {
 } from "@/components/ui";
 import { confirm } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/primitives";
+import { PanelLoading } from "@/components/ui/skeleton";
 import { api } from "@/lib/exva";
 import { formatRelative } from "@/lib/format";
 import { formatSignalSourceTimingSubtitle } from "@electron/shared/domain/signal-timing";
@@ -110,14 +111,7 @@ export function SignalSourcesPage({
       ) : null}
 
       {loading && sources.length === 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[0, 1, 2].map((idx) => (
-            <div
-              key={idx}
-              className="h-36 animate-pulse rounded-sm border border-border bg-surface2"
-            />
-          ))}
-        </div>
+        <PanelLoading rows={4} />
       ) : error ? (
         <EmptyState
           message={`Failed to load signal sources. ${error}`}

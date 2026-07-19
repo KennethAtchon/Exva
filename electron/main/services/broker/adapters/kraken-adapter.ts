@@ -5,7 +5,17 @@ import { AppError } from "@electron/shared/infra/errors";
 import { createLogger } from "../../infra/log";
 import { requireJsonParse, safeJsonParse } from "../../infra/safe-json-parse";
 import type { BrokerInteractionLogger } from "../broker-interaction-logger";
-import { classifyHttpBrokerError, brokerError } from "../broker-errors";
+import {
+  classifyHttpBrokerError,
+  brokerError,
+  brokerDataError,
+  firstPositive,
+  optionalFiniteNumber,
+  optionalFiniteOrNaN,
+  optionalPositivePrice,
+  requireFiniteNumber,
+  requirePositivePrice,
+} from "../broker-errors";
 import {
   GhostFillSimulator,
   type GhostQuote,
@@ -120,14 +130,29 @@ export async function fetchKrakenOhlcv(
   const key = Object.keys(result).find((k) => k !== "last");
   const rows = key ? result[key] : [];
   if (!Array.isArray(rows)) return [];
-  return rows.slice(-barCount).map((r) => ({
-    ts: new Date(r[0] * 1000).toISOString(),
-    open: Number(r[1]),
-    high: Number(r[2]),
-    low: Number(r[3]),
-    close: Number(r[4]),
-    volume: Number(r[6]) || null,
-  }));
+  return rows
+    .slice(-barCount)
+    .map((r) => parseKrakenOhlcvBar(r))
+    .filter((bar): bar is OhlcvBar => bar != null);
+}
+
+function parseKrakenOhlcvBar(
+  r: [number, string, string, string, string, string, string, number],
+): OhlcvBar | null {
+  const details = { broker: "kraken" };
+  try {
+    return {
+      ts: new Date(r[0] * 1000).toISOString(),
+      open: requirePositivePrice(r[1], "ohlc.open", details),
+      high: requirePositivePrice(r[2], "ohlc.high", details),
+      low: requirePositivePrice(r[3], "ohlc.low", details),
+      close: requirePositivePrice(r[4], "ohlc.close", details),
+      volume: optionalFiniteNumber(r[6], "ohlc.volume", details),
+    };
+  } catch {
+    // Skip malformed bars rather than inventing zero prices.
+    return null;
+  }
 }
 
 /**
@@ -211,10 +236,24 @@ export class KrakenAdapter implements BrokerAdapter {
     const result = data.result ?? {};
     // Sum USD-ish balances; prefer ZUSD / USD / USDT.
     for (const key of ["ZUSD", "USD", "USDT", "USDC"]) {
-      const v = Number(result[key] ?? 0);
+      if (!(key in result)) continue;
+      const v = requireFiniteNumber(result[key], `balance.${key}`, {
+        broker: "kraken",
+      });
       if (v > 0) return v;
     }
-    return Object.values(result).reduce((sum, v) => sum + Number(v || 0), 0);
+    const entries = Object.entries(result);
+    if (entries.length === 0) {
+      throw brokerDataError("Kraken balance response empty", {
+        broker: "kraken",
+      });
+    }
+    return entries.reduce(
+      (sum, [key, value]) =>
+        sum +
+        requireFiniteNumber(value, `balance.${key}`, { broker: "kraken" }),
+      0,
+    );
   }
 
   async getPositions(): Promise<BrokerPosition[]> {
@@ -227,7 +266,9 @@ export class KrakenAdapter implements BrokerAdapter {
     const result = data.result ?? {};
     const positions: BrokerPosition[] = [];
     for (const [asset, amount] of Object.entries(result)) {
-      const qty = Number(amount);
+      const qty = requireFiniteNumber(amount, `balance.${asset}`, {
+        broker: "kraken",
+      });
       if (!(qty > 0) || asset === "ZUSD" || asset === "USD") continue;
       const symbol = toWirePair(asset);
       let price = 0;
@@ -298,15 +339,30 @@ export class KrakenAdapter implements BrokerAdapter {
     }>(`/0/public/Ticker?pair=${encodeURIComponent(pair)}`);
     this.assertNoError(data.error);
     const ticker = Object.values(data.result ?? {})[0];
-    const last = Number(ticker?.c?.[0] ?? 0);
-    const bid = Number(ticker?.b?.[0] ?? 0);
-    const ask = Number(ticker?.a?.[0] ?? 0);
+    if (!ticker) {
+      throw brokerDataError("Kraken ticker response missing pair data", {
+        broker: "kraken",
+        symbol: instrumentSymbol,
+      });
+    }
+    const details = { broker: "kraken", symbol: instrumentSymbol };
+    const last = optionalFiniteOrNaN(ticker.c?.[0], "ticker.last", details);
+    const bid = optionalFiniteOrNaN(ticker.b?.[0], "ticker.bid", details);
+    const ask = optionalFiniteOrNaN(ticker.a?.[0], "ticker.ask", details);
+    const mid = bid > 0 && ask > 0 ? (bid + ask) / 2 : Number.NaN;
+    const price = requirePositivePrice(
+      firstPositive(last, mid, bid, ask),
+      "ticker.price",
+      details,
+    );
     return {
       instrumentSymbol,
-      price: last || (bid && ask ? (bid + ask) / 2 : bid || ask),
-      bid: bid || undefined,
-      ask: ask || undefined,
-      volume: Number(ticker?.v?.[1] ?? 0) || undefined,
+      price,
+      bid: bid > 0 ? bid : undefined,
+      ask: ask > 0 ? ask : undefined,
+      volume:
+        optionalFiniteNumber(ticker.v?.[1], "ticker.volume", details) ??
+        undefined,
       timestamp: new Date().toISOString(),
     };
   }
@@ -425,29 +481,32 @@ export class KrakenAdapter implements BrokerAdapter {
     const brokerOrderId = receipt.ghostOrderId;
 
     if (receipt.status === "filled" && receipt.filledAvgPrice != null) {
-      const sizeUsd = receipt.filledQty * receipt.filledAvgPrice;
-      if (order.side === "BUY") this.debitPaper(sizeUsd);
-      this.setGhostPosition(brokerOrderId, {
-        symbol: order.instrument.symbol,
-        side: order.side,
-        sizeUsd,
-        shares: receipt.filledQty,
-        entryPrice: receipt.filledAvgPrice,
-        open: true,
-        resting: false,
-        order,
+      const filledAvgPrice = receipt.filledAvgPrice;
+      const sizeUsd = receipt.filledQty * filledAvgPrice;
+      this.runPaperTransaction(() => {
+        if (order.side === "BUY") this.debitPaper(sizeUsd);
+        this.setGhostPosition(brokerOrderId, {
+          symbol: order.instrument.symbol,
+          side: order.side,
+          sizeUsd,
+          shares: receipt.filledQty,
+          entryPrice: filledAvgPrice,
+          open: true,
+          resting: false,
+          order,
+        });
       });
       logger.info(
         {
           brokerOrderId,
-          filledAvgPrice: receipt.filledAvgPrice,
+          filledAvgPrice,
           paperBalanceUsd: this.readPaperBalance(),
         },
         "kraken ghost: order filled locally",
       );
       return {
         brokerOrderId,
-        filledAvgPrice: receipt.filledAvgPrice,
+        filledAvgPrice,
         filledSizeUsd: sizeUsd,
       };
     }
@@ -523,10 +582,15 @@ export class KrakenAdapter implements BrokerAdapter {
       statusRaw === "closed" ||
       statusRaw === "canceled" ||
       statusRaw === "expired";
+    const latestPrice = optionalPositivePrice(
+      row.price ?? row.avg_price,
+      "order.price",
+      { broker: "kraken", orderId },
+    );
     return {
       brokerOrderId: orderId,
       status: closed ? "closed" : "open",
-      latestPrice: Number(row.price ?? row.avg_price ?? 0) || null,
+      latestPrice,
       realizedPnlUsd: null,
     };
   }
@@ -537,6 +601,7 @@ export class KrakenAdapter implements BrokerAdapter {
     if (status.status === "open") await this.cancelOrder(orderId);
     return {
       brokerOrderId: orderId,
+      // Cancel-only close: OrderStatus.realizedPnlUsd is null → CloseResult needs 0.
       realizedPnlUsd: status.realizedPnlUsd ?? 0,
     };
   }
@@ -630,9 +695,11 @@ export class KrakenAdapter implements BrokerAdapter {
     }
     const exitValue = pos.shares * exitPrice;
     const realizedPnlUsd = exitValue - pos.sizeUsd;
-    this.creditPaper(exitValue);
-    pos.open = false;
-    this.paperPositions?.setClosed(orderId);
+    this.runPaperTransaction(() => {
+      this.creditPaper(exitValue);
+      pos.open = false;
+      this.paperPositions?.setClosed(orderId);
+    });
     logger.info(
       {
         orderId,
@@ -662,18 +729,21 @@ export class KrakenAdapter implements BrokerAdapter {
     }
     const receipt = this.ghosts.poll(orderId, quote);
     if (receipt?.status !== "filled" || receipt.filledAvgPrice == null) return;
-    const sizeUsd = receipt.filledQty * receipt.filledAvgPrice;
-    if (pos.side === "BUY") this.debitPaper(sizeUsd);
-    pos.resting = false;
-    pos.shares = receipt.filledQty;
-    pos.entryPrice = receipt.filledAvgPrice;
-    pos.sizeUsd = sizeUsd;
-    pos.open = true;
-    this.persistGhostPosition(orderId, pos);
+    const filledAvgPrice = receipt.filledAvgPrice;
+    const sizeUsd = receipt.filledQty * filledAvgPrice;
+    this.runPaperTransaction(() => {
+      if (pos.side === "BUY") this.debitPaper(sizeUsd);
+      pos.resting = false;
+      pos.shares = receipt.filledQty;
+      pos.entryPrice = filledAvgPrice;
+      pos.sizeUsd = sizeUsd;
+      pos.open = true;
+      this.persistGhostPosition(orderId, pos);
+    });
     logger.info(
       {
         brokerOrderId: orderId,
-        filledAvgPrice: receipt.filledAvgPrice,
+        filledAvgPrice,
         paperBalanceUsd: this.readPaperBalance(),
       },
       "kraken ghost: resting order filled on quote cross",
@@ -768,6 +838,11 @@ export class KrakenAdapter implements BrokerAdapter {
       return this.paperBalances.getBalance(this.accountId);
     }
     return this.memoryPaperBalanceUsd;
+  }
+
+  private runPaperTransaction(fn: () => void): void {
+    if (this.paperBalances) this.paperBalances.runInTransaction(fn);
+    else fn();
   }
 
   private debitPaper(amount: number): void {

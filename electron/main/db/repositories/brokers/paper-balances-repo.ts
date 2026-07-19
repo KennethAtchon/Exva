@@ -21,6 +21,11 @@ export interface PaperBalanceRow {
 export class PaperBalancesRepo {
   constructor(private readonly client: DbClient) {}
 
+  /** Atomic wrapper for debit/credit + sibling paper position writes. */
+  runInTransaction<T>(fn: () => T): T {
+    return this.client.db.transaction(fn);
+  }
+
   find(accountId: string): PaperBalanceRow | null {
     const row = this.client.db
       .select()

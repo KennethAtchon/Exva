@@ -19,6 +19,21 @@ const logger = createLogger("main");
 
 app.disableHardwareAcceleration();
 
+// Last-resort: log and keep the process alive so trading state is inspectable.
+// Do not rethrow — a silent crash mid-session is worse than a logged orphan.
+function logFatal(kind: string, reason: unknown): void {
+  logger.error(
+    { err: reason instanceof Error ? reason : new Error(String(reason)) },
+    kind,
+  );
+}
+process.on("unhandledRejection", (reason) => {
+  logFatal("unhandled promise rejection", reason);
+});
+process.on("uncaughtException", (error) => {
+  logFatal("uncaught exception", error);
+});
+
 app.whenReady().then(async () => {
   const bootStartedAt = Date.now();
   try {
@@ -94,7 +109,12 @@ app.whenReady().then(async () => {
   app.on("activate", () => {
     if (isHeadlessMode()) return;
     if (BrowserWindow.getAllWindows().length === 0 && services) {
-      void createMainWindow(services);
+      void createMainWindow(services).catch((error) => {
+        logger.error(
+          { err: error },
+          "failed to recreate main window on activate",
+        );
+      });
     }
   });
 });
@@ -111,10 +131,15 @@ app.on("will-quit", (event) => {
     return;
   }
   event.preventDefault();
-  void shutdownCoordinator.shutdown().finally(() => {
-    clearInstanceLock();
-    app.exit(0);
-  });
+  void shutdownCoordinator
+    .shutdown()
+    .catch((error) => {
+      logger.error({ err: error }, "shutdown coordinator failed");
+    })
+    .finally(() => {
+      clearInstanceLock();
+      app.exit(0);
+    });
 });
 
 async function seedBrokerAllocations(services: AppServices): Promise<void> {

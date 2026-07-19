@@ -4,6 +4,11 @@ import type { CapitalReservation } from "@/lib/types";
 export class CapitalReservationService {
   constructor(private readonly repo: CapitalReservationsRepo) {}
 
+  /** Atomic wrapper for multi-row trade/approval/capital writes. */
+  runInTransaction<T>(fn: () => T): T {
+    return this.repo.runInTransaction(fn);
+  }
+
   reserveForOrder(input: {
     sessionId: string;
     tradeId: string;

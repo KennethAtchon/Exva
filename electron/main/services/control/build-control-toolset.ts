@@ -22,8 +22,19 @@ export interface ControlToolRuntime {
   abortSignal: AbortSignal;
   /** Suspends the run until the renderer confirms/rejects/cancels this tool call. */
   awaitConfirmation(toolCallId: string): Promise<ConfirmationDecision>;
-  /** Persists a "don't ask again" opt-in for this conversation. */
-  addAutoApproved(confirmClass: string): void;
+  /** Persists a "don't ask again" opt-in for this conversation (capability key). */
+  addAutoApproved(key: string): void;
+}
+
+/** True if this capability (or a legacy confirmClass key) was auto-approved. */
+export function isCapabilityAutoApproved(
+  autoApproved: Set<string>,
+  cap: Pick<Capability<unknown>, "key" | "confirmClass">,
+): boolean {
+  return (
+    autoApproved.has(cap.key) ||
+    (cap.confirmClass != null && autoApproved.has(cap.confirmClass))
+  );
 }
 
 function summarizeResult(
@@ -179,10 +190,9 @@ async function runCapability(
     }
   }
 
-  // Mutating capabilities: gate unless auto-approved.
-  // Auto-approve keys are confirmClass strings (coarse). Finer per-capability
-  // keys (e.g. `start_session`) were deferred — liveRisk / alwaysConfirm /
-  // outOfScope already force confirm for the high-risk cases.
+  // Mutating capabilities: gate unless auto-approved for this capability key
+  // (legacy confirmClass keys still match for older conversations).
+  // liveRisk / alwaysConfirm / outOfScope always force confirm.
   const risk = cap.risk?.(input, rt.services) ?? null;
   const liveRisk = risk?.level === "live";
   const outOfScope = isOutOfScope(rt.ctx, input, rt.services);
@@ -192,8 +202,7 @@ async function runCapability(
       : cap.alwaysConfirm === true;
   const forceConfirm = alwaysConfirm || liveRisk || outOfScope;
   const needsConfirm =
-    forceConfirm ||
-    !(cap.confirmClass && rt.ctx.autoApproved.has(cap.confirmClass));
+    forceConfirm || !isCapabilityAutoApproved(rt.ctx.autoApproved, cap);
 
   if (needsConfirm) {
     rt.repo.insertToolCall({
@@ -246,8 +255,8 @@ async function runCapability(
       });
       return { rejected: true, reason };
     }
-    if (decision.alwaysApprove && !forceConfirm && cap.confirmClass) {
-      rt.addAutoApproved(cap.confirmClass);
+    if (decision.alwaysApprove && !forceConfirm) {
+      rt.addAutoApproved(cap.key);
     }
     // Flip the card to running.
     rt.repo.updateToolCall(toolCallId, {

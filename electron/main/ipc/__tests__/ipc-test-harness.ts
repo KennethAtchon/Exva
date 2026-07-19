@@ -164,6 +164,7 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
   );
 
   const capitalReservation = {
+    runInTransaction: <T>(fn: () => T) => fn(),
     checkSessionStartFits: () => ({ ok: true as const }),
     reserveForApproval: () => ({}) as never,
     releaseByApproval: () => undefined,

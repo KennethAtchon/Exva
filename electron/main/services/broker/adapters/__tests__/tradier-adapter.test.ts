@@ -70,4 +70,63 @@ describe("TradierAdapter money-field validation", () => {
       code: "BROKER_DATA",
     });
   });
+
+  it("skips OHLCV bars with missing prices instead of coercing to 0", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        history: {
+          day: [
+            { date: "2026-07-01", open: 100, high: 101, low: 99, close: 100.5, volume: 10 },
+            { date: "2026-07-02", open: null, high: 101, low: 99, close: 100 },
+            { date: "2026-07-03", open: 102, high: 103, low: 101, close: 102.5, volume: 0 },
+          ],
+        },
+      }),
+    );
+    const adapter = new TradierAdapter(
+      { accessToken: "t", accountId: "a" },
+      "paper",
+    );
+    const bars = await adapter.getOhlcv("SPY", "1d", 10);
+    expect(bars).toHaveLength(2);
+    expect(bars[0]?.close).toBe(100.5);
+    expect(bars[1]?.close).toBe(102.5);
+    expect(bars[1]?.volume).toBe(0);
+  });
+
+  it("skips option contracts with missing strike", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ expirations: { date: ["2026-08-15"] } }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          options: {
+            option: [
+              {
+                symbol: "SPY260815C00500000",
+                option_type: "call",
+                strike: 500,
+                open_interest: 12,
+                volume: 3,
+              },
+              {
+                symbol: "SPY260815C00505000",
+                option_type: "call",
+                // missing strike — skipped
+                open_interest: 1,
+              },
+            ],
+          },
+        }),
+      );
+    const adapter = new TradierAdapter(
+      { accessToken: "t", accountId: "a" },
+      "paper",
+    );
+    const chain = await adapter.getOptionChain("SPY");
+    expect(chain).toHaveLength(1);
+    expect(chain[0]?.strike).toBe(500);
+    expect(chain[0]?.openInterest).toBe(12);
+  });
 });

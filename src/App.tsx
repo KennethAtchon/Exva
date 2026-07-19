@@ -147,6 +147,13 @@ export default function App() {
   }, [loadWorkspaceView, reloadStats, reloadTrades]);
 
   useEffect(() => {
+    useControlStore.getState().setUiContext({
+      route: ui.page,
+      selectedSessionId: focusedSessionId,
+    });
+  }, [ui.page, focusedSessionId]);
+
+  useEffect(() => {
     void reloadStats();
     if (ui.page === "sessions" && ui.sessionsTab === "trades") return;
     void reloadTrades();

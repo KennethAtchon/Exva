@@ -67,10 +67,19 @@ export class TradeMonitor {
   start(): void {
     if (this.timer) return;
     this.pollIntervalMs = this.resolvePollIntervalMs();
-    void this.tick();
+    void this.safeTick();
     this.timer = setInterval(() => {
-      void this.tick();
+      void this.safeTick();
     }, this.pollIntervalMs);
+  }
+
+  private safeTick(): Promise<void> {
+    return this.tick().catch((err) => {
+      logger.error(
+        { err, sessionId: this.sessionId },
+        "trade monitor tick failed",
+      );
+    });
   }
 
   /** Wire supervisor (or tests) to hear websocket→poll fallbacks. */
@@ -506,14 +515,17 @@ export class TradeMonitor {
         executionCostUsd,
       });
     }
-    const closed = this.tradesRepo.updateStatus(
-      tradeId,
-      "closed",
-      pnl,
-      exitReason,
-      closureSource,
-    );
-    this.capitalReservation.releaseOnClose(tradeId);
+    const closed = this.capitalReservation.runInTransaction(() => {
+      const updated = this.tradesRepo.updateStatus(
+        tradeId,
+        "closed",
+        pnl,
+        exitReason,
+        closureSource,
+      );
+      this.capitalReservation.releaseOnClose(tradeId);
+      return updated;
+    });
     this.eventBus.emit("trade_closed", closed);
     return closed;
   }
@@ -546,7 +558,7 @@ export class TradeMonitor {
     clearInterval(this.timer);
     this.pollIntervalMs = next;
     this.timer = setInterval(() => {
-      void this.tick();
+      void this.safeTick();
     }, this.pollIntervalMs);
   }
 }

@@ -75,6 +75,9 @@ function openReadOnlyDb(dbPath: string): DbClient {
  */
 function proveAlpaca(): void {
   console.log("▶ prove (alpaca): read-only audit of a recorded paper trade");
+  console.log(
+    "  HONESTY: keys gate access only — this mode never calls Alpaca HTTP or places orders.",
+  );
 
   const key = env.alpacaApiKey ?? process.env.ALPACA_API_KEY?.trim();
   const secret = env.alpacaSecretKey ?? process.env.ALPACA_SECRET_KEY?.trim();
@@ -85,9 +88,10 @@ function proveAlpaca(): void {
       "  bun run prove -- --mode=alpaca",
       "",
       "This mode is intentionally not run in CI.",
+      "Keys are an operator gate only; prove does not hit the Alpaca API.",
     ]);
   }
-  console.log("  PASS  alpaca_credentials");
+  console.log("  PASS  alpaca_credentials (gate only; no live API calls)");
 
   const dbPath = env.dbPath?.trim();
   if (!dbPath) {
@@ -265,7 +269,16 @@ function proveAlpaca(): void {
 
 function proveMock(): void {
   console.log("▶ prove (mock): golden-path mock rehearsal integration test");
+  console.log(
+    "  HONESTY: mock mode uses MockAdapter only — it does NOT prove live Alpaca/Kraken/etc adapters.",
+  );
   console.log(`  ${MOCK_TEST}`);
+  if (!MOCK_TEST.includes("mock-trade-rehearsal")) {
+    failStage("mock_mode_honesty", [
+      "Default prove mode must target the mock-trade-rehearsal integration test.",
+      `Got MOCK_TEST=${MOCK_TEST}`,
+    ]);
+  }
   const started = Date.now();
   const result = spawnSync(
     "bun",
@@ -299,11 +312,12 @@ function proveMock(): void {
   }
 
   console.log("\n── Proof report (mock) ──");
+  console.log("  PASS  mock_mode_honesty (MockAdapter path only)");
   console.log("  PASS  scratch_harness");
   console.log("  PASS  decision_trace + order_placed + fill_opened");
   console.log("  PASS  monitor_exit + closed_at");
   console.log(
-    `\n✓ bun run prove (mock) passed in ${(ms / 1000).toFixed(1)}s — daily DB untouched`,
+    `\n✓ bun run prove (mock) passed in ${(ms / 1000).toFixed(1)}s — daily DB untouched; not a live-broker proof`,
   );
 }
 
@@ -545,7 +559,7 @@ const mode = parseMode();
 if (mode === "alpaca") {
   proveAlpaca();
 } else if (mode === "polymarket") {
-  void provePolymarket();
+  await provePolymarket();
 } else {
   proveMock();
 }

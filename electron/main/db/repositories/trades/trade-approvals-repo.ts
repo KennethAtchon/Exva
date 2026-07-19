@@ -14,6 +14,11 @@ export interface ApprovalListFilters {
 export class TradeApprovalsRepo {
   constructor(private readonly client: DbClient) {}
 
+  /** Atomic wrapper for approval + capital reservation inserts. */
+  runInTransaction<T>(fn: () => T): T {
+    return this.client.db.transaction(fn);
+  }
+
   createPending(input: {
     sessionId: string;
     tradeId: string;

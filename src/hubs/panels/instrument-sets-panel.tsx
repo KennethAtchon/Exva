@@ -7,6 +7,7 @@ import type { InstrumentClass } from "@electron/shared/domain/enums";
 import { Badge } from "@/components/custom-ui";
 import { Button, Dialog, DialogContent } from "@/components/ui";
 import { EmptyState, SectionHeader } from "@/components/ui/primitives";
+import { PanelLoading } from "@/components/ui/skeleton";
 import { ShadcnSelect } from "@/components/custom-ui";
 import { cn } from "@/lib/utils";
 
@@ -51,14 +52,7 @@ export function InstrumentSetsPage() {
       />
 
       {loading ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {[0, 1].map((i) => (
-            <div
-              key={i}
-              className="h-40 animate-pulse rounded-sm border border-border bg-surface2"
-            />
-          ))}
-        </div>
+        <PanelLoading rows={4} />
       ) : error ? (
         <EmptyState
           message={error}

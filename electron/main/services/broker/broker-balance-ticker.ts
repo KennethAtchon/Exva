@@ -17,7 +17,12 @@ export class BrokerBalanceTicker {
   start(): void {
     if (this.timer) return;
     this.timer = setInterval(() => {
-      void this.tick();
+      void this.tick().catch((error) => {
+        this.logger.warn(
+          { error: error instanceof Error ? error.message : String(error) },
+          "broker balance ticker tick failed",
+        );
+      });
     }, this.tickIntervalMs);
   }
 

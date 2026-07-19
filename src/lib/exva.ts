@@ -531,8 +531,12 @@ export const api = {
     renameConversation: (input: { id: string; title: string }) =>
       bridge().control.renameConversation(input),
     deleteConversation: (id: string) => bridge().control.deleteConversation(id),
-    send: (input: { conversationId: string; message: string }) =>
-      bridge().control.send(input),
+    send: (input: {
+      conversationId: string;
+      message: string;
+      route?: string | null;
+      selectedSessionId?: string | null;
+    }) => bridge().control.send(input),
     confirm: (input: {
       conversationId: string;
       toolCallId: string;

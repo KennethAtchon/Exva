@@ -354,6 +354,28 @@ describe("RiskEngine", () => {
     expect(result.gateType).toBe("volatility_halt");
   });
 
+  it("blocks decisions when quote price is zero or non-finite", () => {
+    for (const price of [0, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const result = engine.validateDecision({
+        riskConfig,
+        stats,
+        order: {
+          instrumentSymbol: "AAPL",
+          instrumentType: "stock",
+          side: "BUY",
+          sizeUsd: 200,
+        },
+        confidence: 0.9,
+        quoteSnapshot: {
+          price,
+          timestamp: new Date().toISOString(),
+        },
+      });
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toMatch(/quote price/i);
+    }
+  });
+
   it("blocks entries inside calendar blackout window", () => {
     const nowMs = Date.parse("2026-07-15T12:00:00.000Z");
     const result = engine.validateDecision({

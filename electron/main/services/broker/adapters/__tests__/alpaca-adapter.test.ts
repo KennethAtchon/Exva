@@ -580,3 +580,57 @@ describe("AlpacaAdapter", () => {
     // Do not start() here — that opens a real Alpaca websocket.
   });
 });
+
+describe("AlpacaAdapter money-field validation", () => {
+  const credentials = {
+    provider: "alpaca" as const,
+    api_key: "test-key",
+    secret_key: "test-secret",
+    mode: "paper" as const,
+  };
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+  });
+
+  it("throws BROKER_DATA when latest trade price is missing", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ trade: {} }));
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+    await expect(adapter.getMarketSnapshot("AAPL")).rejects.toMatchObject({
+      code: "BROKER_DATA",
+    });
+  });
+
+  it("throws BROKER_DATA when position market_value is missing", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse([
+        {
+          symbol: "AAPL",
+          qty: "10",
+          unrealized_pl: "25.50",
+          asset_class: "us_equity",
+        },
+      ]),
+    );
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+    await expect(adapter.getPositions()).rejects.toMatchObject({
+      code: "BROKER_DATA",
+    });
+  });
+
+  it("allows explicit zero portfolio balance when present", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ portfolio_value: "0", buying_power: "0", cash: "0" }),
+    );
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+    await expect(adapter.getAccountBalance()).resolves.toBe(0);
+  });
+
+  it("throws BROKER_DATA when account balance fields are absent", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}));
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+    await expect(adapter.getAccountBalance()).rejects.toMatchObject({
+      code: "BROKER_DATA",
+    });
+  });
+});

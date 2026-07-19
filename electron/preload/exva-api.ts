@@ -541,6 +541,8 @@ export interface ExvaApi {
     send(input: {
       conversationId: string;
       message: string;
+      route?: string | null;
+      selectedSessionId?: string | null;
     }): Promise<{ turnId: string }>;
     confirm(input: {
       conversationId: string;

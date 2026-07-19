@@ -314,3 +314,67 @@ describe("KrakenAdapter", () => {
     });
   });
 });
+
+describe("KrakenAdapter money-field validation", () => {
+  const credentials = {
+    apiKey: "kraken-key",
+    apiSecret: Buffer.from("kraken-secret").toString("base64"),
+  };
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const u = String(url);
+        if (u.includes("/0/public/Ticker")) {
+          return Response.json({ error: [], result: { XXBTZUSD: {} } });
+        }
+        if (u.includes("/0/private/Balance")) {
+          return Response.json({ error: [], result: {} });
+        }
+        return Response.json({ error: ["Unknown endpoint"] });
+      }),
+    );
+  });
+
+  it("throws BROKER_DATA when ticker has no usable price", async () => {
+    const adapter = new KrakenAdapter(credentials, "live");
+    await expect(adapter.getMarketSnapshot("BTC/USD")).rejects.toMatchObject({
+      code: "BROKER_DATA",
+    });
+  });
+
+  it("throws BROKER_DATA when live balance response is empty", async () => {
+    const adapter = new KrakenAdapter(credentials, "live");
+    await expect(adapter.getAccountBalance()).rejects.toMatchObject({
+      code: "BROKER_DATA",
+    });
+  });
+
+  it("allows explicit zero ticker volume", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const u = String(url);
+        if (u.includes("/0/public/Ticker")) {
+          return Response.json({
+            error: [],
+            result: {
+              XXBTZUSD: {
+                c: ["50000.0", "0.1"],
+                b: ["49990.0", "1", "1"],
+                a: ["50010.0", "1", "1"],
+                v: ["0", "0"],
+              },
+            },
+          });
+        }
+        return Response.json({ error: ["Unknown endpoint"] });
+      }),
+    );
+    const adapter = new KrakenAdapter(credentials, "live");
+    const snap = await adapter.getMarketSnapshot("BTC/USD");
+    expect(snap.price).toBe(50000);
+    expect(snap.volume).toBe(0);
+  });
+});

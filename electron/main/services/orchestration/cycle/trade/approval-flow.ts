@@ -20,35 +20,38 @@ export function waitForApproval(
   const sessionStrategy = ctx.deps.strategyContextService.get(
     ctx.sessionId,
   ).timeframe;
-  const approval = ctx.deps.tradeApprovalsRepo.createPending({
-    sessionId: ctx.sessionId,
-    tradeId: trade.id,
-    brokerAccountId: resolvedBroker,
-    instrumentSymbol: trade.instrumentSymbol,
-    instrumentDisplayName: trade.instrumentDisplayName ?? null,
-    predictionOutcome: trade.predictionOutcome ?? null,
-    instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
-    instrumentClass,
-    proposedSide: trade.side,
-    proposedSizeUsd: trade.position_size_usd,
-    decisionSummaryJson: JSON.stringify({
-      confidence: trade.confidence_score,
-      reasoning: decisionOut.reasoning,
-      riskNote: riskNote ?? null,
-      sessionHorizon: {
-        primaryTradingTimeframe: sessionStrategy.primaryTradingTimeframe,
-        holdingStyle: sessionStrategy.holdingStyle,
-        targetHoldDays: sessionStrategy.targetHoldDays,
-        maxHoldDays: sessionStrategy.maxHoldDays,
-        timeframeNotes: sessionStrategy.timeframeNotes.trim() || undefined,
-      },
-    }),
-  });
-
-  ctx.deps.capitalReservation.reserveForApproval({
-    sessionId: ctx.sessionId,
-    approvalId: approval.id,
-    amountUsd: trade.position_size_usd,
+  // Approval row + capital reservation must commit together.
+  const approval = ctx.deps.tradeApprovalsRepo.runInTransaction(() => {
+    const pending = ctx.deps.tradeApprovalsRepo.createPending({
+      sessionId: ctx.sessionId,
+      tradeId: trade.id,
+      brokerAccountId: resolvedBroker,
+      instrumentSymbol: trade.instrumentSymbol,
+      instrumentDisplayName: trade.instrumentDisplayName ?? null,
+      predictionOutcome: trade.predictionOutcome ?? null,
+      instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
+      instrumentClass,
+      proposedSide: trade.side,
+      proposedSizeUsd: trade.position_size_usd,
+      decisionSummaryJson: JSON.stringify({
+        confidence: trade.confidence_score,
+        reasoning: decisionOut.reasoning,
+        riskNote: riskNote ?? null,
+        sessionHorizon: {
+          primaryTradingTimeframe: sessionStrategy.primaryTradingTimeframe,
+          holdingStyle: sessionStrategy.holdingStyle,
+          targetHoldDays: sessionStrategy.targetHoldDays,
+          maxHoldDays: sessionStrategy.maxHoldDays,
+          timeframeNotes: sessionStrategy.timeframeNotes.trim() || undefined,
+        },
+      }),
+    });
+    ctx.deps.capitalReservation.reserveForApproval({
+      sessionId: ctx.sessionId,
+      approvalId: pending.id,
+      amountUsd: trade.position_size_usd,
+    });
+    return pending;
   });
 
   ctx.deps.bus.emit("approval_required", {
@@ -82,8 +85,10 @@ export function failRecheck(
   approvalId: string,
   message: string,
 ): void {
-  ctx.deps.capitalReservation.releaseByApproval(approvalId);
-  const rejected = ctx.deps.tradesRepo.updateStatus(tradeId, "rejected", 0);
+  const rejected = ctx.deps.capitalReservation.runInTransaction(() => {
+    ctx.deps.capitalReservation.releaseByApproval(approvalId);
+    return ctx.deps.tradesRepo.updateStatus(tradeId, "rejected", 0);
+  });
   ctx.emitEvent("WARN", tradeId, message);
   ctx.deps.bus.emit("trade_closed", rejected);
 }

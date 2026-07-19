@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import type { ControlScopeKind } from "@/lib/exva";
 
+interface ControlUiContext {
+  route: string | null;
+  selectedSessionId: string | null;
+}
+
 interface ControlState {
   /** Conversation shared between the full page and the slide-over. */
   activeConversationId: string | null;
@@ -9,6 +14,8 @@ interface ControlState {
   pendingScope: { kind: ControlScopeKind; sessionId: string | null } | null;
   /** Per-conversation composer drafts (survives panel close). */
   draftsByConversationId: Record<string, string>;
+  /** Latest UI route + focused session, synced from App for control.send context. */
+  uiContext: ControlUiContext;
   setActiveConversation: (id: string | null) => void;
   openSlideOver: (scope?: {
     kind: ControlScopeKind;
@@ -17,6 +24,7 @@ interface ControlState {
   closeSlideOver: () => void;
   toggleSlideOver: () => void;
   clearPendingScope: () => void;
+  setUiContext: (ctx: ControlUiContext) => void;
   setDraft: (conversationId: string, text: string) => void;
   clearDraft: (conversationId: string) => void;
 }
@@ -26,12 +34,14 @@ export const useControlStore = create<ControlState>((set) => ({
   slideOverOpen: false,
   pendingScope: null,
   draftsByConversationId: {},
+  uiContext: { route: null, selectedSessionId: null },
   setActiveConversation: (id) => set({ activeConversationId: id }),
   openSlideOver: (scope) =>
     set({ slideOverOpen: true, pendingScope: scope ?? null }),
   closeSlideOver: () => set({ slideOverOpen: false }),
   toggleSlideOver: () => set((s) => ({ slideOverOpen: !s.slideOverOpen })),
   clearPendingScope: () => set({ pendingScope: null }),
+  setUiContext: (uiContext) => set({ uiContext }),
   setDraft: (conversationId, text) =>
     set((s) => ({
       draftsByConversationId: {

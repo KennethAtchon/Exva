@@ -7,8 +7,12 @@ import type { BrokerInteractionLogger } from "../broker-interaction-logger";
 import {
   brokerDataError,
   classifyHttpBrokerError,
+  finiteOrZero,
+  firstPositive,
+  optionalPositivePrice,
   requireFiniteNumber,
   requirePositivePrice,
+  softFinite,
 } from "../broker-errors";
 import {
   TRADIER_CAPABILITIES,
@@ -202,37 +206,21 @@ export class TradierAdapter implements BrokerAdapter {
         symbol: instrumentSymbol,
       });
     }
-    const asFinite = (value: unknown): number => {
-      if (value === undefined || value === null || value === "") {
-        return Number.NaN;
-      }
-      const n = typeof value === "number" ? value : Number(value);
-      return Number.isFinite(n) ? n : Number.NaN;
-    };
-    const last = asFinite(quote.last);
-    const bid = asFinite(quote.bid);
-    const ask = asFinite(quote.ask);
+    const last = softFinite(quote.last);
+    const bid = softFinite(quote.bid);
+    const ask = softFinite(quote.ask);
     const mid = bid > 0 && ask > 0 ? (bid + ask) / 2 : Number.NaN;
-    const priceCandidate =
-      last > 0
-        ? last
-        : mid > 0
-          ? mid
-          : bid > 0
-            ? bid
-            : ask > 0
-              ? ask
-              : undefined;
-    const price = requirePositivePrice(priceCandidate, "quote.last", {
-      broker: "tradier",
-      symbol: instrumentSymbol,
-    });
+    const price = requirePositivePrice(
+      firstPositive(last, mid, bid, ask),
+      "quote.last",
+      { broker: "tradier", symbol: instrumentSymbol },
+    );
     return {
       instrumentSymbol,
       instrumentDisplayName: quote.description ?? null,
       price,
-      bid: Number.isFinite(bid) && bid > 0 ? bid : undefined,
-      ask: Number.isFinite(ask) && ask > 0 ? ask : undefined,
+      bid: bid > 0 ? bid : undefined,
+      ask: ask > 0 ? ask : undefined,
       volume: quote.volume,
       timestamp: new Date().toISOString(),
     };
@@ -447,7 +435,11 @@ export class TradierAdapter implements BrokerAdapter {
       statusRaw === "cancelled" ||
       statusRaw === "expired" ||
       statusRaw === "rejected";
-    const price = Number(o.avg_fill_price ?? o.last_fill_price ?? 0) || null;
+    const price = optionalPositivePrice(
+      o.avg_fill_price ?? o.last_fill_price,
+      "order.avg_fill_price",
+      { orderId },
+    );
     return {
       brokerOrderId: String(o.id ?? orderId),
       status: closed ? "closed" : statusRaw ? "open" : "unknown",
@@ -461,6 +453,7 @@ export class TradierAdapter implements BrokerAdapter {
     if (status.status === "open") await this.cancelOrder(orderId);
     return {
       brokerOrderId: orderId,
+      // Cancel-only close: OrderStatus.realizedPnlUsd is null → CloseResult needs 0.
       realizedPnlUsd: status.realizedPnlUsd ?? 0,
     };
   }
@@ -496,14 +489,15 @@ export class TradierAdapter implements BrokerAdapter {
       }>("GET", `/v1/markets/history?${params}`);
       const days = data.history?.day ?? [];
       const list = Array.isArray(days) ? days : [days];
-      return list.slice(-barCount).map((d) => ({
-        ts: `${d.date}T00:00:00.000Z`,
-        open: Number(d.open ?? 0),
-        high: Number(d.high ?? 0),
-        low: Number(d.low ?? 0),
-        close: Number(d.close ?? 0),
-        volume: d.volume ?? null,
-      }));
+      return list
+        .slice(-barCount)
+        .map((d) =>
+          parseTradierOhlcvBar(
+            d,
+            d.date ? `${d.date}T00:00:00.000Z` : new Date().toISOString(),
+          ),
+        )
+        .filter((bar): bar is OhlcvBar => bar != null);
     }
 
     // Intraday: use timesales aggregated roughly by sampling.
@@ -525,14 +519,12 @@ export class TradierAdapter implements BrokerAdapter {
     }>("GET", `/v1/markets/timesales?${params}`);
     const rows = data.series?.data ?? [];
     const list = Array.isArray(rows) ? rows : [rows];
-    return list.slice(-barCount).map((d) => ({
-      ts: d.time ?? new Date().toISOString(),
-      open: Number(d.open ?? 0),
-      high: Number(d.high ?? 0),
-      low: Number(d.low ?? 0),
-      close: Number(d.close ?? 0),
-      volume: d.volume ?? null,
-    }));
+    return list
+      .slice(-barCount)
+      .map((d) =>
+        parseTradierOhlcvBar(d, d.time ?? new Date().toISOString()),
+      )
+      .filter((bar): bar is OhlcvBar => bar != null);
   }
 
   async getOptionChain(
@@ -573,18 +565,33 @@ export class TradierAdapter implements BrokerAdapter {
     );
     const opts = chain.options?.option ?? [];
     const list = Array.isArray(opts) ? opts : [opts];
-    return list.map((o) => ({
-      symbol: o.symbol ?? "",
-      type: o.option_type === "put" ? ("put" as const) : ("call" as const),
-      strike: Number(o.strike ?? 0),
-      expiry: o.expiration_date ?? expiry,
-      delta: o.greeks?.delta ?? null,
-      impliedVolatility: o.greeks?.mid_iv ?? null,
-      openInterest: Number(o.open_interest ?? 0),
-      dayVolume: Number(o.volume ?? 0),
-      bid: o.bid ?? null,
-      ask: o.ask ?? null,
-    }));
+    const contracts: OptionChainContract[] = [];
+    for (const o of list) {
+      if (!o.symbol) continue;
+      const details = { broker: "tradier", symbol: o.symbol };
+      try {
+        contracts.push({
+          symbol: o.symbol,
+          type: o.option_type === "put" ? ("put" as const) : ("call" as const),
+          strike: requirePositivePrice(o.strike, "option.strike", details),
+          expiry: o.expiration_date ?? expiry,
+          delta: o.greeks?.delta ?? null,
+          impliedVolatility: o.greeks?.mid_iv ?? null,
+          // Missing OI/volume defaults to 0 (valid; matches Alpaca chain posture).
+          openInterest: finiteOrZero(
+            o.open_interest,
+            "option.open_interest",
+            details,
+          ),
+          dayVolume: finiteOrZero(o.volume, "option.volume", details),
+          bid: o.bid ?? null,
+          ask: o.ask ?? null,
+        });
+      } catch {
+        // Skip contracts with invalid strike rather than inventing 0.
+      }
+    }
+    return contracts;
   }
 
   createOrderEventFeed(opts?: {
@@ -700,6 +707,35 @@ export class TradierAdapter implements BrokerAdapter {
     });
     if (response.status === 204) return undefined as T;
     return (await response.json()) as T;
+  }
+}
+
+function parseTradierOhlcvBar(
+  d: {
+    open?: number;
+    high?: number;
+    low?: number;
+    close?: number;
+    volume?: number;
+  },
+  ts: string,
+): OhlcvBar | null {
+  const details = { broker: "tradier" };
+  try {
+    return {
+      ts,
+      open: requirePositivePrice(d.open, "bar.open", details),
+      high: requirePositivePrice(d.high, "bar.high", details),
+      low: requirePositivePrice(d.low, "bar.low", details),
+      close: requirePositivePrice(d.close, "bar.close", details),
+      volume:
+        d.volume == null
+          ? null
+          : requireFiniteNumber(d.volume, "bar.volume", details),
+    };
+  } catch {
+    // Skip malformed bars rather than inventing zero prices.
+    return null;
   }
 }
 

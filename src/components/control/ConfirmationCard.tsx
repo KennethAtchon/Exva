@@ -28,7 +28,7 @@ export function ConfirmationCard({
   const deciding = item.status !== "awaiting_confirm";
   if (!confirm) return null;
 
-  const canAlwaysAllow = !confirm.alwaysConfirm && confirm.confirmClass != null;
+  const canAlwaysAllow = !confirm.alwaysConfirm;
   const riskIsLive = confirm.risk?.level === "live";
 
   return (
@@ -107,7 +107,7 @@ export function ConfirmationCard({
               onChange={(e) => setAlwaysApprove(e.target.checked)}
               disabled={deciding}
             />
-            Don&apos;t ask again for this action type
+            Don&apos;t ask again for this action
           </label>
         ) : null}
       </div>

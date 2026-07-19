@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/custom-ui";
 import { HelpTooltip } from "@/components/ui";
 import { EmptyState, PnL } from "@/components/ui/primitives";
+import { PanelLoading } from "@/components/ui/skeleton";
 import { api, type ExperienceScorecardSummary } from "@/lib/exva";
 import { formatPercent } from "@/lib/format";
 import { fmt } from "@/lib/formatters";
@@ -23,6 +24,7 @@ export function LeaderboardPage({
     [],
   );
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void api
@@ -30,7 +32,8 @@ export function LeaderboardPage({
       .then(setScorecards)
       .catch((e) =>
         setError(e instanceof Error ? e.message : "Failed to load scorecards"),
-      );
+      )
+      .finally(() => setLoading(false));
   }, []);
 
   const sorted = [...scorecards].sort(
@@ -56,7 +59,9 @@ export function LeaderboardPage({
         </div>
       ) : null}
 
-      {error ? (
+      {loading && scorecards.length === 0 && !error ? (
+        <PanelLoading rows={5} />
+      ) : error ? (
         <EmptyState message={error} />
       ) : sorted.length === 0 ? (
         <EmptyState message="No closed paper trades yet. Run real-data paper sessions to populate scorecards." />

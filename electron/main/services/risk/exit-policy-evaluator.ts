@@ -11,6 +11,10 @@ export interface ExitDecision {
 
 type OhlcvBar = { high: number; low: number; close: number };
 
+function isPositiveFinite(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
+}
+
 export interface ExitPolicyInput {
   trade: {
     id: string;
@@ -41,6 +45,10 @@ export class ExitPolicyEvaluator {
     const { stopLossType, stopLossPct, atrStopMultiplier, takeProfitPct } =
       riskConfig;
     const { entryPrice, side } = trade;
+    // Zero/NaN prices make stop/TP math meaningless (and can divide poorly upstream).
+    if (!isPositiveFinite(entryPrice) || !isPositiveFinite(currentPrice)) {
+      return { shouldExit: false };
+    }
     const isLong = side === "BUY";
 
     // Take-profit checked first — more favorable exit takes priority
