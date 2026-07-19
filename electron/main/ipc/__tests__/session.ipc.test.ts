@@ -208,4 +208,27 @@ describe("session IPC handlers", () => {
 
     expect(error.message.length).toBeGreaterThan(0);
   });
+
+  it("session:go-global clears focus when called with no payload (regression: preload used to send { mode: 'global' } against a strict no-payload schema)", async () => {
+    const session = createMinimalSession(db);
+    harness.services.repos.session.setFocus(session.id);
+
+    const result = await invokeIpc<{
+      workspaceViewMode: "global";
+      focusedSessionId: null;
+    }>(channels.session.goGlobal);
+
+    expect(result).toEqual({
+      workspaceViewMode: "global",
+      focusedSessionId: null,
+    });
+  });
+
+  it("session:go-global rejects a payload with extra keys", async () => {
+    const error = await invokeIpcError(channels.session.goGlobal, {
+      mode: "global",
+    });
+
+    expect(error.code).toBe("INVALID_PAYLOAD");
+  });
 });

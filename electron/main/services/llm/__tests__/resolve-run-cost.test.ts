@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   extractDirectProviderReportedCost,
+  extractOpenRouterRawResponseCost,
   extractOpenRouterReportedCost,
   extractProviderReportedCost,
   resolveRunCostUsd,
@@ -92,5 +93,24 @@ describe("resolveRunCostUsd", () => {
       costUsd: 0.0315,
       costSource: "provider",
     });
+  });
+
+  it("extracts cost from a raw OpenRouter chat-completion response body (regression: cost telemetry used to always fall back to estimates)", () => {
+    expect(
+      extractOpenRouterRawResponseCost({
+        id: "gen-123",
+        usage: {
+          prompt_tokens: 500,
+          completion_tokens: 120,
+          total_tokens: 620,
+          cost: 0.00034,
+        },
+      }),
+    ).toBe(0.00034);
+  });
+
+  it("returns null when the raw response has no usage.cost", () => {
+    expect(extractOpenRouterRawResponseCost({ id: "gen-123" })).toBeNull();
+    expect(extractOpenRouterRawResponseCost(null)).toBeNull();
   });
 });

@@ -13,6 +13,32 @@ export interface PortfolioValueResult {
 export class SessionService {
   constructor(private readonly deps: SessionLifecycleDeps) {}
 
+  // Per-session lifecycle lock: start/pause/resume/stop/forceStop all read
+  // session.status then mutate it. Without serialization, two overlapping
+  // calls for the same session both read the stale pre-transition status and
+  // both pass assertTransition — e.g. a pause() and a stop() racing produced
+  // both "Session paused." and "Session stopped." events for one teardown
+  // (docs/reviews/2026-07-19-overnight-stress-session-review.md, secondary
+  // problem 7). Chaining onto this map forces the second call to wait for
+  // the first to commit its status before assertTransition runs.
+  private readonly lifecycleLocks = new Map<string, Promise<unknown>>();
+
+  private withLifecycleLock<T>(
+    sessionId: string,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    const prior = this.lifecycleLocks.get(sessionId) ?? Promise.resolve();
+    const run = prior.then(fn, fn);
+    this.lifecycleLocks.set(
+      sessionId,
+      run.then(
+        () => undefined,
+        () => undefined,
+      ),
+    );
+    return run;
+  }
+
   getStatus(sessionId?: string): SessionStatus {
     return this.deps.sessionRepo.getStatus(sessionId);
   }
@@ -20,12 +46,16 @@ export class SessionService {
   async start(
     sessionId = this.deps.sessionRepo.getFocusedSessionId(),
   ): Promise<SessionStatus> {
+    return this.withLifecycleLock(sessionId, () => this.startImpl(sessionId));
+  }
+
+  private async startImpl(sessionId: string): Promise<SessionStatus> {
     const session = this.deps.sessionRepo.requireById(sessionId);
     if (
       session.status === "paused" ||
       session.status === "attention_required"
     ) {
-      return this.resume(sessionId);
+      return this.resumeImpl(sessionId);
     }
     this.assertTransition(session.status, "active");
 
@@ -78,6 +108,10 @@ export class SessionService {
   async pause(
     sessionId = this.deps.sessionRepo.getFocusedSessionId(),
   ): Promise<SessionStatus> {
+    return this.withLifecycleLock(sessionId, () => this.pauseImpl(sessionId));
+  }
+
+  private async pauseImpl(sessionId: string): Promise<SessionStatus> {
     const session = this.deps.sessionRepo.requireById(sessionId);
     this.assertTransition(session.status, "paused");
     await this.deps.runtimeManager.pauseSession(sessionId);
@@ -88,6 +122,10 @@ export class SessionService {
   async resume(
     sessionId = this.deps.sessionRepo.getFocusedSessionId(),
   ): Promise<SessionStatus> {
+    return this.withLifecycleLock(sessionId, () => this.resumeImpl(sessionId));
+  }
+
+  private async resumeImpl(sessionId: string): Promise<SessionStatus> {
     const session = this.deps.sessionRepo.requireById(sessionId);
     this.assertTransition(session.status, "active");
     await this.deps.runtimeManager.resumeSession(sessionId);
@@ -99,6 +137,10 @@ export class SessionService {
   async stop(
     sessionId = this.deps.sessionRepo.getFocusedSessionId(),
   ): Promise<SessionStatus> {
+    return this.withLifecycleLock(sessionId, () => this.stopImpl(sessionId));
+  }
+
+  private async stopImpl(sessionId: string): Promise<SessionStatus> {
     const session = this.deps.sessionRepo.requireById(sessionId);
     const openTradeCount = countOpenTrades(this.deps.tradesRepo, sessionId);
     if (openTradeCount > 0) {
@@ -121,6 +163,12 @@ export class SessionService {
   async forceStop(
     sessionId = this.deps.sessionRepo.getFocusedSessionId(),
   ): Promise<SessionStatus> {
+    return this.withLifecycleLock(sessionId, () =>
+      this.forceStopImpl(sessionId),
+    );
+  }
+
+  private async forceStopImpl(sessionId: string): Promise<SessionStatus> {
     const session = this.deps.sessionRepo.requireById(sessionId);
     const openTradeCount = countOpenTrades(this.deps.tradesRepo, sessionId);
     this.assertTransition(session.status, "stopped");

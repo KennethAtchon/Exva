@@ -1,11 +1,12 @@
 import { desc, eq, and } from "drizzle-orm";
 import type { DbClient } from "../../db/client";
-import { sessionExecutionSteps } from "../../db/schema";
+import { sessionExecutionSteps, sessionSignalDeliveries } from "../../db/schema";
 import type { EventBus } from "../infra/event-bus";
 import type { SessionInputSubscriptionRepo } from "../session-inputs/session-input-subscription-repo";
 import type { SourceDefinitionRepo } from "../signals/source-definition-repo";
 import type { SignalSourcesRepo } from "../signals/repos/signal-sources-repo";
 import type { SignalSourceRegistry } from "../signals/signal-source-registry";
+import type { MarketCalendarRegistry } from "../scheduling/market-calendar-registry";
 import type { SessionActivityRepo } from "../../db/repositories/sessions/session-activity-repo";
 import type {
   SessionActivityCondition,
@@ -17,9 +18,27 @@ import { createLogger } from "../infra/log";
 
 const logger = createLogger("session-activity-tracker");
 
+const NEXT_OPEN_STEP_MS = 15 * 60 * 1000;
+const NEXT_OPEN_MAX_STEPS = 8 * 24 * 4; // 8 days of 15-min steps
+
+/** Step forward until every given calendar reports open, or give up after 8 days. */
+function findNextOpen(
+  calendars: Array<{ isOpen(now?: Date): boolean }>,
+  from: Date,
+): Date | null {
+  let candidate = new Date(from.getTime() + NEXT_OPEN_STEP_MS);
+  for (let i = 0; i < NEXT_OPEN_MAX_STEPS; i++) {
+    if (calendars.every((cal) => cal.isOpen(candidate))) return candidate;
+    candidate = new Date(candidate.getTime() + NEXT_OPEN_STEP_MS);
+  }
+  return null;
+}
+
 const SWEEP_INTERVAL_MS = 60_000;
 /** Consecutive no-trade selector cycles before flagging selector_rejecting_all. */
 const SELECTOR_REJECT_THRESHOLD = 3;
+/** Grace period after session start before "nothing has happened" is worth flagging. */
+const NO_SIGNAL_STALE_GRACE_MS = 30 * 60 * 1000;
 
 export interface SessionActivityTrackerDeps {
   activityRepo: SessionActivityRepo;
@@ -27,7 +46,14 @@ export interface SessionActivityTrackerDeps {
   sourceDefinitionRepo: SourceDefinitionRepo;
   signalSourcesRepo: SignalSourcesRepo;
   signalRegistry: Pick<SignalSourceRegistry, "status">;
-  sessionRepo: { list(input?: { includeArchived?: boolean }): Array<{ id: string; status: string }> };
+  calendarRegistry: Pick<MarketCalendarRegistry, "get">;
+  sessionRepo: {
+    list(input?: { includeArchived?: boolean }): Array<{
+      id: string;
+      status: string;
+      createdAt: string;
+    }>;
+  };
   db: DbClient;
   bus: EventBus;
   /** Called on first occurrence of a WARN/ERROR condition. */
@@ -147,6 +173,96 @@ export class SessionActivityTracker {
     for (const session of sessions) {
       this.sweepInputSourceDead(session.id);
       this.sweepSelectorRejectingAll(session.id);
+      this.sweepNoSignalStale(session);
+      this.sweepMarketClosed(session.id);
+    }
+  }
+
+  /**
+   * Non-alarming info condition: a scheduled-scan session sitting idle
+   * because the market it trades is closed, not because anything is
+   * broken (acceptance criterion 2, docs/feature-requests/
+   * session-activity-indicator.md). schedule-coordinator.ts already skips
+   * ticks silently while closed — this just makes that visible.
+   */
+  private sweepMarketClosed(sessionId: string): void {
+    const scheduledSubs = this.deps.subscriptionRepo
+      .listEnabledBySession(sessionId)
+      .filter((s) => s.mode === "scheduled_scan");
+
+    if (scheduledSubs.length === 0) {
+      this.clearCondition(sessionId, "market_closed");
+      return;
+    }
+
+    const now = new Date();
+    const closedCalendars = scheduledSubs
+      .map((sub) => this.deps.calendarRegistry.get(sub.marketCalendarId))
+      .filter((cal): cal is NonNullable<typeof cal> => cal !== null);
+
+    const allClosed =
+      closedCalendars.length > 0 &&
+      closedCalendars.every((cal) => !cal.isOpen(now));
+
+    if (!allClosed) {
+      this.clearCondition(sessionId, "market_closed");
+      return;
+    }
+
+    const nextOpenAt = findNextOpen(closedCalendars, now);
+    const when = nextOpenAt
+      ? new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/New_York",
+          weekday: "short",
+          hour: "numeric",
+          minute: "2-digit",
+          timeZoneName: "short",
+        }).format(nextOpenAt)
+      : "next session";
+    this.reportCondition(
+      sessionId,
+      "market_closed",
+      "info",
+      `Market closed — resumes ${when}.`,
+    );
+  }
+
+  /**
+   * Secondary problem 2: no zero-activity watchdog. A session can sit
+   * `active` for hours with zero execution cycles and zero signals
+   * delivered and nothing ever says so. Absence of activity is itself the
+   * signal here — an event stream structurally can't emit "nothing happened".
+   */
+  private sweepNoSignalStale(session: { id: string; createdAt: string }): void {
+    const ageMs = Date.now() - Date.parse(session.createdAt);
+    if (!Number.isFinite(ageMs) || ageMs < NO_SIGNAL_STALE_GRACE_MS) {
+      this.clearCondition(session.id, "no_signal_stale");
+      return;
+    }
+
+    const stepCount = this.deps.db.db
+      .select()
+      .from(sessionExecutionSteps)
+      .where(eq(sessionExecutionSteps.sessionId, session.id))
+      .limit(1)
+      .all().length;
+    const deliveryCount = this.deps.db.db
+      .select()
+      .from(sessionSignalDeliveries)
+      .where(eq(sessionSignalDeliveries.sessionId, session.id))
+      .limit(1)
+      .all().length;
+
+    if (stepCount === 0 && deliveryCount === 0) {
+      const hours = Math.floor(ageMs / (60 * 60 * 1000));
+      this.reportCondition(
+        session.id,
+        "no_signal_stale",
+        "warn",
+        `Session has consumed no input and run no execution cycle in ${hours >= 1 ? `${hours}h` : "30m"} since start.`,
+      );
+    } else {
+      this.clearCondition(session.id, "no_signal_stale");
     }
   }
 

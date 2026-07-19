@@ -76,19 +76,54 @@ function pruneOldLogFiles(logDir: string, retentionDays: number): void {
   }
 }
 
+function logFilePathFor(logDir: string, dateString: string): string {
+  return path.join(logDir, `${LOG_PREFIX}${dateString}${LOG_SUFFIX}`);
+}
+
+/**
+ * The destination filename used to be computed once at process boot, so a
+ * long-running process kept writing to the boot day's file forever — the
+ * 7-day retention prune never applied to the active file (secondary problem
+ * 8, docs/reviews/2026-07-19-overnight-stress-session-review.md). This
+ * re-opens the underlying file destination whenever the local date changes.
+ */
+export function createRotatingFileStream(
+  logDir: string,
+): { write(chunk: string): void } {
+  let currentDateString = toLocalDateString(new Date());
+  let dest = pino.destination({
+    dest: logFilePathFor(logDir, currentDateString),
+    mkdir: true,
+    sync: false,
+  });
+
+  return {
+    write(chunk: string): void {
+      const todayDateString = toLocalDateString(new Date());
+      if (todayDateString !== currentDateString) {
+        currentDateString = todayDateString;
+        dest.end();
+        dest = pino.destination({
+          dest: logFilePathFor(logDir, currentDateString),
+          mkdir: true,
+          sync: false,
+        });
+        pruneOldLogFiles(logDir, LOG_RETENTION_DAYS);
+      }
+      dest.write(chunk);
+    },
+  };
+}
+
 function createBaseLogger(): Logger {
   const logDir = resolveLogDir();
   fs.mkdirSync(logDir, { recursive: true });
   pruneOldLogFiles(logDir, LOG_RETENTION_DAYS);
 
-  const logFilePath = path.join(
-    logDir,
-    `${LOG_PREFIX}${toLocalDateString(new Date())}${LOG_SUFFIX}`,
-  );
   const streams = pino.multistream([
     { stream: process.stdout, level: env.logLevel },
     {
-      stream: pino.destination({ dest: logFilePath, mkdir: true, sync: false }),
+      stream: createRotatingFileStream(logDir),
       level: env.logLevel,
     },
   ]);

@@ -12,6 +12,7 @@ import { executeRunAgent } from "./run-agent-execute";
 import { buildOpenRouterReasoningOptions } from "./reasoning-options";
 import type { LLMCallTrace } from "../llm-types";
 import { safeJsonParse } from "../../infra/safe-json-parse";
+import { extractOpenRouterRawResponseCost } from "../resolve-run-cost";
 
 function readUsage(
   usage:
@@ -41,16 +42,25 @@ export class OpenRouterAdapter implements ProviderAdapter {
     private readonly baseUrl?: string,
   ) {}
 
+  /**
+   * `costPromises`, when supplied, collects one settled promise per HTTP
+   * response with OpenRouter's actual per-request USD cost (or null if
+   * absent) — a single agent run can issue several requests across
+   * tool-calling steps, so callers await + sum them all. Without requesting
+   * `usage.include`, OpenRouter omits cost data and every run falls back to
+   * the pricing-table estimate (docs/reviews/2026-07-19-overnight-stress-
+   * session-review.md, secondary problem 4).
+   */
   private async createClient(
     reasoning?: ReturnType<typeof buildOpenRouterReasoningOptions>,
+    costPromises?: Array<Promise<number | null>>,
   ): Promise<OpenAIProvider> {
     const { createOpenAI } = await import("@ai-sdk/openai");
     const opts: OpenAIProviderSettings = {
       apiKey: this.apiKey,
       baseURL: this.baseUrl?.trim() || OpenRouterAdapter.DEFAULT_BASE_URL,
-    };
-    if (reasoning) {
-      opts.fetch = async (url, init) => {
+      fetch: async (url, init) => {
+        let patchedInit = init;
         if (init?.body && typeof init.body === "string") {
           const body = safeJsonParse<Record<string, unknown>>(
             init.body,
@@ -58,13 +68,29 @@ export class OpenRouterAdapter implements ProviderAdapter {
             "openrouter-adapter.fetch.body",
           );
           if (body) {
-            body.reasoning = reasoning;
-            return fetch(url, { ...init, body: JSON.stringify(body) });
+            body.usage = {
+              ...(body.usage as Record<string, unknown> | undefined),
+              include: true,
+            };
+            if (reasoning) body.reasoning = reasoning;
+            patchedInit = { ...init, body: JSON.stringify(body) };
           }
         }
-        return fetch(url, init);
-      };
-    }
+        const response = await fetch(url, patchedInit);
+        if (costPromises && response?.ok) {
+          // Read the actual cost out-of-band via a clone — never let cost
+          // extraction affect the response body the AI SDK consumes.
+          costPromises.push(
+            response
+              .clone()
+              .json()
+              .then((json: unknown) => extractOpenRouterRawResponseCost(json))
+              .catch(() => null),
+          );
+        }
+        return response;
+      },
+    };
     return createOpenAI(opts);
   }
 
@@ -72,8 +98,9 @@ export class OpenRouterAdapter implements ProviderAdapter {
     opts: AgentRunOptions<T>,
   ): Promise<LLMCallTrace<T>> {
     const reasoning = buildOpenRouterReasoningOptions(opts.reasoningLevel);
-    const client = await this.createClient(reasoning);
-    return executeRunAgent({
+    const costPromises: Array<Promise<number | null>> = [];
+    const client = await this.createClient(reasoning, costPromises);
+    const trace = await executeRunAgent({
       model: client.chat(opts.model),
       modelId: opts.model,
       providerType: this.providerType,
@@ -96,6 +123,19 @@ export class OpenRouterAdapter implements ProviderAdapter {
       prepareStep: opts.prepareStep,
       onTextDelta: opts.onTextDelta,
     });
+
+    // Reporting-only: this never affects spend-limit gating, which already
+    // ran inside executeRunAgent against the best estimate available at call
+    // time. It only replaces the persisted/logged cost with the real one.
+    const costs = await Promise.all(costPromises);
+    const knownCosts = costs.filter((c): c is number => c != null);
+    if (knownCosts.length > 0) {
+      trace.costUsd = Number(
+        knownCosts.reduce((sum, c) => sum + c, 0).toFixed(6),
+      );
+      trace.costSource = "provider";
+    }
+    return trace;
   }
 
   async generateText(opts: GenerateTextOptions): Promise<GenerateResult> {

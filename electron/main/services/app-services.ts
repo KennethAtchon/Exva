@@ -959,8 +959,19 @@ export async function createAppServices(app: App): Promise<AppServices> {
     fundingRates: fundingRatesRepo,
     form4Transactions: form4TransactionsRepo,
     crossVenueLinks: crossVenueLinksRepo,
+    // reason: no session ever subscribes to these alpha-scan groupKeys yet —
+    // there is no fanout resolver for them, unlike scheduled strategy scans.
+    // Calling ingestScheduledGroupHit with an always-empty subscriber list
+    // wrote a signal_events row on every hit only to immediately mark it
+    // dropped_pre_fanout/no_subscribers forever — wasted writes and a
+    // misleading signal log (secondary problem 5, docs/reviews/
+    // 2026-07-19-overnight-stress-session-review.md). Log instead until
+    // real subscriptions exist for these sources.
     emitSignals: async (signals, groupKey) => {
-      await signalBus.ingestScheduledGroupHit(signals, groupKey, []);
+      logger.info(
+        { groupKey, count: signals.length },
+        "alpha source scan produced candidates with no subscribers configured; skipping fanout",
+      );
     },
   });
   alphaSourceScans.start();
@@ -1035,6 +1046,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sourceDefinitionRepo: new SourceDefinitionRepo(db),
     signalSourcesRepo,
     signalRegistry,
+    calendarRegistry,
     sessionRepo: repos.session,
     db,
     bus: eventBus,

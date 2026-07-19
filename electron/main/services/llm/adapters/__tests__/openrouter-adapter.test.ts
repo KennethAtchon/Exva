@@ -62,10 +62,13 @@ describe("OpenRouterAdapter", () => {
       outputTokens: 3,
       durationMs: expect.any(Number),
     });
-    expect(createOpenAIMock).toHaveBeenCalledWith({
-      apiKey: "sk-or-test",
-      baseURL: "https://openrouter.ai/api/v1",
-    });
+    expect(createOpenAIMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: "sk-or-test",
+        baseURL: "https://openrouter.ai/api/v1",
+        fetch: expect.any(Function),
+      }),
+    );
     expect(generateTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: { provider: "openrouter", modelId: "google/gemma-4-31b-it" },
@@ -173,10 +176,58 @@ describe("OpenRouterAdapter", () => {
       expect.objectContaining({
         body: JSON.stringify({
           model: "google/gemma-4-31b-it",
+          usage: { include: true },
           reasoning: { effort: "medium" },
         }),
       }),
     );
+  });
+
+  it("requests usage.include on every OpenRouter call and folds the real cost into the trace", async () => {
+    createOpenAIMock.mockImplementation((opts: { fetch?: typeof fetch }) => {
+      if (opts.fetch) {
+        void opts.fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          body: JSON.stringify({ model: "google/gemma-4-31b-it" }),
+        });
+      }
+      return { chat: chatMock };
+    });
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "gen-1",
+          usage: { prompt_tokens: 10, completion_tokens: 5, cost: 0.00042 },
+        }),
+        { status: 200 },
+      ),
+    );
+    executeRunAgentMock.mockResolvedValue({
+      text: "done",
+      steps: [],
+      costUsd: 0.01,
+      costSource: "estimated",
+    });
+    const { OpenRouterAdapter } = await import("../openrouter-adapter");
+    const adapter = new OpenRouterAdapter("sk-or-test");
+
+    const trace = await adapter.runAgent({
+      model: "google/gemma-4-31b-it",
+      messages: [{ role: "user", content: "hi" }],
+      maxSteps: 1,
+      spendLimitUsd: 1,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://openrouter.ai/api/v1/chat/completions",
+      expect.objectContaining({
+        body: JSON.stringify({
+          model: "google/gemma-4-31b-it",
+          usage: { include: true },
+        }),
+      }),
+    );
+    expect(trace).toMatchObject({ costUsd: 0.00042, costSource: "provider" });
   });
 
   it("rewrites misleading OpenAI auth errors in testConnection", async () => {

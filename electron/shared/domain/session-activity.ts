@@ -8,6 +8,8 @@ export type SessionActivitySeverity = "info" | "attention" | "warn" | "error";
 export type SessionActivityConditionKind =
   | "cycle_running"
   | "waiting_signal"
+  | "market_closed"
+  | "no_signal_stale"
   | "input_source_dead"
   | "data_feed_failing"
   | "calendar_misconfigured"

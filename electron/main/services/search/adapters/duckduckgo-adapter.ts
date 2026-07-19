@@ -103,11 +103,57 @@ function parseResults(html: string): ParsedResult[] {
   return results.slice(0, 5);
 }
 
+const MAX_FETCH_ATTEMPTS = 3;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Transient failure — worth a short backoff-and-retry before giving up. */
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+/**
+ * DuckDuckGo's unauthenticated HTML endpoint has no SLA and rate-limits
+ * aggressively under concurrent worker load — the 2026-07-19 overnight
+ * stress run saw a ~49% error rate here (docs/reviews/2026-07-19-overnight-
+ * stress-session-review.md, secondary problem 9). A short retry with
+ * backoff absorbs most transient 429/5xx blips before the caller falls back
+ * to a different search provider.
+ */
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  maxAttempts = MAX_FETCH_ATTEMPTS,
+): Promise<Response> {
+  let lastResponse: Response | null = null;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(url, init);
+      if (response.ok || !isRetryableStatus(response.status)) {
+        return response;
+      }
+      lastResponse = response;
+    } catch (err) {
+      lastError = err;
+    }
+    if (attempt < maxAttempts) {
+      await sleep(250 * attempt);
+    }
+  }
+  // Prefer surfacing the last non-ok response (so callers' status-code
+  // handling still fires) over a raw network error from an earlier attempt.
+  if (lastResponse) return lastResponse;
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
 export class DuckDuckGoAdapter implements SearchAdapter {
   readonly providerType = "duckduckgo" as const;
 
   async search(query: string): Promise<SearchToolResult> {
-    const response = await fetch(
+    const response = await fetchWithRetry(
       `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
       {
         headers: {

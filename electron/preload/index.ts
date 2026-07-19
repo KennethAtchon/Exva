@@ -127,7 +127,7 @@ const exva: ExvaApi = {
     create: (input) => invoke(channels.session.create, input),
     update: (id, input) => invoke(channels.session.update, { id, input }),
     focus: (id) => invoke(channels.session.focus, { id }),
-    goGlobal: () => invoke(channels.session.goGlobal, { mode: "global" }),
+    goGlobal: () => invoke(channels.session.goGlobal),
     archive: (id) => invoke(channels.session.archive, { id }),
     duplicate: (sourceId, name) =>
       invoke(channels.session.duplicate, { sourceId, name }),

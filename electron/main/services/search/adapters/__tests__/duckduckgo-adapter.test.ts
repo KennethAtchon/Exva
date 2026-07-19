@@ -91,6 +91,37 @@ describe("DuckDuckGoAdapter", () => {
     });
   });
 
+  it("retries a transient 429/5xx and succeeds on a later attempt (regression: ~49% error rate on 2026-07-19 with no retry)", async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response("", { status: 429 }))
+      .mockResolvedValueOnce(new Response("", { status: 503 }))
+      .mockResolvedValueOnce(
+        new Response(SAMPLE_HTML, {
+          status: 200,
+          headers: { "Content-Type": "text/html" },
+        }),
+      );
+    const { DuckDuckGoAdapter } = await import("../duckduckgo-adapter");
+    const adapter = new DuckDuckGoAdapter();
+
+    const result = await adapter.search("nvda earnings");
+
+    expect(result.results).toHaveLength(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not retry a non-retryable client error", async () => {
+    fetchMock.mockResolvedValue(new Response("", { status: 400 }));
+    const { DuckDuckGoAdapter } = await import("../duckduckgo-adapter");
+    const adapter = new DuckDuckGoAdapter();
+
+    await expect(adapter.search("bad-request")).rejects.toMatchObject({
+      code: "PROVIDER_UNREACHABLE",
+      message: "DuckDuckGo search failed with 400",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("reports testConnection success when search succeeds", async () => {
     fetchMock.mockResolvedValue(
       new Response(SAMPLE_HTML, {

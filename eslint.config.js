@@ -210,7 +210,11 @@ export default tseslint.config(
     },
   },
   {
-    files: ["electron/main/services/infra/log.ts", "electron/shared/logger.ts"],
+    files: [
+      "electron/main/services/infra/log.ts",
+      "electron/main/services/infra/__tests__/log.test.ts",
+      "electron/shared/logger.ts",
+    ],
     rules: {
       "no-restricted-imports": "off",
     },

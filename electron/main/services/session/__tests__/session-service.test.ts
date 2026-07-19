@@ -86,6 +86,42 @@ describe("SessionService stop guards", () => {
     await expect(service.stop("session-1")).resolves.toBe("stopped");
     expect(stopSession).toHaveBeenCalledWith("session-1");
   });
+
+  it("serializes concurrent lifecycle calls instead of racing (regression: STRESS-POLY logged both 'Session stopped.' and 'Session paused.' for one teardown)", async () => {
+    let status: "active" | "stopped" = "active";
+    const service = new SessionService({
+      sessionRepo: {
+        requireById: () => ({ id: "session-1", status }),
+        getStatus: () => status,
+        getFocusedSessionId: () => "session-1",
+      },
+      tradesRepo: emptyTradesRepo,
+      eventsRepo: { insert: vi.fn() },
+      runtimeManager: {
+        stopSession: vi.fn(async () => {
+          // Yield so a second concurrent call would race in without the lock.
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          status = "stopped";
+        }),
+      },
+    } as never);
+
+    const results = await Promise.allSettled([
+      service.stop("session-1"),
+      service.stop("session-1"),
+    ]);
+
+    const fulfilled = results.filter((r) => r.status === "fulfilled");
+    const rejected = results.filter((r) => r.status === "rejected");
+    // Without serialization both calls read the stale "active" status and
+    // both commit a transition. With the lock, only the first can succeed —
+    // the second observes "stopped" and is rejected as INVALID_TRANSITION.
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({
+      code: "INVALID_TRANSITION",
+    });
+  });
 });
 
 describe("SessionService.getPortfolioValue", () => {

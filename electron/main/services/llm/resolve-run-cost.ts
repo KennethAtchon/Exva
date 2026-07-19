@@ -43,6 +43,19 @@ export function extractDirectProviderReportedCost(
   return null;
 }
 
+/**
+ * OpenRouter returns actual per-request cost as a top-level `usage.cost`
+ * field on the raw chat-completion response body — but only when the
+ * request opts in with `usage: { include: true }`. The AI SDK's generic
+ * OpenAI-compatible client (@ai-sdk/openai) doesn't know this field exists,
+ * so it never reaches `providerMetadata`; callers must read the raw fetch
+ * response JSON directly (see openrouter-adapter.ts's fetch override).
+ */
+export function extractOpenRouterRawResponseCost(json: unknown): number | null {
+  if (!json || typeof json !== "object") return null;
+  return readUsageCost((json as Record<string, unknown>).usage);
+}
+
 export function extractProviderReportedCost(
   providerMetadata: unknown,
   providerType?: string,
