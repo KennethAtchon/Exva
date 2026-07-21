@@ -5,7 +5,11 @@ import type { MarketSignal } from "@electron/shared/domain/market-signal";
 import { cadenceToMs } from "@electron/shared/domain/experience-inputs/cadence";
 import type { MarketCalendarRegistry } from "./market-calendar-registry";
 import type { ScheduledRuntimePlan } from "./session-input-runtime-planner";
-import type { ScheduledStrategyExecutor } from "./scheduled-strategy-executor";
+import {
+  isAllInstrumentsUnevaluable,
+  summarizeScanExecution,
+  type ScheduledStrategyExecutor,
+} from "./scheduled-strategy-executor";
 import { createLogger } from "../infra/log";
 
 const logger = createLogger("schedule-coordinator");
@@ -73,6 +77,7 @@ interface GroupEntry {
   lastFinishedAt: string | null;
   lastSuccessAt: string | null;
   lastDurationMs: number | null;
+  lastScanSummaryJson: string;
   nextRunAt: string | null;
 }
 
@@ -108,6 +113,7 @@ export class ScheduleCoordinator {
     this.running = true;
     for (const entry of this.groups.values()) {
       this.arm(entry);
+      this.persistState(entry);
     }
   }
 
@@ -148,12 +154,16 @@ export class ScheduleCoordinator {
           lastFinishedAt: null,
           lastSuccessAt: null,
           lastDurationMs: null,
+          lastScanSummaryJson: "{}",
           nextRunAt: null,
         };
         this.groups.set(groupKey, entry);
         // Restore persisted state (if any).
         this.restoreState(entry);
-        if (this.running) this.arm(entry);
+        if (this.running) {
+          this.arm(entry);
+          this.persistState(entry);
+        }
       } else {
         // Check if subscription list changed (plan parameters are the same
         // since groupKey is a hash of them, but subscriptionIds can grow).
@@ -259,6 +269,8 @@ export class ScheduleCoordinator {
       void this.fire(entry).then(() => {
         if (this.running && this.groups.has(entry.plan.groupKey)) {
           this.arm(entry);
+          // Persist the newly armed nextRunAt — fire() only saved the prior tick.
+          this.persistState(entry);
         }
       });
     }, delay);
@@ -301,14 +313,16 @@ export class ScheduleCoordinator {
     const startMs = Date.now();
 
     try {
-      const signals = await this.deps.executor.execute(entry.plan);
+      const result = await this.deps.executor.execute(entry.plan);
+      const summary = summarizeScanExecution(result);
+      entry.lastScanSummaryJson = JSON.stringify(summary);
 
-      if (signals.length > 0) {
+      if (result.signals.length > 0) {
         const subscriptions = this.deps.resolveScheduledFanout(
           entry.plan.subscriptionIds,
         );
         await this.deps.emitSignals(
-          signals,
+          result.signals,
           entry.plan.groupKey,
           subscriptions,
         );
@@ -316,16 +330,36 @@ export class ScheduleCoordinator {
 
       const now = new Date().toISOString();
       entry.lastFinishedAt = now;
-      entry.lastSuccessAt = now;
       entry.lastDurationMs = Date.now() - startMs;
-      entry.consecutiveFailures = 0;
-      entry.lastError = null;
+
+      if (isAllInstrumentsUnevaluable(result)) {
+        entry.consecutiveFailures += 1;
+        entry.lastError = `All instruments unevaluable: ${JSON.stringify(summary.counts)}`;
+        logger.warn(
+          {
+            groupKey: entry.plan.groupKey,
+            failures: entry.consecutiveFailures,
+            summary,
+          },
+          "schedule scan produced no evaluable instruments",
+        );
+      } else {
+        entry.lastSuccessAt = now;
+        entry.consecutiveFailures = 0;
+        entry.lastError = null;
+      }
     } catch (err) {
       const now = new Date().toISOString();
       entry.lastFinishedAt = now;
       entry.lastDurationMs = Date.now() - startMs;
       entry.consecutiveFailures += 1;
       entry.lastError = err instanceof Error ? err.message : String(err);
+      entry.lastScanSummaryJson = JSON.stringify({
+        signalCount: 0,
+        instrumentCount: 0,
+        counts: { thrown: 1 },
+        error: entry.lastError,
+      });
       logger.error(
         {
           groupKey: entry.plan.groupKey,
@@ -357,6 +391,7 @@ export class ScheduleCoordinator {
       lastDurationMs: entry.lastDurationMs,
       consecutiveFailures: entry.consecutiveFailures,
       lastError: entry.lastError,
+      lastScanSummaryJson: entry.lastScanSummaryJson,
       subscriptionIdsJson: JSON.stringify(entry.plan.subscriptionIds),
       instrumentCount: entry.plan.subscriptionIds.length,
       updatedAt: now,
@@ -385,6 +420,7 @@ export class ScheduleCoordinator {
     entry.lastFinishedAt = row.lastFinishedAt;
     entry.lastSuccessAt = row.lastSuccessAt;
     entry.lastDurationMs = row.lastDurationMs;
+    entry.lastScanSummaryJson = row.lastScanSummaryJson ?? "{}";
     entry.nextRunAt = row.nextRunAt;
   }
 }

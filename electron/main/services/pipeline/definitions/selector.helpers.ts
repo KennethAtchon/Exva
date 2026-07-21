@@ -14,6 +14,7 @@ import { DEFAULT_SCORING_WEIGHTS } from "@electron/shared/ai/ai-phase-config";
 import type { LLMRunResult } from "../../llm/llm-types";
 import {
   mergeDiscoveryCandidates,
+  candidateIdentityKey,
   type SelectorCandidate,
 } from "../../signals/scoring/selector-candidate-merger";
 export type { SelectorCandidate };
@@ -88,15 +89,23 @@ export function applyVerificationResults(
   }>,
 ): SelectorCandidate[] {
   const merged = new Map(
-    candidates.map((c) => [`${c.instrumentClass}:${c.symbol}`, { ...c }]),
+    candidates.map((c) => [candidateIdentityKey(c), { ...c }]),
   );
   for (const { worker, result } of results) {
-    const key = `${result.output.candidate.instrumentClass}:${result.output.candidate.symbol}`;
+    const key = candidateIdentityKey(result.output.candidate);
     const candidate = merged.get(key);
     if (!candidate) continue;
     candidate.instrumentDisplayName =
       candidate.instrumentDisplayName ??
       result.output.candidate.instrumentDisplayName ??
+      null;
+    candidate.predictionOutcome =
+      candidate.predictionOutcome ??
+      result.output.candidate.predictionOutcome ??
+      null;
+    candidate.instrumentMetadataJson =
+      candidate.instrumentMetadataJson ??
+      result.output.candidate.instrumentMetadataJson ??
       null;
     candidate.volumeScore = maxNullable(
       candidate.volumeScore,

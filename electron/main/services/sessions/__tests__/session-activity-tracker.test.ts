@@ -64,6 +64,7 @@ function createTracker(
     sourceDefinitionRepo: new SourceDefinitionRepo(db),
     signalSourcesRepo: new SignalSourcesRepo(db),
     signalRegistry: { status: () => null },
+    signalSourceRuntimeRepo: { get: () => null },
     calendarRegistry: { get: () => null },
     sessionRepo: {
       list: () => [
@@ -154,13 +155,14 @@ describe("SessionActivityTracker — input_source_dead journey", () => {
     expect(notified[0].condition.kind).toBe("input_source_dead");
   });
 
-  it("does not re-notify on repeated sweeps while the condition persists", async () => {
+  it("does not re-notify or inflate counts on repeated unchanged sweeps", async () => {
     await tracker.runSweepNow();
     await tracker.runSweepNow();
     await tracker.runSweepNow();
 
     expect(notified).toHaveLength(1);
-    expect(activityRepo.get(SESSION_ID)?.conditions[0].count).toBe(3);
+    expect(activityRepo.get(SESSION_ID)?.conditions[0].count).toBe(1);
+    expect(activityRepo.listTransitions(SESSION_ID)).toHaveLength(1);
   });
 
   it("clears the condition once a matching live signal source starts running", async () => {
@@ -186,6 +188,54 @@ describe("SessionActivityTracker — input_source_dead journey", () => {
         expect.objectContaining({ kind: "waiting_signal", severity: "info" }),
       ]),
     );
+  });
+
+  it("flags input_source_dead when durable poll health is error despite registry running", async () => {
+    signalSourcesRepo.create({
+      id: "source/edgar_8k",
+      type: "edgar_8k",
+      name: "EDGAR 8-K Catalyst",
+      description: null,
+      enabled: true,
+      configJson: "{}",
+    });
+    registryStatus = "running";
+
+    tracker = createTracker(db, {
+      signalRegistry: {
+        status: () =>
+          registryStatus ? { status: "running", lastError: null } : null,
+      },
+      signalSourceRuntimeRepo: {
+        get: () => ({
+          sourceId: "source/edgar_8k",
+          status: "error",
+          lastPollAt: "2026-07-20T17:00:00.000Z",
+          lastSuccessAt: null,
+          consecutiveFailures: 2,
+          lastError: "EDGAR feed status 503",
+          lastOutcome: "http_error",
+          httpStatus: 503,
+          detected: 0,
+          passed: 0,
+          dropped: 0,
+          errors: ["EDGAR feed status 503"],
+          updatedAt: "2026-07-20T17:00:00.000Z",
+        }),
+      },
+      notify: (sessionId, condition) => notified.push({ sessionId, condition }),
+      subscriptionRepo,
+      sourceDefinitionRepo,
+      signalSourcesRepo,
+      activityRepo,
+    });
+
+    await tracker.runSweepNow();
+
+    expect(activityRepo.get(SESSION_ID)?.conditions[0]).toMatchObject({
+      kind: "input_source_dead",
+      severity: "error",
+    });
   });
 });
 

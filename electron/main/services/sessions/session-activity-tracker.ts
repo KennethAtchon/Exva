@@ -13,6 +13,7 @@ import type { SessionInputSubscriptionRepo } from "../session-inputs/session-inp
 import type { SourceDefinitionRepo } from "../signals/source-definition-repo";
 import type { SignalSourcesRepo } from "../signals/repos/signal-sources-repo";
 import type { SignalSourceRegistry } from "../signals/signal-source-registry";
+import type { SignalSourceRuntimeRepo } from "../signals/repos/signal-source-runtime-repo";
 import type { MarketCalendarRegistry } from "../scheduling/market-calendar-registry";
 import type { SessionActivityRepo } from "../../db/repositories/sessions/session-activity-repo";
 import type {
@@ -27,6 +28,7 @@ import {
   computeSessionActivityAnalytics,
   type SessionActivityAnalytics,
 } from "@electron/shared/domain/session-activity-analytics";
+import { isSignalSourceRuntimeHealthy } from "@electron/shared/domain/signal-source-health";
 import { createLogger } from "../infra/log";
 
 const logger = createLogger("session-activity-tracker");
@@ -177,6 +179,8 @@ export interface SessionActivityTrackerDeps {
   sourceDefinitionRepo: SourceDefinitionRepo;
   signalSourcesRepo: SignalSourcesRepo;
   signalRegistry: Pick<SignalSourceRegistry, "status">;
+  /** Durable poll health — preferred over live registry status alone. */
+  signalSourceRuntimeRepo: Pick<SignalSourceRuntimeRepo, "get">;
   calendarRegistry: Pick<MarketCalendarRegistry, "get">;
   sessionRepo: {
     list(input?: { includeArchived?: boolean }): Array<{
@@ -333,7 +337,10 @@ export class SessionActivityTracker {
     return { healthy: true, lastSweepAt: this.lastSweepAt, message: null };
   }
 
-  /** Report a detected condition (idempotent — merges by kind). */
+  /**
+   * Report a detected condition. True no-op when kind+severity+message are
+   * unchanged — periodic sweeps must not inflate transition analytics.
+   */
   reportCondition(
     sessionId: string,
     kind: SessionActivityConditionKind,
@@ -344,8 +351,16 @@ export class SessionActivityTracker {
     const now = new Date().toISOString();
     const current = this.deps.activityRepo.get(sessionId);
     const existing = current?.conditions.find((c) => c.kind === kind);
-    const isFirstOccurrence = !existing;
 
+    if (
+      existing &&
+      existing.severity === severity &&
+      existing.message === message
+    ) {
+      return;
+    }
+
+    const isFirstOccurrence = !existing;
     const evidenceEventId =
       opts?.evidenceEventId ??
       existing?.evidenceEventId ??
@@ -373,7 +388,13 @@ export class SessionActivityTracker {
       nextCondition,
     ];
 
-    this.persistSnapshot(sessionId, current?.activity ?? message, conditions);
+    // Prefer the newest condition message as top-level activity when it advances.
+    const activity =
+      !current || current.activity === existing?.message
+        ? message
+        : (current.activity ?? message);
+
+    this.persistSnapshot(sessionId, activity, conditions);
 
     if (isFirstOccurrence && (severity === "warn" || severity === "error")) {
       this.deps.notify?.(sessionId, nextCondition);
@@ -524,16 +545,19 @@ export class SessionActivityTracker {
       .filter((sub) => sub.mode === "event_source");
   }
 
-  private hasRunningBackingSource(sourceDefinitionId: string): boolean {
+  private hasHealthyBackingSource(sourceDefinitionId: string): boolean {
     const definition = this.deps.sourceDefinitionRepo.get(sourceDefinitionId);
     if (!definition) return false;
     return this.deps.signalSourcesRepo
       .list()
       .filter((source) => source.type === definition.kind)
-      .some(
-        (source) =>
-          this.deps.signalRegistry.status(source.id)?.status === "running",
-      );
+      .some((source) => {
+        const durable = this.deps.signalSourceRuntimeRepo.get(source.id);
+        // Prefer durable poll health; fall back to live registry pre-first-poll.
+        return durable
+          ? isSignalSourceRuntimeHealthy(durable)
+          : this.deps.signalRegistry.status(source.id)?.status === "running";
+      });
   }
 
   private getScheduleStatesForSubs(subIds: Set<string>) {
@@ -671,9 +695,9 @@ export class SessionActivityTracker {
       return;
     }
 
-    // Only claim "waiting for signal" when backing sources look healthy.
+    // Only claim "waiting for signal" when durable poll health is recent/ok.
     const anyLive = eventSubs.some((sub) =>
-      this.hasRunningBackingSource(sub.sourceDefinitionId),
+      this.hasHealthyBackingSource(sub.sourceDefinitionId),
     );
     if (!anyLive) {
       this.clearCondition(sessionId, "waiting_signal");
@@ -747,7 +771,7 @@ export class SessionActivityTracker {
       if (!this.deps.sourceDefinitionRepo.get(sub.sourceDefinitionId)) {
         return false;
       }
-      return !this.hasRunningBackingSource(sub.sourceDefinitionId);
+      return !this.hasHealthyBackingSource(sub.sourceDefinitionId);
     });
 
     if (dead) {
@@ -755,7 +779,7 @@ export class SessionActivityTracker {
         sessionId,
         "input_source_dead",
         "error",
-        "Subscribed to an event source with no running backing poller — this session can never receive a signal.",
+        "Subscribed to an event source with no healthy recent poll — quiet feeds stay healthy; HTTP/parse failures and stalled pollers do not.",
         { evidenceEventId: this.findEvidenceEventId(sessionId) },
       );
       this.clearCondition(sessionId, "waiting_signal");
@@ -837,15 +861,12 @@ export class SessionActivityTracker {
 
     if (noTradeRows.length >= SELECTOR_REJECT_THRESHOLD) {
       for (const row of noTradeRows) {
-        reasons.push(
+        const reason =
           row.lastErrorMessage?.trim() ||
-            row.lastErrorCode?.trim() ||
-            "no_trade",
-        );
+          row.lastErrorCode?.trim() ||
+          "no_trade";
+        reasons.push(reason);
       }
-    }
-
-    if (reasons.length >= SELECTOR_REJECT_THRESHOLD) {
       return { reasons, evidenceEventId };
     }
 

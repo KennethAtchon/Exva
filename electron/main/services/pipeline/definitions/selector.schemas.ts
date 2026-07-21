@@ -8,6 +8,8 @@ export const candidateOutputSchema = z.object({
         symbol: true,
         instrumentClass: true,
         instrumentDisplayName: true,
+        predictionOutcome: true,
+        instrumentMetadataJson: true,
         source: true,
         hypeScore: true,
         volumeScore: true,

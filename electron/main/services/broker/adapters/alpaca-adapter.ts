@@ -69,17 +69,45 @@ const ALPACA_TIMEFRAME_MINUTES: Record<string, number> = {
  * default window resolves to nothing usable on the free IEX/indicative feeds.
  * Without `start`, every OHLCV fetch silently returns `[]`, which starves the
  * deterministic signal engines and pins them at their "insufficient bars" skip.
- * So we always pass an explicit lookback window wide enough to yield `barCount`
- * bars, with ~3x slack so weekends/closed sessions still backfill enough bars.
+ * Callers widen the multiplier across retries so weekends/closed sessions still
+ * backfill enough trading bars (fixed 3x wall-clock is not enough after a weekend).
  */
+const BAR_LOOKBACK_MULTIPLIERS = [3, 7, 14, 30] as const;
+
 function barLookbackStartIso(
   alpacaTimeframe: string,
   barCount: number,
   now: Date,
+  multiplier: number,
 ): string {
   const minutesPerBar = ALPACA_TIMEFRAME_MINUTES[alpacaTimeframe] ?? 1440;
-  const spanMs = minutesPerBar * 60_000 * Math.max(barCount, 1) * 3;
+  const spanMs =
+    minutesPerBar * 60_000 * Math.max(barCount, 1) * Math.max(multiplier, 1);
   return new Date(now.getTime() - spanMs).toISOString();
+}
+
+type AlpacaBarWire = {
+  t: string;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+};
+
+function buildAlpacaOhlcvParams(
+  alpacaTimeframe: string,
+  barCount: number,
+  now: Date,
+  multiplier: number,
+  extra: Record<string, string> = {},
+): URLSearchParams {
+  return new URLSearchParams({
+    ...extra,
+    timeframe: alpacaTimeframe,
+    limit: String(barCount),
+    start: barLookbackStartIso(alpacaTimeframe, barCount, now, multiplier),
+  });
 }
 
 /**
@@ -484,23 +512,19 @@ export class AlpacaAdapter implements BrokerAdapter {
     if (isOptionWireSymbol(instrumentSymbol)) {
       return this.getOptionOhlcv(instrumentSymbol, alpacaTimeframe, barCount);
     }
-    const params = new URLSearchParams({
-      timeframe: alpacaTimeframe,
-      limit: String(barCount),
-      feed: "iex",
-      start: barLookbackStartIso(alpacaTimeframe, barCount, this.now()),
+    return this.fetchOhlcvWithWideningLookback(barCount, async (multiplier) => {
+      const params = buildAlpacaOhlcvParams(
+        alpacaTimeframe,
+        barCount,
+        this.now(),
+        multiplier,
+        { feed: "iex" },
+      );
+      const data = await this.dataRequest<{ bars?: AlpacaBarWire[] }>(
+        `/v2/stocks/${encodeURIComponent(instrumentSymbol)}/bars?${params}`,
+      );
+      return (data.bars ?? []).map(toOhlcvBar);
     });
-    const data = await this.dataRequest<{
-      bars?: Array<{
-        t: string;
-        o: number;
-        h: number;
-        l: number;
-        c: number;
-        v: number;
-      }>;
-    }>(`/v2/stocks/${encodeURIComponent(instrumentSymbol)}/bars?${params}`);
-    return (data.bars ?? []).map(toOhlcvBar);
   }
 
   private async getCryptoOhlcv(
@@ -508,26 +532,19 @@ export class AlpacaAdapter implements BrokerAdapter {
     alpacaTimeframe: string,
     barCount: number,
   ): Promise<OhlcvBar[]> {
-    const params = new URLSearchParams({
-      symbols: instrumentSymbol,
-      timeframe: alpacaTimeframe,
-      limit: String(barCount),
-      start: barLookbackStartIso(alpacaTimeframe, barCount, this.now()),
+    return this.fetchOhlcvWithWideningLookback(barCount, async (multiplier) => {
+      const params = buildAlpacaOhlcvParams(
+        alpacaTimeframe,
+        barCount,
+        this.now(),
+        multiplier,
+        { symbols: instrumentSymbol },
+      );
+      const data = await this.dataRequest<{
+        bars?: Record<string, AlpacaBarWire[]>;
+      }>(`/v1beta3/crypto/us/bars?${params}`);
+      return (data.bars?.[instrumentSymbol] ?? []).map(toOhlcvBar);
     });
-    const data = await this.dataRequest<{
-      bars?: Record<
-        string,
-        Array<{
-          t: string;
-          o: number;
-          h: number;
-          l: number;
-          c: number;
-          v: number;
-        }>
-      >;
-    }>(`/v1beta3/crypto/us/bars?${params}`);
-    return (data.bars?.[instrumentSymbol] ?? []).map(toOhlcvBar);
   }
 
   private async getOptionOhlcv(
@@ -535,26 +552,31 @@ export class AlpacaAdapter implements BrokerAdapter {
     alpacaTimeframe: string,
     barCount: number,
   ): Promise<OhlcvBar[]> {
-    const params = new URLSearchParams({
-      symbols: instrumentSymbol,
-      timeframe: alpacaTimeframe,
-      limit: String(barCount),
-      start: barLookbackStartIso(alpacaTimeframe, barCount, this.now()),
+    return this.fetchOhlcvWithWideningLookback(barCount, async (multiplier) => {
+      const params = buildAlpacaOhlcvParams(
+        alpacaTimeframe,
+        barCount,
+        this.now(),
+        multiplier,
+        { symbols: instrumentSymbol },
+      );
+      const data = await this.dataRequest<{
+        bars?: Record<string, AlpacaBarWire[]>;
+      }>(`/v1beta1/options/bars?${params}`);
+      return (data.bars?.[instrumentSymbol] ?? []).map(toOhlcvBar);
     });
-    const data = await this.dataRequest<{
-      bars?: Record<
-        string,
-        Array<{
-          t: string;
-          o: number;
-          h: number;
-          l: number;
-          c: number;
-          v: number;
-        }>
-      >;
-    }>(`/v1beta1/options/bars?${params}`);
-    return (data.bars?.[instrumentSymbol] ?? []).map(toOhlcvBar);
+  }
+
+  private async fetchOhlcvWithWideningLookback(
+    barCount: number,
+    fetchOnce: (multiplier: number) => Promise<OhlcvBar[]>,
+  ): Promise<OhlcvBar[]> {
+    let bars: OhlcvBar[] = [];
+    for (const multiplier of BAR_LOOKBACK_MULTIPLIERS) {
+      bars = await fetchOnce(multiplier);
+      if (bars.length >= barCount) break;
+    }
+    return bars.slice(-barCount);
   }
 
   /**

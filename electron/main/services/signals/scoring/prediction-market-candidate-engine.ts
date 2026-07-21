@@ -1,20 +1,14 @@
 import {
   isMarketDiscoveryAdapter,
-  type PolymarketMarketRow,
+  normalizePolymarketMarketTokens,
+  type PolymarketNormalizedToken,
 } from "../../broker/adapters/broker-adapter";
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 
-type PredictionToken = {
-  outcome?: unknown;
-  token_id?: unknown;
-  price?: unknown;
-};
-
 /** Parse a token's mid price into a probability in (0,1), or null if unusable. */
-function tokenPrice(token: unknown): number | null {
-  const raw = (token as PredictionToken | undefined)?.price;
-  const price = typeof raw === "string" ? Number(raw) : raw;
-  return typeof price === "number" && price > 0 && price < 1 ? price : null;
+function tokenPrice(token: PolymarketNormalizedToken): number | null {
+  const price = Number(token.price);
+  return Number.isFinite(price) && price > 0 && price < 1 ? price : null;
 }
 
 export type PredictionMarketCandidateRow = {
@@ -29,17 +23,14 @@ export async function fetchPredictionMarketCandidates(
   sessionId: string,
   brokerRouting: BrokerRoutingService,
 ): Promise<PredictionMarketCandidateRow[]> {
-  let rows: PolymarketMarketRow[];
-  try {
-    const { adapter } = await brokerRouting.resolveAdapter(
-      sessionId,
-      "prediction_market",
-    );
-    if (!isMarketDiscoveryAdapter(adapter)) return [];
-    rows = await adapter.fetchMarketCandidates();
-  } catch {
-    return [];
+  const { adapter } = await brokerRouting.resolveAdapter(
+    sessionId,
+    "prediction_market",
+  );
+  if (!isMarketDiscoveryAdapter(adapter)) {
+    throw new Error("Resolved prediction-market broker cannot list markets");
   }
+  const rows = await adapter.fetchMarketCandidates();
 
   const out: Array<PredictionMarketCandidateRow & { score: number }> = [];
 
@@ -53,35 +44,19 @@ export async function fetchPredictionMarketCandidates(
     const liquidity = Number(
       row.liquidity ?? row.liquidityClob ?? row.volume ?? 0,
     );
-    const tokens = Array.isArray(row.tokens) ? row.tokens : [];
+    const tokens = normalizePolymarketMarketTokens(row) ?? [];
     if (!conditionId || !question || tokens.length === 0) continue;
 
-    const yes = tokens.find(
-      (token) =>
-        token &&
-        typeof token === "object" &&
-        (token as PredictionToken).outcome === "Yes",
-    );
-    const no = tokens.find(
-      (token) =>
-        token &&
-        typeof token === "object" &&
-        (token as PredictionToken).outcome === "No",
-    );
-    const yesTokenId =
-      typeof (yes as PredictionToken | undefined)?.token_id === "string"
-        ? (yes as { token_id: string }).token_id
-        : null;
-    const noTokenId =
-      typeof (no as PredictionToken | undefined)?.token_id === "string"
-        ? (no as { token_id: string }).token_id
-        : null;
+    const yes = tokens.find((token) => token.outcome === "Yes");
+    const no = tokens.find((token) => token.outcome === "No");
+    const yesTokenId = yes?.token_id ?? null;
+    const noTokenId = no?.token_id ?? null;
     if (!yesTokenId || !noTokenId) continue;
 
     // Market-implied probability (mid) per outcome — the price the forecaster's
     // p_hat is compared against in the deterministic edge gate.
-    const yesMid = tokenPrice(yes);
-    const noMid = tokenPrice(no) ?? (yesMid != null ? 1 - yesMid : null);
+    const yesMid = yes ? tokenPrice(yes) : null;
+    const noMid = no ? tokenPrice(no) : yesMid != null ? 1 - yesMid : null;
 
     const timeScore = resolutionTime
       ? predictionResolutionScore(resolutionTime)

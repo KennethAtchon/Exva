@@ -1293,10 +1293,63 @@ export const scheduleRuntimeStates = sqliteTable("schedule_runtime_states", {
   lastDurationMs: integer("last_duration_ms"),
   consecutiveFailures: integer("consecutive_failures").notNull().default(0),
   lastError: text("last_error"),
+  /** Per-instrument scan diagnostics for the last fire (JSON). */
+  lastScanSummaryJson: text("last_scan_summary_json").notNull().default("{}"),
   subscriptionIdsJson: text("subscription_ids_json").notNull().default("[]"),
   instrumentCount: integer("instrument_count").notNull().default(0),
   updatedAt: text("updated_at").notNull(),
 });
+
+/**
+ * Latest poll health per live signal source. Survives shutdown so quiet feeds
+ * can be distinguished from broken ones.
+ */
+export const signalSourceRuntimeStates = sqliteTable(
+  "signal_source_runtime_states",
+  {
+    sourceId: text("source_id")
+      .primaryKey()
+      .references(() => signalSources.id, { onDelete: "cascade" }),
+    status: text("status").notNull(),
+    lastPollAt: text("last_poll_at"),
+    lastSuccessAt: text("last_success_at"),
+    consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+    lastError: text("last_error"),
+    lastOutcome: text("last_outcome"),
+    httpStatus: integer("http_status"),
+    detected: integer("detected").notNull().default(0),
+    passed: integer("passed").notNull().default(0),
+    dropped: integer("dropped").notNull().default(0),
+    errorsJson: text("errors_json").notNull().default("[]"),
+    updatedAt: text("updated_at").notNull(),
+  },
+);
+
+/** Append-only poll history for post-run forensics. */
+export const signalSourcePolls = sqliteTable(
+  "signal_source_polls",
+  {
+    id: text("id").primaryKey(),
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => signalSources.id, { onDelete: "cascade" }),
+    polledAt: text("polled_at").notNull(),
+    outcome: text("outcome").notNull(),
+    httpStatus: integer("http_status"),
+    detected: integer("detected").notNull().default(0),
+    passed: integer("passed").notNull().default(0),
+    dropped: integer("dropped").notNull().default(0),
+    errorsJson: text("errors_json").notNull().default("[]"),
+    durationMs: integer("duration_ms").notNull().default(0),
+    status: text("status").notNull(),
+  },
+  (table) => ({
+    sourcePolledIdx: index("idx_signal_source_polls_source_polled").on(
+      table.sourceId,
+      table.polledAt,
+    ),
+  }),
+);
 
 export const migrationQuarantine = sqliteTable("migration_quarantine", {
   id: text("id").primaryKey(),

@@ -129,7 +129,10 @@ export interface BrokerAdapter {
   getPositions(): Promise<BrokerPosition[]>;
 
   getAccountBalance(): Promise<number>;
-  getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot>;
+  getMarketSnapshot(
+    instrumentSymbol: string,
+    options?: { predictionOutcome?: "YES" | "NO" | null },
+  ): Promise<MarketSnapshot>;
   getOrderStatus(orderId: string): Promise<OrderStatus>;
   closeOrder(orderId: string): Promise<CloseResult>;
 
@@ -182,7 +185,113 @@ export interface PolymarketMarketRow {
   liquidity?: unknown;
   liquidityClob?: unknown;
   volume?: unknown;
+  /** Legacy CLOB shape (tests / older fixtures). */
   tokens?: unknown;
+  /** Current Gamma shape: JSON-encoded string arrays. */
+  clobTokenIds?: unknown;
+  outcomes?: unknown;
+  outcomePrices?: unknown;
+}
+
+export type PolymarketNormalizedToken = {
+  outcome: "Yes" | "No";
+  token_id: string;
+  price?: string;
+};
+
+function parsePolymarketOutcome(raw: string): "Yes" | "No" | null {
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === "yes") return "Yes";
+  if (normalized === "no") return "No";
+  return null;
+}
+
+function readPolymarketTokenId(token: {
+  token_id?: unknown;
+  tokenId?: unknown;
+}): string | null {
+  if (typeof token.token_id === "string") return token.token_id;
+  if (typeof token.tokenId === "string") return token.tokenId;
+  return null;
+}
+
+function readPolymarketTokenPrice(price: unknown): string | undefined {
+  if (typeof price === "string" || typeof price === "number") {
+    return String(price);
+  }
+  return undefined;
+}
+
+/**
+ * Normalize either legacy `tokens` or current Gamma
+ * `clobTokenIds`/`outcomes`/`outcomePrices` into equal-length Yes/No tokens.
+ * Returns null when the row cannot yield a usable binary market.
+ */
+export function normalizePolymarketMarketTokens(
+  row: PolymarketMarketRow,
+): PolymarketNormalizedToken[] | null {
+  if (Array.isArray(row.tokens) && row.tokens.length > 0) {
+    const out: PolymarketNormalizedToken[] = [];
+    for (const raw of row.tokens) {
+      if (!raw || typeof raw !== "object") continue;
+      const token = raw as {
+        outcome?: unknown;
+        token_id?: unknown;
+        tokenId?: unknown;
+        price?: unknown;
+      };
+      const outcome =
+        typeof token.outcome === "string"
+          ? parsePolymarketOutcome(token.outcome)
+          : null;
+      const tokenId = readPolymarketTokenId(token);
+      if (!outcome || !tokenId) continue;
+      out.push({
+        outcome,
+        token_id: tokenId,
+        price: readPolymarketTokenPrice(token.price),
+      });
+    }
+    return out.length > 0 ? out : null;
+  }
+
+  const tokenIds = parseJsonStringArray(row.clobTokenIds);
+  const outcomes = parseJsonStringArray(row.outcomes);
+  const prices = parseJsonStringArray(row.outcomePrices);
+  if (!tokenIds || !outcomes) return null;
+  if (tokenIds.length === 0 || outcomes.length === 0) return null;
+  if (tokenIds.length !== outcomes.length) return null;
+  if (prices && prices.length !== tokenIds.length) return null;
+
+  const out: PolymarketNormalizedToken[] = [];
+  for (let i = 0; i < tokenIds.length; i += 1) {
+    const outcome = parsePolymarketOutcome(outcomes[i]?.trim() ?? "");
+    const tokenId = tokenIds[i];
+    if (!outcome || !tokenId) continue;
+    out.push({
+      outcome,
+      token_id: tokenId,
+      price: prices?.[i],
+    });
+  }
+  return out.length > 0 ? out : null;
+}
+
+function parseJsonStringArray(value: unknown): string[] | null {
+  if (Array.isArray(value)) {
+    return value.every((item) => typeof item === "string")
+      ? (value as string[])
+      : null;
+  }
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    if (!parsed.every((item) => typeof item === "string")) return null;
+    return parsed as string[];
+  } catch {
+    return null;
+  }
 }
 
 /** Implemented by adapters that can enumerate available markets (e.g. Polymarket). */

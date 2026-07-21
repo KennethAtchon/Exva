@@ -19,7 +19,7 @@ export function mergeDiscoveryCandidates(
 
   for (const group of groups) {
     for (const candidate of group) {
-      const key = `${candidate.instrumentClass}:${candidate.symbol}`;
+      const key = candidateIdentityKey(candidate);
       const current = merged.get(key);
       if (!current) {
         merged.set(key, {
@@ -33,6 +33,10 @@ export function mergeDiscoveryCandidates(
 
       current.instrumentDisplayName =
         current.instrumentDisplayName ?? candidate.instrumentDisplayName;
+      current.predictionOutcome =
+        current.predictionOutcome ?? candidate.predictionOutcome;
+      current.instrumentMetadataJson =
+        current.instrumentMetadataJson ?? candidate.instrumentMetadataJson;
       current.hypeScore = maxNullable(current.hypeScore, candidate.hypeScore);
       current.volumeScore = maxNullable(
         current.volumeScore,
@@ -60,6 +64,14 @@ export function mergeDiscoveryCandidates(
   }
 
   return [...merged.values()];
+}
+
+export function candidateIdentityKey(candidate: {
+  instrumentClass: string;
+  symbol: string;
+  predictionOutcome?: string | null;
+}): string {
+  return `${candidate.instrumentClass}:${candidate.symbol}:${candidate.predictionOutcome ?? ""}`;
 }
 
 function maxNullable(a: number | null, b: number | null): number | null {

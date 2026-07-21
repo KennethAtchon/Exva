@@ -56,6 +56,7 @@ import {
   BrokerService,
   InstrumentNormalizer,
 } from "./broker";
+import { resolveCanonicalSymbol } from "./broker/instrument-normalizer";
 import { EventBus } from "./infra/event-bus";
 import { attachEventBusObserver } from "./infra/event-bus-observer";
 import { createLogger } from "./infra/log";
@@ -378,86 +379,77 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const searchRegistry = new SearchRegistry(repos.providerAccounts, secrets);
   const notifications = new NotificationService(eventBus);
   const marketData = new MarketDataService(db);
-  // Resolve OHLCV through the first Alpaca account when one exists; otherwise
-  // the fetcher returns [] so MarketDataService can still serve DB-cached bars.
-  marketData.registerFetcher("alpaca", async (input) => {
-    const alpacaAccount = repos.brokerAccounts
-      .list()
-      .find((account) => account.brokerType === "alpaca");
-    if (!alpacaAccount) return [];
-    try {
-      const adapter = await brokerRegistry.get(alpacaAccount.id);
-      if (!adapter.getOhlcv) return [];
-      const timeframe =
-        input.timeframe === "1w"
-          ? "1d"
-          : input.timeframe === "15m" ||
-              input.timeframe === "30m" ||
-              input.timeframe === "1h" ||
-              input.timeframe === "4h" ||
-              input.timeframe === "1d"
-            ? input.timeframe
-            : "1d";
-      return adapter.getOhlcv(input.symbol, timeframe, input.barCount);
-    } catch (err) {
-      // Returning [] is correct for market-data coalesce; log so bars outages aren't silent.
-      logger.warn(
-        { err, symbol: input.symbol, broker: "alpaca" },
-        "ohlcv fetch failed; returning empty bars",
+  const mapOhlcvTimeframe = (timeframe: string): "1h" | "4h" | "1d" => {
+    if (timeframe === "4h") return "4h";
+    if (timeframe === "1d" || timeframe === "1w") return "1d";
+    return "1h";
+  };
+  const marketDataProviderForBroker = (
+    brokerType: string,
+  ): "alpaca" | "tradier" | "kraken" => {
+    if (brokerType === "tradier") return "tradier";
+    if (brokerType === "kraken") return "kraken";
+    return "alpaca";
+  };
+
+  const fetchNormalizedOhlcv = async (input: {
+    symbol: string;
+    instrumentClass: string;
+    timeframe: string;
+    barCount: number;
+    brokerType: "alpaca" | "tradier" | "kraken";
+  }) => {
+    const cls = input.instrumentClass as InstrumentClass;
+    if (input.brokerType === "kraken") {
+      const { fetchKrakenOhlcv } =
+        await import("./broker/adapters/kraken-adapter");
+      const wireSymbol = instrumentNormalizer.toBrokerSymbol({
+        symbol: resolveCanonicalSymbol(input.symbol, cls),
+        instrumentClass: cls,
+        brokerType: "kraken",
+      });
+      return fetchKrakenOhlcv(
+        wireSymbol,
+        mapOhlcvTimeframe(input.timeframe),
+        input.barCount,
       );
-      return [];
     }
-  });
-  marketData.registerFetcher("tradier", async (input) => {
     const account = repos.brokerAccounts
       .list()
-      .find((a) => a.brokerType === "tradier");
+      .find((row) => row.brokerType === input.brokerType);
     if (!account) return [];
-    try {
-      const adapter = await brokerRegistry.get(account.id);
-      if (!adapter.getOhlcv) return [];
-      const timeframe =
-        input.timeframe === "1w"
-          ? "1d"
-          : input.timeframe === "15m" ||
-              input.timeframe === "30m" ||
-              input.timeframe === "1h" ||
-              input.timeframe === "4h" ||
-              input.timeframe === "1d"
-            ? input.timeframe
-            : "1d";
-      return adapter.getOhlcv(input.symbol, timeframe, input.barCount);
-    } catch (err) {
-      logger.warn(
-        { err, symbol: input.symbol, broker: "tradier" },
-        "ohlcv fetch failed; returning empty bars",
-      );
-      return [];
-    }
-  });
-  marketData.registerFetcher("kraken", async (input) => {
-    const { fetchKrakenOhlcv } =
-      await import("./broker/adapters/kraken-adapter");
-    try {
-      const timeframe =
-        input.timeframe === "1w"
-          ? "1d"
-          : input.timeframe === "15m" ||
-              input.timeframe === "30m" ||
-              input.timeframe === "1h" ||
-              input.timeframe === "4h" ||
-              input.timeframe === "1d"
-            ? input.timeframe
-            : "1d";
-      return await fetchKrakenOhlcv(input.symbol, timeframe, input.barCount);
-    } catch (err) {
-      logger.warn(
-        { err, symbol: input.symbol, broker: "kraken" },
-        "ohlcv fetch failed; returning empty bars",
-      );
-      return [];
-    }
-  });
+    const adapter = await brokerRegistry.get(account.id);
+    if (!adapter.getOhlcv) return [];
+    const wireSymbol = instrumentNormalizer.toBrokerSymbol({
+      symbol: resolveCanonicalSymbol(input.symbol, cls),
+      instrumentClass: cls,
+      brokerType: adapter.brokerType,
+    });
+    return adapter.getOhlcv(
+      wireSymbol,
+      mapOhlcvTimeframe(input.timeframe),
+      input.barCount,
+    );
+  };
+
+  // Provider fetchers normalize display symbols (e.g. BTC-USD → BTC/USD for Alpaca).
+  // Returning [] on miss lets MarketDataService serve DB-cached bars.
+  for (const brokerType of ["alpaca", "tradier", "kraken"] as const) {
+    marketData.registerFetcher(brokerType, async (input) => {
+      try {
+        return await fetchNormalizedOhlcv({
+          ...input,
+          brokerType,
+        });
+      } catch (err) {
+        logger.warn(
+          { err, symbol: input.symbol, broker: brokerType },
+          "ohlcv fetch failed; returning empty bars",
+        );
+        return [];
+      }
+    });
+  }
   const calibration = new CalibrationService();
   const nightlyResearch: NightlyResearchJobDeps = { calibration };
   // Wired after SessionService / strategyContext exist (forward refs).
@@ -910,12 +902,52 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const executor = new ScheduledStrategyExecutor({
     db,
     strategyRegistry,
-    getBars: async (symbol, timeframe, barCount, instrumentClass) => {
+    getBars: async (
+      symbol,
+      timeframe,
+      barCount,
+      instrumentClass,
+      context,
+    ) => {
+      const cls = instrumentClass as InstrumentClass;
+      const tf = timeframe as TradingTimeframe;
+      const targets = fanoutResolver.resolveScheduledFanout(
+        context?.subscriptionIds ?? [],
+      );
+      const sessionId = targets[0]?.sessionId;
+      if (!sessionId) {
+        return marketData.getBars({
+          symbol,
+          instrumentClass: cls,
+          timeframe: tf,
+          barCount,
+        });
+      }
+
+      const { adapter } = await brokerRouting.resolveAdapter(sessionId, cls);
+      if (!adapter.getOhlcv) {
+        throw new Error(
+          `Broker ${adapter.brokerType} does not support OHLCV for ${cls}`,
+        );
+      }
+      const wireSymbol = instrumentNormalizer.toBrokerSymbol({
+        symbol: resolveCanonicalSymbol(symbol, cls),
+        instrumentClass: cls,
+        brokerType: adapter.brokerType,
+      });
+      const provider = marketDataProviderForBroker(adapter.brokerType);
       return marketData.getBars({
         symbol,
-        instrumentClass: instrumentClass as InstrumentClass,
-        timeframe: timeframe as TradingTimeframe,
+        instrumentClass: cls,
+        timeframe: tf,
         barCount,
+        provider,
+        fetchOverride: () =>
+          adapter.getOhlcv!(
+            wireSymbol,
+            mapOhlcvTimeframe(tf),
+            barCount,
+          ),
       });
     },
     onBarsFailed: (plan, symbol, errorMessage) => {
@@ -1051,6 +1083,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sourceDefinitionRepo: activitySourceDefinitionRepo,
     signalSourcesRepo,
     signalRegistry,
+    signalSourceRuntimeRepo: signalRegistry.getRuntimeRepo(),
     calendarRegistry,
     sessionRepo: repos.session,
     tradeApprovalsRepo: repos.tradeApprovals,

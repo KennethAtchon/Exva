@@ -1,4 +1,7 @@
-import type { PolymarketMarketRow } from "../../broker/adapters/broker-adapter";
+import {
+  normalizePolymarketMarketTokens,
+  type PolymarketMarketRow,
+} from "../../broker/adapters/broker-adapter";
 import type {
   PollResult,
   SignalEvent,
@@ -6,11 +9,18 @@ import type {
 } from "@electron/shared/domain";
 import { DEFAULT_SIGNAL_TTL } from "@electron/shared/domain/market-signal";
 import type { PredictionEventTriggerKind } from "@electron/shared/domain/prediction-event-triggers";
+import type { SignalSourcePollOutcome } from "@electron/shared/domain/signal-source-health";
 import type {
   ISignalSource,
   SignalSourceActivityEntry,
   SignalSourceSnapshot,
 } from "../ISignalSource";
+import type { SignalSourceRuntimeRepo } from "../repos/signal-source-runtime-repo";
+import {
+  classifyPollFailure,
+  emptyPollResult,
+  persistSourcePoll,
+} from "../persist-source-poll";
 import { createLogger } from "../../infra/log";
 import { safeJsonParse } from "../../infra/safe-json-parse";
 
@@ -22,8 +32,6 @@ type PredictionEventConfig = {
   categoryWhitelist?: string[];
   curatedMarketSlugs?: string[];
 };
-
-type PredictionToken = { outcome?: unknown; token_id?: unknown };
 
 export class PredictionEventSignalSource implements ISignalSource {
   readonly type = "prediction_event" as const;
@@ -43,6 +51,7 @@ export class PredictionEventSignalSource implements ISignalSource {
   constructor(
     public readonly id: string,
     configJson: string,
+    private readonly runtimeRepo: SignalSourceRuntimeRepo | null = null,
   ) {
     this.config = safeParseConfig(configJson);
   }
@@ -106,12 +115,10 @@ export class PredictionEventSignalSource implements ISignalSource {
 
   private async pollOnce(): Promise<PollResult> {
     const polledAt = new Date().toISOString();
-    const result: PollResult = {
-      detected: 0,
-      passed: 0,
-      dropped: 0,
-      errors: [],
-    };
+    const startedMs = Date.now();
+    const result = emptyPollResult();
+    let outcome: SignalSourcePollOutcome = "success";
+    let httpStatus: number | null = null;
 
     try {
       const triggerKind = this.config.triggerKind ?? "odds_volume_dislocation";
@@ -121,36 +128,38 @@ export class PredictionEventSignalSource implements ISignalSource {
       ) {
         this.status = "running";
         this.lastError = null;
-        this.lastPollAt = polledAt;
-        this.lastPollResult = result;
-        return result;
-      }
-
-      const rows = await fetchGammaMarkets();
-      result.detected = rows.length;
-      for (const row of rows) {
-        const event = this.eventFromMarketRow(row, triggerKind);
-        if (!event) {
-          result.dropped += 1;
-          continue;
+      } else {
+        const fetched = await fetchGammaMarkets();
+        httpStatus = fetched.httpStatus;
+        result.detected = fetched.rows.length;
+        for (const row of fetched.rows) {
+          const event = this.eventFromMarketRow(row, triggerKind);
+          if (!event) {
+            result.dropped += 1;
+            continue;
+          }
+          const dedupeKey = event.payloadJson.conditionId as string;
+          if (this.seenConditionIds.has(dedupeKey)) {
+            result.dropped += 1;
+            continue;
+          }
+          this.seenConditionIds.add(dedupeKey);
+          this.emit(event);
+          result.passed += 1;
         }
-        const dedupeKey = event.payloadJson.conditionId as string;
-        if (this.seenConditionIds.has(dedupeKey)) {
-          result.dropped += 1;
-          continue;
-        }
-        this.seenConditionIds.add(dedupeKey);
-        this.emit(event);
-        result.passed += 1;
+        this.status = "running";
+        this.lastError = null;
       }
-      this.status = "running";
-      this.lastError = null;
     } catch (error) {
-      this.status = "error";
-      this.lastError =
+      const message =
         error instanceof Error ? error.message : "Prediction poll failed";
-      result.errors.push(this.lastError);
-      this.logger.error({ error: this.lastError }, "prediction poll failed");
+      const failure = classifyPollFailure(message);
+      outcome = failure.outcome;
+      httpStatus = failure.httpStatus;
+      this.status = "error";
+      this.lastError = message;
+      result.errors.push(message);
+      this.logger.error({ error: message }, "prediction poll failed");
     }
 
     this.lastPollAt = polledAt;
@@ -159,6 +168,16 @@ export class PredictionEventSignalSource implements ISignalSource {
       at: polledAt,
       kind: result.errors.length > 0 ? "error" : "ok",
       summary: `Poll ${result.passed}/${result.detected} passed (${this.config.triggerKind ?? "odds_volume_dislocation"})`,
+    });
+    persistSourcePoll(this.runtimeRepo, {
+      sourceId: this.id,
+      polledAt,
+      outcome,
+      httpStatus,
+      result,
+      status: this.status,
+      lastError: this.lastError,
+      durationMs: Date.now() - startedMs,
     });
     return result;
   }
@@ -184,15 +203,9 @@ export class PredictionEventSignalSource implements ISignalSource {
     );
     if (liquidity < (this.config.minLiquidityUsd ?? 5000)) return null;
 
-    const tokens = Array.isArray(row.tokens) ? row.tokens : [];
-    const yes = tokens.find(
-      (token) =>
-        token &&
-        typeof token === "object" &&
-        (token as PredictionToken).outcome === "Yes",
-    ) as PredictionToken | undefined;
-    const yesTokenId =
-      yes && typeof yes.token_id === "string" ? yes.token_id : null;
+    const tokens = normalizePolymarketMarketTokens(row) ?? [];
+    const yes = tokens.find((token) => token.outcome === "Yes");
+    const yesTokenId = yes?.token_id ?? null;
     if (!yesTokenId) return null;
 
     if (triggerKind === "curated_event_feed") {
@@ -289,12 +302,31 @@ export class PredictionEventSignalSource implements ISignalSource {
   }
 }
 
-async function fetchGammaMarkets(): Promise<PolymarketMarketRow[]> {
+async function fetchGammaMarkets(): Promise<{
+  rows: PolymarketMarketRow[];
+  httpStatus: number;
+}> {
   const response = await fetch(
     "https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=40",
   );
-  if (!response.ok) return [];
-  return (await response.json()) as PolymarketMarketRow[];
+  if (!response.ok) {
+    throw new Error(`Gamma markets status ${response.status}`);
+  }
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    throw new Error(`Gamma markets parse error (status ${response.status})`);
+  }
+  if (!Array.isArray(body)) {
+    throw new Error(
+      `Gamma markets expected array, got ${typeof body} (status ${response.status})`,
+    );
+  }
+  return {
+    rows: body as PolymarketMarketRow[],
+    httpStatus: response.status,
+  };
 }
 
 function safeParseConfig(configJson: string): PredictionEventConfig {

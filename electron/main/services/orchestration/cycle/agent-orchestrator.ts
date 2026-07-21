@@ -251,6 +251,8 @@ export class AgentOrchestrator {
       completePayload: (instruments) => ({
         instrumentCount: instruments.length,
       }),
+      successOutcome: (instruments) =>
+        instruments.length === 0 ? "no_trade" : null,
       onSuccess: (instruments) =>
         this.handleResolvedInstruments(instruments, context.label),
     });

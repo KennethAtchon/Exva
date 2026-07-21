@@ -25,6 +25,7 @@ import type {
   OrderStatus,
   PolymarketMarketRow,
 } from "./broker-adapter";
+import { normalizePolymarketMarketTokens } from "./broker-adapter";
 import {
   POLYMARKET_CAPABILITIES,
   adapterSupportsOrder,
@@ -203,15 +204,18 @@ export class PolymarketAdapter
     });
   }
 
-  async getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot> {
+  async getMarketSnapshot(
+    instrumentSymbol: string,
+    options?: { predictionOutcome?: "YES" | "NO" | null },
+  ): Promise<MarketSnapshot> {
     logger.debug(
-      { instrumentSymbol },
+      { instrumentSymbol, predictionOutcome: options?.predictionOutcome },
       "polymarket getMarketSnapshot: fetching",
     );
     const client = this.getReadOnlyClient();
     const conditionId = parseConditionId(instrumentSymbol);
     const market = await client.getMarket(conditionId);
-    const token = pickFirstToken(market);
+    const token = pickTokenForOutcome(market, options?.predictionOutcome);
     if (!token || token.price == null) {
       throw brokerDataError("Polymarket market response missing token price", {
         broker: "polymarket",
@@ -1234,13 +1238,49 @@ export class PolymarketAdapter
     );
     logger.debug("polymarket: fetching market candidates");
     if (!response.ok) {
-      logger.warn(
-        { status: response.status },
-        "polymarket: market candidates fetch failed",
+      throw brokerDataError(
+        `Polymarket Gamma markets fetch failed with HTTP ${response.status}`,
+        { broker: "polymarket", status: response.status },
       );
-      return [];
     }
-    return (await response.json()) as PolymarketMarketRow[];
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch (err) {
+      throw brokerDataError("Polymarket Gamma markets response was not JSON", {
+        broker: "polymarket",
+        cause: err instanceof Error ? err.message : String(err),
+      });
+    }
+    if (!Array.isArray(body)) {
+      throw brokerDataError(
+        "Polymarket Gamma markets response was not an array",
+        { broker: "polymarket" },
+      );
+    }
+
+    const normalized: PolymarketMarketRow[] = [];
+    for (const raw of body) {
+      if (!raw || typeof raw !== "object") continue;
+      const row = raw as PolymarketMarketRow;
+      const tokens = normalizePolymarketMarketTokens(row);
+      if (
+        !tokens ||
+        !tokens.some((token) => token.outcome === "Yes") ||
+        !tokens.some((token) => token.outcome === "No")
+      ) {
+        logger.warn(
+          {
+            conditionId: row.conditionId,
+            question: row.question,
+          },
+          "polymarket: skipping market row with unusable outcome tokens",
+        );
+        continue;
+      }
+      normalized.push({ ...row, tokens });
+    }
+    return normalized;
   }
 
   private async resolveReferencePrice(
@@ -1375,23 +1415,42 @@ function extractOrderId(response: unknown): string {
   throw err;
 }
 
-function pickFirstToken(
+function readTokenOutcomeUpper(
+  token: { outcome?: unknown },
+): "YES" | "NO" | null {
+  if (typeof token.outcome !== "string") return null;
+  const upper = token.outcome.trim().toUpperCase();
+  if (upper === "YES" || upper === "NO") return upper;
+  return null;
+}
+
+function pickTokenForOutcome(
   market: unknown,
+  predictionOutcome?: "YES" | "NO" | null,
 ): { outcome: "YES" | "NO" | null; price: number | null } | null {
   // reason: CLOB client returns untyped market objects; narrow before field access
   const tokens = (
     market as { tokens?: Array<{ outcome?: unknown; price?: unknown }> } | null
   )?.tokens;
-  const token = Array.isArray(tokens) ? tokens[0] : null;
-  if (!token) return null;
-  const outcome =
-    token.outcome === "YES" || token.outcome === "NO" ? token.outcome : null;
-  if (token.price == null || token.price === "") {
+  if (!Array.isArray(tokens) || tokens.length === 0) return null;
+
+  const wanted =
+    predictionOutcome === "YES" || predictionOutcome === "NO"
+      ? predictionOutcome
+      : null;
+  const selected =
+    (wanted
+      ? tokens.find((token) => readTokenOutcomeUpper(token) === wanted)
+      : null) ?? tokens[0];
+  if (!selected) return null;
+
+  const outcome = readTokenOutcomeUpper(selected);
+  if (selected.price == null || selected.price === "") {
     return { outcome, price: null };
   }
   return {
     outcome,
-    price: requireFiniteNumber(token.price, "token.price", {
+    price: requireFiniteNumber(selected.price, "token.price", {
       broker: "polymarket",
     }),
   };

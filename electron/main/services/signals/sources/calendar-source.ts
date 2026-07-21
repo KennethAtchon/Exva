@@ -8,11 +8,18 @@ import {
   DEFAULT_SIGNAL_TTL,
   type CalendarPayload,
 } from "@electron/shared/domain/market-signal";
+import type { SignalSourcePollOutcome } from "@electron/shared/domain/signal-source-health";
 import type {
   ISignalSource,
   SignalSourceActivityEntry,
   SignalSourceSnapshot,
 } from "../ISignalSource";
+import type { SignalSourceRuntimeRepo } from "../repos/signal-source-runtime-repo";
+import {
+  classifyPollFailure,
+  emptyPollResult,
+  persistSourcePoll,
+} from "../persist-source-poll";
 import { createLogger } from "../../infra/log";
 import { safeJsonParse } from "../../infra/safe-json-parse";
 import type { CalendarEventsRepo } from "../../../db/repositories/signals/calendar-events-repo";
@@ -52,6 +59,7 @@ export class CalendarSource implements ISignalSource {
     public readonly id: string,
     configJson: string,
     private readonly calendarRepo: CalendarEventsRepo,
+    private readonly runtimeRepo: SignalSourceRuntimeRepo | null = null,
   ) {
     this.config = safeParseConfig(configJson);
   }
@@ -117,15 +125,13 @@ export class CalendarSource implements ISignalSource {
 
   private async pollOnce(): Promise<PollResult> {
     const polledAt = new Date().toISOString();
-    const result: PollResult = {
-      detected: 0,
-      passed: 0,
-      dropped: 0,
-      errors: [],
-    };
+    const startedMs = Date.now();
+    const result = emptyPollResult();
+    let outcome: SignalSourcePollOutcome = "success";
+    let httpStatus: number | null = null;
 
     try {
-      await this.ingestEarningsIfConfigured();
+      httpStatus = await this.ingestEarningsIfConfigured();
       const lookaheadHours = this.config.lookaheadHours ?? 72;
       const upcoming = this.calendarRepo.listUpcoming({
         withinHours: lookaheadHours,
@@ -156,11 +162,15 @@ export class CalendarSource implements ISignalSource {
       this.status = "running";
       this.lastError = null;
     } catch (error) {
-      this.status = "error";
-      this.lastError =
+      const message =
         error instanceof Error ? error.message : "Calendar poll failed";
-      result.errors.push(this.lastError);
-      this.logger.error({ error: this.lastError }, "calendar poll failed");
+      const failure = classifyPollFailure(message);
+      outcome = failure.outcome;
+      httpStatus = failure.httpStatus;
+      this.status = "error";
+      this.lastError = message;
+      result.errors.push(message);
+      this.logger.error({ error: message }, "calendar poll failed");
     }
 
     this.lastPollAt = polledAt;
@@ -170,15 +180,35 @@ export class CalendarSource implements ISignalSource {
       kind: result.errors.length > 0 ? "error" : "ok",
       summary: `Calendar ${result.passed}/${result.detected} emitted`,
     });
+    persistSourcePoll(this.runtimeRepo, {
+      sourceId: this.id,
+      polledAt,
+      outcome,
+      httpStatus,
+      result,
+      status: this.status,
+      lastError: this.lastError,
+      durationMs: Date.now() - startedMs,
+    });
     return result;
   }
 
-  private async ingestEarningsIfConfigured(): Promise<void> {
+  /** Returns HTTP status when an earnings API was called; null when skipped. */
+  private async ingestEarningsIfConfigured(): Promise<number | null> {
     const url = this.config.earningsApiUrl;
-    if (!url) return;
+    if (!url) return null;
     const response = await fetch(url);
-    if (!response.ok) return;
-    const body = (await response.json()) as unknown;
+    if (!response.ok) {
+      throw new Error(`Calendar earnings API status ${response.status}`);
+    }
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      throw new Error(
+        `Calendar earnings API parse error (status ${response.status})`,
+      );
+    }
     const rows = normalizeEarningsPayload(body);
     for (const row of rows) {
       this.calendarRepo.upsert({
@@ -189,6 +219,7 @@ export class CalendarSource implements ISignalSource {
         source: "earnings_api",
       });
     }
+    return response.status;
   }
 
   private toEvent(
@@ -252,6 +283,17 @@ export class CalendarSource implements ISignalSource {
   }
 }
 
+function firstString(
+  record: Record<string, unknown>,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string") return value;
+  }
+  return null;
+}
+
 function normalizeEarningsPayload(
   body: unknown,
 ): Array<{ symbol: string; scheduledAt: string }> {
@@ -259,21 +301,13 @@ function normalizeEarningsPayload(
   const out: Array<{ symbol: string; scheduledAt: string }> = [];
   for (const row of body) {
     if (!row || typeof row !== "object") continue;
-    const r = row as Record<string, unknown>;
-    const symbol =
-      typeof r.symbol === "string"
-        ? r.symbol
-        : typeof r.ticker === "string"
-          ? r.ticker
-          : null;
-    const scheduledAt =
-      typeof r.scheduledAt === "string"
-        ? r.scheduledAt
-        : typeof r.date === "string"
-          ? r.date
-          : typeof r.reportDate === "string"
-            ? r.reportDate
-            : null;
+    const record = row as Record<string, unknown>;
+    const symbol = firstString(record, ["symbol", "ticker"]);
+    const scheduledAt = firstString(record, [
+      "scheduledAt",
+      "date",
+      "reportDate",
+    ]);
     if (symbol && scheduledAt) out.push({ symbol, scheduledAt });
   }
   return out;

@@ -2,6 +2,7 @@ import type { ExecutionStage } from "@/lib/types";
 import type { TradingStepResult } from "./trading-step-runner";
 import type { TradingCycleContext } from "./trading-cycle-context";
 import type { CycleContext } from "./types";
+import type { OrchestrationOutcome } from "./runtime-outcome";
 import { createLogger } from "../../infra/log";
 import { scheduleCycleRefillAfterDelayIfIdle } from "./scheduling/cycle-refill";
 
@@ -40,12 +41,17 @@ export async function runOrchestratorStep<T>(
     tradeId?: string | null;
     onFailure?: (result: Extract<TradingStepResult<T>, { ok: false }>) => void;
     recordFailure?: boolean;
+    successOutcome?: (value: T) => OrchestrationOutcome | null;
   },
 ): Promise<OrchestratorStepOutcome<T>> {
+  const mapSuccessOutcome = options.successOutcome;
   const result = await ctx
     .getStepRunner(options.cycleId)
     .run(options.stage, options.run, {
       onRetry: options.onRetry,
+      successOutcome: mapSuccessOutcome
+        ? (value) => mapSuccessOutcome(value as T)
+        : undefined,
     });
 
   if (await ctx.pauseIfRequested(options.cycleId)) {
@@ -89,6 +95,7 @@ export async function runPhaseCycle<TContext extends CycleContext, TResult>(
     retryErrorLabel?: string;
     busEvents?: PhaseCycleBusEvents;
     completePayload: (value: TResult) => Record<string, unknown>;
+    successOutcome?: (value: TResult) => OrchestrationOutcome | null;
   },
 ): Promise<void> {
   if (!ctx.runtimeIsActive()) return;
@@ -117,6 +124,7 @@ export async function runPhaseCycle<TContext extends CycleContext, TResult>(
         options.retryCycle,
       ),
     recordFailure: false,
+    successOutcome: options.successOutcome,
   });
 
   if (outcome.status === "paused") {
@@ -184,8 +192,16 @@ export async function runPhaseCycle<TContext extends CycleContext, TResult>(
     return;
   }
 
-  ctx.clearAttentionRequired();
+  // Technical success clears hard-failure streak. Empty-selector no_trade must
+  // NOT clear attention or the no-trade skip streak — otherwise the ten-skip
+  // watchdog resets every cycle before handleResolvedInstruments records it.
   ctx.resetHardFailureStreak();
+  const successOutcome = options.successOutcome?.(outcome.value) ?? null;
+  const substantiveProgress = successOutcome !== "no_trade";
+  if (substantiveProgress) {
+    ctx.clearAttentionRequired();
+    ctx.resetNoTradeSkipStreak();
+  }
   if (phase && options.busEvents?.complete !== false) {
     const completePayload = options.completePayload(outcome.value);
     logger.info(

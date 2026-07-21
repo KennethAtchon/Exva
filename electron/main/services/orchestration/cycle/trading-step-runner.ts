@@ -41,6 +41,8 @@ interface StepRetrySchedule {
 export interface TradingStepRunOptions {
   skipIfPreviouslySucceeded?: boolean;
   onRetry?: (retry: StepRetrySchedule) => void;
+  /** Optional success-path outcome (e.g. empty selector → `no_trade`). */
+  successOutcome?: (value: unknown) => OrchestrationOutcome | null;
 }
 
 const STEP_RETRY_BACKOFF_MS = RUNTIME_DEFAULTS.retry.stepBackoffMs;
@@ -116,7 +118,7 @@ export class TradingStepRunner {
         nextRetryAt: null,
         lastErrorCode: null,
         lastErrorMessage: null,
-        outcome: null,
+        outcome: opts.successOutcome?.(value) ?? null,
         retryable: false,
       });
       this.deps.bus.emit("step:succeeded", {

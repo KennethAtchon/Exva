@@ -22,13 +22,25 @@ export interface GetBarsInput {
   /** When true, gaps throw instead of fetching provider. */
   failOnGaps?: boolean;
   provider?: MarketDataProviderId;
+  /** Session-routed fetch that already normalized the wire symbol. */
+  fetchOverride?: () => Promise<OhlcvBar[]>;
 }
 
 export type BarFetcher = (input: {
   symbol: string;
+  instrumentClass: string;
   timeframe: TradingTimeframe;
   barCount: number;
 }) => Promise<OhlcvBar[]>;
+
+function mergeBarsByTs(a: OhlcvBar[], b: OhlcvBar[]): OhlcvBar[] {
+  const byTs = new Map<string, OhlcvBar>();
+  for (const bar of a) byTs.set(bar.ts, bar);
+  for (const bar of b) byTs.set(bar.ts, bar);
+  return [...byTs.values()].sort((left, right) =>
+    left.ts.localeCompare(right.ts),
+  );
+}
 
 /**
  * Point-in-time OHLCV store. Live cycles: DB first, provider on miss, write-back.
@@ -58,16 +70,22 @@ export class MarketDataService {
     }
 
     const provider = input.provider ?? "alpaca";
-    const fetcher = this.fetchers.get(provider);
-    if (!fetcher) {
-      if (cached.length > 0) return cached;
-      throw new Error(`No market-data fetcher registered for ${provider}.`);
+    let fetched: OhlcvBar[];
+    if (input.fetchOverride) {
+      fetched = await input.fetchOverride();
+    } else {
+      const fetcher = this.fetchers.get(provider);
+      if (!fetcher) {
+        if (cached.length > 0) return cached;
+        throw new Error(`No market-data fetcher registered for ${provider}.`);
+      }
+      fetched = await fetcher({
+        symbol: input.symbol,
+        instrumentClass: input.instrumentClass,
+        timeframe: input.timeframe,
+        barCount,
+      });
     }
-    const fetched = await fetcher({
-      symbol: input.symbol,
-      timeframe: input.timeframe,
-      barCount,
-    });
     this.writeBars(
       input.symbol,
       input.instrumentClass,
@@ -75,7 +93,7 @@ export class MarketDataService {
       fetched,
       provider,
     );
-    return fetched;
+    return mergeBarsByTs(cached, fetched).slice(-barCount);
   }
 
   freshnessLagMs(

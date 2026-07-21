@@ -8,11 +8,18 @@ import {
   DEFAULT_SIGNAL_TTL,
   type NewsPayload,
 } from "@electron/shared/domain/market-signal";
+import type { SignalSourcePollOutcome } from "@electron/shared/domain/signal-source-health";
 import type {
   ISignalSource,
   SignalSourceActivityEntry,
   SignalSourceSnapshot,
 } from "../ISignalSource";
+import type { SignalSourceRuntimeRepo } from "../repos/signal-source-runtime-repo";
+import {
+  classifyPollFailure,
+  emptyPollResult,
+  persistSourcePoll,
+} from "../persist-source-poll";
 import { createLogger } from "../../infra/log";
 import { safeJsonParse } from "../../infra/safe-json-parse";
 
@@ -52,6 +59,7 @@ export class NewsSource implements ISignalSource {
   constructor(
     public readonly id: string,
     configJson: string,
+    private readonly runtimeRepo: SignalSourceRuntimeRepo | null = null,
   ) {
     this.config = safeParseConfig(configJson);
   }
@@ -110,21 +118,20 @@ export class NewsSource implements ISignalSource {
 
   private async pollOnce(): Promise<PollResult> {
     const polledAt = new Date().toISOString();
-    const result: PollResult = {
-      detected: 0,
-      passed: 0,
-      dropped: 0,
-      errors: [],
-    };
+    const startedMs = Date.now();
+    const result = emptyPollResult();
+    let outcome: SignalSourcePollOutcome = "success";
+    let httpStatus: number | null = null;
     const urls = this.config.feedUrls?.length
       ? this.config.feedUrls
       : [...DEFAULT_NEWS_RSS_URLS];
 
     try {
       for (const url of urls) {
-        const items = await fetchRssItems(url);
-        result.detected += items.length;
-        for (const item of items) {
+        const fetched = await fetchRssItems(url);
+        httpStatus = fetched.httpStatus;
+        result.detected += fetched.items.length;
+        for (const item of fetched.items) {
           const event = this.eventFromItem(item, url, polledAt);
           if (!event) {
             result.dropped += 1;
@@ -142,11 +149,15 @@ export class NewsSource implements ISignalSource {
       this.status = "running";
       this.lastError = null;
     } catch (error) {
-      this.status = "error";
-      this.lastError =
+      const message =
         error instanceof Error ? error.message : "News RSS poll failed";
-      result.errors.push(this.lastError);
-      this.logger.error({ error: this.lastError }, "news poll failed");
+      const failure = classifyPollFailure(message);
+      outcome = failure.outcome;
+      httpStatus = failure.httpStatus;
+      this.status = "error";
+      this.lastError = message;
+      result.errors.push(message);
+      this.logger.error({ error: message }, "news poll failed");
     }
 
     this.lastPollAt = polledAt;
@@ -155,6 +166,16 @@ export class NewsSource implements ISignalSource {
       at: polledAt,
       kind: result.errors.length > 0 ? "error" : "ok",
       summary: `News RSS ${result.passed}/${result.detected} emitted`,
+    });
+    persistSourcePoll(this.runtimeRepo, {
+      sourceId: this.id,
+      polledAt,
+      outcome,
+      httpStatus,
+      result,
+      status: this.status,
+      lastError: this.lastError,
+      durationMs: Date.now() - startedMs,
     });
     return result;
   }
@@ -267,13 +288,17 @@ export interface RssItem {
   description: string | null;
 }
 
-export async function fetchRssItems(feedUrl: string): Promise<RssItem[]> {
+export async function fetchRssItems(
+  feedUrl: string,
+): Promise<{ items: RssItem[]; httpStatus: number }> {
   const response = await fetch(feedUrl, {
     headers: { "User-Agent": "ExvaNewsBot/1.0" },
   });
-  if (!response.ok) return [];
+  if (!response.ok) {
+    throw new Error(`News RSS status ${response.status} for ${feedUrl}`);
+  }
   const text = await response.text();
-  return parseRssXml(text);
+  return { items: parseRssXml(text), httpStatus: response.status };
 }
 
 export function parseRssXml(xml: string): RssItem[] {

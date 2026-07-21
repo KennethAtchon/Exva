@@ -279,8 +279,13 @@ export class TradingCycleContext {
     this.noInstrumentRetryTimer = null;
   }
 
+  /** Clear hard-failure streak only — does not touch no-trade skip counting. */
   resetHardFailureStreak(): void {
     this.consecutiveHardFailures = 0;
+  }
+
+  /** Clear consecutive no-trade/skip streak after substantive progress. */
+  resetNoTradeSkipStreak(): void {
     this.consecutiveSameSkipReason = null;
     this.consecutiveSameSkipCount = 0;
   }

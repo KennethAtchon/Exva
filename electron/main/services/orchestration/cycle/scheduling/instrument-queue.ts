@@ -121,6 +121,8 @@ export function handleResolvedInstruments(
   }
 
   ctx.clearNoInstrumentRetry();
+  ctx.resetNoTradeSkipStreak();
+  ctx.clearAttentionRequired();
   ctx.emitEvent(
     "INFO",
     null,

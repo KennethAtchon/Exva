@@ -31,7 +31,9 @@ describe("PredictionEventSignalSource", () => {
           category: "macro",
           liquidity: 25_000,
           lastTradePrice: 0.62,
-          tokens: [{ outcome: "Yes", token_id: "yes-token-1" }],
+          clobTokenIds: JSON.stringify(["yes-token-1", "no-token-1"]),
+          outcomes: JSON.stringify(["Yes", "No"]),
+          outcomePrices: JSON.stringify(["0.62", "0.38"]),
         },
         {
           conditionId: "cond-2",
@@ -39,7 +41,9 @@ describe("PredictionEventSignalSource", () => {
           slug: "low-liq",
           liquidity: 100,
           lastTradePrice: 0.7,
-          tokens: [{ outcome: "Yes", token_id: "yes-token-2" }],
+          clobTokenIds: JSON.stringify(["yes-token-2", "no-token-2"]),
+          outcomes: JSON.stringify(["Yes", "No"]),
+          outcomePrices: JSON.stringify(["0.7", "0.3"]),
         },
       ]),
     );
@@ -76,18 +80,23 @@ describe("PredictionEventSignalSource", () => {
 
   it("dedupes condition ids across polls", async () => {
     vi.useFakeTimers();
-    fetchMock.mockResolvedValue(
-      gammaMarkets([
-        {
-          conditionId: "cond-dedupe",
-          question: "Election winner?",
-          slug: "election",
-          category: "politics",
-          liquidity: 50_000,
-          lastTradePrice: 0.8,
-          tokens: [{ outcome: "Yes", token_id: "yes-token" }],
-        },
-      ]),
+    // Fresh Response per call — Response bodies are single-use.
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
+        gammaMarkets([
+          {
+            conditionId: "cond-dedupe",
+            question: "Election winner?",
+            slug: "election",
+            category: "politics",
+            liquidity: 50_000,
+            lastTradePrice: 0.8,
+            clobTokenIds: JSON.stringify(["yes-token", "no-token"]),
+            outcomes: JSON.stringify(["Yes", "No"]),
+            outcomePrices: JSON.stringify(["0.8", "0.2"]),
+          },
+        ]),
+      ),
     );
 
     const source = new PredictionEventSignalSource(
@@ -106,7 +115,30 @@ describe("PredictionEventSignalSource", () => {
     await source.stop();
 
     expect(events).toHaveLength(1);
-    expect(source.snapshot().lastPollResult?.passed).toBe(0);
+    expect(source.snapshot().lastPollResult).toMatchObject({
+      passed: 0,
+      errors: [],
+    });
+    expect(source.status).toBe("paused");
+  });
+
+  it("marks the source error on non-2xx gamma responses instead of quiet success", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response("unavailable", { status: 503 }),
+    );
+
+    const source = new PredictionEventSignalSource("pm-503", "{}");
+    await source.start();
+
+    expect(source.status).toBe("error");
+    expect(source.lastError).toContain("503");
+    expect(source.snapshot().lastPollResult).toMatchObject({
+      detected: 0,
+      passed: 0,
+      errors: [expect.stringContaining("503")],
+    });
+
+    await source.stop();
   });
 
   it("returns synthetic event from test() without network", async () => {

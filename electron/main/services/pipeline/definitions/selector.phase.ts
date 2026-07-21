@@ -24,6 +24,7 @@ import {
   summarizeSelectorOutput,
   type SelectorCandidate,
 } from "./selector.helpers";
+import { candidateIdentityKey } from "../../signals/scoring/selector-candidate-merger";
 import {
   candidateOutputSchema,
   verificationOutputSchema,
@@ -132,9 +133,10 @@ export const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
 ];
 
 function verificationWorkers(candidate: SelectorCandidate): WorkerDefinition[] {
+  const identity = candidateIdentityKey(candidate);
   return [
     {
-      id: `market-validator:${candidate.symbol}`,
+      id: `market-validator:${identity}`,
       prompt: SELECTOR_WORKERS_MARKET_VALIDATOR_PROMPT,
       tools: ["get_quote", "get_ohlcv"],
       toolRequirements: {
@@ -146,7 +148,7 @@ function verificationWorkers(candidate: SelectorCandidate): WorkerDefinition[] {
       outputSchema: verificationOutputSchema,
     },
     {
-      id: `catalyst-extractor:${candidate.symbol}`,
+      id: `catalyst-extractor:${identity}`,
       prompt: SELECTOR_WORKERS_CATALYST_EXTRACTOR_PROMPT,
       tools: ["search_web", "fetch_url"],
       toolConfig: SEARCH_WEB_TOOL_CONFIG,
@@ -159,7 +161,7 @@ function verificationWorkers(candidate: SelectorCandidate): WorkerDefinition[] {
       outputSchema: verificationOutputSchema,
     },
     {
-      id: `liquidity-gate:${candidate.symbol}`,
+      id: `liquidity-gate:${identity}`,
       prompt: SELECTOR_WORKERS_LIQUIDITY_GATE_PROMPT,
       tools: ["get_quote", "get_ohlcv"],
       toolRequirements: { requiredAll: ["get_quote"], minToolCalls: 1 },
@@ -168,6 +170,13 @@ function verificationWorkers(candidate: SelectorCandidate): WorkerDefinition[] {
       outputSchema: verificationOutputSchema,
     },
   ];
+}
+
+function parseVerificationWorkerIdentity(workerId: string): string {
+  return workerId.replace(
+    /^(market-validator|catalyst-extractor|liquidity-gate):/,
+    "",
+  );
 }
 
 export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
@@ -243,9 +252,9 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
         );
       },
       buildTask(_ctx, state, worker) {
-        const symbol = worker.id.split(":")[1] ?? "";
+        const identity = parseVerificationWorkerIdentity(worker.id);
         const candidate = state.candidatesForVerification.find(
-          (row) => row.symbol === symbol,
+          (row) => candidateIdentityKey(row) === identity,
         );
         return {
           selectionInstructions: state.selectionInstructions,
@@ -253,6 +262,7 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
             symbol: candidate?.symbol,
             instrumentClass: candidate?.instrumentClass,
             instrumentDisplayName: candidate?.instrumentDisplayName,
+            predictionOutcome: candidate?.predictionOutcome,
             rationale: candidate?.rationale,
           },
           failureHistory: (

@@ -37,13 +37,16 @@ export function createMarketTools(deps: {
       inputSchema: z.object({
         symbol: z.string(),
         instrumentClass: instrumentClassSchema,
+        predictionOutcome: z.enum(["YES", "NO"]).nullable().optional(),
       }),
       execute: async ({
         symbol,
         instrumentClass,
+        predictionOutcome,
       }: {
         symbol: string;
         instrumentClass: InstrumentClass;
+        predictionOutcome?: "YES" | "NO" | null;
       }) => {
         const brokerAccountId = deps.brokerAccountIdByClass(instrumentClass);
         if (!brokerAccountId)
@@ -62,13 +65,16 @@ export function createMarketTools(deps: {
             instrumentClass,
             brokerType: adapter.brokerType,
           });
-          const snapshot = await adapter.getMarketSnapshot(brokerSymbol);
+          const snapshot = await adapter.getMarketSnapshot(brokerSymbol, {
+            predictionOutcome: predictionOutcome ?? null,
+          });
           return {
             ...snapshot,
             symbol,
             canonicalSymbol,
             brokerSymbol,
             instrumentClass,
+            predictionOutcome: predictionOutcome ?? snapshot.predictionOutcome,
           };
         } catch (error) {
           return toToolError(error);

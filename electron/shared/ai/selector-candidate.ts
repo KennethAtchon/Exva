@@ -17,7 +17,7 @@ export const candidateSchema = z.object({
   symbol: z
     .string()
     .min(1)
-    .max(20)
+    .max(160)
     .describe("Ticker or contract symbol, evidence-backed; never invented."),
   instrumentClass: z
     .enum(["stock", "crypto", "futures", "options", "prediction_market"])
@@ -27,6 +27,18 @@ export const candidateSchema = z.object({
     .nullable()
     .default(null)
     .describe("Human-readable name, or null if unknown."),
+  predictionOutcome: z
+    .enum(["YES", "NO"])
+    .nullable()
+    .default(null)
+    .describe("Prediction-market outcome identity when applicable."),
+  instrumentMetadataJson: z
+    .string()
+    .nullable()
+    .default(null)
+    .describe(
+      "Server-owned executable metadata JSON (conditionId, outcomeTokenId).",
+    ),
   source: z
     .array(z.string())
     .default([])

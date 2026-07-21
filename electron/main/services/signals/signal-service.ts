@@ -118,20 +118,32 @@ export class SignalService {
       attachedSessionCount: number;
     }
   > {
+    const runtimeRepo = this.registry.getRuntimeRepo();
     return this.sourcesRepo.list().map((source) => {
       const runtime = this.registry.status(source.id);
       const snapshot = this.registry.snapshot(source.id);
+      const durable = runtimeRepo.get(source.id);
       return {
         ...source,
-        runtimeStatus: runtime?.status ?? "idle",
-        runtimeLastError: runtime?.lastError ?? null,
+        runtimeStatus: runtime?.status ?? durable?.status ?? "idle",
+        runtimeLastError:
+          runtime?.lastError ?? durable?.lastError ?? null,
         attachedSessionCount: 0,
         attachedSessionNames: [] as string[],
-        lastPollAt: snapshot?.lastPollAt ?? null,
-        lastPollResult: snapshot?.lastPollResult ?? null,
+        lastPollAt: snapshot?.lastPollAt ?? durable?.lastPollAt ?? null,
+        lastPollResult: snapshot?.lastPollResult ??
+          (durable
+            ? {
+                detected: durable.detected,
+                passed: durable.passed,
+                dropped: durable.dropped,
+                errors: durable.errors,
+              }
+            : null),
         lastSignalAt: snapshot?.lastSignalAt ?? null,
         lastSignalTicker: snapshot?.lastSignalTicker ?? null,
         recentActivity: snapshot?.recentActivity ?? [],
+        durableRuntime: durable,
       };
     });
   }

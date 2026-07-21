@@ -4,12 +4,19 @@ import type {
   SignalSourceRuntimeStatus,
 } from "@electron/shared/domain";
 import { DEFAULT_SIGNAL_TTL } from "@electron/shared/domain/market-signal";
+import type { SignalSourcePollOutcome } from "@electron/shared/domain/signal-source-health";
 import type {
   ISignalSource,
   SignalSourceActivityEntry,
   SignalSourceSnapshot,
 } from "../ISignalSource";
 import { CikTickerCache } from "../cache/cik-ticker-cache";
+import type { SignalSourceRuntimeRepo } from "../repos/signal-source-runtime-repo";
+import {
+  classifyPollFailure,
+  emptyPollResult,
+  persistSourcePoll,
+} from "../persist-source-poll";
 import { createLogger } from "../../infra/log";
 import { safeJsonParse } from "../../infra/safe-json-parse";
 
@@ -43,6 +50,7 @@ export class EdgarSignalSource implements ISignalSource {
     public readonly id: string,
     configJson: string,
     private readonly cikCache: CikTickerCache,
+    private readonly runtimeRepo: SignalSourceRuntimeRepo | null = null,
   ) {
     this.config = safeParseConfig(configJson);
   }
@@ -104,13 +112,11 @@ export class EdgarSignalSource implements ISignalSource {
   }
 
   private async pollOnce(): Promise<PollResult> {
-    const result: PollResult = {
-      detected: 0,
-      passed: 0,
-      dropped: 0,
-      errors: [],
-    };
+    const result = emptyPollResult();
     const polledAt = new Date().toISOString();
+    const startedMs = Date.now();
+    let outcome: SignalSourcePollOutcome = "success";
+    let httpStatus: number | null = null;
     try {
       const response = await fetch(FEED_URL, {
         headers: {
@@ -118,6 +124,7 @@ export class EdgarSignalSource implements ISignalSource {
           Accept: "application/atom+xml",
         },
       });
+      httpStatus = response.status;
       if (!response.ok) throw new Error(`EDGAR feed status ${response.status}`);
       const body = await response.text();
       const entries = parseAtomEntries(body);
@@ -183,29 +190,41 @@ export class EdgarSignalSource implements ISignalSource {
       }
       this.status = "running";
       this.lastError = null;
-      this.lastPollAt = polledAt;
-      this.lastPollResult = result;
       this.pushActivity({
         at: polledAt,
         kind: "ok",
         summary: `Poll OK - ${result.detected} detected, ${result.passed} passed, ${result.dropped} dropped`,
       });
-      return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const failure = classifyPollFailure(message);
+      outcome = failure.outcome;
+      // Prefer status from the response when the request completed.
+      httpStatus = httpStatus ?? failure.httpStatus;
       this.status = "error";
       this.lastError = message;
       this.logger.warn({ err: error }, "edgar poll failed");
       result.errors.push(message);
-      this.lastPollAt = polledAt;
-      this.lastPollResult = result;
       this.pushActivity({
         at: polledAt,
         kind: "error",
         summary: `Poll error - ${message}`,
       });
-      return result;
     }
+
+    this.lastPollAt = polledAt;
+    this.lastPollResult = result;
+    persistSourcePoll(this.runtimeRepo, {
+      sourceId: this.id,
+      polledAt,
+      outcome,
+      httpStatus,
+      result,
+      status: this.status,
+      lastError: this.lastError,
+      durationMs: Date.now() - startedMs,
+    });
+    return result;
   }
 
   private pushActivity(entry: SignalSourceActivityEntry): void {

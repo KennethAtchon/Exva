@@ -13,11 +13,13 @@ import { CalendarSource } from "./sources/calendar-source";
 import { NewsSource } from "./sources/news-source";
 import { CalendarEventsRepo } from "../../db/repositories/signals/calendar-events-repo";
 import { SignalBus } from "./signal-bus";
+import { SignalSourceRuntimeRepo } from "./repos/signal-source-runtime-repo";
 
 export class SignalSourceRegistry {
   private readonly sources = new Map<string, ISignalSource>();
   private readonly cikCache: CikTickerCache;
   private readonly calendarEventsRepo: CalendarEventsRepo;
+  private readonly runtimeRepo: SignalSourceRuntimeRepo;
 
   constructor(
     private readonly db: DbClient,
@@ -25,6 +27,12 @@ export class SignalSourceRegistry {
   ) {
     this.cikCache = new CikTickerCache(db);
     this.calendarEventsRepo = new CalendarEventsRepo(db);
+    this.runtimeRepo = new SignalSourceRuntimeRepo(db);
+  }
+
+  /** Durable poll health — survives process exit. */
+  getRuntimeRepo(): SignalSourceRuntimeRepo {
+    return this.runtimeRepo;
   }
 
   create(record: SignalSourceRecord): ISignalSource {
@@ -89,35 +97,45 @@ export class SignalSourceRegistry {
   }
 
   private instantiate(record: SignalSourceRecord): ISignalSource {
-    if (record.type === "edgar_8k") {
-      return new EdgarSignalSource(record.id, record.configJson, this.cikCache);
+    switch (record.type) {
+      case "edgar_8k":
+        return new EdgarSignalSource(
+          record.id,
+          record.configJson,
+          this.cikCache,
+          this.runtimeRepo,
+        );
+      case "mock":
+        return new MockSignalSource(record.id, record.configJson);
+      case "prediction_event":
+        return new PredictionEventSignalSource(
+          record.id,
+          record.configJson,
+          this.runtimeRepo,
+        );
+      case "kalshi_market":
+        return new KalshiMarketSource(
+          record.id,
+          record.configJson,
+          this.runtimeRepo,
+        );
+      case "calendar":
+        return new CalendarSource(
+          record.id,
+          record.configJson,
+          this.calendarEventsRepo,
+          this.runtimeRepo,
+        );
+      case "news_rss":
+        return new NewsSource(record.id, record.configJson, this.runtimeRepo);
+      case "manual":
+        throw new Error(
+          `Signal source type "manual" is implicit and not instantiated via the registry`,
+        );
+      default:
+        throw new Error(
+          `Unknown signal source type: ${(record as { type: string }).type}`,
+        );
     }
-    if (record.type === "mock") {
-      return new MockSignalSource(record.id, record.configJson);
-    }
-    if (record.type === "prediction_event") {
-      return new PredictionEventSignalSource(record.id, record.configJson);
-    }
-    if (record.type === "kalshi_market") {
-      return new KalshiMarketSource(record.id, record.configJson);
-    }
-    if (record.type === "calendar") {
-      return new CalendarSource(
-        record.id,
-        record.configJson,
-        this.calendarEventsRepo,
-      );
-    }
-    if (record.type === "news_rss") {
-      return new NewsSource(record.id, record.configJson);
-    }
-    if (record.type === "manual") {
-      throw new Error(
-        `Signal source type "manual" is implicit and not instantiated via the registry`,
-      );
-    }
-    throw new Error(
-      `Unknown signal source type: ${(record as { type: string }).type}`,
-    );
   }
 }

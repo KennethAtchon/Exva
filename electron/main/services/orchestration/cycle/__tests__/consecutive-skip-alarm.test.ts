@@ -95,4 +95,68 @@ describe("consecutive skip alarm", () => {
       expect.stringContaining("10 consecutive skips"),
     );
   });
+
+  it("keeps no-trade streak across hard-failure resets (empty selector path)", () => {
+    let status: "active" | "attention_required" = "active";
+    const setStatus = vi.fn(
+      (next: "active" | "attention_required", sessionId: string) => {
+        void sessionId;
+        status = next;
+      },
+    );
+
+    const ctx = new TradingCycleContext("session-skip-alarm", {
+      sessionRepo: {
+        getStatus: () => status,
+        setStatus,
+      },
+      strategyContextService: {
+        getSelectorSettings: () => ({
+          aiPickerEnabled: true,
+          noInstrumentRetryMinutes: null,
+        }),
+        get: () => ({
+          riskConfig: { waitForOpenThreshold: 0.8 },
+        }),
+      },
+      sessionExecutionStepsRepo: {
+        upsert: vi.fn(),
+      },
+      bus: {
+        runtimeStatus: () => "active",
+        emit: vi.fn(),
+      },
+      eventsRepo: {
+        insert: vi.fn((event) => ({ id: "event-1", ...event })),
+      },
+      logger: {
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+      },
+      tradesRepo: {
+        listOpenAndPending: () => [],
+      },
+      supervisor: { raiseConsecutiveSkip: vi.fn(async () => undefined) },
+    } as never);
+
+    for (let i = 0; i < 10; i++) {
+      // Mimic runPhaseCycle success path for empty selector:
+      // hard-failure reset must not wipe the skip streak.
+      ctx.resetHardFailureStreak();
+      ctx.recordFailure({
+        cycleId: `cycle-${i}`,
+        stage: "selector_cycle",
+        outcome: "no_trade",
+        level: "WARN",
+        code: null,
+        message: "empty selector",
+        reasonCategory: "model_no_trade",
+      });
+    }
+
+    expect(ctx.consecutiveSameSkipCount).toBe(10);
+    expect(status).toBe("attention_required");
+  });
 });

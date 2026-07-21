@@ -308,6 +308,7 @@ export function finalizeOpenedTrade(
   ctx.deps.capitalReservation.convertOrderToPosition(trade.id);
   ctx.clearAttentionRequired();
   ctx.resetHardFailureStreak();
+  ctx.resetNoTradeSkipStreak();
   ctx.emitEvent(
     "INFO",
     trade.id,

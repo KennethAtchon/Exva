@@ -12,6 +12,8 @@ function candidate(
     symbol,
     instrumentClass: "stock",
     instrumentDisplayName: null,
+    predictionOutcome: null,
+    instrumentMetadataJson: null,
     source: [],
     hypeScore: null,
     volumeScore: null,
@@ -95,5 +97,29 @@ describe("selector candidate merger", () => {
   it("returns empty list for empty input", () => {
     expect(mergeDiscoveryCandidates([])).toEqual([]);
     expect(mergeDiscoveryCandidates([[]])).toEqual([]);
+  });
+
+  it("keeps YES and NO prediction outcomes distinct under the same symbol", () => {
+    const symbol = `pm:0x${"ab".repeat(32)}`;
+    const merged = mergeDiscoveryCandidates([
+      [
+        candidate(symbol, {
+          instrumentClass: "prediction_market",
+          predictionOutcome: "YES",
+          instrumentMetadataJson: JSON.stringify({ outcomeTokenId: "yes" }),
+        }),
+        candidate(symbol, {
+          instrumentClass: "prediction_market",
+          predictionOutcome: "NO",
+          instrumentMetadataJson: JSON.stringify({ outcomeTokenId: "no" }),
+        }),
+      ],
+    ]);
+
+    expect(merged).toHaveLength(2);
+    expect(merged.map((row) => row.predictionOutcome).sort()).toEqual([
+      "NO",
+      "YES",
+    ]);
   });
 });

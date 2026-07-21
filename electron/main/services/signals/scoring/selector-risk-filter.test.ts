@@ -53,6 +53,8 @@ function candidate(
     symbol: "NVDA",
     instrumentClass: "stock",
     instrumentDisplayName: "NVIDIA",
+    predictionOutcome: null,
+    instrumentMetadataJson: null,
     rationale: "Strong breakout momentum with volume confirmation.",
     catalystSummary: null,
     hypeScore: 0.8,

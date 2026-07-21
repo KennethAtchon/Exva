@@ -7,11 +7,18 @@ import {
   computeDedupeKey,
   DEFAULT_SIGNAL_TTL,
 } from "@electron/shared/domain/market-signal";
+import type { SignalSourcePollOutcome } from "@electron/shared/domain/signal-source-health";
 import type {
   ISignalSource,
   SignalSourceActivityEntry,
   SignalSourceSnapshot,
 } from "../ISignalSource";
+import type { SignalSourceRuntimeRepo } from "../repos/signal-source-runtime-repo";
+import {
+  classifyPollFailure,
+  emptyPollResult,
+  persistSourcePoll,
+} from "../persist-source-poll";
 import { createLogger } from "../../infra/log";
 import { safeJsonParse } from "../../infra/safe-json-parse";
 
@@ -69,6 +76,7 @@ export class KalshiMarketSource implements ISignalSource {
   constructor(
     public readonly id: string,
     configJson: string,
+    private readonly runtimeRepo: SignalSourceRuntimeRepo | null = null,
   ) {
     this.config = safeParseConfig(configJson);
   }
@@ -127,17 +135,18 @@ export class KalshiMarketSource implements ISignalSource {
 
   private async pollOnce(): Promise<PollResult> {
     const polledAt = new Date().toISOString();
-    const result: PollResult = {
-      detected: 0,
-      passed: 0,
-      dropped: 0,
-      errors: [],
-    };
+    const startedMs = Date.now();
+    const result = emptyPollResult();
+    let outcome: SignalSourcePollOutcome = "success";
+    let httpStatus: number | null = null;
 
     try {
-      const rows = await fetchKalshiMarkets(this.config.environment ?? "demo");
-      result.detected = rows.length;
-      for (const row of rows) {
+      const fetched = await fetchKalshiMarkets(
+        this.config.environment ?? "demo",
+      );
+      httpStatus = fetched.httpStatus;
+      result.detected = fetched.rows.length;
+      for (const row of fetched.rows) {
         const event = this.eventFromMarketRow(row);
         if (!event) {
           result.dropped += 1;
@@ -155,11 +164,15 @@ export class KalshiMarketSource implements ISignalSource {
       this.status = "running";
       this.lastError = null;
     } catch (error) {
-      this.status = "error";
-      this.lastError =
+      const message =
         error instanceof Error ? error.message : "Kalshi poll failed";
-      result.errors.push(this.lastError);
-      this.logger.error({ error: this.lastError }, "kalshi poll failed");
+      const failure = classifyPollFailure(message);
+      outcome = failure.outcome;
+      httpStatus = failure.httpStatus;
+      this.status = "error";
+      this.lastError = message;
+      result.errors.push(message);
+      this.logger.error({ error: message }, "kalshi poll failed");
     }
 
     this.lastPollAt = polledAt;
@@ -168,6 +181,16 @@ export class KalshiMarketSource implements ISignalSource {
       at: polledAt,
       kind: result.errors.length > 0 ? "error" : "ok",
       summary: `Kalshi poll ${result.passed}/${result.detected} passed`,
+    });
+    persistSourcePoll(this.runtimeRepo, {
+      sourceId: this.id,
+      polledAt,
+      outcome,
+      httpStatus,
+      result,
+      status: this.status,
+      lastError: this.lastError,
+      durationMs: Date.now() - startedMs,
     });
     return result;
   }
@@ -301,12 +324,30 @@ export class KalshiMarketSource implements ISignalSource {
 
 export async function fetchKalshiMarkets(
   environment: "demo" | "prod" = "demo",
-): Promise<KalshiMarketRow[]> {
+): Promise<{ rows: KalshiMarketRow[]; httpStatus: number }> {
   const base = environment === "prod" ? PROD_REST : DEMO_REST;
   const response = await fetch(`${base}/markets?limit=40&status=open`);
-  if (!response.ok) return [];
-  const body = (await response.json()) as { markets?: KalshiMarketRow[] };
-  return Array.isArray(body.markets) ? body.markets : [];
+  if (!response.ok) {
+    throw new Error(`Kalshi markets status ${response.status}`);
+  }
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    throw new Error(`Kalshi markets parse error (status ${response.status})`);
+  }
+  const markets =
+    body &&
+    typeof body === "object" &&
+    Array.isArray((body as { markets?: unknown }).markets)
+      ? ((body as { markets: KalshiMarketRow[] }).markets)
+      : null;
+  if (!markets) {
+    throw new Error(
+      `Kalshi markets expected { markets: [] } (status ${response.status})`,
+    );
+  }
+  return { rows: markets, httpStatus: response.status };
 }
 
 function safeParseConfig(configJson: string): KalshiMarketSourceConfig {

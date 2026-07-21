@@ -429,6 +429,40 @@ describe("AlpacaAdapter", () => {
     );
   });
 
+  it("widens stock bar lookback when the first window is too short", async () => {
+    let calls = 0;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (!String(url).includes("/v2/stocks/SPY/bars")) {
+        return jsonResponse({}, 404);
+      }
+      calls += 1;
+      const start = new URL(String(url)).searchParams.get("start");
+      const startMs = start ? Date.parse(start) : 0;
+      const ageHours =
+        (regularHoursClock().getTime() - startMs) / (60 * 60 * 1000);
+      // First 3x window (~90h) returns only 8 bars; wider windows fill warmup.
+      const count = ageHours < 100 ? 8 : 21;
+      return jsonResponse({
+        bars: Array.from({ length: count }, (_, i) => ({
+          t: new Date(
+            regularHoursClock().getTime() - i * 60 * 60 * 1000,
+          ).toISOString(),
+          o: 180,
+          h: 186,
+          l: 179,
+          c: 185,
+          v: 1000,
+        })),
+      });
+    });
+
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+    const bars = await adapter.getOhlcv("SPY", "1h", 21);
+
+    expect(calls).toBeGreaterThan(1);
+    expect(bars.length).toBe(21);
+  });
+
   it("requests option bars with an explicit start window", async () => {
     const adapter = new AlpacaAdapter(credentials, regularHoursClock);
     await adapter.getOhlcv("AAPL250117C00150000", "1d", 30);

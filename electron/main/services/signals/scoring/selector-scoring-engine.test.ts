@@ -10,6 +10,8 @@ function baseCandidate(
     symbol,
     instrumentClass: "stock",
     instrumentDisplayName: null,
+    predictionOutcome: null,
+    instrumentMetadataJson: null,
     source: [],
     hypeScore: null,
     volumeScore: null,

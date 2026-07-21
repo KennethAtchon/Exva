@@ -34,6 +34,7 @@ export type GetBarsCallback = (
   timeframe: TradingTimeframe,
   barCount: number,
   instrumentClass: string,
+  context?: { subscriptionIds: string[] },
 ) => Promise<OhlcvBar[]>;
 
 export interface ScheduledStrategyExecutorDeps {
@@ -54,6 +55,59 @@ export interface ScheduledStrategyExecutorDeps {
   ) => void;
 }
 
+export type InstrumentEvalKind =
+  | "signal"
+  | "no_setup"
+  | "insufficient_bars"
+  | "bars_failed"
+  | "evaluate_failed"
+  | "empty_universe";
+
+export type InstrumentEvalOutcome = {
+  symbol: string;
+  kind: InstrumentEvalKind;
+  barsActual?: number;
+  barsRequired?: number;
+  error?: string;
+};
+
+export type ScheduledExecutionResult = {
+  signals: MarketSignal[];
+  instruments: InstrumentEvalOutcome[];
+};
+
+export function summarizeScanExecution(
+  result: ScheduledExecutionResult,
+): Record<string, unknown> {
+  const counts: Record<string, number> = {};
+  for (const row of result.instruments) {
+    counts[row.kind] = (counts[row.kind] ?? 0) + 1;
+  }
+  return {
+    signalCount: result.signals.length,
+    instrumentCount: result.instruments.length,
+    counts,
+    instruments: result.instruments,
+  };
+}
+
+const UNEVALUABLE_KINDS: ReadonlySet<InstrumentEvalKind> = new Set([
+  "insufficient_bars",
+  "bars_failed",
+  "evaluate_failed",
+  "empty_universe",
+]);
+
+/** True when every instrument was unevaluable (no strategy evaluation reached). */
+export function isAllInstrumentsUnevaluable(
+  result: ScheduledExecutionResult,
+): boolean {
+  return (
+    result.instruments.length === 0 ||
+    result.instruments.every((row) => UNEVALUABLE_KINDS.has(row.kind))
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Executor
 // ---------------------------------------------------------------------------
@@ -65,7 +119,7 @@ export interface ScheduledStrategyExecutorDeps {
  * 2. For each instrument (bounded concurrency), fetch OHLCV bars.
  * 3. Evaluate the strategy via its `DeterministicStrategy.evaluate()`.
  * 4. Emit `scan_hit` `MarketSignal`s for positive evaluations.
- *    Quiet evaluations produce no signal.
+ *    Quiet evaluations produce no signal but are recorded as `no_setup`.
  */
 export class ScheduledStrategyExecutor {
   private readonly concurrency: number;
@@ -74,10 +128,9 @@ export class ScheduledStrategyExecutor {
     this.concurrency = deps.concurrency ?? 4;
   }
 
-  async execute(plan: ScheduledRuntimePlan): Promise<MarketSignal[]> {
+  async execute(plan: ScheduledRuntimePlan): Promise<ScheduledExecutionResult> {
     const { db, strategyRegistry, getBars } = this.deps;
 
-    // Load instrument set members.
     const memberRows = db.db
       .select()
       .from(instrumentSetMembers)
@@ -90,7 +143,16 @@ export class ScheduledStrategyExecutor {
       .all();
 
     if (memberRows.length === 0) {
-      return [];
+      return {
+        signals: [],
+        instruments: [
+          {
+            symbol: "*",
+            kind: "empty_universe",
+            error: "instrument set has no members",
+          },
+        ],
+      };
     }
 
     const setRevision = db.db
@@ -106,21 +168,20 @@ export class ScheduledStrategyExecutor {
     const instrumentClass = (setRevision?.instrumentClass ??
       "stock") as InstrumentClass;
 
-    // Resolve strategy definition and create instance.
     const strategyDef = strategyRegistry.require(plan.strategyId);
     const strategy = strategyDef.create(plan.strategyParameters);
 
-    const results: MarketSignal[] = [];
+    const signals: MarketSignal[] = [];
+    const instruments: InstrumentEvalOutcome[] = [];
     const now = new Date().toISOString();
 
-    // Process instruments in bounded-concurrency batches.
     for (
       let offset = 0;
       offset < memberRows.length;
       offset += this.concurrency
     ) {
       const batch = memberRows.slice(offset, offset + this.concurrency);
-      const batchSignals = await Promise.all(
+      const batchOutcomes = await Promise.all(
         batch.map((member) =>
           this.evaluateInstrument(
             member.displaySymbol,
@@ -133,12 +194,13 @@ export class ScheduledStrategyExecutor {
           ),
         ),
       );
-      for (const sig of batchSignals) {
-        if (sig) results.push(sig);
+      for (const outcome of batchOutcomes) {
+        instruments.push(outcome.diag);
+        if (outcome.signal) signals.push(outcome.signal);
       }
     }
 
-    return results;
+    return { signals, instruments };
   }
 
   private async evaluateInstrument(
@@ -149,7 +211,11 @@ export class ScheduledStrategyExecutor {
     getBars: GetBarsCallback,
     now: string,
     instrumentClass: InstrumentClass,
-  ): Promise<MarketSignal | null> {
+  ): Promise<{
+    signal: MarketSignal | null;
+    diag: InstrumentEvalOutcome;
+  }> {
+    const barsRequired = strategy.warmupBars;
     let bars: OhlcvBar[];
     try {
       bars = await getBars(
@@ -157,18 +223,33 @@ export class ScheduledStrategyExecutor {
         plan.analysisTimeframe,
         strategy.warmupBars + 1,
         instrumentClass,
+        { subscriptionIds: plan.subscriptionIds },
       );
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       logger.warn({ symbol: displaySymbol, err }, "getBars failed");
       this.deps.onBarsFailed?.(plan, displaySymbol, errorMessage);
-      // Per-instrument isolation: one bar outage must not kill the scan batch.
-      // Caller sees fewer signals; schedule coordinator still ticks.
-      return null;
+      return {
+        signal: null,
+        diag: {
+          symbol: displaySymbol,
+          kind: "bars_failed",
+          barsRequired,
+          error: errorMessage,
+        },
+      };
     }
 
     if (bars.length < strategy.warmupBars) {
-      return null;
+      return {
+        signal: null,
+        diag: {
+          symbol: displaySymbol,
+          kind: "insufficient_bars",
+          barsActual: bars.length,
+          barsRequired,
+        },
+      };
     }
 
     let signal: ReturnType<typeof strategy.evaluate>;
@@ -178,15 +259,34 @@ export class ScheduledStrategyExecutor {
         timeframe: plan.analysisTimeframe,
       });
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
       logger.warn(
         { symbol: displaySymbol, strategyId: plan.strategyId, err },
         "evaluate failed",
       );
-      // Strategy throws are instrument-local; skip symbol, keep batch alive.
-      return null;
+      return {
+        signal: null,
+        diag: {
+          symbol: displaySymbol,
+          kind: "evaluate_failed",
+          barsActual: bars.length,
+          barsRequired,
+          error: errorMessage,
+        },
+      };
     }
 
-    if (!signal) return null;
+    if (!signal) {
+      return {
+        signal: null,
+        diag: {
+          symbol: displaySymbol,
+          kind: "no_setup",
+          barsActual: bars.length,
+          barsRequired,
+        },
+      };
+    }
 
     const payload: ScanHitPayload = {
       strategyId: plan.strategyId,
@@ -218,6 +318,14 @@ export class ScheduledStrategyExecutor {
       payload,
     };
 
-    return marketSignal;
+    return {
+      signal: marketSignal,
+      diag: {
+        symbol: displaySymbol,
+        kind: "signal",
+        barsActual: bars.length,
+        barsRequired,
+      },
+    };
   }
 }

@@ -110,15 +110,15 @@ check works 24/7 (`pick-debug-instrument.test.ts`).
 ## 6. Running
 
 ```bash
-npm run typecheck     # types must pass first — config is threaded through many layers
-npm run test          # vitest run — unit + integration together
-npx vitest run <path> # focus a file/dir while iterating
+bun run typecheck     # types must pass first — config is threaded through many layers
+bun run test          # vitest run — unit + integration together
+bunx vitest run <path> # focus a file/dir while iterating
 ```
 
 Filter to the order-routing surface while working in this area:
 
 ```bash
-npx vitest run \
+bunx vitest run \
   electron/main/services/broker/adapters/__tests__/alpaca-adapter.test.ts \
   electron/main/services/orchestration/cycle/__tests__/market-hours-service.test.ts \
   electron/shared/instruments/__tests__/us-equity-session.test.ts \
