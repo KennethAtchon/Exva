@@ -128,6 +128,100 @@ describe("PolymarketAdapter", () => {
     });
   });
 
+  it("quotes the selected predictionOutcome token, not the first token", async () => {
+    const adapter = new PolymarketAdapter(credentials);
+    const quote = await adapter.getMarketSnapshot("pm:cond-1", {
+      predictionOutcome: "NO",
+    });
+
+    expect(quote).toMatchObject({
+      instrumentSymbol: "pm:cond-1",
+      predictionOutcome: "NO",
+      price: 0.38,
+    });
+  });
+
+  it("rejects snapshots when the requested predictionOutcome token is missing", async () => {
+    clobClientMethods.getMarket.mockResolvedValue({
+      question: "Will event X happen?",
+      tokens: [{ token_id: "token-yes-1", outcome: "YES", price: "0.62" }],
+      endDate: "2026-12-31T00:00:00.000Z",
+      closed: false,
+    });
+    const adapter = new PolymarketAdapter(credentials);
+
+    await expect(
+      adapter.getMarketSnapshot("pm:cond-1", { predictionOutcome: "NO" }),
+    ).rejects.toThrow(/missing token price/i);
+  });
+
+  it("normalizes current Gamma market shapes in fetchMarketCandidates", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([
+          {
+            conditionId: "0x" + "ab".repeat(32),
+            question: "Will event X happen?",
+            clobTokenIds: JSON.stringify(["token-yes-1", "token-no-1"]),
+            outcomes: JSON.stringify(["Yes", "No"]),
+            outcomePrices: JSON.stringify(["0.62", "0.38"]),
+          },
+        ]),
+      ),
+    );
+    const adapter = new PolymarketAdapter(credentials);
+    const rows = await adapter.fetchMarketCandidates();
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.tokens).toEqual([
+      { outcome: "Yes", token_id: "token-yes-1", price: "0.62" },
+      { outcome: "No", token_id: "token-no-1", price: "0.38" },
+    ]);
+  });
+
+  it("throws when Gamma returns rows but none are usable Yes/No markets", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([
+          {
+            conditionId: "cond-bad",
+            question: "Broken market",
+            clobTokenIds: JSON.stringify(["only-one"]),
+            outcomes: JSON.stringify(["Yes"]),
+            outcomePrices: JSON.stringify(["0.5"]),
+          },
+        ]),
+      ),
+    );
+    const adapter = new PolymarketAdapter(credentials);
+
+    await expect(adapter.fetchMarketCandidates()).rejects.toThrow(
+      /none had usable Yes\/No tokens/i,
+    );
+  });
+
+  it("throws on non-2xx Gamma responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("nope", { status: 503 })),
+    );
+    const adapter = new PolymarketAdapter(credentials);
+
+    await expect(adapter.fetchMarketCandidates()).rejects.toThrow(/HTTP 503/i);
+  });
+
+  it("returns an empty array for a legitimate empty Gamma market set", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([])),
+    );
+    const adapter = new PolymarketAdapter(credentials);
+
+    await expect(adapter.fetchMarketCandidates()).resolves.toEqual([]);
+  });
+
   it("places prediction market buy orders with metadata", async () => {
     const adapter = new PolymarketAdapter(credentials);
     const order = await adapter.placeOrder({

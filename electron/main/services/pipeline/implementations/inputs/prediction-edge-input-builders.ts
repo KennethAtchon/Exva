@@ -152,15 +152,17 @@ export const predictionEdgeInputBuilder: EngineInputBuilder = {
       };
     }
 
+    const marketMid = meta.marketMid;
+
     const costs = (() => {
       try {
         const base = requireExperience(ctx.session.experienceId)
           .researchContract.costs;
         // Kalshi venue: inject schedule fee when commission is unset / zero.
-        const meta = safeJsonParse<{ venue?: unknown }>(
+        const metaVenue = safeJsonParse<{ venue?: unknown }>(
           ctx.instrument.instrumentMetadataJson ?? "{}",
         );
-        const venue = String(meta?.venue ?? "").toLowerCase();
+        const venue = String(metaVenue?.venue ?? "").toLowerCase();
         if (venue === "kalshi" && (base.commissionBps ?? 0) === 0) {
           return {
             ...base,
@@ -182,7 +184,7 @@ export const predictionEdgeInputBuilder: EngineInputBuilder = {
     const result = evaluatePredictionEdge(
       {
         predictedProbability: combined.pHat,
-        marketMidProbability: meta.marketMid,
+        marketMidProbability: marketMid,
         spreadBps: costs.spreadBps,
         feeBps: costs.commissionBps ?? 0,
         slippageBps: costs.slippageBps,
@@ -203,6 +205,18 @@ export const predictionEdgeInputBuilder: EngineInputBuilder = {
       };
     }
 
+    // Edge BUY → YES token; edge SELL → NO token. Always open by buying that
+    // outcome (Polymarket does not need a short YES to express a NO view).
+    const desiredOutcome = result.side === "BUY" ? "YES" : "NO";
+    if (!alignInstrumentToPredictionOutcome(ctx.instrument, desiredOutcome)) {
+      return {
+        task: skip(
+          symbol,
+          `Missing ${desiredOutcome} outcome token id on instrument metadata.`,
+        ),
+      };
+    }
+
     // Confidence reflects how far the net edge clears the threshold, capped.
     const confidence = Math.min(0.95, 0.5 + result.netEdge * 2);
     logger.debug(
@@ -211,20 +225,21 @@ export const predictionEdgeInputBuilder: EngineInputBuilder = {
         forecastPHat: forecast.pHat,
         redTeamPHat: redTeam?.pHat ?? null,
         combinedPHat: combined.pHat,
-        marketMid: meta.marketMid,
+        marketMid,
         netEdge: result.netEdge,
         side: result.side,
+        desiredOutcome,
       },
       "prediction-edge: tradeable edge",
     );
     return {
       task: tradeSignalSchema.parse({
         symbol,
-        action: result.side === "BUY" ? "buy" : "sell",
+        action: "buy",
         executionStrategy: "prediction_market",
         entryPrice: null,
         confidence,
-        reasoning: `Forecast ${(combined.pHat * 100).toFixed(0)}% vs market ${(meta.marketMid * 100).toFixed(0)}%; net edge ${(result.netEdge * 100).toFixed(1)}% after costs, band ±${(combined.uncertaintyBps / 100).toFixed(1)}%.`,
+        reasoning: `Forecast ${(combined.pHat * 100).toFixed(0)}% vs market ${(marketMid * 100).toFixed(0)}%; net edge ${(result.netEdge * 100).toFixed(1)}% after costs, band ±${(combined.uncertaintyBps / 100).toFixed(1)}%; buy ${desiredOutcome}.`,
       }),
     };
   },
@@ -233,5 +248,35 @@ export const predictionEdgeInputBuilder: EngineInputBuilder = {
     return { ...state, decision: syntheticDecisionRun(signal) };
   },
 };
+
+/** Point the cycle instrument at the outcome token the edge gate selected. */
+function alignInstrumentToPredictionOutcome(
+  instrument: {
+    predictionOutcome?: "YES" | "NO" | null;
+    instrumentMetadataJson?: string | null;
+  },
+  desiredOutcome: "YES" | "NO",
+): boolean {
+  const raw = instrument.instrumentMetadataJson;
+  if (!raw) return false;
+  const parsed = safeJsonParse<{
+    yesOutcomeTokenId?: string;
+    noOutcomeTokenId?: string;
+    outcomeTokenId?: string;
+  }>(raw);
+  if (!parsed) return false;
+  const outcomeTokenId =
+    desiredOutcome === "YES"
+      ? parsed.yesOutcomeTokenId
+      : parsed.noOutcomeTokenId;
+  // Never fall back to the opposite outcome's token.
+  if (!outcomeTokenId) return false;
+  instrument.predictionOutcome = desiredOutcome;
+  instrument.instrumentMetadataJson = JSON.stringify({
+    ...parsed,
+    outcomeTokenId,
+  });
+  return true;
+}
 
 export const PREDICTION_EDGE_INPUT_BUILDERS = [predictionEdgeInputBuilder];

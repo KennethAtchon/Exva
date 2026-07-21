@@ -141,6 +141,41 @@ describe("PredictionEventSignalSource", () => {
     await source.stop();
   });
 
+  it("drops markets missing a NO token id", async () => {
+    fetchMock.mockResolvedValueOnce(
+      gammaMarkets([
+        {
+          conditionId: "cond-yes-only",
+          question: "Broken token row?",
+          slug: "broken",
+          category: "macro",
+          liquidity: 25_000,
+          lastTradePrice: 0.62,
+          clobTokenIds: JSON.stringify(["yes-token-only"]),
+          outcomes: JSON.stringify(["Yes"]),
+          outcomePrices: JSON.stringify(["0.62"]),
+        },
+      ]),
+    );
+
+    const source = new PredictionEventSignalSource(
+      "pm-yes-only",
+      JSON.stringify({ minLiquidityUsd: 5000, minPriceDeviation: 0.1 }),
+    );
+    const events: unknown[] = [];
+    source.onSignal((event) => events.push(event));
+
+    await source.start();
+    await source.stop();
+
+    expect(events).toHaveLength(0);
+    expect(source.snapshot().lastPollResult).toMatchObject({
+      detected: 1,
+      passed: 0,
+      dropped: 1,
+    });
+  });
+
   it("returns synthetic event from test() without network", async () => {
     const source = new PredictionEventSignalSource("pm-3", "{}");
     const events: unknown[] = [];

@@ -56,7 +56,10 @@ export async function fetchPredictionMarketCandidates(
     // Market-implied probability (mid) per outcome — the price the forecaster's
     // p_hat is compared against in the deterministic edge gate.
     const yesMid = yes ? tokenPrice(yes) : null;
-    const noMid = no ? tokenPrice(no) : yesMid != null ? 1 - yesMid : null;
+    // noMid retained only as fallback when Yes price is missing (rare).
+    const noMid = no ? tokenPrice(no) : null;
+    const marketMidYes =
+      yesMid ?? (noMid != null ? 1 - noMid : null);
 
     const timeScore = resolutionTime
       ? predictionResolutionScore(resolutionTime)
@@ -64,9 +67,9 @@ export async function fetchPredictionMarketCandidates(
     const categoryScore = category ? 10 : 0;
     const score = Math.min(liquidity / 1000, 100) + timeScore + categoryScore;
 
-    for (const [predictionOutcome, outcomeTokenId, marketMid] of [
-      ["YES", yesTokenId, yesMid],
-      ["NO", noTokenId, noMid],
+    for (const [predictionOutcome, outcomeTokenId] of [
+      ["YES", yesTokenId],
+      ["NO", noTokenId],
     ] as const) {
       out.push({
         symbol: `pm:${conditionId}`,
@@ -82,9 +85,8 @@ export async function fetchPredictionMarketCandidates(
           category,
           liquidity,
           resolutionTime,
-          // Market-implied probability of this outcome; the edge gate compares
-          // the forecaster's p_hat against it.
-          marketMid,
+          // Always YES mid — evaluatePredictionEdge compares p_hat = P(YES).
+          marketMid: marketMidYes,
         }),
         score,
       });

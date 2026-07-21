@@ -20,6 +20,7 @@ import {
 import {
   applyDiscoveryResults,
   applyVerificationResults,
+  parseVerificationWorkerIdentity,
   scoreSelectorCandidates,
   summarizeSelectorOutput,
   type SelectorCandidate,
@@ -170,13 +171,6 @@ function verificationWorkers(candidate: SelectorCandidate): WorkerDefinition[] {
       outputSchema: verificationOutputSchema,
     },
   ];
-}
-
-function parseVerificationWorkerIdentity(workerId: string): string {
-  return workerId.replace(
-    /^(market-validator|catalyst-extractor|liquidity-gate):/,
-    "",
-  );
 }
 
 export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {

@@ -1260,15 +1260,13 @@ export class PolymarketAdapter
     }
 
     const normalized: PolymarketMarketRow[] = [];
+    let skippedUnusable = 0;
     for (const raw of body) {
       if (!raw || typeof raw !== "object") continue;
       const row = raw as PolymarketMarketRow;
       const tokens = normalizePolymarketMarketTokens(row);
-      if (
-        !tokens ||
-        !tokens.some((token) => token.outcome === "Yes") ||
-        !tokens.some((token) => token.outcome === "No")
-      ) {
+      if (!hasUsableYesNoTokens(tokens)) {
+        skippedUnusable += 1;
         logger.warn(
           {
             conditionId: row.conditionId,
@@ -1279,6 +1277,13 @@ export class PolymarketAdapter
         continue;
       }
       normalized.push({ ...row, tokens });
+    }
+    // Provider returned rows but none were usable — not a legitimate empty set.
+    if (body.length > 0 && normalized.length === 0) {
+      throw brokerDataError(
+        `Polymarket Gamma markets returned ${body.length} row(s) but none had usable Yes/No tokens (${skippedUnusable} unusable)`,
+        { broker: "polymarket", rowCount: body.length, skippedUnusable },
+      );
     }
     return normalized;
   }
@@ -1424,6 +1429,16 @@ function readTokenOutcomeUpper(
   return null;
 }
 
+function hasUsableYesNoTokens(
+  tokens: ReturnType<typeof normalizePolymarketMarketTokens>,
+): boolean {
+  return (
+    tokens != null &&
+    tokens.some((token) => token.outcome === "Yes") &&
+    tokens.some((token) => token.outcome === "No")
+  );
+}
+
 function pickTokenForOutcome(
   market: unknown,
   predictionOutcome?: "YES" | "NO" | null,
@@ -1438,12 +1453,18 @@ function pickTokenForOutcome(
     predictionOutcome === "YES" || predictionOutcome === "NO"
       ? predictionOutcome
       : null;
-  const selected =
-    (wanted
-      ? tokens.find((token) => readTokenOutcomeUpper(token) === wanted)
-      : null) ?? tokens[0];
-  if (!selected) return null;
+  // When an outcome is requested, never fall back to tokens[0] — that would
+  // quote the wrong side. Missing match → null (caller throws).
+  const selected = wanted
+    ? tokens.find((token) => readTokenOutcomeUpper(token) === wanted)
+    : tokens[0];
+  return selected ? readPickedToken(selected) : null;
+}
 
+function readPickedToken(selected: {
+  outcome?: unknown;
+  price?: unknown;
+}): { outcome: "YES" | "NO" | null; price: number | null } {
   const outcome = readTokenOutcomeUpper(selected);
   if (selected.price == null || selected.price === "") {
     return { outcome, price: null };

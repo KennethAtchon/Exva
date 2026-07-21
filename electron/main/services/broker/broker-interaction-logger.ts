@@ -1,12 +1,14 @@
 import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
 import { logProviderCall } from "../infra/provider-call-log";
 
+export type BrokerCallStatus = "ok" | "error" | "empty" | "partial";
+
 export interface BrokerInteractionLogger {
   log(input: {
     callType: string;
     endpoint: string;
     latencyMs: number;
-    status: "ok" | "error";
+    status: BrokerCallStatus;
   }): void;
 }
 
@@ -34,27 +36,39 @@ export async function traceBrokerInteraction<T>(
   callType: string,
   endpoint: string,
   fn: () => Promise<T>,
+  options?: {
+    resolveStatus?: (result: T) => BrokerCallStatus;
+  },
 ): Promise<T> {
   if (!logger) return fn();
+
   const startedAt = Date.now();
+  const log = (status: BrokerCallStatus) =>
+    logger.log({
+      callType,
+      endpoint,
+      latencyMs: Date.now() - startedAt,
+      status,
+    });
+
   try {
     const result = await fn();
-    logger.log({
-      callType,
-      endpoint,
-      latencyMs: Date.now() - startedAt,
-      status: "ok",
-    });
+    log(options?.resolveStatus?.(result) ?? "ok");
     return result;
   } catch (error) {
-    logger.log({
-      callType,
-      endpoint,
-      latencyMs: Date.now() - startedAt,
-      status: "error",
-    });
+    log("error");
     throw error;
   }
+}
+
+/** OHLCV readiness: promise-resolved alone is not a successful bar fetch. */
+export function resolveOhlcvCallStatus(
+  bars: { length: number },
+  barCount: number,
+): BrokerCallStatus {
+  if (bars.length === 0) return "empty";
+  if (bars.length < barCount) return "partial";
+  return "ok";
 }
 
 export function formatPlaceOrderEndpoint(order: {

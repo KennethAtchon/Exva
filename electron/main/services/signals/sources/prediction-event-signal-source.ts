@@ -205,8 +205,11 @@ export class PredictionEventSignalSource implements ISignalSource {
 
     const tokens = normalizePolymarketMarketTokens(row) ?? [];
     const yes = tokens.find((token) => token.outcome === "Yes");
+    const no = tokens.find((token) => token.outcome === "No");
     const yesTokenId = yes?.token_id ?? null;
-    if (!yesTokenId) return null;
+    const noTokenId = no?.token_id ?? null;
+    // Both tokens required — edge may select NO; missing NO must not fall back to YES.
+    if (!yesTokenId || !noTokenId) return null;
 
     if (triggerKind === "curated_event_feed") {
       const curated = this.config.curatedMarketSlugs ?? [];
@@ -226,6 +229,18 @@ export class PredictionEventSignalSource implements ISignalSource {
       return null;
     }
 
+    // Prefer YES mid; else derive from NO; else last trade — all must be in (0,1).
+    let marketMid: number | null = null;
+    const yesMid = yes?.price != null ? Number(yes.price) : NaN;
+    const noMid = no?.price != null ? Number(no.price) : NaN;
+    if (Number.isFinite(yesMid) && yesMid > 0 && yesMid < 1) {
+      marketMid = yesMid;
+    } else if (Number.isFinite(noMid) && noMid > 0 && noMid < 1) {
+      marketMid = 1 - noMid;
+    } else if (Number.isFinite(lastPrice) && lastPrice > 0 && lastPrice < 1) {
+      marketMid = lastPrice;
+    }
+
     const detectedAt = new Date().toISOString();
     return {
       id: crypto.randomUUID(),
@@ -239,11 +254,15 @@ export class PredictionEventSignalSource implements ISignalSource {
         instrumentClass: "prediction_market",
         triggerKind,
         conditionId,
+        predictionOutcome: "YES",
         outcomeTokenId: yesTokenId,
+        yesOutcomeTokenId: yesTokenId,
+        noOutcomeTokenId: noTokenId,
         slug,
         category,
         liquidityUsd: liquidity,
         lastTradePrice: lastPrice,
+        marketMid,
         resolutionTime:
           typeof row.endDate === "string" ? row.endDate : undefined,
       },

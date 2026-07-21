@@ -60,24 +60,83 @@ function run(
 }
 
 describe("prediction-edge decision engine", () => {
-  it("buys when the combined forecast clears the market mid net of costs", () => {
+  it("buys YES when the combined forecast clears the market mid net of costs", () => {
     const signal = run(
-      { marketMid: 0.5 },
+      {
+        marketMid: 0.5,
+        yesOutcomeTokenId: "yes-1",
+        noOutcomeTokenId: "no-1",
+        outcomeTokenId: "yes-1",
+      },
       { pHat: 0.7, uncertaintyBps: 600 },
       { pHat: 0.68, uncertaintyBps: 600 },
     );
     expect(signal.action).toBe("buy");
     expect(signal.executionStrategy).toBe("prediction_market");
-    expect(signal.reasoning).toMatch(/net edge/i);
+    expect(signal.reasoning).toMatch(/buy YES/i);
   });
 
-  it("sells (NO) when the forecast is below the market mid", () => {
-    const signal = run(
-      { marketMid: 0.6 },
-      { pHat: 0.3, uncertaintyBps: 600 },
-      { pHat: 0.32, uncertaintyBps: 600 },
+  it("buys NO when the forecast is below the market mid", () => {
+    const instrument = {
+      symbol: "pm:cond-1",
+      instrumentClass: "prediction_market" as const,
+      predictionOutcome: "YES" as const,
+      instrumentMetadataJson: JSON.stringify({
+        marketMid: 0.6,
+        yesOutcomeTokenId: "yes-1",
+        noOutcomeTokenId: "no-1",
+        outcomeTokenId: "yes-1",
+      }),
+    };
+    const result = predictionEdgeInputBuilder.build({
+      planCtx: {
+        sessionId: "s1",
+        cycleId: "c1",
+        session: { experienceId: "prediction-event-edge" },
+        instrument,
+      } as never,
+      state: stateWith(
+        { pHat: 0.3, uncertaintyBps: 600 },
+        { pHat: 0.32, uncertaintyBps: 600 },
+      ),
+    }) as { task: TradeSignal };
+    expect(result.task.action).toBe("buy");
+    expect(result.task.reasoning).toMatch(/buy NO/i);
+    expect(instrument.predictionOutcome).toBe("NO");
+    expect(JSON.parse(instrument.instrumentMetadataJson).outcomeTokenId).toBe(
+      "no-1",
     );
-    expect(signal.action).toBe("sell");
+  });
+
+  it("skips NO edges when the NO token id is missing instead of buying YES", () => {
+    const instrument = {
+      symbol: "pm:cond-1",
+      instrumentClass: "prediction_market" as const,
+      predictionOutcome: "YES" as const,
+      instrumentMetadataJson: JSON.stringify({
+        marketMid: 0.6,
+        yesOutcomeTokenId: "yes-1",
+        outcomeTokenId: "yes-1",
+      }),
+    };
+    const result = predictionEdgeInputBuilder.build({
+      planCtx: {
+        sessionId: "s1",
+        cycleId: "c1",
+        session: { experienceId: "prediction-event-edge" },
+        instrument,
+      } as never,
+      state: stateWith(
+        { pHat: 0.3, uncertaintyBps: 600 },
+        { pHat: 0.32, uncertaintyBps: 600 },
+      ),
+    }) as { task: TradeSignal };
+    expect(result.task.action).toBe("skip");
+    expect(result.task.reasoning).toMatch(/NO outcome token/i);
+    expect(instrument.predictionOutcome).toBe("YES");
+    expect(JSON.parse(instrument.instrumentMetadataJson).outcomeTokenId).toBe(
+      "yes-1",
+    );
   });
 
   it("skips a thin edge that does not survive costs", () => {

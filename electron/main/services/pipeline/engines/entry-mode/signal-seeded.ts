@@ -42,23 +42,84 @@ function readSignalTrigger(
   return { sourceType, ticker, companyName, payloadJson };
 }
 
-function readSignalInstrumentMetadata(
-  signalTrigger: SignalTrigger,
-): string | null {
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function unitProbability(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 && n < 1 ? n : null;
+}
+
+function readTimingMetadata(signalTrigger: SignalTrigger): string | null {
   const payload = signalTrigger.payloadJson;
   if (!payload) return null;
-  const pollCadence =
-    typeof payload.pollCadence === "string"
-      ? payload.pollCadence
-      : typeof payload.cadence === "string"
-        ? payload.cadence
-        : null;
-  const analysisTimeframe =
-    typeof payload.analysisTimeframe === "string"
-      ? payload.analysisTimeframe
-      : null;
+  let pollCadence: string | null = null;
+  if (typeof payload.pollCadence === "string") {
+    pollCadence = payload.pollCadence;
+  } else if (typeof payload.cadence === "string") {
+    pollCadence = payload.cadence;
+  }
+  const analysisTimeframe = optionalString(payload.analysisTimeframe) ?? null;
   if (!pollCadence && !analysisTimeframe) return null;
   return buildSignalInstrumentMetadataJson({ pollCadence, analysisTimeframe });
+}
+
+const EMPTY_PREDICTION_METADATA = {
+  predictionOutcome: null,
+  instrumentMetadataJson: null,
+} as const;
+
+/**
+ * Prediction-event signals carry executable Polymarket fields in payloadJson.
+ * Entry-mode short-circuits finalizers, so this must copy them onto the
+ * instrument or the edge gate / order placer will always fail.
+ */
+function readPredictionMarketMetadata(
+  signalTrigger: SignalTrigger,
+): {
+  predictionOutcome: "YES" | "NO" | null;
+  instrumentMetadataJson: string | null;
+} {
+  const payload = signalTrigger.payloadJson;
+  if (!payload) return EMPTY_PREDICTION_METADATA;
+
+  const conditionId = optionalString(payload.conditionId) ?? null;
+  const outcomeTokenId = optionalString(payload.outcomeTokenId) ?? null;
+  if (!conditionId || !outcomeTokenId) return EMPTY_PREDICTION_METADATA;
+
+  const predictionOutcome =
+    payload.predictionOutcome === "YES" || payload.predictionOutcome === "NO"
+      ? payload.predictionOutcome
+      : ("YES" as const);
+
+  const timing = readTimingMetadata(signalTrigger);
+  const timingFields = timing
+    ? (JSON.parse(timing) as Record<string, unknown>)
+    : {};
+
+  return {
+    predictionOutcome,
+    instrumentMetadataJson: JSON.stringify({
+      ...timingFields,
+      conditionId,
+      outcomeTokenId,
+      yesOutcomeTokenId:
+        optionalString(payload.yesOutcomeTokenId) ??
+        (predictionOutcome === "YES" ? outcomeTokenId : undefined),
+      noOutcomeTokenId:
+        optionalString(payload.noOutcomeTokenId) ??
+        (predictionOutcome === "NO" ? outcomeTokenId : undefined),
+      slug: optionalString(payload.slug),
+      category: optionalString(payload.category),
+      liquidity:
+        typeof payload.liquidityUsd === "number"
+          ? payload.liquidityUsd
+          : undefined,
+      resolutionTime: optionalString(payload.resolutionTime),
+      marketMid: unitProbability(payload.marketMid),
+    }),
+  };
 }
 
 function inferInstrumentClass(
@@ -95,17 +156,31 @@ const signalSeededEntryEngine: EntryModeEngine = {
     if (!signalTrigger) {
       return { instruments: [] } satisfies InstrumentSelection;
     }
+    const instrumentClass = inferInstrumentClass(
+      signalTrigger,
+      ctx.instrumentClasses,
+    );
+    const prediction =
+      instrumentClass === "prediction_market"
+        ? readPredictionMarketMetadata(signalTrigger)
+        : null;
+
     return {
       instruments: [
         {
           symbol: signalTrigger.ticker,
-          instrumentClass: inferInstrumentClass(
-            signalTrigger,
-            ctx.instrumentClasses,
-          ),
+          instrumentClass,
           instrumentDisplayName: signalTrigger.companyName ?? undefined,
-          instrumentMetadataJson:
-            readSignalInstrumentMetadata(signalTrigger) ?? undefined,
+          ...(prediction
+            ? {
+                predictionOutcome: prediction.predictionOutcome,
+                instrumentMetadataJson:
+                  prediction.instrumentMetadataJson ?? undefined,
+              }
+            : {
+                instrumentMetadataJson:
+                  readTimingMetadata(signalTrigger) ?? undefined,
+              }),
           rationale: `${signalTrigger.sourceType} signal supplied the instrument directly.`,
         },
       ],

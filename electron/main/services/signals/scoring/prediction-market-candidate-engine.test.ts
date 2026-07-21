@@ -45,6 +45,10 @@ describe("fetchPredictionMarketCandidates", () => {
       noOutcomeTokenId: "no-1",
       marketMid: 0.42,
     });
+    expect(JSON.parse(rows[1]?.instrumentMetadataJson ?? "{}")).toMatchObject({
+      marketMid: 0.42,
+      outcomeTokenId: "no-1",
+    });
     expect(rows[1]).toMatchObject({
       predictionOutcome: "NO",
     });

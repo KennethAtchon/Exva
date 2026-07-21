@@ -81,6 +81,14 @@ export function applyDiscoveryResults(
   return mergeDiscoveryCandidates(raw);
 }
 
+/** Strip the verification worker prefix to recover candidateIdentityKey. */
+export function parseVerificationWorkerIdentity(workerId: string): string {
+  return workerId.replace(
+    /^(market-validator|catalyst-extractor|liquidity-gate):/,
+    "",
+  );
+}
+
 export function applyVerificationResults(
   candidates: SelectorCandidate[],
   results: Array<{
@@ -92,7 +100,9 @@ export function applyVerificationResults(
     candidates.map((c) => [candidateIdentityKey(c), { ...c }]),
   );
   for (const { worker, result } of results) {
-    const key = candidateIdentityKey(result.output.candidate);
+    // Key off the worker id (encodes discovery identity), not the model echo —
+    // verifiers often omit predictionOutcome and would miss the merge.
+    const key = parseVerificationWorkerIdentity(worker.id);
     const candidate = merged.get(key);
     if (!candidate) continue;
     candidate.instrumentDisplayName =

@@ -270,7 +270,10 @@ export class TradeMonitor {
                 brokerType: adapter.brokerType,
               })
             : trade.instrumentSymbol;
-          const snapshot = await adapter.getMarketSnapshot(wireSymbol);
+          const snapshot = await adapter.getMarketSnapshot(wireSymbol, {
+            predictionOutcome:
+              (trade.predictionOutcome as "YES" | "NO" | null) ?? null,
+          });
           const currentPrice = snapshot.price;
 
           // Update price extremes before evaluating exits.

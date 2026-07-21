@@ -156,4 +156,34 @@ describe("EdgarSignalSource", () => {
     expect(source.lastError).toContain("503");
     db.sqlite.close();
   });
+
+  it("fails the poll when a CIK lookup returns non-2xx (not a quiet drop)", async () => {
+    const db = createTestDb();
+    const cache = new CikTickerCache(db);
+
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          atomFeed([
+            {
+              cik: "320193",
+              title: "Apple Inc.",
+              updated: "2024-06-01T15:00:00Z",
+              summary: "Item 8.01 Other Events",
+              accession: "0000320193-24-000003",
+            },
+          ]),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response("unavailable", { status: 503 }));
+
+    const source = new EdgarSignalSource("edgar-4", "{}", cache);
+    const result = await source.test();
+
+    expect(result.errors[0]).toMatch(/CIK lookup status 503/i);
+    expect(source.status).toBe("error");
+    expect(cache.get("320193")).toBeUndefined();
+    db.sqlite.close();
+  });
 });

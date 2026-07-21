@@ -106,6 +106,8 @@ function buildAlpacaOhlcvParams(
     ...extra,
     timeframe: alpacaTimeframe,
     limit: String(barCount),
+    // desc + limit = most recent N bars in the window; callers reverse to asc.
+    sort: "desc",
     start: barLookbackStartIso(alpacaTimeframe, barCount, now, multiplier),
   });
 }
@@ -573,7 +575,9 @@ export class AlpacaAdapter implements BrokerAdapter {
   ): Promise<OhlcvBar[]> {
     let bars: OhlcvBar[] = [];
     for (const multiplier of BAR_LOOKBACK_MULTIPLIERS) {
-      bars = await fetchOnce(multiplier);
+      // API returns newest-first (sort=desc); reverse to chronological asc.
+      const fetched = await fetchOnce(multiplier);
+      bars = fetched.slice().reverse();
       if (bars.length >= barCount) break;
     }
     return bars.slice(-barCount);

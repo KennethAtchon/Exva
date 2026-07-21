@@ -1,12 +1,12 @@
-import type { BrokerOrder } from "./adapters/broker-adapter";
+import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
+import type { BrokerAdapter, BrokerOrder } from "./adapters/broker-adapter";
 import {
   createBrokerInteractionLogger,
   formatPlaceOrderEndpoint,
+  resolveOhlcvCallStatus,
   traceBrokerInteraction,
   type BrokerInteractionLogger,
 } from "./broker-interaction-logger";
-import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
-import type { BrokerAdapter, OhlcvBar } from "./adapters/broker-adapter";
 
 export interface InstrumentedBrokerAdapterOptions {
   apiCallLogRepo: ApiCallLogRepo;
@@ -61,12 +61,17 @@ export function createInstrumentedBrokerAdapter(
         inner.getAccountBalance(),
       ),
 
-    getMarketSnapshot: (instrumentSymbol: string) =>
+    getMarketSnapshot: (
+      instrumentSymbol: string,
+      options?: { predictionOutcome?: "YES" | "NO" | null },
+    ) =>
       traceBrokerInteraction(
         logger,
         "getMarketSnapshot",
-        instrumentSymbol,
-        () => inner.getMarketSnapshot(instrumentSymbol),
+        options?.predictionOutcome
+          ? `${instrumentSymbol}/${options.predictionOutcome}`
+          : instrumentSymbol,
+        () => inner.getMarketSnapshot(instrumentSymbol, options),
       ),
 
     getOrderStatus: (orderId: string) =>
@@ -80,23 +85,19 @@ export function createInstrumentedBrokerAdapter(
       ),
   };
 
+  // bind keeps class-adapter `this` (do not destructure the method).
   if (inner.getOhlcv) {
-    adapter.getOhlcv = (
-      instrumentSymbol: string,
-      timeframe: "15m" | "30m" | "1h" | "4h" | "1d",
-      barCount: number,
-    ) =>
+    const getOhlcv = inner.getOhlcv.bind(inner);
+    adapter.getOhlcv = (instrumentSymbol, timeframe, barCount) =>
       traceBrokerInteraction(
         logger,
         "getOhlcv",
         `${instrumentSymbol}/${timeframe}?limit=${barCount}`,
-        () => {
-          if (!inner.getOhlcv) {
-            throw new Error("Broker adapter getOhlcv unexpectedly unavailable");
-          }
-          return inner.getOhlcv(instrumentSymbol, timeframe, barCount);
+        () => getOhlcv(instrumentSymbol, timeframe, barCount),
+        {
+          resolveStatus: (bars) => resolveOhlcvCallStatus(bars, barCount),
         },
-      ) as Promise<OhlcvBar[]>;
+      );
   }
 
   return adapter;

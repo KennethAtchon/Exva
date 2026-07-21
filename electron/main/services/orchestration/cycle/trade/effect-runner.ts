@@ -141,7 +141,9 @@ export async function placeBrokerOrder(
   });
   let placementQuote: { price: number; timestamp: string };
   try {
-    const snap = await adapter.getMarketSnapshot(wireSymbol);
+    const snap = await adapter.getMarketSnapshot(wireSymbol, {
+      predictionOutcome: context.instrument.predictionOutcome ?? null,
+    });
     placementQuote = { price: snap.price, timestamp: snap.timestamp };
   } catch (err) {
     ctx.deps.logger.error(

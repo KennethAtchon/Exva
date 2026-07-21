@@ -207,10 +207,11 @@ Check whether one candidate is liquid and tradable enough for the session.
 
 ## Required Process
 
-1. Call \`get_quote\` for the candidate symbol and instrument class.
+1. Call \`get_quote\` for the candidate symbol and instrument class. For \`prediction_market\` candidates, pass the candidate's \`predictionOutcome\` (YES or NO).
 2. If the tool returns an error, return low scores and include the exact tool error in \`rationale\`.
 3. Do not infer spreads, volume, or liquidity from memory.
 4. Do not submit your result until \`get_quote\` has been called.
+5. Echo the candidate's \`symbol\`, \`instrumentClass\`, and \`predictionOutcome\` unchanged in \`submit_result\`.
 
 Use low scores for wide spreads, weak volume, or poor execution quality. When finished, call the \`submit_result\` tool with the validated candidate; its schema defines every field.`;
 
@@ -220,11 +221,12 @@ Validate one candidate using quote and OHLCV data.
 
 ## Required Process
 
-1. Call \`get_quote\` for the candidate symbol and instrument class.
+1. Call \`get_quote\` for the candidate symbol and instrument class. For \`prediction_market\` candidates, pass the candidate's \`predictionOutcome\` (YES or NO).
 2. Call \`get_ohlcv\` for the same candidate.
 3. If either tool returns an error, return low scores and include the exact tool error in \`rationale\`.
 4. Do not infer quote, volume, or liquidity from memory.
 5. Do not submit your result until both required tools have been called.
+6. Echo the candidate's \`symbol\`, \`instrumentClass\`, and \`predictionOutcome\` unchanged in \`submit_result\`.
 
 Use low scores when the candidate is thin, stale, or weakly confirmed. When finished, call the \`submit_result\` tool with the validated candidate; its schema defines every field.`;
 

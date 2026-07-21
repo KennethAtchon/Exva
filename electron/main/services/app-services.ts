@@ -62,6 +62,8 @@ import { attachEventBusObserver } from "./infra/event-bus-observer";
 import { createLogger } from "./infra/log";
 import { NotificationService } from "./infra/notification-service";
 import { MarketDataService } from "./marketdata/market-data-service";
+import { createSessionRoutedGetBars } from "./marketdata/session-routed-get-bars";
+import { resolveWorkspaceBrokerAccountId } from "./marketdata/workspace-broker-account";
 import { CalibrationService } from "./signals/forecast/calibration-service";
 import type { LabelObservation } from "./signals/forecast/calibration-service";
 import { SupervisorService } from "./supervisor/supervisor-service";
@@ -83,10 +85,7 @@ import {
 } from "./research/ladder-automation";
 import { evaluatePromotion } from "./research/promotion-gate";
 import { listExperiences, requireExperience } from "../experiences/index";
-import type {
-  InstrumentClass,
-  TradingTimeframe,
-} from "@electron/shared/domain/enums";
+import type { InstrumentClass } from "@electron/shared/domain/enums";
 import { AgentOrchestrator } from "./orchestration/cycle/agent-orchestrator";
 import { registerDefaultEngines } from "./pipeline/engines/signal-registry/register-default-engines";
 import { assertValidPipelineDefinitionCatalog } from "./pipeline/effective-ai-phase-config";
@@ -400,34 +399,37 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerType: "alpaca" | "tradier" | "kraken";
   }) => {
     const cls = input.instrumentClass as InstrumentClass;
+    const wireSymbolFor = (brokerType: string) =>
+      instrumentNormalizer.toBrokerSymbol({
+        symbol: resolveCanonicalSymbol(input.symbol, cls),
+        instrumentClass: cls,
+        brokerType,
+      });
+    const mappedTf = mapOhlcvTimeframe(input.timeframe);
+
     if (input.brokerType === "kraken") {
       const { fetchKrakenOhlcv } =
         await import("./broker/adapters/kraken-adapter");
-      const wireSymbol = instrumentNormalizer.toBrokerSymbol({
-        symbol: resolveCanonicalSymbol(input.symbol, cls),
-        instrumentClass: cls,
-        brokerType: "kraken",
-      });
       return fetchKrakenOhlcv(
-        wireSymbol,
-        mapOhlcvTimeframe(input.timeframe),
+        wireSymbolFor("kraken"),
+        mappedTf,
         input.barCount,
       );
     }
-    const account = repos.brokerAccounts
-      .list()
-      .find((row) => row.brokerType === input.brokerType);
-    if (!account) return [];
-    const adapter = await brokerRegistry.get(account.id);
-    if (!adapter.getOhlcv) return [];
-    const wireSymbol = instrumentNormalizer.toBrokerSymbol({
-      symbol: resolveCanonicalSymbol(input.symbol, cls),
+
+    const accountId = resolveWorkspaceBrokerAccountId({
+      brokerType: input.brokerType,
       instrumentClass: cls,
-      brokerType: adapter.brokerType,
+      listAccounts: () => repos.brokerAccounts.list(),
+      findAccount: (id) => repos.brokerAccounts.find(id),
+      listGlobalDefaults: () => repos.brokerRouting.listGlobalDefaults(),
     });
+    if (!accountId) return [];
+    const adapter = await brokerRegistry.get(accountId);
+    if (!adapter.getOhlcv) return [];
     return adapter.getOhlcv(
-      wireSymbol,
-      mapOhlcvTimeframe(input.timeframe),
+      wireSymbolFor(adapter.brokerType),
+      mappedTf,
       input.barCount,
     );
   };
@@ -902,54 +904,16 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const executor = new ScheduledStrategyExecutor({
     db,
     strategyRegistry,
-    getBars: async (
-      symbol,
-      timeframe,
-      barCount,
-      instrumentClass,
-      context,
-    ) => {
-      const cls = instrumentClass as InstrumentClass;
-      const tf = timeframe as TradingTimeframe;
-      const targets = fanoutResolver.resolveScheduledFanout(
-        context?.subscriptionIds ?? [],
-      );
-      const sessionId = targets[0]?.sessionId;
-      if (!sessionId) {
-        return marketData.getBars({
-          symbol,
-          instrumentClass: cls,
-          timeframe: tf,
-          barCount,
-        });
-      }
-
-      const { adapter } = await brokerRouting.resolveAdapter(sessionId, cls);
-      if (!adapter.getOhlcv) {
-        throw new Error(
-          `Broker ${adapter.brokerType} does not support OHLCV for ${cls}`,
-        );
-      }
-      const wireSymbol = instrumentNormalizer.toBrokerSymbol({
-        symbol: resolveCanonicalSymbol(symbol, cls),
-        instrumentClass: cls,
-        brokerType: adapter.brokerType,
-      });
-      const provider = marketDataProviderForBroker(adapter.brokerType);
-      return marketData.getBars({
-        symbol,
-        instrumentClass: cls,
-        timeframe: tf,
-        barCount,
-        provider,
-        fetchOverride: () =>
-          adapter.getOhlcv!(
-            wireSymbol,
-            mapOhlcvTimeframe(tf),
-            barCount,
-          ),
-      });
-    },
+    getBars: createSessionRoutedGetBars({
+      resolveFanout: (ids) => fanoutResolver.resolveScheduledFanout(ids),
+      resolveAdapter: (sessionId, cls) =>
+        brokerRouting.resolveAdapter(sessionId, cls),
+      toBrokerSymbol: (input) => instrumentNormalizer.toBrokerSymbol(input),
+      resolveCanonicalSymbol,
+      getBars: (input) => marketData.getBars(input),
+      mapOhlcvTimeframe,
+      marketDataProviderForBroker,
+    }),
     onBarsFailed: (plan, symbol, errorMessage) => {
       for (const { sessionId } of fanoutResolver.resolveScheduledFanout(
         plan.subscriptionIds,
@@ -979,7 +943,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
           sessionId,
           "calendar_misconfigured",
           "error",
-          `Market calendar lookup failed, treated as open: ${errorMessage}`,
+          `Market calendar lookup failed, scan skipped: ${errorMessage}`,
         );
       }
     },

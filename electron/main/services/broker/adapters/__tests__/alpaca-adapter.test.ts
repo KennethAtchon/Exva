@@ -403,6 +403,7 @@ describe("AlpacaAdapter", () => {
     const url = String(barsCall?.[0]);
     expect(url).toContain("timeframe=1Hour");
     expect(url).toContain("limit=30");
+    expect(url).toContain("sort=desc");
     // start must be present and strictly before "now" (the regular-hours clock).
     const start = new URL(url).searchParams.get("start");
     expect(start).toBeTruthy();
@@ -413,6 +414,37 @@ describe("AlpacaAdapter", () => {
     const ageMs =
       regularHoursClock().getTime() - new Date(start as string).getTime();
     expect(ageMs).toBeGreaterThan(24 * 60 * 60 * 1000);
+  });
+
+  it("returns the most recent bars when Alpaca pages newest-first", async () => {
+    const nowMs = regularHoursClock().getTime();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (!String(url).includes("/v2/stocks/SPY/bars")) {
+        return jsonResponse({}, 404);
+      }
+      const params = new URL(String(url)).searchParams;
+      expect(params.get("sort")).toBe("desc");
+      const limit = Number(params.get("limit") ?? 0);
+      // Newest-first page: index 0 is "now", older bars follow — matches sort=desc.
+      return jsonResponse({
+        bars: Array.from({ length: limit }, (_, i) => ({
+          t: new Date(nowMs - i * 60 * 60 * 1000).toISOString(),
+          o: 180,
+          h: 186,
+          l: 179,
+          c: 185 - i,
+          v: 1000,
+        })),
+      });
+    });
+
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+    const bars = await adapter.getOhlcv("SPY", "1h", 21);
+
+    expect(bars).toHaveLength(21);
+    expect(bars[0]?.ts).toBe(new Date(nowMs - 20 * 60 * 60 * 1000).toISOString());
+    expect(bars[20]?.ts).toBe(new Date(nowMs).toISOString());
+    expect(bars[20]?.close).toBe(185);
   });
 
   it("requests crypto bars with an explicit start window", async () => {
@@ -461,6 +493,40 @@ describe("AlpacaAdapter", () => {
 
     expect(calls).toBeGreaterThan(1);
     expect(bars.length).toBe(21);
+  });
+
+  // Monday 2026-07-20 15:00Z ≈ 11:00 ET — after a weekend, a fixed 3x
+  // wall-clock lookback only covers Friday session hours (~8 bars).
+  it("returns at least 20 hourly bars on a Monday-after-weekend clock", async () => {
+    const mondayClock = () => new Date("2026-07-20T15:00:00.000Z");
+    let calls = 0;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (!String(url).includes("/v2/stocks/SPY/bars")) {
+        return jsonResponse({}, 404);
+      }
+      calls += 1;
+      const start = new URL(String(url)).searchParams.get("start");
+      const startMs = start ? Date.parse(start) : 0;
+      const ageHours = (mondayClock().getTime() - startMs) / (60 * 60 * 1000);
+      // Weekend-sparse: only ~8 RTH bars inside a 3x (~63h) window.
+      const count = ageHours < 100 ? 8 : 21;
+      return jsonResponse({
+        bars: Array.from({ length: count }, (_, i) => ({
+          t: new Date(mondayClock().getTime() - i * 60 * 60 * 1000).toISOString(),
+          o: 180,
+          h: 186,
+          l: 179,
+          c: 185,
+          v: 1000,
+        })),
+      });
+    });
+
+    const adapter = new AlpacaAdapter(credentials, mondayClock);
+    const bars = await adapter.getOhlcv("SPY", "1h", 21);
+
+    expect(calls).toBeGreaterThan(1);
+    expect(bars.length).toBeGreaterThanOrEqual(20);
   });
 
   it("requests option bars with an explicit start window", async () => {

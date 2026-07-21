@@ -101,4 +101,56 @@ describe("signal-seeded entry engine", () => {
       ],
     });
   });
+
+  it("passes prediction-market executable metadata from the signal payload", () => {
+    const ctx = buildCtx(
+      {
+        sourceType: "prediction_event",
+        ticker: "pm:cond-abc",
+        companyName: "Will CPI beat?",
+        payloadJson: {
+          instrumentClass: "prediction_market",
+          conditionId: "cond-abc",
+          predictionOutcome: "YES",
+          outcomeTokenId: "yes-token",
+          yesOutcomeTokenId: "yes-token",
+          noOutcomeTokenId: "no-token",
+          marketMid: 0.42,
+          slug: "cpi-beat",
+          liquidityUsd: 20_000,
+          resolutionTime: "2026-08-01T00:00:00Z",
+        },
+      },
+      ["prediction_market"],
+    );
+
+    const resolved = engine().resolve(ctx) as {
+      instruments: Array<{
+        symbol: string;
+        instrumentClass: string;
+        predictionOutcome?: string | null;
+        instrumentMetadataJson?: string | null;
+      }>;
+    };
+    expect(resolved).toEqual({
+      instruments: [
+        expect.objectContaining({
+          symbol: "pm:cond-abc",
+          instrumentClass: "prediction_market",
+          predictionOutcome: "YES",
+          instrumentMetadataJson: expect.stringContaining("cond-abc"),
+        }),
+      ],
+    });
+    const meta = JSON.parse(
+      resolved.instruments[0]?.instrumentMetadataJson ?? "{}",
+    );
+    expect(meta).toMatchObject({
+      conditionId: "cond-abc",
+      outcomeTokenId: "yes-token",
+      marketMid: 0.42,
+      yesOutcomeTokenId: "yes-token",
+      noOutcomeTokenId: "no-token",
+    });
+  });
 });

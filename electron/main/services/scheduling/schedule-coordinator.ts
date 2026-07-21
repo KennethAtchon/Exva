@@ -56,7 +56,7 @@ export interface ScheduleCoordinatorDeps {
   calendarRegistry: MarketCalendarRegistry;
   emitSignals: ScheduledSignalEmitFn;
   resolveScheduledFanout: ResolveScheduledFanoutFn;
-  /** Observability hook: calendar lookup failed and we fell back to "open". */
+  /** Observability hook: calendar lookup failed and the tick was skipped. */
   onCalendarMisconfigured?: (
     plan: ScheduledRuntimePlan,
     errorMessage: string,
@@ -290,21 +290,19 @@ export class ScheduleCoordinator {
       return;
     }
 
-    // Calendar check.
-    const { calendarRegistry } = this.deps;
-    let calendarOpen = true;
+    // Calendar check — unknown calendars hard-fail (skip tick), never fail-open.
     try {
-      const calendar = calendarRegistry.require(entry.plan.marketCalendarId);
-      calendarOpen = calendar.isOpen();
+      const calendar = this.deps.calendarRegistry.require(
+        entry.plan.marketCalendarId,
+      );
+      if (!calendar.isOpen()) return;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       logger.warn(
         { groupKey: entry.plan.groupKey, err },
-        "calendar lookup failed, treating as open",
+        "calendar lookup failed, skipping tick",
       );
       this.deps.onCalendarMisconfigured?.(entry.plan, errorMessage);
-    }
-    if (!calendarOpen) {
       return;
     }
 

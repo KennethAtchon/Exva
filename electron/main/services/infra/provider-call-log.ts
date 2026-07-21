@@ -28,13 +28,15 @@ export async function runWithProviderCallScopeAsync<T>(
   return runWithProviderCallScope(scope, fn);
 }
 
+export type ProviderCallStatus = "ok" | "error" | "empty" | "partial";
+
 export function logProviderCall(input: {
   apiCallLogRepo: ApiCallLogRepo;
   provider: string;
   callType: string;
   endpoint: string;
   latencyMs: number;
-  status: "ok" | "error";
+  status: ProviderCallStatus;
   fromCache?: boolean;
   costUsd?: number | null;
   creditsUsed?: number | null;

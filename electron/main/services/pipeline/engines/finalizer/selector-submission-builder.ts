@@ -63,7 +63,9 @@ async function rehydratePredictionMetadata(
       brokerRouting,
     );
   } catch {
-    return candidates;
+    // Without authoritative discovery, only keep PM candidates that already
+    // carry executable token metadata — never silently quote/order blind.
+    return candidates.filter(isExecutableOrNonPrediction);
   }
 
   const byKey = new Map(
@@ -77,11 +79,22 @@ async function rehydratePredictionMetadata(
     ]),
   );
 
-  return candidates.map((candidate) => {
-    if (candidate.instrumentClass !== "prediction_market") return candidate;
+  const rehydrated: Candidate[] = [];
+  for (const candidate of candidates) {
+    if (candidate.instrumentClass !== "prediction_market") {
+      rehydrated.push(candidate);
+      continue;
+    }
+
     const auth = byKey.get(candidateIdentityKey(candidate));
-    if (!auth) return candidate;
-    return {
+    if (!auth) {
+      if (hasExecutablePredictionMetadata(candidate.instrumentMetadataJson)) {
+        rehydrated.push(candidate);
+      }
+      continue;
+    }
+
+    rehydrated.push({
       ...candidate,
       instrumentDisplayName:
         candidate.instrumentDisplayName ?? auth.instrumentDisplayName ?? null,
@@ -89,8 +102,36 @@ async function rehydratePredictionMetadata(
         candidate.predictionOutcome ?? auth.predictionOutcome ?? null,
       instrumentMetadataJson:
         auth.instrumentMetadataJson ?? candidate.instrumentMetadataJson,
+    });
+  }
+  return rehydrated;
+}
+
+function isExecutableOrNonPrediction(candidate: Candidate): boolean {
+  return (
+    candidate.instrumentClass !== "prediction_market" ||
+    hasExecutablePredictionMetadata(candidate.instrumentMetadataJson)
+  );
+}
+
+function hasExecutablePredictionMetadata(
+  metadataJson: string | null | undefined,
+): boolean {
+  if (typeof metadataJson !== "string" || !metadataJson.trim()) return false;
+  try {
+    const parsed = JSON.parse(metadataJson) as {
+      conditionId?: unknown;
+      outcomeTokenId?: unknown;
     };
-  });
+    return (
+      typeof parsed.conditionId === "string" &&
+      parsed.conditionId.length > 0 &&
+      typeof parsed.outcomeTokenId === "string" &&
+      parsed.outcomeTokenId.length > 0
+    );
+  } catch {
+    return false;
+  }
 }
 
 function buildWorkerToolCoverage(workerResults: PhaseWorkerResult[]) {

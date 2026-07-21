@@ -234,29 +234,34 @@ export class EdgarSignalSource implements ISignalSource {
   private async resolveTicker(cik: string): Promise<string | null> {
     const cached = this.cikCache.get(cik);
     if (cached !== undefined) return cached;
+
     const padded = cik.padStart(10, "0");
-    try {
-      const response = await fetch(
-        `https://data.sec.gov/submissions/CIK${padded}.json`,
-        {
-          headers: {
-            "User-Agent": "Exva Signal Monitor",
-            Accept: "application/json",
-          },
+    const response = await fetch(
+      `https://data.sec.gov/submissions/CIK${padded}.json`,
+      {
+        headers: {
+          "User-Agent": "Exva Signal Monitor",
+          Accept: "application/json",
         },
-      );
-      if (!response.ok) {
-        this.cikCache.upsert(cik, null);
-        return null;
-      }
-      const payload = (await response.json()) as { tickers?: string[] };
-      const ticker = payload.tickers?.[0] ?? null;
-      this.cikCache.upsert(cik, ticker);
-      return ticker;
-    } catch {
-      this.cikCache.upsert(cik, null);
-      return null;
+      },
+    );
+    // Transport/provider failure — fail the poll; do not cache as "no ticker".
+    if (!response.ok) {
+      throw new Error(`EDGAR CIK lookup status ${response.status}`);
     }
+
+    let payload: { tickers?: string[] };
+    try {
+      payload = (await response.json()) as { tickers?: string[] };
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new Error(`EDGAR CIK lookup returned non-JSON: ${detail}`);
+    }
+
+    // Empty ticker sets are legitimate and may be cached.
+    const ticker = payload.tickers?.[0] ?? null;
+    this.cikCache.upsert(cik, ticker);
+    return ticker;
   }
 }
 

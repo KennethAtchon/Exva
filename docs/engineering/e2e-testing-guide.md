@@ -152,5 +152,5 @@ Force-trade is paper-only by guard; it will refuse a live broker. Use `/run` and
 - [ ] A test fails if the business reason changes (assert _why_, e.g. order
       type + `extended_hours`, not just "an order was sent").
 - [ ] `createTestDb()` exercises any new migration.
-- [ ] `npm run typecheck` and the focused suite pass; pre-existing failures in
+- [ ] `bun run typecheck` and the focused suite pass; pre-existing failures in
       §6 are unchanged.

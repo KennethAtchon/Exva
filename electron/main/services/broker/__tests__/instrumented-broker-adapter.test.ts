@@ -71,9 +71,16 @@ describe("createInstrumentedBrokerAdapter", () => {
       clientOrderId: "client-1",
     });
     await adapter.getMarketSnapshot("SPY");
+    await adapter.getMarketSnapshot("pm:cond-1", {
+      predictionOutcome: "NO",
+    });
 
     expect(inner.placeOrder).toHaveBeenCalledTimes(1);
-    expect(inserts).toHaveLength(2);
+    expect(inner.getMarketSnapshot).toHaveBeenNthCalledWith(1, "SPY", undefined);
+    expect(inner.getMarketSnapshot).toHaveBeenNthCalledWith(2, "pm:cond-1", {
+      predictionOutcome: "NO",
+    });
+    expect(inserts).toHaveLength(3);
     expect(inserts[0]).toMatchObject({
       call_type: "placeOrder",
       endpoint: "broker-1/placeOrder/BUY/SPY/stock/$500.00/client-1",
@@ -82,6 +89,11 @@ describe("createInstrumentedBrokerAdapter", () => {
     expect(inserts[1]).toMatchObject({
       call_type: "getMarketSnapshot",
       endpoint: "broker-1/SPY",
+      status: "ok",
+    });
+    expect(inserts[2]).toMatchObject({
+      call_type: "getMarketSnapshot",
+      endpoint: "broker-1/pm:cond-1/NO",
       status: "ok",
     });
   });
@@ -108,6 +120,50 @@ describe("createInstrumentedBrokerAdapter", () => {
       call_type: "getAccountBalance",
       endpoint: "broker-1/balance",
       status: "error",
+    });
+  });
+
+  it("logs getOhlcv as empty/partial when returned bars are below the request", async () => {
+    const inserts: unknown[] = [];
+    const apiCallLogRepo = {
+      insert: (entry: unknown) => inserts.push(entry),
+    } as unknown as ApiCallLogRepo;
+
+    const emptyInner = createMockAdapter({
+      getOhlcv: vi.fn(async () => []),
+    });
+    const emptyAdapter = createInstrumentedBrokerAdapter(emptyInner, {
+      apiCallLogRepo,
+      brokerAccountId: "broker-1",
+      provider: "alpaca",
+    });
+    await emptyAdapter.getOhlcv?.("SPY", "1h", 21);
+    expect(inserts.at(-1)).toMatchObject({
+      call_type: "getOhlcv",
+      status: "empty",
+    });
+
+    const partialInner = createMockAdapter({
+      getOhlcv: vi.fn(async () => [
+        {
+          ts: "2026-07-20T15:00:00.000Z",
+          open: 1,
+          high: 2,
+          low: 0.5,
+          close: 1.5,
+          volume: 10,
+        },
+      ]),
+    });
+    const partialAdapter = createInstrumentedBrokerAdapter(partialInner, {
+      apiCallLogRepo,
+      brokerAccountId: "broker-1",
+      provider: "alpaca",
+    });
+    await partialAdapter.getOhlcv?.("SPY", "1h", 21);
+    expect(inserts.at(-1)).toMatchObject({
+      call_type: "getOhlcv",
+      status: "partial",
     });
   });
 
