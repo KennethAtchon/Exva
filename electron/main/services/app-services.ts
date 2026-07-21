@@ -150,6 +150,8 @@ import { bootstrapMockRehearsal } from "../experiences/mock-rehearsal-bootstrap"
 import { ensureLiveSignalSources } from "../experiences/ensure-live-signal-sources";
 import { SessionActivityRepo } from "../db/repositories/sessions/session-activity-repo";
 import { SessionActivityTracker } from "./sessions/session-activity-tracker";
+import { remediateSessionActivityCondition } from "./sessions/session-activity-remediation";
+import { PipelineWorkerProgressTracker } from "./pipeline/pipeline-worker-progress-tracker";
 import { SessionInputSubscriptionRepo } from "./session-inputs/session-input-subscription-repo";
 import { seedExperienceCatalog } from "./experience-catalog/seed-experience-catalog";
 import { createExperienceTemplateService } from "./experience-catalog/experience-template-service";
@@ -249,6 +251,7 @@ export interface AppServices {
   autopsyExport: AutopsyExportService;
   signals: SignalService;
   sessionActivityTracker: SessionActivityTracker;
+  pipelineWorkerProgress: PipelineWorkerProgressTracker;
   controlRepo: ControlRepo;
   control: ControlAgentService;
   /** In-memory promotion ladder states (experienceId → state). */
@@ -1040,26 +1043,53 @@ export async function createAppServices(app: App): Promise<AppServices> {
     })),
   });
 
+  const activitySubscriptionRepo = new SessionInputSubscriptionRepo(db);
+  const activitySourceDefinitionRepo = new SourceDefinitionRepo(db);
   const sessionActivityTracker = new SessionActivityTracker({
     activityRepo: new SessionActivityRepo(db),
-    subscriptionRepo: new SessionInputSubscriptionRepo(db),
-    sourceDefinitionRepo: new SourceDefinitionRepo(db),
+    subscriptionRepo: activitySubscriptionRepo,
+    sourceDefinitionRepo: activitySourceDefinitionRepo,
     signalSourcesRepo,
     signalRegistry,
     calendarRegistry,
     sessionRepo: repos.session,
+    tradeApprovalsRepo: repos.tradeApprovals,
+    aiSpendLimitUsd: 25,
     db,
     bus: eventBus,
-    notify: (_sessionId, condition) => {
+    notify: (sessionId, condition) => {
       notifications.notify(
         `Exva: ${condition.kind}`,
         condition.message,
         condition.severity === "error" ? "ERROR" : "WARN",
       );
+      void remediateSessionActivityCondition(
+        {
+          subscriptionRepo: activitySubscriptionRepo,
+          sourceDefinitionRepo: activitySourceDefinitionRepo,
+          signalSourcesRepo,
+          signalRegistry,
+          events: repos.events,
+          pauseSession: async (id, _reason) => {
+            const status = repos.session.getStatus(id);
+            if (status !== "active" && status !== "attention_required") return;
+            await session.pause(id);
+          },
+          getSessionStatus: (id) => repos.session.getStatus(id),
+        },
+        sessionId,
+        condition,
+      );
     },
   });
   sessionActivityTracker.start();
   sessionActivityTrackerRef.current = sessionActivityTracker;
+
+  const pipelineWorkerProgress = new PipelineWorkerProgressTracker(eventBus);
+  pipelineWorkerProgress.start();
+  ai.setWorkerProgressEmitter((payload) => {
+    eventBus.emit("pipeline_worker_progress", payload);
+  });
 
   const controlRepo = new ControlRepo(db);
   // reason: ControlAgentService needs the fully-built container; resolve it lazily.
@@ -1223,6 +1253,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
       labelBuilderTicker.stop();
       driftMonitorTicker.stop();
       sessionActivityTracker.stop();
+      pipelineWorkerProgress.stop();
+      ai.setWorkerProgressEmitter(undefined);
     },
     capitalReservation,
     eventBus,
@@ -1252,6 +1284,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     autopsyExport,
     signals,
     sessionActivityTracker,
+    pipelineWorkerProgress,
     controlRepo,
     control,
     ladderStates,

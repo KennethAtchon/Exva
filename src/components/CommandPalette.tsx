@@ -113,7 +113,6 @@ export function CommandPalette({
       switch (hit.kind) {
         case "session":
           if (hit.payload.sessionId) {
-            void api.focusSession(hit.payload.sessionId);
             navigate({ page: "sessions", sessionId: hit.payload.sessionId });
           }
           break;

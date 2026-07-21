@@ -10,6 +10,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AgentLabel, Dot } from "@/components/custom-ui";
 import { EmptyState as UiEmptyState } from "@/components/ui/primitives";
+import { SearchInput } from "@/components/ui";
 import { formatCompact, formatFixed } from "@/lib/format";
 import { fmt } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
@@ -196,8 +197,6 @@ const devClass = {
     "inline-flex items-center gap-1 rounded-sm px-2 py-0.5 font-mono text-caption tracking-wider",
   headerBtnBase:
     "flex items-center gap-1 rounded-sm px-2.5 py-1 font-mono text-caption font-bold tracking-wider transition-opacity duration-hover",
-  searchInput:
-    "flex-1 rounded-sm border border-border bg-bg px-2.5 py-1 font-sans text-body text-text1 outline-none focus:ring-1 focus:ring-primary",
   scopeRail:
     "flex w-52 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface",
   scopeRailHeader: "shrink-0 border-b border-border px-3.5 pb-2 pt-3.5",
@@ -1002,14 +1001,15 @@ const EventTimeline = ({
     <div className={devClass.eventTimelineOuter}>
       {/* Search bar */}
       <div className={devClass.timelineSearchBar}>
-        <input
+        <SearchInput
           ref={searchRef}
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onValueChange={setSearch}
           placeholder="Search message, id, symbol, provider, error…"
-          className={cn(devClass.searchInput, devClass.mono10)}
+          containerClassName="flex-1"
+          className={devClass.mono10}
+          endSlot={loading ? <Spinner /> : undefined}
         />
-        {loading && <Spinner />}
         <span className={cn(devClass.mono9, "shrink-0 text-text3")}>
           {filtered.length}/{events.length}
         </span>

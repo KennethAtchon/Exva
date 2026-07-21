@@ -134,6 +134,14 @@ export const api = {
   ): Promise<
     import("@electron/shared/domain/session-activity").SessionActivitySnapshot[]
   > => bridge().sessionActivity.listTransitions({ sessionId }),
+  getSessionActivityMonitoringHealth: (): Promise<
+    import("@electron/shared/domain/session-activity").SessionActivityMonitoringHealth
+  > => bridge().sessionActivity.monitoringHealth(),
+  getSessionActivityAnalytics: (
+    sessionId: string,
+  ): Promise<
+    import("@electron/shared/domain/session-activity-analytics").SessionActivityAnalytics
+  > => bridge().sessionActivity.analytics({ sessionId }),
   retrySessionStep: (input: {
     sessionId: string;
     cycleId: string;

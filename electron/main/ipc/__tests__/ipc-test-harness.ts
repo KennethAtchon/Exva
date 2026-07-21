@@ -360,6 +360,9 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     autopsyExport: {} as AppServices["autopsyExport"],
     signals: {} as unknown as AppServices["signals"],
     sessionActivityTracker: {} as unknown as AppServices["sessionActivityTracker"],
+    pipelineWorkerProgress: {
+      get: () => null,
+    } as unknown as AppServices["pipelineWorkerProgress"],
     controlRepo: {} as AppServices["controlRepo"],
     control: {} as AppServices["control"],
     ladderStates: new Map(),

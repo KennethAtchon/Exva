@@ -9,6 +9,7 @@ export * from "./dialog";
 export * from "./dropdown-menu";
 export * from "./help-tooltip";
 export * from "./input";
+export * from "./search-input";
 export * from "./label-with-help";
 export * from "./select";
 export * from "./separator";

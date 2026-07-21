@@ -368,6 +368,9 @@ const exva: ExvaApi = {
       invoke(channels.sessionActivity.get, input),
     listTransitions: (input: { sessionId: string }) =>
       invoke(channels.sessionActivity.listTransitions, input),
+    monitoringHealth: () => invoke(channels.sessionActivity.monitoringHealth),
+    analytics: (input: { sessionId: string }) =>
+      invoke(channels.sessionActivity.analytics, input),
   },
   developer: {
     getSettings: () => invoke(channels.developer.getSettings),

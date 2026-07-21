@@ -18,10 +18,20 @@ interface ToastItem {
 
 const MAX_TOASTS = 5;
 const AUTO_DISMISS_MS = 8000;
+const ALERT_LEVELS = new Set(["ERROR", "WARN", "CRITICAL"]);
 
 function formatExitReason(exitReason: string | null | undefined): string {
   if (!exitReason) return "closed";
   return exitReason.replace(/_/g, " ");
+}
+
+function normalizeAlertLevel(
+  level: string,
+): "ERROR" | "WARN" | "CRITICAL" | null {
+  const normalized = level.toUpperCase();
+  return ALERT_LEVELS.has(normalized)
+    ? (normalized as "ERROR" | "WARN" | "CRITICAL")
+    : null;
 }
 
 export function RuntimeEventToast() {
@@ -75,6 +85,19 @@ export function RuntimeEventToast() {
       autopsyId: payload.periodAutopsyId,
     });
   });
+
+  useExvaEvent(
+    "notification",
+    (payload: { title: string; body: string; level: string }) => {
+      const level = normalizeAlertLevel(payload.level);
+      if (!level) return;
+      pushToast({
+        id: `notification-${payload.title}-${Date.now()}`,
+        level,
+        message: `${payload.title}: ${payload.body}`,
+      });
+    },
+  );
 
   if (toasts.length === 0) return null;
 

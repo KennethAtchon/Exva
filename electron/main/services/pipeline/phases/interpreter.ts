@@ -26,6 +26,19 @@ import { createLogger } from "../../infra/log";
 
 const logger = createLogger("pipeline-phase-runtime");
 
+export type AIPhaseWorkerProgressEmitter = (payload: {
+  sessionId: string;
+  cycleId: string;
+  phase: string;
+  stageId: string;
+  frontier: number;
+  tradeId: string | null;
+  workers: Array<{
+    workerId: string;
+    status: "running" | "succeeded" | "failed";
+  }>;
+}) => void;
+
 export interface AIPhaseRunInput {
   plan: AIPhase<unknown, unknown>;
   pipelineId: string;
@@ -38,6 +51,8 @@ export interface AIPhaseRunInput {
   toolContext: WorkerToolContext;
   services: AIPhaseServices;
   runner: AIWorkerRunner;
+  /** Optional live worker-progress sink (UI bars). Never required for correctness. */
+  onWorkerProgress?: AIPhaseWorkerProgressEmitter;
 }
 
 export class AIPhaseRunner {
@@ -186,13 +201,43 @@ export class AIPhaseRunner {
         "phase stage start",
       );
 
+      type WorkerRunStatus = "running" | "succeeded" | "failed";
+      const workerStatus = new Map<string, WorkerRunStatus>();
+      for (const worker of workers) workerStatus.set(worker.id, "running");
+
+      const emitWorkerProgress = (): void => {
+        if (!input.onWorkerProgress || !input.cycleId) return;
+        input.onWorkerProgress({
+          sessionId: input.sessionId,
+          cycleId: input.cycleId,
+          phase: input.plan.phase,
+          stageId: stage.id,
+          frontier: stage.frontier,
+          tradeId: input.tradeId,
+          workers: Array.from(workerStatus, ([workerId, status]) => ({
+            workerId,
+            status,
+          })),
+        });
+      };
+      emitWorkerProgress();
+
       const settled = await ctx.runner.executeGroup(
-        workers.map(
-          (worker) => () =>
-            ctx.runner
-              .execute<unknown>(worker, stage.buildTask(ctx, state, worker))
-              .then((result) => ({ worker, result })),
-        ),
+        workers.map((worker) => async () => {
+          try {
+            const result = await ctx.runner.execute<unknown>(
+              worker,
+              stage.buildTask(ctx, state, worker),
+            );
+            workerStatus.set(worker.id, "succeeded");
+            emitWorkerProgress();
+            return { worker, result };
+          } catch (error) {
+            workerStatus.set(worker.id, "failed");
+            emitWorkerProgress();
+            throw error;
+          }
+        }),
         stage.concurrency,
       );
 

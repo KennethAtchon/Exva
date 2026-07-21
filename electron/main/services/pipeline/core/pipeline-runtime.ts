@@ -39,6 +39,7 @@ import {
 import { AIPhaseRunner } from "../phases/interpreter";
 import { requireAIPhase } from "../phases/registry";
 import type { AIPhaseServices } from "../phases/services";
+import type { AIPhaseWorkerProgressEmitter } from "../phases/interpreter";
 import { InstrumentAnalysisRunner } from "../analysis/interpreter";
 import { resolvePipelineIdForExperience } from "../../../experiences";
 import { requireInstrumentAnalysis } from "../analysis/registry";
@@ -68,6 +69,7 @@ export interface PipelineRuntimeDeps {
   brokerRegistry?: BrokerRegistry;
   planServices?: AIPhaseServices | null;
   cyclePlanServices?: InstrumentAnalysisServices | null;
+  onWorkerProgress?: AIPhaseWorkerProgressEmitter;
 }
 
 export interface RunPhaseOptions<TInput = Record<string, unknown>> {
@@ -110,6 +112,10 @@ export class PipelineRuntime {
     cyclePlanServices: InstrumentAnalysisServices,
   ): void {
     this.deps.cyclePlanServices = cyclePlanServices;
+  }
+
+  setWorkerProgressEmitter(emitter: AIPhaseWorkerProgressEmitter | undefined): void {
+    this.deps.onWorkerProgress = emitter;
   }
 
   mergeCyclePlanServices(patch: Partial<InstrumentAnalysisServices>): void {
@@ -406,6 +412,7 @@ export class PipelineRuntime {
           toolContext,
           services: planServices,
           runner,
+          onWorkerProgress: this.deps.onWorkerProgress,
         }),
     );
     this.recordCycleSpend(cycleKey, spendTracker.phaseSpent);

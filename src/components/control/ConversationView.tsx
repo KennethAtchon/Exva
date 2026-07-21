@@ -393,14 +393,14 @@ export function Composer({
   return (
     <div className="border-t border-border bg-surface px-4 py-3">
       {scopeChip ? <div className="mb-2">{scopeChip}</div> : null}
-      <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface2 px-3 py-2 focus-within:border-info-border">
+      <div className="flex items-end gap-2 rounded-md border border-hairline bg-surface2 px-3 py-2 transition-colors duration-hover focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
         <textarea
           ref={ref}
           rows={1}
           value={value}
           disabled={disabled}
           placeholder={placeholder ?? "Message the assistant…"}
-          className="max-h-40 flex-1 resize-none bg-transparent text-sm text-text1 outline-none placeholder:text-text3"
+          className="max-h-40 flex-1 resize-none bg-transparent py-0.5 font-sans text-body leading-normal text-text1 outline-none focus-visible:outline-none placeholder:text-text3"
           onChange={(e) => {
             setValue(e.target.value);
             onDraftChange?.(e.target.value);

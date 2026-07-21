@@ -18,6 +18,12 @@ export interface SessionProgressState {
   cycleIdShort: string;
   isHoldingPosition: boolean;
   openTradeCount: number;
+  workers?: Array<{
+    workerId: string;
+    status: "running" | "succeeded" | "failed";
+  }> | null;
+  workerPhase?: string | null;
+  workerStageId?: string | null;
 }
 
 type StatusChipTone = {
@@ -60,8 +66,11 @@ export function deriveProgress(
   activeRoleLabel: string | null = null,
   openTradeCount = 0,
   monitoringActive = false,
+  workers: SessionExecutionProgressResponse["workers"] = null,
+  workerPhase: string | null = null,
+  workerStageId: string | null = null,
 ): SessionProgressState | null {
-  if (steps.length === 0) return null;
+  if (steps.length === 0 && !(workers && workers.length > 0)) return null;
 
   const stepsByStage = new Map(steps.map((step) => [step.stage, step]));
   let activeStep: SessionExecutionProgressResponse["steps"][number] | undefined;
@@ -78,32 +87,49 @@ export function deriveProgress(
     }
   }
 
-  const allSucceeded = steps.every(
-    (s) => s.status === "succeeded" || s.status === "skipped",
-  );
+  const allSucceeded =
+    steps.length > 0 &&
+    steps.every((s) => s.status === "succeeded" || s.status === "skipped");
   const hasMonitoring =
     monitoringActive ||
     (allSucceeded && steps.some((s) => s.stage === "monitoring"));
 
-  if (!activeStep && !hasMonitoring) return null;
-  if (hasMonitoring && openTradeCount === 0 && !monitoringActive) {
+  if (!activeStep && !hasMonitoring && !(workers && workers.length > 0)) {
+    return null;
+  }
+  if (
+    hasMonitoring &&
+    openTradeCount === 0 &&
+    !monitoringActive &&
+    !(workers && workers.length > 0)
+  ) {
     return null;
   }
 
   const stage = hasMonitoring || !activeStep ? "monitoring" : activeStep.stage;
-  const status = hasMonitoring || !activeStep ? "succeeded" : activeStep.status;
+  const status =
+    hasMonitoring || !activeStep
+      ? ("succeeded" as ExecutionStepStatus)
+      : activeStep.status;
   const isHoldingPosition = hasMonitoring && openTradeCount > 0;
-  const meta = STAGE_META[stage];
+  const meta = STAGE_META[stage] ?? STAGE_META.selector;
+  const runningWorkers = (workers ?? []).filter((w) => w.status === "running");
+  const workerLabel =
+    runningWorkers.length > 0
+      ? runningWorkers.map((w) => w.workerId).join(", ")
+      : activeRoleLabel;
 
   return {
     cycleId,
     activeStage: stage,
-    activeStatus: status as ExecutionStepStatus,
+    activeStatus: status,
     progressPct: isHoldingPosition ? 96 : meta.progressPct,
     stageLabel: isHoldingPosition
       ? `Holding position (${openTradeCount}) — waiting for exit`
       : meta.label,
-    activeRoleLabel: status === "running" ? activeRoleLabel : null,
+    activeRoleLabel: status === "running" || runningWorkers.length > 0
+      ? workerLabel
+      : null,
     retryable: activeStep?.retryable ?? false,
     nextRetryAt: activeStep?.nextRetryAt ?? null,
     lastErrorCode: activeStep?.lastErrorCode ?? null,
@@ -111,6 +137,9 @@ export function deriveProgress(
     cycleIdShort: cycleId.slice(0, 8),
     isHoldingPosition,
     openTradeCount,
+    workers: workers ?? null,
+    workerPhase,
+    workerStageId,
   };
 }
 
@@ -169,6 +198,9 @@ export const SessionExecutionProgress = ({
     cycleId,
     cycleIdShort,
     isHoldingPosition,
+    workers,
+    workerPhase,
+    workerStageId,
   } = progress;
   const isFailed = activeStatus === "failed";
   const isRetrying = activeStatus === "retrying";
@@ -188,7 +220,7 @@ export const SessionExecutionProgress = ({
     : "var(--color-orange)";
 
   return (
-    <div className="mb-1 mt-3">
+      <div className="mb-1 mt-3">
       <div className="mb-2 h-1 overflow-hidden rounded-full bg-surface3">
         <div
           className={cn(
@@ -210,6 +242,14 @@ export const SessionExecutionProgress = ({
           }}
         />
       </div>
+
+      {workers && workers.length > 0 ? (
+        <WorkerProgressBars
+          workers={workers}
+          phase={workerPhase}
+          stageId={workerStageId}
+        />
+      ) : null}
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
@@ -304,6 +344,74 @@ export const SessionExecutionProgress = ({
     </div>
   );
 };
+
+type WorkerBarStatus = NonNullable<SessionProgressState["workers"]>[number]["status"];
+
+function workerBarAppearance(status: WorkerBarStatus): {
+  tone: string;
+  width: string;
+  animated: boolean;
+} {
+  switch (status) {
+    case "succeeded":
+      return { tone: "bg-success", width: "100%", animated: false };
+    case "failed":
+      return { tone: "bg-error", width: "100%", animated: false };
+    case "running":
+      return { tone: "bg-accent", width: "66%", animated: true };
+  }
+}
+
+function WorkerProgressBars({
+  workers,
+  phase,
+  stageId,
+}: {
+  workers: NonNullable<SessionProgressState["workers"]>;
+  phase?: string | null;
+  stageId?: string | null;
+}) {
+  return (
+    <div className="mb-2 grid gap-1">
+      <div className="font-mono text-micro uppercase tracking-wider text-text3">
+        {phase ?? "phase"}
+        {stageId ? ` · ${stageId}` : ""} · workers
+      </div>
+      {workers.map((worker) => {
+        const { tone, width, animated } = workerBarAppearance(worker.status);
+        return (
+          <div
+            key={worker.workerId}
+            className="grid grid-cols-[7rem_1fr_auto] items-center gap-2"
+          >
+            <span className="truncate font-mono text-micro text-text2">
+              {worker.workerId}
+            </span>
+            <div className="h-1 overflow-hidden rounded-full bg-surface3">
+              <div
+                className={cn("h-full rounded-full", tone)}
+                style={{
+                  width,
+                  transition: "width 0.4s ease",
+                  ...(animated
+                    ? {
+                        backgroundSize: "200% 100%",
+                        animation:
+                          "exva-holding-pulse 2.4s ease-in-out infinite",
+                      }
+                    : {}),
+                }}
+              />
+            </div>
+            <span className="font-mono text-micro text-text3">
+              {worker.status}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function resolveStatusChip({
   isRetrying,

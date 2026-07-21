@@ -791,6 +791,14 @@ export interface ExvaApi {
     }): Promise<
       import("@electron/shared/domain/session-activity").SessionActivitySnapshot[]
     >;
+    monitoringHealth(): Promise<
+      import("@electron/shared/domain/session-activity").SessionActivityMonitoringHealth
+    >;
+    analytics(input: {
+      sessionId: string;
+    }): Promise<
+      import("@electron/shared/domain/session-activity-analytics").SessionActivityAnalytics
+    >;
   };
   palette: {
     query(input: { q: string; limit?: number }): Promise<{

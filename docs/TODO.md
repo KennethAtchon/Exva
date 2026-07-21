@@ -1,0 +1,1 @@
+Consistent search bar project. Our search bars for this app all have inconsistent UI and design. We want a unified search bar experience. Look at shadcn or other ui libraries to find a high quality search bar component that we can style in our application's style or create your own high quality search bar. 

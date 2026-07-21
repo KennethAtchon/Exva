@@ -48,7 +48,6 @@ export function DashboardHub() {
   const trades = useTradeStore((s) => s.trades);
   const viewMode = useWorkspaceStore((s) => s.viewMode);
   const preferences = useWorkspaceStore((s) => s.preferences);
-  const setViewMode = useWorkspaceStore((s) => s.setViewMode);
   const loadWorkspaceView = useWorkspaceStore((s) => s.loadWorkspaceView);
   const environmentMode = useWorkspaceStore((s) => s.environmentMode);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -193,7 +192,7 @@ export function DashboardHub() {
             }}
             onGoGlobal={async () => {
               await api.goGlobal();
-              setViewMode("global", null);
+              await loadWorkspaceView();
             }}
           />
         }

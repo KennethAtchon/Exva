@@ -111,6 +111,7 @@ const ConnBadge = ({ ok }: { ok: boolean }) => (
 export const AccountsPage = () => {
   const environmentMode = useWorkspaceStore((s) => s.environmentMode);
   const setEnvironmentMode = useWorkspaceStore((s) => s.setEnvironmentMode);
+  const loadWorkspaceView = useWorkspaceStore((s) => s.loadWorkspaceView);
 
   const handleToggleEnvironment = async (next: "paper" | "live") => {
     if (next === environmentMode) return;
@@ -303,6 +304,11 @@ export const AccountsPage = () => {
     },
   });
   const accountsLoading = providersPending || workspacePending;
+
+  const reloadWorkspaceAfterPersist = useCallback(async () => {
+    await loadWorkspaceView();
+    void refetchWorkspace();
+  }, [loadWorkspaceView, refetchWorkspace]);
 
   const aiProviders =
     providersData?.providers.filter((p) => p.category === "ai") ?? [];
@@ -737,7 +743,7 @@ export const AccountsPage = () => {
                       modelId: defaultModelModelId,
                       reasoningLevel: defaultModelReasoningLevel,
                     });
-                    void refetchWorkspace();
+                    await reloadWorkspaceAfterPersist();
                     setSavedDefaultModel(true);
                     setTimeout(() => setSavedDefaultModel(false), 2500);
                   } catch (e) {
@@ -976,7 +982,7 @@ export const AccountsPage = () => {
                       allocationEnforcementOverride:
                         prefsDraft.allocationEnforcementOverride,
                     });
-                    void refetchWorkspace();
+                    await reloadWorkspaceAfterPersist();
                   }}
                   className={saveOverrideBtnClass}
                 >
@@ -1176,7 +1182,7 @@ export const AccountsPage = () => {
                   await api.patchWorkspacePreferences({
                     defaultSearchProviderId: prefsDraft.defaultSearchProviderId,
                   });
-                  void refetchWorkspace();
+                  await reloadWorkspaceAfterPersist();
                 }}
                 className={saveSearchSettingsBtnClass}
               >

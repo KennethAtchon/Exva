@@ -242,6 +242,8 @@ export const channels = {
     list: "session-activity:list",
     get: "session-activity:get",
     listTransitions: "session-activity:list-transitions",
+    monitoringHealth: "session-activity:monitoring-health",
+    analytics: "session-activity:analytics",
   },
 } as const;
 
@@ -258,6 +260,7 @@ export const mainToRendererEvents = [
   "selector_run_completed",
   "research_phase_started",
   "research_phase_step",
+  "pipeline_worker_progress",
   "research_phase_complete",
   "research_phase_failed",
   "step:started",

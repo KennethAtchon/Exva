@@ -95,6 +95,14 @@ export class LLMRuntime {
     this.pipelineRuntime.setStrategyContextService(strategyContextService);
   }
 
+  setWorkerProgressEmitter(
+    emitter:
+      | import("../pipeline/phases/interpreter").AIPhaseWorkerProgressEmitter
+      | undefined,
+  ): void {
+    this.pipelineRuntime.setWorkerProgressEmitter(emitter);
+  }
+
   setExperienceCapitalAllocator(
     experienceCapitalAllocator: import("../risk/experience-capital-allocator").ExperienceCapitalAllocator,
   ): void {

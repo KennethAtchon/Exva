@@ -71,6 +71,8 @@ export function registerSessionHandlers(services: AppServices): void {
           (step) => step.status === "succeeded" || step.status === "skipped",
         ) &&
         monitoringStep?.status === "succeeded";
+      const workerProgress =
+        services.pipelineWorkerProgress.get(sessionId);
       return {
         steps: steps.map((step) => ({
           stage: step.stage,
@@ -86,6 +88,9 @@ export function registerSessionHandlers(services: AppServices): void {
         cycleId,
         openTradeCount,
         monitoringActive,
+        workers: workerProgress?.workers ?? null,
+        workerPhase: workerProgress?.phase ?? null,
+        workerStageId: workerProgress?.stageId ?? null,
       };
     },
   );

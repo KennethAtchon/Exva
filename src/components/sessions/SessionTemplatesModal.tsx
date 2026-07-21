@@ -8,6 +8,7 @@ import {
   DialogContent,
   HelpTooltip,
   Input,
+  SearchInput,
 } from "@/components/ui";
 type TemplateListItem = {
   id: string;
@@ -63,11 +64,12 @@ const TemplateSearchBar = ({
   onInstrumentClassChange: (value: InstrumentClass | "all") => void;
 }) => (
   <div className={toolbarClass}>
-    <Input
+    <SearchInput
       value={search}
-      onChange={(event) => onSearchChange(event.target.value)}
+      onValueChange={onSearchChange}
       placeholder="Search templates"
-      className="h-10 flex-1 border-border bg-surface2 text-text1"
+      size="lg"
+      containerClassName="flex-1"
     />
     <ShadcnSelect
       value={instrumentClass}

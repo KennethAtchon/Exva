@@ -72,7 +72,7 @@ export function AssistantHub() {
       />
       <HubBody scroll={false} className="overflow-hidden">
         <div className="grid h-full min-h-0 flex-1 grid-cols-[minmax(240px,280px)_minmax(0,1fr)]">
-          <aside className="flex min-h-0 flex-col border-r border-border bg-surface">
+          <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-border bg-surface">
             <div className="flex items-center justify-between gap-2 border-b border-hairline px-3 py-2">
               <span className="font-mono text-micro uppercase tracking-wider text-text3">
                 Conversations
@@ -86,7 +86,7 @@ export function AssistantHub() {
                 New
               </Button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">
               {loading && conversations.length === 0 ? (
                 <p className="px-2 py-3 font-sans text-caption text-text3">
                   Loading…
@@ -97,31 +97,31 @@ export function AssistantHub() {
                   No conversations yet.
                 </p>
               ) : null}
-              <ul className="flex flex-col gap-0.5">
+              <ul className="flex min-w-0 flex-col gap-0.5">
                 {conversations.map((c) => {
                   const active = c.id === activeId;
                   return (
-                    <li key={c.id} className="group/row relative">
+                    <li key={c.id} className="group/row relative min-w-0">
                       <button
                         type="button"
                         onClick={() => setActive(c.id)}
                         className={cn(
-                          "flex w-full min-w-0 flex-col gap-0.5 rounded-sm px-3 py-2 pr-16 text-left transition-colors duration-hover",
+                          "flex w-full min-w-0 flex-col gap-0.5 overflow-hidden rounded-sm px-3 py-2 pr-16 text-left transition-colors duration-hover",
                           active
                             ? "bg-surface2 text-text1"
                             : "text-text2 hover:bg-surface2 hover:text-text1",
                         )}
                       >
-                        <span className="block truncate font-sans text-label">
+                        <span className="block min-w-0 truncate font-sans text-label">
                           {c.title}
                         </span>
-                        <span className="block truncate font-mono text-micro text-text3">
+                        <span className="block min-w-0 truncate font-mono text-micro text-text3">
                           {c.scopeKind === "session" ? "Session" : "Workspace"}
                           {" · "}
                           {c.messageCount} msg
                         </span>
                       </button>
-                      <div className="absolute right-1 top-1.5 flex rounded-sm bg-surface2 opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100">
+                      <div className="absolute right-0 top-1.5 flex rounded-sm bg-surface2 opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100">
                         <Button
                           size="icon"
                           variant="ghost"

@@ -7,7 +7,10 @@ import {
 import { formatSignalSourceTimingSubtitle } from "@electron/shared/domain/signal-timing";
 import { Badge } from "@/components/custom-ui";
 import { api, listenEvent, type SessionSummary } from "@/lib/exva";
-import type { SessionActivitySnapshot } from "@electron/shared/domain/session-activity";
+import type {
+  SessionActivitySeverity,
+  SessionActivitySnapshot,
+} from "@electron/shared/domain/session-activity";
 import type {
   EventRow,
   InstrumentClass,
@@ -323,6 +326,9 @@ export const SessionDetailDrawer = ({
 
   const [state, dispatch] = useReducer(reducer, initialState);
   const [activeTab, setActiveTab] = useState<"summary" | "signals">("summary");
+  const [highlightedEventId, setHighlightedEventId] = useState<string | null>(
+    null,
+  );
   const [experienceDisplayName, setExperienceDisplayName] = useState<
     string | null
   >(null);
@@ -374,6 +380,9 @@ export const SessionDetailDrawer = ({
             null,
             result.openTradeCount,
             result.monitoringActive,
+            result.workers,
+            result.workerPhase ?? null,
+            result.workerStageId ?? null,
           ) ?? null,
       });
     } catch {
@@ -391,6 +400,7 @@ export const SessionDetailDrawer = ({
       "step:succeeded",
       "step:failed",
       "step:retrying",
+      "pipeline_worker_progress",
       "research_phase_failed",
     ] as const;
 
@@ -422,6 +432,7 @@ export const SessionDetailDrawer = ({
   }, [session]);
 
   useEffect(() => {
+    setHighlightedEventId(null);
     if (!session) {
       dispatch({ type: "setActivity", activity: null });
       return;
@@ -881,6 +892,39 @@ export const SessionDetailDrawer = ({
                     <div className="mt-1 text-caption text-text3">
                       Last updated {formatTimestamp(activity.updatedAt)}
                     </div>
+                    {activity.lastCycleOutcome ? (
+                      <div className="mt-1 text-caption text-text2">
+                        {activity.lastCycleOutcome}
+                      </div>
+                    ) : null}
+                    {activity.stats ? (
+                      <div className="mt-3 grid grid-cols-4 gap-2 font-mono text-micro text-text3">
+                        <span>
+                          <span className="text-text1 tabular-nums">
+                            {activity.stats.cyclesRun}
+                          </span>{" "}
+                          cycles
+                        </span>
+                        <span>
+                          <span className="text-text1 tabular-nums">
+                            {activity.stats.signalsReceived}
+                          </span>{" "}
+                          signals
+                        </span>
+                        <span>
+                          <span className="text-text1 tabular-nums">
+                            {activity.stats.tradesOpened}
+                          </span>{" "}
+                          trades
+                        </span>
+                        <span>
+                          <span className="text-text1 tabular-nums">
+                            {activity.stats.errors}
+                          </span>{" "}
+                          errors
+                        </span>
+                      </div>
+                    ) : null}
                     {activity.conditions.length > 0 ? (
                       <div className="mt-3 grid gap-1.5">
                         {activity.conditions.map((condition) => (
@@ -889,19 +933,47 @@ export const SessionDetailDrawer = ({
                             className="grid grid-cols-[auto_1fr_auto] items-baseline gap-2.5 text-caption leading-[1.45]"
                           >
                             <Badge
-                              variant={
-                                condition.severity === "error"
-                                  ? "danger"
-                                  : condition.severity === "warn"
-                                    ? "warn"
-                                    : "blue"
-                              }
+                              variant={activityConditionBadgeVariant(
+                                condition.severity,
+                              )}
                               size="sm"
                             >
                               {condition.kind.replace(/_/g, " ")}
                             </Badge>
                             <span className="text-text2">
                               {condition.message}
+                              {condition.evidenceEventId ? (
+                                <button
+                                  type="button"
+                                  className="ml-2 text-info underline-offset-2 hover:underline"
+                                  onClick={() => {
+                                    const eventId = condition.evidenceEventId;
+                                    if (!eventId || !session) return;
+                                    setHighlightedEventId(eventId);
+                                    void api
+                                      .getEvents({
+                                        sessionId: session.id,
+                                        limit: 100,
+                                      })
+                                      .then((rows) => {
+                                        dispatch({
+                                          type: "setRecentEvents",
+                                          recentEvents: rows,
+                                        });
+                                        document
+                                          .getElementById(
+                                            "session-recent-events",
+                                          )
+                                          ?.scrollIntoView({
+                                            behavior: "smooth",
+                                            block: "nearest",
+                                          });
+                                      });
+                                  }}
+                                >
+                                  view evidence
+                                </button>
+                              ) : null}
                             </span>
                             <span className="whitespace-nowrap text-text3">
                               since {formatTimestamp(condition.since)} ·{" "}
@@ -975,31 +1047,37 @@ export const SessionDetailDrawer = ({
                   title="Recent Events"
                   body="Recent runtime and agent events for this session, including phase-level activity and failures."
                 >
-                  {recentEvents.length === 0 ? (
-                    <div className={mutedClass}>No recent events.</div>
-                  ) : (
-                    <div className="grid gap-1.5">
-                      {recentEvents.map((ev) => (
-                        <div
-                          key={ev.id}
-                          className="grid grid-cols-[auto_1fr] gap-2.5 text-caption leading-[1.45]"
-                        >
-                          <span className="whitespace-nowrap pt-px text-caption text-text3">
-                            {formatTimestamp(ev.created_at)}
-                          </span>
-                          <span
+                  <div id="session-recent-events">
+                    {recentEvents.length === 0 ? (
+                      <div className={mutedClass}>No recent events.</div>
+                    ) : (
+                      <div className="grid gap-1.5">
+                        {recentEvents.map((ev) => (
+                          <div
+                            key={ev.id}
                             className={cn(
-                              ev.level === "ERROR"
-                                ? "text-error"
-                                : "text-text2",
+                              "grid grid-cols-[auto_1fr] gap-2.5 rounded-sm px-1.5 py-0.5 text-caption leading-[1.45]",
+                              highlightedEventId === ev.id &&
+                                "bg-info-dim ring-1 ring-info-border",
                             )}
                           >
-                            {ev.message}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                            <span className="whitespace-nowrap pt-px text-caption text-text3">
+                              {formatTimestamp(ev.created_at)}
+                            </span>
+                            <span
+                              className={cn(
+                                ev.level === "ERROR"
+                                  ? "text-error"
+                                  : "text-text2",
+                              )}
+                            >
+                              {ev.message}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </Section>
               </>
             ) : null}
@@ -1047,6 +1125,22 @@ const StatBlock = ({ label, value }: { label: string; value: string }) => (
     </div>
   </div>
 );
+
+function activityConditionBadgeVariant(
+  severity: SessionActivitySeverity,
+): "danger" | "warn" | "success" | "default" {
+  switch (severity) {
+    case "error":
+      return "danger";
+    case "warn":
+    case "attention":
+      return "warn";
+    case "info":
+      return "success";
+    default:
+      return "default";
+  }
+}
 
 function statusVariant(
   status: SessionSummary["status"],

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ChevronRight, Search } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SearchInput } from "@/components/ui";
 import {
   DOC_NAV_GROUPS,
   getDocGroupTrail,
@@ -169,19 +170,12 @@ export function DocsSidebar() {
         <div className="text-micro font-semibold uppercase tracking-[0.14em] text-text3">
           Documentation
         </div>
-        <label className="relative mt-3 block">
-          <Search
-            size={14}
-            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text3"
-          />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search docs…"
-            className="h-8 w-full rounded-md border border-border bg-surface2 pl-8 pr-2 text-caption text-text1 outline-none placeholder:text-text3 focus:border-accent"
-          />
-        </label>
+        <SearchInput
+          value={query}
+          onValueChange={setQuery}
+          placeholder="Search docs…"
+          containerClassName="mt-3"
+        />
       </div>
 
       <nav

@@ -123,7 +123,6 @@ export function ContextBar({
   const aiReady = useWorkspaceStore((s) => s.focusedSessionAiReady);
   const environmentMode = useWorkspaceStore((s) => s.environmentMode);
   const loadWorkspaceView = useWorkspaceStore((s) => s.loadWorkspaceView);
-  const setViewMode = useWorkspaceStore((s) => s.setViewMode);
   const [focusedSession, setFocusedSession] = useState<SessionSummary | null>(
     null,
   );
@@ -201,9 +200,9 @@ export function ContextBar({
             className="z-[200] min-w-44 border-border bg-surface p-1 shadow-popover"
           >
             <DropdownMenuItem
-              onClick={() => {
-                setViewMode("global", null);
-                void loadWorkspaceView();
+              onClick={async () => {
+                await api.goGlobal();
+                await loadWorkspaceView();
               }}
               className="gap-2 rounded-sm px-2.5 py-2 text-body text-text2 focus:bg-surface2 focus:text-text1"
             >
@@ -212,8 +211,9 @@ export function ContextBar({
             {envSessions.map((s) => (
               <DropdownMenuItem
                 key={s.id}
-                onClick={() => {
-                  void api.focusSession(s.id).then(() => loadWorkspaceView());
+                onClick={async () => {
+                  await api.focusSession(s.id);
+                  await loadWorkspaceView();
                   if (activePage !== "sessions") onNavigate("sessions");
                 }}
                 className={cn(

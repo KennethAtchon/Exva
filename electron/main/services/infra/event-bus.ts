@@ -35,6 +35,18 @@ export interface ExvaEventMap {
     message: string;
     cycleId: string;
   };
+  pipeline_worker_progress: {
+    sessionId: string;
+    cycleId: string;
+    phase: string;
+    stageId: string;
+    frontier: number;
+    tradeId: string | null;
+    workers: Array<{
+      workerId: string;
+      status: "running" | "succeeded" | "failed";
+    }>;
+  };
   research_phase_complete: {
     sessionId: string;
     phase: string;

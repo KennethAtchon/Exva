@@ -15,7 +15,7 @@ import {
   Checkbox,
   EmptyState,
   HelpTooltip,
-  Input,
+  SearchInput,
   Tabs,
   TabsContent,
   TabsList,
@@ -37,7 +37,13 @@ import {
   type SessionSummary,
 } from "@/lib/exva";
 import type { InstrumentClass, SessionStatus } from "@/lib/types";
-import type { SessionActivitySnapshot } from "@electron/shared/domain/session-activity";
+import type {
+  SessionActivityConditionKind,
+  SessionActivityMonitoringHealth,
+  SessionActivitySeverity,
+  SessionActivitySnapshot,
+} from "@electron/shared/domain/session-activity";
+import type { SessionActivityAnalytics } from "@electron/shared/domain/session-activity-analytics";
 import { MOCK_REHEARSAL_SIGNAL_SOURCE_ID } from "@electron/shared/instruments/mock-rehearsal";
 import { CreateEditSessionModal } from "@/components/sessions/CreateEditSessionModal";
 import { LiveReadinessModal } from "@/components/sessions/LiveReadinessModal";
@@ -49,7 +55,15 @@ import { SESSION_STATUS_HELP_IDS } from "@/lib/help-glossary";
 import { useControlStore } from "@/store/controlStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
+const ACTIVITY_POLL_MS = 30_000;
+
 const mergeReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
+
+function activityBySessionId(
+  rows: SessionActivitySnapshot[],
+): Record<string, SessionActivitySnapshot> {
+  return Object.fromEntries(rows.map((row) => [row.sessionId, row]));
+}
 
 type LifecycleAction = "start" | "pause" | "resume" | "stop" | "forceStop";
 
@@ -86,6 +100,7 @@ type DataState = {
     { phase: string; error: string; at: string }
   >;
   activityBySessionId: Record<string, SessionActivitySnapshot>;
+  activityMonitoring: SessionActivityMonitoringHealth | null;
 };
 
 type UiState = {
@@ -149,7 +164,7 @@ const executeLifecycleAction = async ({
           liveReadinessReport: readiness,
           liveReadinessSession: session,
         });
-        dispatchData({ actionSessionId: null });
+        await load();
         return;
       }
     }
@@ -219,17 +234,46 @@ const SessionListFilters = ({
 );
 
 function activityChipVariant(
-  severity: SessionActivitySnapshot["conditions"][number]["severity"],
-): "danger" | "warn" | "blue" {
-  if (severity === "error") return "danger";
-  if (severity === "warn") return "warn";
-  return "blue";
+  severity: SessionActivitySeverity,
+): "danger" | "warn" | "success" | "default" {
+  switch (severity) {
+    case "error":
+      return "danger";
+    case "warn":
+    case "attention":
+      return "warn";
+    case "info":
+      return "success";
+    default:
+      return "default";
+  }
 }
 
-const SEVERITY_RANK: Record<
-  SessionActivitySnapshot["conditions"][number]["severity"],
-  number
-> = { info: 0, attention: 1, warn: 2, error: 3 };
+function activityDotColor(
+  isActive: boolean,
+  status: SessionSummary["status"],
+  severity: SessionActivitySeverity | undefined,
+): string {
+  switch (severity) {
+    case "error":
+      return "var(--color-error)";
+    case "warn":
+    case "attention":
+      return "var(--color-warning)";
+    case "info":
+      return "var(--color-success)";
+  }
+  if (isActive) return "var(--color-success)";
+  if (status === "attention_required") return "var(--color-error)";
+  return "var(--text3)";
+}
+
+const SEVERITY_RANK: Record<SessionActivitySeverity, number> = {
+  info: 0,
+  attention: 1,
+  warn: 2,
+  error: 3,
+};
 
 const SessionListCard = ({
   session,
@@ -270,14 +314,12 @@ const SessionListCard = ({
           {session.name}
         </span>
         <Dot
-          color={
-            isActive
-              ? "var(--color-success)"
-              : session.status === "attention_required"
-                ? "var(--color-error)"
-                : "var(--text3)"
-          }
-          pulse={isActive}
+          color={activityDotColor(
+            isActive,
+            session.status,
+            worstCondition?.severity,
+          )}
+          pulse={isActive && worstCondition?.severity !== "error"}
           size={6}
         />
       </div>
@@ -552,6 +594,7 @@ export const SessionsMasterDetail = ({
     progressBySessionId: {},
     researchFailuresBySessionId: {},
     activityBySessionId: {},
+    activityMonitoring: null,
   });
 
   const [ui, dispatchUi] = useReducer<Reducer<UiState, Partial<UiState>>>(
@@ -612,6 +655,9 @@ export const SessionsMasterDetail = ({
         null,
         result.openTradeCount,
         result.monitoringActive,
+        result.workers,
+        result.workerPhase ?? null,
+        result.workerStageId ?? null,
       );
       if (!state) {
         dispatchData({
@@ -698,6 +744,7 @@ export const SessionsMasterDetail = ({
       "step:succeeded",
       "step:failed",
       "step:retrying",
+      "pipeline_worker_progress",
     ] as const;
     const cleanup: Array<() => void> = [];
 
@@ -720,16 +767,27 @@ export const SessionsMasterDetail = ({
 
   useEffect(() => {
     let cancelled = false;
-    void api.listSessionActivity().then((rows) => {
+
+    async function refreshActivity(): Promise<void> {
+      const [rows, health] = await Promise.all([
+        api.listSessionActivity(),
+        api.getSessionActivityMonitoringHealth(),
+      ]);
       if (cancelled) return;
       dispatchData({
-        activityBySessionId: Object.fromEntries(
-          rows.map((row) => [row.sessionId, row]),
-        ),
+        activityBySessionId: activityBySessionId(rows),
+        activityMonitoring: health,
       });
-    });
+    }
+
+    void refreshActivity();
+    const timer = window.setInterval(() => void refreshActivity(), ACTIVITY_POLL_MS);
+    const onFocus = () => void refreshActivity();
+    window.addEventListener("focus", onFocus);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
     };
   }, []);
 
@@ -915,11 +973,9 @@ export const SessionsMasterDetail = ({
         </div>
 
         <div className="border-b border-border px-3 py-2">
-          <Input
+          <SearchInput
             value={filters.search}
-            onChange={(event) =>
-              dispatchFilters({ search: event.target.value })
-            }
+            onValueChange={(value) => dispatchFilters({ search: value })}
             placeholder="Search sessions"
           />
         </div>
@@ -992,9 +1048,21 @@ export const SessionsMasterDetail = ({
         <div className="flex items-center gap-2 border-t border-border px-3 py-2">
           <Checkbox
             checked={preferences?.globalIncludeArchived ?? false}
-            onCheckedChange={async () => {
+            onCheckedChange={async (checked) => {
               dispatchData({ error: null });
-              await loadWorkspaceView();
+              try {
+                await api.patchWorkspacePreferences({
+                  globalIncludeArchived: checked === true,
+                });
+                await loadWorkspaceView();
+              } catch (prefsError) {
+                dispatchData({
+                  error:
+                    prefsError instanceof Error
+                      ? prefsError.message
+                      : "Failed to update archived filter.",
+                });
+              }
             }}
           />
           <span className="font-sans text-caption text-text2">
@@ -1004,6 +1072,12 @@ export const SessionsMasterDetail = ({
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-bg">
+        {data.activityMonitoring && !data.activityMonitoring.healthy ? (
+          <div className="border-b border-warning-border bg-warning-dim px-5 py-2 font-sans text-body text-warning">
+            {data.activityMonitoring.message ??
+              "Session activity monitoring unavailable."}
+          </div>
+        ) : null}
         {data.error ? (
           <div className="border-b border-error-border bg-error-dim px-5 py-2 font-sans text-body text-error">
             {data.error}
@@ -1074,10 +1148,9 @@ export const SessionsMasterDetail = ({
                 }}
                 onPauseAfterStep={async (sessionId) => {
                   try {
-                    if (
-                      !data.sessions.find((s) => s.id === sessionId)?.isFocused
-                    ) {
+                    if (!runTabSession.isFocused) {
                       await api.focusSession(sessionId);
+                      await load();
                     }
                     await api.pauseSessionAfterCurrentStep(sessionId);
                   } catch (pauseError) {
@@ -1404,15 +1477,110 @@ const SessionRunTab = ({
   </div>
 );
 
+function formatDurationMs(ms: number | null): string {
+  if (ms == null || !Number.isFinite(ms) || ms <= 0) return "—";
+  const minutes = Math.round(ms / 60_000);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const rem = minutes % 60;
+  return rem > 0 ? `${hours}h ${rem}m` : `${hours}h`;
+}
+
+type ConditionFrequencyRow = {
+  kind: string;
+  count: number;
+  timeMs: number;
+};
+
+function topConditionFrequencyRows(
+  analytics: SessionActivityAnalytics,
+  limit = 8,
+): ConditionFrequencyRow[] {
+  return Object.entries(analytics.conditionFrequency)
+    .map(([kind, count]) => ({
+      kind,
+      count: count ?? 0,
+      timeMs:
+        analytics.timeInConditionMs[kind as SessionActivityConditionKind] ?? 0,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+function ActivityAnalyticsCard({
+  analytics,
+}: {
+  analytics: SessionActivityAnalytics;
+}) {
+  const frequencyRows = topConditionFrequencyRows(analytics);
+  const maxFrequency = frequencyRows[0]?.count ?? 1;
+
+  return (
+    <div className="grid gap-3 rounded-sm border border-border bg-surface p-3">
+      <div className="font-sans text-label text-text1">Activity analytics</div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <RunMetric
+          label="Transitions"
+          value={String(analytics.transitionCount)}
+        />
+        <RunMetric label="Error clears" value={String(analytics.errorClears)} />
+        <RunMetric
+          label="Avg error duration"
+          value={formatDurationMs(analytics.avgErrorDurationMs)}
+        />
+        <RunMetric
+          label="Error events"
+          value={String(analytics.severityCounts.error)}
+        />
+      </div>
+      {frequencyRows.length > 0 ? (
+        <div className="grid gap-1.5">
+          <div className="font-mono text-micro uppercase tracking-wider text-text3">
+            Condition frequency
+          </div>
+          {frequencyRows.map((row) => (
+            <div
+              key={row.kind}
+              className="grid grid-cols-[9rem_1fr_auto] items-center gap-2"
+            >
+              <span className="truncate font-mono text-micro text-text2">
+                {row.kind.replace(/_/g, " ")}
+              </span>
+              <div className="h-1.5 overflow-hidden rounded-full bg-surface3">
+                <div
+                  className="h-full rounded-full bg-info"
+                  style={{
+                    width: `${Math.max(8, (row.count / maxFrequency) * 100)}%`,
+                  }}
+                />
+              </div>
+              <span className="whitespace-nowrap font-mono text-micro text-text3">
+                {row.count}× · {formatDurationMs(row.timeMs)}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 const SessionActivityTab = ({ sessionId }: { sessionId: string }) => {
   const [transitions, setTransitions] = useState<SessionActivitySnapshot[]>([]);
+  const [analytics, setAnalytics] = useState<SessionActivityAnalytics | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async (id: string) => {
     setLoading(true);
     try {
-      const rows = await api.listSessionActivityTransitions(id);
+      const [rows, stats] = await Promise.all([
+        api.listSessionActivityTransitions(id),
+        api.getSessionActivityAnalytics(id),
+      ]);
       setTransitions(rows);
+      setAnalytics(stats);
     } finally {
       setLoading(false);
     }
@@ -1440,35 +1608,40 @@ const SessionActivityTab = ({ sessionId }: { sessionId: string }) => {
   }
 
   return (
-    <div className="mt-4 flex flex-col gap-2 px-1 pb-5">
-      {transitions.map((entry, i) => (
-        <div
-          key={`${entry.updatedAt}-${i}`}
-          className="rounded-sm border border-border bg-surface p-3"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-sans text-body text-text1">
-              {entry.activity}
-            </span>
-            <span className="whitespace-nowrap font-mono text-micro text-text3">
-              {formatTimestamp(entry.updatedAt)}
-            </span>
-          </div>
-          {entry.conditions.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {entry.conditions.map((condition) => (
-                <Badge
-                  key={condition.kind}
-                  variant={activityChipVariant(condition.severity)}
-                  size="sm"
-                >
-                  {condition.kind.replace(/_/g, " ")}
-                </Badge>
-              ))}
+    <div className="mt-4 flex flex-col gap-4 px-1 pb-5">
+      {analytics ? <ActivityAnalyticsCard analytics={analytics} /> : null}
+
+      <div className="flex flex-col gap-2">
+        <div className="font-sans text-label text-text1">Transition timeline</div>
+        {transitions.map((entry, i) => (
+          <div
+            key={`${entry.updatedAt}-${i}`}
+            className="rounded-sm border border-border bg-surface p-3"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-sans text-body text-text1">
+                {entry.activity}
+              </span>
+              <span className="whitespace-nowrap font-mono text-micro text-text3">
+                {formatTimestamp(entry.updatedAt)}
+              </span>
             </div>
-          ) : null}
-        </div>
-      ))}
+            {entry.conditions.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {entry.conditions.map((condition) => (
+                  <Badge
+                    key={condition.kind}
+                    variant={activityChipVariant(condition.severity)}
+                    size="sm"
+                  >
+                    {condition.kind.replace(/_/g, " ")}
+                  </Badge>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

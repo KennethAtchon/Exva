@@ -186,6 +186,13 @@ export interface SessionExecutionProgressResponse {
   cycleId: string | null;
   openTradeCount: number;
   monitoringActive: boolean;
+  /** Live worker bars for the active pipeline phase, if any. */
+  workers?: Array<{
+    workerId: string;
+    status: "running" | "succeeded" | "failed";
+  }> | null;
+  workerPhase?: string | null;
+  workerStageId?: string | null;
 }
 
 export type ExvaEventMap = {
@@ -209,6 +216,18 @@ export type ExvaEventMap = {
     phase: string;
     message: string;
     cycleId: string;
+  };
+  pipeline_worker_progress: {
+    sessionId: string;
+    cycleId: string;
+    phase: string;
+    stageId: string;
+    frontier: number;
+    tradeId: string | null;
+    workers: Array<{
+      workerId: string;
+      status: "running" | "succeeded" | "failed";
+    }>;
   };
   research_phase_complete: {
     sessionId: string;

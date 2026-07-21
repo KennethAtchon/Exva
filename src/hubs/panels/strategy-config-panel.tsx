@@ -309,7 +309,6 @@ export const StrategyConfig = ({
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
   const environmentMode = useWorkspaceStore((state) => state.environmentMode);
-  const setViewMode = useWorkspaceStore((state) => state.setViewMode);
   const loadWorkspaceView = useWorkspaceStore(
     (state) => state.loadWorkspaceView,
   );
@@ -446,10 +445,7 @@ export const StrategyConfig = ({
         )}
       >
         {!embedded ? (
-          <Header
-            loadWorkspaceView={loadWorkspaceView}
-            setViewMode={setViewMode}
-          />
+          <Header loadWorkspaceView={loadWorkspaceView} />
         ) : null}
         <EmptyState
           message="Strategy configuration is session-scoped. Focus a session from the list, then return here to configure AI phases, risk limits, and strategy behavior."
@@ -487,7 +483,6 @@ export const StrategyConfig = ({
   });
   return renderStrategyConfigMainView({
     loadWorkspaceView,
-    setViewMode,
     strategyErrors,
     isLocked,
     sessionStatus,
@@ -540,10 +535,6 @@ export const StrategyConfig = ({
 
 type StrategyConfigMainViewArgs = {
   loadWorkspaceView: () => Promise<void>;
-  setViewMode: (
-    mode: "session" | "global",
-    focusedSessionId?: string | null,
-  ) => void;
   strategyErrors: string[];
   isLocked: boolean;
   sessionStatus: SessionStatus;
@@ -608,7 +599,6 @@ const formGridClass = "grid gap-4 sm:grid-cols-2";
 
 const renderStrategyConfigMainView = ({
   loadWorkspaceView,
-  setViewMode,
   strategyErrors,
   isLocked,
   sessionStatus,
@@ -672,10 +662,7 @@ const renderStrategyConfigMainView = ({
         )}
       >
         {!embedded ? (
-          <Header
-            loadWorkspaceView={loadWorkspaceView}
-            setViewMode={setViewMode}
-          />
+          <Header loadWorkspaceView={loadWorkspaceView} />
         ) : null}
 
         {strategyErrors.length > 0 ? (
@@ -853,13 +840,8 @@ const renderStrategyConfigMainView = ({
 
 const Header = ({
   loadWorkspaceView,
-  setViewMode,
 }: {
   loadWorkspaceView: () => Promise<void>;
-  setViewMode: (
-    mode: "session" | "global",
-    focusedSessionId?: string | null,
-  ) => void;
 }) => (
   <div className="flex items-center justify-between">
     <div />
@@ -870,7 +852,7 @@ const Header = ({
       }}
       onGoGlobal={async () => {
         await api.goGlobal();
-        setViewMode("global", null);
+        await loadWorkspaceView();
       }}
     />
   </div>
