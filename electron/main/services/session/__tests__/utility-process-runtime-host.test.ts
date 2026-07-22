@@ -77,7 +77,13 @@ describe("UtilityProcessSessionRuntimeHost", () => {
     );
     expect(created).toBe(runtime);
 
-    const message = { type: "rpc_request", id: 1, path: "ping", args: [] };
+    const message = {
+      type: "rpc_request",
+      id: 1,
+      requestId: crypto.randomUUID(),
+      path: "ping",
+      args: [],
+    };
     handlers.get("message")?.(message);
     expect(runtime.handleMessage).toHaveBeenCalledWith(message);
 
@@ -96,5 +102,31 @@ describe("UtilityProcessSessionRuntimeHost", () => {
     await host.createRuntime("session-2");
     await host.shutdownAll();
     expect(secondRuntime.shutdown).toHaveBeenCalledTimes(1);
+  });
+
+  it("kills the child when runtime connection fails", async () => {
+    const child = {
+      on: vi.fn(),
+      postMessage: vi.fn(),
+      stderr: { on: vi.fn() },
+      kill: vi.fn(),
+    };
+    fork.mockReturnValue(child);
+    connect.mockRejectedValue(new Error("worker ready timeout"));
+    const host = new UtilityProcessSessionRuntimeHost(
+      {
+        sessionRepo: { requireById: () => ({ id: "session-1" }) },
+        createOrchestrator: vi.fn(),
+        createTradeMonitor: vi.fn(),
+      } as never,
+      new EventBus(),
+      createLogger("utility-host-connect-failure-test"),
+    );
+
+    await expect(host.createRuntime("session-1")).rejects.toThrow(
+      "worker ready timeout",
+    );
+
+    expect(child.kill).toHaveBeenCalledTimes(1);
   });
 });

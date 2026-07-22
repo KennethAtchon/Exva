@@ -2,7 +2,7 @@
 
 This guide defines how to run quality assurance for Exva end-to-end, before merge and before release.
 
-Implements: `docs/CODING_GUIDELINES.md`
+Implements: `docs/engineering/CODING_GUIDELINES.md`
 
 ---
 
@@ -38,27 +38,36 @@ Recommended QA baseline:
 
 - Use `paper_only` execution mode.
 - Use test API credentials only.
-- Use a fresh local DB at least once per QA cycle:
+- Use a fresh local DB at least once per QA cycle. Warning: this command deletes
+  local SQLite files **and regenerates tracked Drizzle migration artifacts** from
+  `schema.ts`; review the resulting diff:
 
 ```bash
 bun run db:reset
 ```
 
-This runs with `EXVA_DB_REBUILD_FROM_SCRATCH=true`.
+Do not run `db:reset` when any existing local Exva database must be preserved. The
+script deletes the standard database candidates even when `EXVA_DB_PATH` is set.
+Use the Playwright isolated-user-data harness or a test DB helper instead.
 
 ---
 
 ## 4) Required Pre-Merge Checks
 
-Run all of these before marking QA complete:
+Run the repository gate before marking QA complete:
 
 ```bash
-bun run typecheck
-bun run lint
-bun run test
+bun run check
 ```
 
-Expected result: all commands pass with no errors.
+`check` runs typecheck, lint, format check, Knip, Vitest, and the mock trade-loop
+proof. Changes touching renderer/preload/IPC/process/package behavior also run:
+
+```bash
+bun run package && bun run test:e2e
+```
+
+Expected result: all commands pass with no undocumented failures.
 
 Automated coverage for this repo should specifically include:
 
@@ -161,7 +170,7 @@ Recommended automated priority matrix beyond onboarding:
 - Switch to session scope, pick a session, and verify the page loads that session's latest period autopsy or empty state.
 - Confirm `Run Autopsy` stays disabled when zero trades match the current window/filters.
 - Run a period autopsy and verify:
-  - a new `period_autopsies` row is created,
+  - a new `autopsies` row with `scope = 'period'` is created,
   - executive summary/performance/failure/lesson sections render,
   - the current scope shows version chips when multiple runs exist,
   - period lessons appear in the period ledger, not in Trade Review.
@@ -185,10 +194,19 @@ Validate DB-level observability after scenario runs:
 - `agent_messages` rows created with expected `cycle_id` values.
 - `api_call_log` rows created for search/tool calls:
   - provider, endpoint, call_type, credits/cost, latency, status, cache flag.
-- `trade_autopsies` row created after trade review generation.
-- `period_autopsies` row created after period autopsy generation.
-- `autopsy_lessons` rows reflect the correct `source`, `scope`, and `period_autopsy_id` values.
+- `autopsies` row with `scope = 'trade'` created after trade review generation.
+- `autopsies` row with `scope = 'period'` created after period autopsy generation.
+- `autopsy_lessons` rows reference the correct `autopsy_id` and reflect the correct `source` and `scope`.
 - Andon rows persist in `events` with `agent_type = period_autopsy`.
+
+Validate the observability contract for every affected boundary:
+
+- failure and degraded paths have a stable machine event and terminal outcome;
+- causal/domain IDs survive renderer, IPC, utility, queue, and provider boundaries;
+- retries preserve every attempt's latency, cost, and error;
+- absence/staleness is detected by a deadline or heartbeat;
+- default bundles omit sensitive content and declare every missing/truncated section;
+- the affected row in the adversarial failure matrix has an automated injection test.
 
 Tip: use SQLite tooling and read-only queries for spot checks.
 
@@ -217,6 +235,9 @@ Before tagging a release:
 - Run full checks from section 4.
 - Run manual checklist from section 5 on a fresh DB.
 - Confirm no unexpected console errors in renderer/main logs.
+- Run packaged Electron E2E and retain trace/screenshot/DB/log artifacts on failure.
+- Verify the evidence-bundle manifest, redaction test, crash envelopes, and
+  telemetry health for changed boundaries.
 - Confirm critical IPC endpoints still function:
   - trades detail,
   - events/traces,
@@ -233,13 +254,14 @@ Use this in PR/release notes:
 ```md
 ## QA Sign-off
 
-- Typecheck: PASS/FAIL
-- Lint: PASS/FAIL
-- Tests: PASS/FAIL
+- `bun run check`: PASS/FAIL
+- Packaged Electron E2E (when affected): PASS/FAIL/N/A
 - Fresh DB reset run: PASS/FAIL
 - Manual core checklist: PASS/FAIL
 - AI harness traces validated: PASS/FAIL
-- Telemetry tables validated (`agent_runs`, `agent_messages`, `api_call_log`, `trade_autopsies`, `period_autopsies`, `autopsy_lessons`, `events`): PASS/FAIL
+- Telemetry tables validated (`agent_runs`, `agent_messages`, `api_call_log`, `autopsies`, `autopsy_lessons`, `events`): PASS/FAIL
+- Observability failure injection: PASS/FAIL/N/A
+- Evidence bundle completeness/redaction: PASS/FAIL/N/A
 - Notes/Risks:
 ```
 
@@ -247,7 +269,8 @@ Use this in PR/release notes:
 
 ## 10) Known QA Pitfalls
 
-- Native module ABI mismatch for `better-sqlite3` after Node upgrades:
-  - fix with `npm rebuild better-sqlite3`.
+- Native module ABI mismatch for `better-sqlite3` after Node/Electron upgrades:
+  use the repository's Bun/Electron Forge install and rebuild path; do not
+  introduce npm lockfiles.
 - Passing tests can still hide UX regressions; always run manual checklist.
 - Do not mark QA complete solely from markdown checklist state; verify behavior in app.

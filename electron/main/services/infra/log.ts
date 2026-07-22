@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import pino, { type Logger } from "pino";
 import { env } from "../../config/env";
+import { telemetryLogFields } from "./telemetry-context";
 
 const redact = [
   "api_key",
@@ -87,9 +88,9 @@ function logFilePathFor(logDir: string, dateString: string): string {
  * 8, docs/reviews/2026-07-19-overnight-stress-session-review.md). This
  * re-opens the underlying file destination whenever the local date changes.
  */
-export function createRotatingFileStream(
-  logDir: string,
-): { write(chunk: string): void } {
+export function createRotatingFileStream(logDir: string): {
+  write(chunk: string): void;
+} {
   let currentDateString = toLocalDateString(new Date());
   let dest = pino.destination({
     dest: logFilePathFor(logDir, currentDateString),
@@ -115,16 +116,19 @@ export function createRotatingFileStream(
   };
 }
 
+export const LOG_LEVELS = ["trace", "debug", "info", "warn", "error"] as const;
+export type LogLevel = (typeof LOG_LEVELS)[number];
+
 function createBaseLogger(): Logger {
   const logDir = resolveLogDir();
   fs.mkdirSync(logDir, { recursive: true });
   pruneOldLogFiles(logDir, LOG_RETENTION_DAYS);
 
   const streams = pino.multistream([
-    { stream: process.stdout, level: env.logLevel },
+    { stream: process.stdout, level: "trace" },
     {
       stream: createRotatingFileStream(logDir),
-      level: env.logLevel,
+      level: "trace",
     },
   ]);
 
@@ -132,15 +136,36 @@ function createBaseLogger(): Logger {
     {
       level: env.logLevel,
       redact,
+      mixin: telemetryLogFields,
     },
     streams,
   );
 }
 
 const baseLogger = createBaseLogger();
+const scopedLoggers = new Map<string, Logger>();
+let runtimeLogLevel: LogLevel = env.logLevel;
 
 export function createLogger(scope: string): Logger {
-  return baseLogger.child({ scope });
+  const existing = scopedLoggers.get(scope);
+  if (existing) return existing;
+  const child = baseLogger.child({ scope }, { level: runtimeLogLevel });
+  scopedLoggers.set(scope, child);
+  return child;
+}
+
+export function setRuntimeLogLevel(level: LogLevel): void {
+  runtimeLogLevel = level;
+  baseLogger.level = level;
+  for (const logger of scopedLoggers.values()) logger.level = level;
+}
+
+export function getRuntimeLogLevel(): LogLevel {
+  return runtimeLogLevel;
+}
+
+export function resetRuntimeLogLevel(): void {
+  setRuntimeLogLevel(env.logLevel);
 }
 
 export type { Logger };

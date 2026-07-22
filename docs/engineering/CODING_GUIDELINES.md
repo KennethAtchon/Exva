@@ -1,8 +1,10 @@
 # Exva Implementation — Coding Guidelines
 
-> **Status:** Authoritative. Every phase must follow these rules.
+> **Status:** Authoritative for engineering rules. Phase-numbered worked examples
+> are illustrative history, not a current repository map; verify paths against
+> source before using them in a plan or investigation.
 > **Reference rule:** Every phase document and every PR description must include the line
-> `Implements: docs/implementations/CODING_GUIDELINES.md` and call out any deliberate deviation.
+> `Implements: docs/engineering/CODING_GUIDELINES.md` and call out any deliberate deviation.
 > If the rule conflicts with a phase doc, the rule wins; raise the conflict in `docs/reviews/`.
 
 ---
@@ -26,11 +28,15 @@ Rules:
 - `ipc/` never imports another `ipc/` file. Cross-cutting concerns live in services.
 - `services/` never imports `ipc/`. If a service needs to fire an event to the renderer, it goes through `EventBus`, not a direct IPC call.
 - `db/repositories/` never imports `services/` or `ipc/`. Repos are pure persistence.
-- `shared/domain.ts` is the only file allowed to be imported from both renderer (`src/`) and main (`electron/main/`).
+- Cross-process contracts live under `electron/shared/` and may be imported from
+  renderer and main. Feature code must use an explicit shared domain/IPC/infra
+  module rather than reaching across process folders.
 - `src/` never imports from `electron/main/` directly. Renderer talks to main only through `electron/preload/exva-api.ts` typings.
 - Renderer state stores (`src/store/*`) never call `fetch`. They go through `window.exva.*` (the preload bridge).
 
-Domain subfolders inside `services/` (Phase 10) follow the same rule: `ai/`, `broker/`, `risk/`, `session/`, `instrument/` may not import each other except through explicit interfaces declared in their own folder. The orchestrator is the only place that wires multiple domains together.
+Domain subfolders inside `services/` follow the same rule: `llm/`, `pipeline/`,
+`broker/`, `risk/`, `session/`, and `instrument/` may not import each other except
+through explicit interfaces. Composition roots wire multiple domains together.
 
 ### 1.1 Service Folder Pattern (when a service is "big")
 
@@ -63,7 +69,8 @@ Otherwise, a service stays as a single file (`event-bus.ts`, `notification-servi
 **Rules:**
 
 - `index.ts` is the only file external code imports from. Internal files import each other directly. This makes the public surface explicit and refactor-safe.
-- `<name>-types.ts` holds types that are local to the domain. Cross-domain types stay in `electron/shared/domain.ts`.
+- `<name>-types.ts` holds types that are local to the domain. Cross-process types
+  stay in the appropriate module under `electron/shared/`.
 - The adapter interface (`<name>-adapter.ts`) lives next to the concrete adapters; both live under `adapters/` so the domain root stays readable.
 - A registry that caches adapter instances (`<name>-registry.ts`) lives at the domain root, not under `adapters/`.
 - Tests are co-located in `__tests__/`. Repo tests stay with repos; service tests stay with services.
@@ -72,12 +79,12 @@ Otherwise, a service stays as a single file (`event-bus.ts`, `notification-servi
 
 The phases in this plan produce three big services. Each follows the pattern.
 
-#### Example A — `ai/` (Phase 7 + 9)
+#### Example A — `llm/` (historical shape; verify current files)
 
 ```
 electron/main/services/llm/
 ├── index.ts                          export { AiRuntime, ProviderRegistry, ... }
-├── ai-runtime.ts                     class AiRuntime — runRole, runDecisionRole, runInstrumentSelector
+├── runtime.ts                        class LLMRuntime — pipeline-facing LLM entry point
 ├── ai-runtime-types.ts               GenerateTextOptions, GenerateResult, AgentResult<T>
 ├── ai-runtime-schemas.ts             tradeDecisionSchema, instrumentSelectionSchema (Zod)
 ├── ai-runtime-errors.ts              providerNotConfigured(), missingSecret(), searchProviderRequired()
@@ -105,7 +112,7 @@ electron/main/services/llm/
 External code only ever writes:
 
 ```typescript
-import { AiRuntime, ProviderRegistry } from "@main/services/ai";
+import { LLMRuntime, ProviderRegistry } from "@main/services/llm";
 ```
 
 #### Example B — `broker/` (Phase 8)
@@ -206,7 +213,7 @@ Everything else lives in a domain or support subfolder (e.g. `ai/`, `broker/`, `
 
 ## 4. Error Handling
 
-Single error type: `AppError` defined in `electron/shared/errors.ts`.
+Single error type: `AppError` defined in `electron/shared/infra/errors.ts`.
 
 ```typescript
 export class AppError extends Error {
@@ -288,17 +295,26 @@ Rules:
 
 ## 8. Prompt and Asset Rules
 
-- System prompts live in `electron/prompts/<role>.md` only. No prompt strings in `.ts` files.
-- Each prompt file starts with `<!-- version: X.Y.Z -->`. Bump on any content change.
-- The loader strips the version header before returning content. Version is read separately via `loader.version(role)`.
-- Prompts ship via Electron Forge `extraResources`. Path resolution uses `app.getAppPath()` in production and a dev fallback.
-- A session override (`prompt_source = "session_override"`) is a full snapshot. It does not auto-merge upstream changes from the bundled prompt.
+- Bundled worker prompts currently live in
+  `electron/main/services/pipeline/worker-prompts.ts`; assembly lives in
+  `pipeline/prompting/worker-prompt-builder.ts`. Do not add a second prompt source
+  without one runtime resolver and explicit provenance.
+- **Required:** every effective prompt has a version and content hash persisted
+  with the run. Prompt provenance shown in diagnostics must come from the same
+  resolver used for execution. The current schema does not yet persist both.
+- A session override (`promptSource = "session_override"`) is a full snapshot. It
+  does not auto-merge upstream changes from the bundled prompt.
+- Prompt/message content follows the persistence and redaction rules in
+  `docs/engineering/observability-guide.md` and must never be written to ordinary
+  logs. `run-agent-execute.ts` is the reference pattern: ordinary logs retain
+  metadata and sizes while governed audit content remains in its dedicated store.
 
 ---
 
 ## 9. IPC Contract Rules
 
-- Every channel is registered as a constant in `electron/shared/channels.ts` and exposed via `electron/preload/exva-api.ts`.
+- Every channel is registered as a constant in
+  `electron/shared/ipc/channels.ts` and exposed via `electron/preload/exva-api.ts`.
 - The preload file exports a typed `ExvaAPI` object. Renderer code uses `window.exva.`\* — never `ipcRenderer` directly.
 - Every IPC handler:
   1. Validates input via Zod.
@@ -368,10 +384,27 @@ Rules:
 
 ## 11. Logging and Observability
 
-- `pino` is the only logger. Construct via `createLogger(scope: string)` so every log line has a `scope` field.
-- Log levels: `error` (failures + AppError), `warn` (recoverable anomalies, conflicts skipped), `info` (lifecycle transitions, IPC actions), `debug` (per-cycle details — off in production).
-- Every session lifecycle transition writes both a structured log line and an `events` row. Logs are for developers; `events` are for the user-visible activity timeline.
-- No `console.log` in committed code. Lint rule enforces this.
+- `docs/engineering/observability-guide.md` is authoritative for the telemetry
+  envelope, trace topology, correlation, metrics, evidence bundle, and failure
+  matrix. `docs/engineering/logging-guide.md` is authoritative for log safety.
+- `pino` is the only application logger. Construct via `createLogger(scope)`;
+  do not create direct Pino instances in feature code.
+- Logs, user-visible domain events, traces, and metrics have different purposes.
+  Do not duplicate raw AI/provider content into logs because it exists in an audit
+  table, and do not use `events` as an unbounded operational trace store.
+- Every async/external operation has a stable machine event name, causal/domain
+  IDs, start and terminal outcome, duration, deadline, retry attempt, and safe
+  error classification as required by the observability contract.
+- Never log raw prompts/messages, reasoning, tool arguments/results, provider
+  bodies, headers, environment values, credentials, or PII. Metadata, allowlisted
+  codes, sizes, versions, and content hashes are allowed.
+- A new process, queue, scheduler, provider, broker, cache, or background loop is
+  incomplete without liveness/freshness evidence and a failure-injection test.
+- Every session lifecycle transition writes both a structured operational record
+  and a user-visible `events` row. These records share correlation IDs but may
+  have different retention and content.
+- No `console.log` in committed application code. Pre-logger fatal fallback may
+  use stderr if the structured sink cannot initialize.
 
 ---
 
@@ -518,7 +551,7 @@ Each phase document must contain:
 4. **IPC Contracts** — full request/response shapes for new channels.
 5. **Sequence Diagrams** — for any flow that crosses two or more layers.
 6. **Acceptance Criteria** — concrete, testable, no hand-waving.
-7. **Implements: docs/implementations/CODING_GUIDELINES.md** — explicit reference line near the top.
+7. **Implements: docs/engineering/CODING_GUIDELINES.md** — explicit reference line near the top.
 
 If a phase deviates from this guideline, the deviation is documented inline with reason + scope + rollback plan.
 
@@ -527,5 +560,5 @@ If a phase deviates from this guideline, the deviation is documented inline with
 ## 19. PR Discipline
 
 - One phase per branch. Sub-PRs allowed within a phase but never spanning phases.
-- PR description includes: phase number, acceptance-criteria checklist (copied from phase doc), and the `Implements: docs/implementations/CODING_GUIDELINES.md` line.
+- PR description includes: phase number, acceptance-criteria checklist (copied from phase doc), and the `Implements: docs/engineering/CODING_GUIDELINES.md` line.
 - Merge gate: typecheck pass + lint pass + tests pass + acceptance criteria checked + at least one self-review pass against this guideline.

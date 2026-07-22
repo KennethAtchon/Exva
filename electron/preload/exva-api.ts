@@ -61,6 +61,7 @@ import type {
   TradeAutopsyRecord,
   UpdateLessonInput,
 } from "@electron/shared/domain/autopsy";
+import type { RendererDiagnostic } from "@electron/shared/diagnostics/runtime-diagnostic";
 
 export interface DebugForceTradeResult {
   brokerType: string;
@@ -74,6 +75,12 @@ export interface DebugForceTradeResult {
 }
 
 export interface ExvaApi {
+  diagnostics: {
+    reportRendererError(input: RendererDiagnostic): Promise<{
+      recorded: true;
+      eventId: string;
+    }>;
+  };
   dashboard: {
     getStats(): Promise<DashboardStats>;
     getCostBreakdown(dateRange?: string): Promise<CostBreakdown>;
@@ -586,10 +593,9 @@ export interface ExvaApi {
       includeToolPayloadsInExports?: boolean;
     }): Promise<{ settings: unknown }>;
     setLogLevel(input: {
-      scopeType: string;
-      scopeId?: string;
-      mainLogLevel: string;
-      eventMinLevel: string;
+      scopeType: "global";
+      mainLogLevel: "trace" | "debug" | "info" | "warn" | "error";
+      eventMinLevel?: string;
       durationMinutes?: number;
       untilStopped?: boolean;
     }): Promise<{

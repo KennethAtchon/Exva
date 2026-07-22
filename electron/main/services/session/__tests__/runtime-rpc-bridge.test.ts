@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MainRuntimeRpcBridge,
   WorkerRuntimeRpcClient,
@@ -23,9 +23,29 @@ describe("invokeOrchestratorDep", () => {
       invokeOrchestratorDep({} as never, "missing.method", []),
     ).rejects.toThrow("Unknown orchestrator RPC path");
   });
+
+  it("preserves class method receivers", async () => {
+    class Repo {
+      readonly value = "bound";
+      read(): string {
+        return this.value;
+      }
+    }
+    await expect(
+      invokeOrchestratorDep(
+        { sessionRepo: new Repo() } as never,
+        "sessionRepo.read",
+        [],
+      ),
+    ).resolves.toBe("bound");
+  });
 });
 
 describe("WorkerRuntimeRpcClient", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("resolves RPC responses by id", async () => {
     const posted: unknown[] = [];
     const client = new WorkerRuntimeRpcClient((message) => {
@@ -42,6 +62,7 @@ describe("WorkerRuntimeRpcClient", () => {
     });
 
     await expect(pending).resolves.toBe("paused");
+    client.dispose();
   });
 
   it("rejects RPC responses that carry errors", async () => {
@@ -55,6 +76,51 @@ describe("WorkerRuntimeRpcClient", () => {
     });
 
     await expect(pending).rejects.toThrow("boom");
+    client.dispose();
+  });
+
+  it("rejects calls when their deadline expires", async () => {
+    vi.useFakeTimers();
+    const client = new WorkerRuntimeRpcClient(() => undefined, 1_000);
+    const pending = client.call("sessionRepo.getStatus", ["session-1"]);
+    const rejection = expect(pending).rejects.toThrow(
+      "Runtime RPC timed out: sessionRepo.getStatus",
+    );
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await rejection;
+    client.dispose();
+  });
+
+  it("ignores responses that arrive after the deadline", async () => {
+    vi.useFakeTimers();
+    const client = new WorkerRuntimeRpcClient(() => undefined, 1_000);
+    const expired = client.call("sessionRepo.getStatus", ["session-1"]);
+    const rejection = expect(expired).rejects.toThrow("Runtime RPC timed out");
+    await vi.advanceTimersByTimeAsync(1_000);
+    await rejection;
+
+    client.handle({ type: "rpc_response", id: 1, result: "stale" });
+    const current = client.call("sessionRepo.getStatus", ["session-1"]);
+    client.handle({ type: "rpc_response", id: 2, result: "active" });
+
+    await expect(current).resolves.toBe("active");
+    client.dispose();
+  });
+
+  it("rejects pending and future calls when disposed", async () => {
+    vi.useFakeTimers();
+    const client = new WorkerRuntimeRpcClient(() => undefined, 1_000);
+    const pending = client.call("sessionRepo.getStatus", ["session-1"]);
+
+    client.dispose("worker stopped");
+
+    await expect(pending).rejects.toThrow("worker stopped");
+    await expect(client.call("sessionRepo.getStatus")).rejects.toThrow(
+      "Runtime RPC disposed",
+    );
+    await vi.advanceTimersByTimeAsync(1_000);
   });
 });
 
@@ -113,6 +179,7 @@ describe("MainRuntimeRpcBridge", () => {
     await bridge.handle({
       type: "rpc_request",
       id: 7,
+      requestId: crypto.randomUUID(),
       path: "sessionRepo.getStatus",
       args: ["session-1"],
     });

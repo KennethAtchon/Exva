@@ -13,6 +13,7 @@ import {
   type InstanceMode,
 } from "./instance-lock";
 import { resolveRuntimeFingerprint } from "./runtime-fingerprint";
+import { recordRuntimeDiagnostic } from "./services/infra/runtime-diagnostics";
 
 let services: AppServices | null = null;
 let shutdownCoordinator: ShutdownCoordinator | null = null;
@@ -21,6 +22,35 @@ let shutdownCoordinator: ShutdownCoordinator | null = null;
 let logger: ReturnType<typeof createLogger> | null = null;
 
 app.disableHardwareAcceleration();
+
+app.on("render-process-gone", (_event, webContents, details) => {
+  recordRuntimeDiagnostic({
+    kind: "render_process_gone",
+    services,
+    severity: details.reason === "oom" ? "CRITICAL" : "ERROR",
+    detail: {
+      webContentsId: webContents.id,
+      url: webContents.getURL(),
+      reason: details.reason,
+      exitCode: details.exitCode,
+    },
+  });
+});
+
+app.on("child-process-gone", (_event, details) => {
+  recordRuntimeDiagnostic({
+    kind: "child_process_gone",
+    services,
+    severity: details.reason === "oom" ? "CRITICAL" : "ERROR",
+    detail: {
+      type: details.type,
+      reason: details.reason,
+      exitCode: details.exitCode,
+      serviceName: details.serviceName ?? null,
+      name: details.name ?? null,
+    },
+  });
+});
 
 // Last-resort: log and keep the process alive so trading state is inspectable.
 // Do not rethrow — a silent crash mid-session is worse than a logged orphan.

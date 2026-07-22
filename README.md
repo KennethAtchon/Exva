@@ -52,7 +52,7 @@ Useful commands:
 - `bun run typecheck` - TypeScript check.
 - `bun run test` - Vitest suite.
 - `bun run lint` - ESLint.
-- `bun run check` - typecheck + lint + format check + tests.
+- `bun run check` - typecheck + lint + format + Knip + tests + mock trade-loop proof.
 - `bun run package` - package the app.
 - `bun run make` - build platform installers.
 - `bun run db:reset` - reset the local dev database.
@@ -61,6 +61,7 @@ Useful commands:
 ## Important Docs
 
 - `docs/engineering/README.md` - engineering docs index (logging, debugging, QA, e2e).
+- `docs/engineering/observability-guide.md` - telemetry contract, evidence bundle, failure matrix, and known gaps.
 - `docs/engineering/CODING_GUIDELINES.md` - coding conventions for this repo.
 - `docs/specs/index.md` - product and technical specs index.
 - `docs/plans/index.md` - active and historical plans.

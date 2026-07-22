@@ -3,6 +3,12 @@ import type { ExvaEventName } from "@electron/shared/ipc/channels";
 import type { EventBus } from "../infra/event-bus";
 import type { OrchestratorDeps } from "./session-types";
 import type { RuntimeWorkerMessage } from "./runtime-worker-protocol";
+import {
+  currentTraceCarrier,
+  runWithChildSpan,
+  runWithRemoteContext,
+  runWithRemoteParent,
+} from "../infra/telemetry-context";
 
 export async function invokeOrchestratorDep(
   deps: OrchestratorDeps,
@@ -20,7 +26,7 @@ export async function invokeOrchestratorDep(
   if (typeof fn !== "function") {
     throw new Error(`Unknown orchestrator RPC path: ${path}`);
   }
-  return await fn(...args);
+  return await fn.apply(target, args);
 }
 
 export class MainRuntimeRpcBridge {
@@ -32,24 +38,38 @@ export class MainRuntimeRpcBridge {
   ) {}
 
   async handle(message: RuntimeWorkerMessage): Promise<void> {
+    const run = <T>(mode: "parent" | "context", fn: () => T): T => {
+      if (!message.context) return fn();
+      return mode === "parent"
+        ? runWithRemoteParent(message.context, fn)
+        : runWithRemoteContext(message.context, fn);
+    };
     switch (message.type) {
       case "rpc_request":
-        await this.handleRpcRequest(message.id, message.path, message.args);
+        await run("parent", () =>
+          this.handleRpcRequest(message.id, message.path, message.args),
+        );
         return;
       case "event":
-        this.eventBus.emit(message.name, message.payload as never);
+        run("context", () =>
+          this.eventBus.emit(message.name, message.payload as never),
+        );
         return;
       case "runtime_status":
-        if (message.status === null) {
-          this.eventBus.clearRuntimeStatus(message.sessionId);
-        } else {
-          this.eventBus.setRuntimeStatus(message.sessionId, message.status);
-        }
+        run("context", () => {
+          if (message.status === null) {
+            this.eventBus.clearRuntimeStatus(message.sessionId);
+          } else {
+            this.eventBus.setRuntimeStatus(message.sessionId, message.status);
+          }
+        });
         return;
       case "log":
-        this.deps.logger[message.level](
-          { sessionId: this.sessionId, ...(message.meta ?? {}) },
-          message.message,
+        run("context", () =>
+          this.deps.logger[message.level](
+            { sessionId: this.sessionId, ...(message.meta ?? {}) },
+            message.message,
+          ),
         );
         return;
       default:
@@ -77,17 +97,23 @@ export class WorkerRuntimeRpcClient {
     {
       resolve: (value: unknown) => void;
       reject: (error: unknown) => void;
+      timer: ReturnType<typeof setTimeout>;
     }
   >();
   private rpcId = 0;
+  private disposed = false;
 
-  constructor(private readonly post: (message: RuntimeWorkerMessage) => void) {}
+  constructor(
+    private readonly post: (message: RuntimeWorkerMessage) => void,
+    private readonly timeoutMs = 30_000,
+  ) {}
 
   handle(message: RuntimeWorkerMessage): void {
     if (message.type !== "rpc_response") return;
     const pending = this.pending.get(message.id);
     if (!pending) return;
     this.pending.delete(message.id);
+    clearTimeout(pending.timer);
     if (message.error) {
       pending.reject(new Error(message.error.message));
       return;
@@ -96,11 +122,36 @@ export class WorkerRuntimeRpcClient {
   }
 
   call(path: string, args: unknown[] = []): Promise<unknown> {
+    if (this.disposed) return Promise.reject(new Error("Runtime RPC disposed"));
     const id = ++this.rpcId;
-    return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      this.post({ type: "rpc_request", id, path, args });
+    const requestId = crypto.randomUUID();
+    return runWithChildSpan({ utilityRequestId: requestId }, () => {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          this.pending.delete(id);
+          reject(new Error(`Runtime RPC timed out: ${path}`));
+        }, this.timeoutMs);
+        this.pending.set(id, { resolve, reject, timer });
+        this.post({
+          type: "rpc_request",
+          id,
+          requestId,
+          path,
+          args,
+          context: currentTraceCarrier(requestId) ?? undefined,
+        });
+      });
     });
+  }
+
+  dispose(reason = "Runtime RPC disposed"): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    for (const pending of this.pending.values()) {
+      clearTimeout(pending.timer);
+      pending.reject(new Error(reason));
+    }
+    this.pending.clear();
   }
 }
 

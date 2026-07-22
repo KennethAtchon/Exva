@@ -3,15 +3,45 @@ import os from "node:os";
 import path from "node:path";
 import pino from "pino";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createLogger, createRotatingFileStream } from "../log";
+import {
+  createLogger,
+  createRotatingFileStream,
+  getRuntimeLogLevel,
+  resetRuntimeLogLevel,
+  setRuntimeLogLevel,
+} from "../log";
 
 describe("createLogger", () => {
+  afterEach(() => {
+    resetRuntimeLogLevel();
+  });
+
   it("creates scoped loggers with standard levels", () => {
     const logger = createLogger("test-scope");
     expect(logger.info).toBeTypeOf("function");
     expect(logger.warn).toBeTypeOf("function");
     expect(logger.error).toBeTypeOf("function");
     expect(() => logger.info({ test: true }, "hello")).not.toThrow();
+  });
+
+  it("applies runtime levels to existing and future scoped loggers", () => {
+    const existing = createLogger("runtime-level-existing");
+
+    setRuntimeLogLevel("debug");
+    const future = createLogger("runtime-level-future");
+
+    expect(getRuntimeLogLevel()).toBe("debug");
+    expect(existing.level).toBe("debug");
+    expect(future.level).toBe("debug");
+    expect(existing.isLevelEnabled("debug")).toBe(true);
+    expect(existing.isLevelEnabled("trace")).toBe(false);
+
+    setRuntimeLogLevel("error");
+
+    expect(existing.level).toBe("error");
+    expect(future.level).toBe("error");
+    expect(existing.isLevelEnabled("warn")).toBe(false);
+    expect(existing.isLevelEnabled("error")).toBe(true);
   });
 });
 
@@ -49,9 +79,7 @@ describe("createRotatingFileStream", () => {
 
     const stream = createRotatingFileStream(tmpDir);
     stream.write("line-1\n");
-    expect(destinations).toEqual([
-      path.join(tmpDir, "exva-2026-01-01.log"),
-    ]);
+    expect(destinations).toEqual([path.join(tmpDir, "exva-2026-01-01.log")]);
     expect(endCount).toBe(0);
 
     vi.setSystemTime(new Date(2026, 0, 2, 0, 1, 0));

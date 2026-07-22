@@ -1,10 +1,10 @@
 # End-to-End Testing Guide
 
-> **Status:** Working guide for end-to-end (E2E) coverage of the trading system.
-> **Scope:** The signal → selector → analysis → decision → risk → order pipeline,
-> exercised in-process against a mock broker. This is _not_ UI automation; it is
-> a Vitest-driven integration layer that proves the system places the right
-> orders for the right reasons.
+> **Status:** Working guide for integration and Electron end-to-end coverage.
+> **Last verified:** 2026-07-21.
+> **Scope:** Vitest exercises the signal → selector → analysis → decision → risk
+> → order pipeline in process. Playwright drives an Electron app across renderer,
+> preload, IPC, main, and SQLite boundaries; packaged provenance is still partial.
 
 ---
 
@@ -30,15 +30,16 @@ E2E tests target exactly those seams and conditions:
 
 ## 2. Test taxonomy
 
-| Layer             | Lives in                                      | Runs                       | Proves                                                            |
-| ----------------- | --------------------------------------------- | -------------------------- | ----------------------------------------------------------------- |
-| Unit              | `**/__tests__/*.test.ts`                      | always                     | one function/class in isolation                                   |
-| Integration / E2E | `**/__tests__/*.integration.test.ts`          | always (same `vitest run`) | multiple services wired together through real repos + mock broker |
-| Manual app E2E    | `/run`, `/verify` skills + force-trade button | on demand                  | the packaged Electron app against a paper broker                  |
+| Layer                   | Lives in                             | Command                               | Proves                                                                                      |
+| ----------------------- | ------------------------------------ | ------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Unit                    | `**/__tests__/*.test.ts`             | `bun run test`                        | One function/class or narrow collaboration.                                                 |
+| Service integration     | `**/__tests__/*.integration.test.ts` | `bun run test`                        | Multiple real services/repos through mock network/LLM/broker edges.                         |
+| Electron UI E2E         | `e2e/*.spec.ts`                      | `bun run package && bun run test:e2e` | Renderer, preload, IPC, main, and SQLite journey; packaged provenance is currently partial. |
+| Manual paper-broker E2E | Developer Workbench force-trade      | On demand                             | Last mile against a real paper broker.                                                      |
 
-We do **not** use Playwright/Electron UI automation today. The cost/benefit
-favors in-process integration tests plus the manual force-trade check for the
-last mile. Revisit if UI regressions become a recurring source of escaped bugs.
+Do not call a Vitest integration test “E2E” in new files. E2E means an Electron
+process boundary unless a section explicitly says “pipeline integration.” A test
+counts as **packaged E2E** only when it proves the artifact path and fingerprint.
 
 ---
 
@@ -56,9 +57,10 @@ Date` constructor arg; `MarketHoursService` and `getUsEquitySession` take a
    - Weekend: any Sat/Sun; Holiday: see `us-market-holidays.ts`.
 2. **No live network.** Stub `fetch` (see `alpaca-adapter.test.ts`) or use the
    `MockMarketSimulator` / mock broker adapter.
-3. **Fresh DB per test.** Use `createTestDb()` (`electron/main/db/test-helpers.ts`)
-   — it runs migrations into an in-memory SQLite, so schema changes are covered
-   automatically. Fixtures: `createMinimalSession`, `insertBrokerAccount`.
+3. **Fresh DB per test.** Use `createTestDb()` from the DB test helpers. It runs
+   migrations into in-memory SQLite. Session/account fixtures such as
+   `createMinimalSession` and `insertBrokerAccount` live in
+   `electron/main/db/test-fixtures.ts`.
 4. **Mock only at the edges.** Mock the LLM and the network; use **real** repos,
    the real risk engine, the real market-hours guard. The bugs live in the wiring,
    so don't mock the wiring.
@@ -113,6 +115,7 @@ check works 24/7 (`pick-debug-instrument.test.ts`).
 bun run typecheck     # types must pass first — config is threaded through many layers
 bun run test          # vitest run — unit + integration together
 bunx vitest run <path> # focus a file/dir while iterating
+bun run package && bun run test:e2e # packaged Electron journeys
 ```
 
 Filter to the order-routing surface while working in this area:
@@ -125,10 +128,22 @@ bunx vitest run \
   electron/main/services/signals/__tests__/pick-debug-instrument.test.ts
 ```
 
-> **Known pre-existing failures:** `candidate-validation-service.test.ts`,
-> `phase-worker-modes.test.ts`, and `signal-dead-letters-replay.test.ts`
-> currently fail independently of off-hours work. Don't let them mask new
-> regressions — diff the failing set against this list.
+Evergreen documentation does not whitelist failing tests. If CI has a known
+failure, link a dated issue/run in the change under test and prove the current
+failure set exactly matches it.
+
+### Electron E2E artifact caveats
+
+Playwright retains traces and screenshots on failure. The current cleanup helper
+deletes the isolated `userData` directory, including its DB and local logs, even
+after a failed test. Until failure-preserving cleanup is implemented, copy or
+attach those artifacts inside the test before cleanup when DB/log evidence is
+required.
+
+The launcher currently hardcodes the macOS arm64 output and falls back to source
+mode when that package is missing. Packaged-only tests must resolve the artifact
+for the active platform/architecture, fail instead of accepting fallback, and
+record the app/build/artifact fingerprint in the test output.
 
 ---
 
@@ -152,5 +167,23 @@ Force-trade is paper-only by guard; it will refuse a live broker. Use `/run` and
 - [ ] A test fails if the business reason changes (assert _why_, e.g. order
       type + `extended_hours`, not just "an order was sent").
 - [ ] `createTestDb()` exercises any new migration.
-- [ ] `bun run typecheck` and the focused suite pass; pre-existing failures in
-      §6 are unchanged.
+- [ ] `bun run typecheck`, the focused suite, and affected packaged E2E pass.
+- [ ] Failure paths emit the signal, correlation key, durable artifact, and safe
+      debug bundle required by `observability-guide.md`.
+
+## 9. Observability Failure Injection
+
+The observability claim is gated by the adversarial matrix in
+[`observability-guide.md`](./observability-guide.md#11-adversarial-failure-coverage).
+Each injected failure must assert:
+
+1. A specific machine event or health transition is emitted.
+2. The event carries a stable causal/domain correlation key.
+3. Required evidence survives the affected process terminating.
+4. A default sanitized evidence bundle identifies the injected first divergence.
+
+At minimum, packaged E2E must inject renderer load/crash/hang, IPC timeout,
+utility-process exit/wedge, SQLite busy/corrupt/low-disk, scheduler lateness,
+provider timeout/rate-limit/malformed response, stale renderer state, and log-sink
+failure. Mark a scenario **Required**, not covered, until the necessary production
+signal exists.

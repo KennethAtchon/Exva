@@ -482,7 +482,9 @@ export async function createAppServices(app: App): Promise<AppServices> {
       ]);
       return sessions.map((session) => ({
         sessionId: session.id,
-        spendUsd: repos.apiCallLog.dailyDataSpendUsd(session.id),
+        spendUsd:
+          repos.agentRuns.dailyAiSpendUsd(session.id) +
+          repos.apiCallLog.dailyDataSpendUsd(session.id),
       }));
     },
   });
@@ -1123,6 +1125,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     trades: repos.trades,
     sessions: repos.session,
     apiCallLog: repos.apiCallLog,
+    agentRuns: repos.agentRuns,
     eventBus,
   });
   const morningBriefing = new MorningBriefingService({
@@ -1130,6 +1133,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     trades: repos.trades,
     sessions: repos.session,
     apiCallLog: repos.apiCallLog,
+    agentRuns: repos.agentRuns,
     db,
     supervisor,
     notifications,

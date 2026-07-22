@@ -203,7 +203,12 @@ export class EventBus {
 
   emit<K extends ExvaEventName>(name: K, payload: ExvaEventMap[K]): void {
     for (const window of this.windows) {
-      if (!window.isDestroyed()) window.webContents.send(name, payload);
+      if (window.isDestroyed() || window.webContents.isDestroyed()) continue;
+      try {
+        window.webContents.send(name, payload);
+      } catch {
+        this.windows.delete(window);
+      }
     }
     const handlers = this.listeners.get(name);
     if (!handlers) return;

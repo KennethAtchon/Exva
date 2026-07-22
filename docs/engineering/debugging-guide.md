@@ -1,9 +1,16 @@
 # Exva Debugging Guide
 
+> **Procedure authority:** This guide defines how to investigate. The signal,
+> correlation, safety, and evidence-bundle requirements are defined in the
+> [Observability Contract](./observability-guide.md).
+> **Last verified:** 2026-07-21.
+
 ## Purpose
 
-This guide is the standard operating procedure for finding root causes in Exva.
-It is written so a human or an agent can follow it end-to-end without guessing.
+This is the standard operating procedure for finding root causes in Exva. It
+prevents guessing; it cannot recover evidence that the application never emitted.
+If a required signal is absent, report **not currently observable** and name the
+instrumentation gap instead of inferring causality from nearby timestamps.
 
 ## Scope and Architecture Context
 
@@ -15,33 +22,62 @@ Exva is an Electron app with strict process boundaries:
 
 Debugging starts by locating which boundary is failing (renderer, preload/IPC, main/service, DB, or external provider).
 
+## Investigation Output
+
+Every investigation must produce:
+
+```text
+symptom and invariant violated
+exact build/boot and time window
+trace/domain correlation keys used
+first divergent operation and supporting evidence IDs
+root cause with code location
+alternatives rejected and why
+observability gaps that limited confidence
+minimal fix
+reproduction and verification results
+```
+
+Confidence is `high` only when a causal ID/link connects the evidence. Timestamp
+proximity without correlation is circumstantial and must be labeled as such.
+
 ## Non-Negotiable Root-Cause Workflow
 
 Follow this exact sequence. Do not skip steps.
 
-1. **Define failure precisely**
+1. **Freeze the incident scope**
    - Expected behavior
    - Actual behavior
    - Repro steps (minimal, deterministic)
-   - Last known good (commit/date/build)
-2. **Classify failure layer**
+   - First/last observed UTC timestamp
+   - App version, commit/build ID, environment mode, platform
+   - Last known good commit/date/build
+2. **Collect before changing or restarting**
+   - Export Bundle V2 if available; inspect its scope coverage and warnings
+   - Preserve logs and IDs; do not dump prompts/messages or copy a live DB file
+   - Record every missing/truncated section and collection error
+3. **Classify failure layer**
    - UI only, IPC contract, service/domain logic, DB persistence, provider integration, runtime/orchestration
-3. **Collect evidence before edits**
+4. **Build the correlation set**
    - App logs (stdout + log file)
    - Error codes/messages (`AppError.code`)
-   - Relevant entity IDs (`sessionId`, `tradeId`, `approvalId`, IPC `channel`)
-4. **Trace execution path**
+   - Available IDs: `sessionId`, `cycleId`, `tradeId`, `approvalId`, `agentRunId`, `clientOrderId`, `brokerOrderId`, schedule/source IDs
+   - Causal IDs: `traceId`, `spanId`, `parentSpanId`, `ipcInvocationId`, `utilityRequestId`, and `bootId` in structured logs
+5. **Trace execution path**
    - Entry point → branch points → side effects → output
-5. **Bisect path**
+   - Mark where evidence is authoritative, inferred, or absent
+6. **Find the first divergence**
    - Verify midpoint state; narrow until one function/branch/line explains divergence
-6. **Prove root cause**
+   - Later failures are consequences, not the root cause
+7. **Prove root cause**
    - Show why this cause produces the symptom
    - Show why alternatives are less likely
-7. **Fix minimally and validate broadly**
+8. **Fix minimally and validate broadly**
    - Validate specific repro
-   - Run neighboring tests and typecheck
-8. **Document**
-   - What broke, why, signal that proved it, guardrail test/log added
+   - Run neighboring tests, typecheck, and the matching failure injection
+9. **Close the evidence gap**
+   - Add the smallest signal/test that would have made first divergence obvious
+   - Update the observability failure matrix if the gap is structural
 
 ## Fast Triage Matrix
 
@@ -57,11 +93,25 @@ Use this matrix to choose your first trace point.
 - **No trade opened / unexpected rejection**
   - Trace `agent-orchestrator.ts` → `risk-engine.ts` → broker routing/place order
 - **AI behavior/cost/latency issue**
-  - Trace `ai-runtime.ts` and `run-agent-execute.ts` telemetry (tokens, duration, finish reason)
+  - Trace `electron/main/services/llm/runtime.ts`, pipeline execution, and `run-agent-execute.ts`; join `agent_runs`, `agent_messages`, and `api_call_log`
 - **Secret/provider problems**
   - Trace `secrets-service.ts` metadata logs and provider registry lookup; never inspect or print secret values
 
 ## Observability in Exva
+
+### Evidence order
+
+Use evidence in this order:
+
+1. Crash/load/process artifacts when the process or window disappeared.
+2. Domain state in SQLite for durable workflow truth.
+3. Structured logs for branch, stack, and dependency detail.
+4. Replay fixtures for deterministic proof.
+5. Source inspection to map evidence to code.
+
+Do not treat the Developer Workbench as a complete evidence store. Its current
+event pagination/filtering and debug-bundle behavior have known gaps documented in
+the [Verified Gap Register](./observability-guide.md#12-verified-gap-register).
 
 ### Logs
 
@@ -69,7 +119,8 @@ Use this matrix to choose your first trace point.
 - Main logger setup: `electron/main/services/infra/log.ts`
 - Streams:
   - stdout (dev runtime)
-  - file: `~/.exva/logs/exva-YYYY-MM-DD.log` (7-day retention)
+- file: `~/.exva/logs/exva-YYYY-MM-DD.log` (7-day retention)
+- override directory: `EXVA_LOG_DIR`
 
 Recommended runtime flags:
 
@@ -89,6 +140,19 @@ EXVA_LOG_LEVEL=trace bun run dev
 - Log metadata only: length/size, boolean detection flags, IDs, result state.
 - See `docs/engineering/logging-guide.md` for full policy.
 
+Primary LLM and provider-retry paths emit metadata instead of raw AI/provider
+content. Raw logs still require review because retained-sink leak scanning is not
+comprehensive across every application path.
+
+### Evidence Bundle V2 limitations
+
+`developer:export-debug-bundle` exports bounded runtime/DB health, events,
+execution steps, decision traces, runs/messages, calls, trades, approvals,
+schedules, and source state. Prompt/tool content is independently opt-in and the
+manifest declares scope coverage. It does not collect ordinary logs, crash dumps,
+durable traces, telemetry health, or replay fixtures; a successful export does not
+mean evidence is complete.
+
 ## Repeatable Debug Procedure by Layer
 
 ### 1) Renderer/UI Layer
@@ -97,6 +161,11 @@ EXVA_LOG_LEVEL=trace bun run dev
 2. Confirm preload API call arguments and return shape.
 3. Verify UI assumptions against shared schema/domain types.
 4. If UI is wrong but IPC response is correct, bug is renderer-side.
+5. For crashes/hangs/load failures, search `runtime.render_process_gone`,
+   `runtime.did_fail_load`, `runtime.preload_error`, `runtime.window_unresponsive`,
+   renderer exception/rejection, bootstrap, and React-boundary diagnostics. The
+   durable event marker links by incident and boot ID; detailed envelopes remain
+   in logs, not the bundle.
 
 ### 2) IPC Boundary
 
@@ -107,6 +176,9 @@ EXVA_LOG_LEVEL=trace bun run dev
    - `durationMs`
    - payload metadata flags
 4. Confirm error mapping and code propagation (`toIpcError`, wrapped code).
+5. A start without a terminal record is ambiguous because invocation IDs,
+   deadlines, and an inflight registry are not implemented. Reproduce under a
+   focused test rather than matching by channel and time alone.
 
 ### 3) Service/Domain Layer
 
@@ -129,6 +201,38 @@ EXVA_LOG_LEVEL=trace bun run dev
 2. Confirm adapter selected and request shape.
 3. Check latency, finish reason, and retry behavior.
 4. Distinguish provider failure vs local validation failure.
+5. Account for every attempt using `api_call_log.call_type='llm_attempt'`. A
+   successful retry does not erase failed-attempt latency or provider outcome;
+   attempt-level tokens and cost are still incomplete.
+6. **Stop before retrying an order with an unknown outcome.** If placement timed
+   out or disconnected after submission may have begun, query/reconcile the broker
+   using `clientOrderId` and `brokerOrderId`. Do not submit another live order
+   until the first attempt is proven rejected/absent or the idempotency contract
+   guarantees the retry cannot duplicate the side effect.
+
+### 6) Utility Process Layer
+
+1. Start at `utility-process-runtime-host.ts` and
+   `utility-process-session-runtime.ts`.
+2. Correlate by `sessionId`, `traceId`, and `utilityRequestId` in structured logs.
+3. Check sanitized worker stderr, `utility.command.timeout`,
+   `utility.heartbeat.missed`, exit records, and durable runtime-diagnostic events.
+4. Normal commands and worker RPCs time out after 30 seconds; approval rechecks
+   time out after five minutes. Heartbeats run every 15 seconds and terminate the
+   worker after three unanswered probes.
+5. If the bundle lacks logs, use the durable incident marker but report missing
+   last-pong age, active-command state, and restart history as evidence gaps.
+
+### 7) Scheduler and Signal Source Layer
+
+1. Query `schedule_runtime_states` for due time, start/finish/success, duration,
+   consecutive failures, and last scan summary.
+2. Query `signal_source_runtime_states` and `signal_source_polls` to distinguish a
+   quiet feed from a failed poll.
+3. Compare `next_run_at` with current UTC time. An overdue row is suspicious but
+   not proof of a lost tick because a missed-fire detector is not implemented.
+4. Check system sleep, timezone, wall-clock jump, and market calendar assumptions.
+   Current telemetry does not retain all of these facts.
 
 ## Querying the SQLite Database
 
@@ -164,6 +268,11 @@ export EXVA_DB="$HOME/Library/Application Support/exva/exva.db"
 - **WAL mode.** While the app is running, SQLite uses WAL (`exva.db-wal`, `exva.db-shm`). Reads still work; avoid copying or deleting the DB mid-session.
 - **No secrets in output.** `broker_accounts` and `provider_accounts` store `secret_ref` pointers to the OS keychain — not the secret values. Still avoid dumping `metadata_json`, `messages_json`, or other large payloads into chat logs unless you need them and they are safe to share.
 - **Prefer IDs from logs first.** Collect `sessionId`, `tradeId`, `cycleId`, or `approvalId` from pino/IPC logs, then query by those keys.
+- **Do not open the original as an incident experiment.** SQLite may recover or
+  checkpoint WAL state on open/close. Analyze a verified backup or duplicate.
+- **Integrity has two dimensions.** `PRAGMA quick_check` is a fast screen, not a
+  complete proof. `PRAGMA integrity_check` does not check foreign keys; run
+  `PRAGMA foreign_key_check` separately on an offline/read-only duplicate.
 
 ### Debug workflow
 
@@ -194,6 +303,24 @@ List tables:
 ```bash
 sqlite3 "$EXVA_DB" ".tables"
 ```
+
+Read-only operational health snapshot:
+
+```bash
+sqlite3 -readonly -header -column "$EXVA_DB" "
+SELECT sqlite_version() AS sqlite_version;
+PRAGMA journal_mode;
+PRAGMA synchronous;
+PRAGMA quick_check;
+PRAGMA foreign_key_check;
+"
+```
+
+Do not run `wal_checkpoint`, including `NOOP`, while preserving live incident
+evidence: it is not read-only and fails through a read-only connection or may
+checkpoint frames through a writable one. WAL frame/backlog state must come from
+dedicated application telemetry or a preserved duplicate. Run full
+`integrity_check` on a backup, not as routine work against the active app database.
 
 Schema for one table:
 
@@ -351,6 +478,8 @@ Migrations and seed data run on next boot. See also `scripts/db-reset.ts`.
 bun run dev
 bun run typecheck
 bun run test
+bun run test:e2e
+bun run check
 bun run test -- electron/main/services/session/__tests__/runtime-manager.test.ts
 EXVA_LOG_LEVEL=debug bun run dev
 ```
@@ -387,6 +516,40 @@ If debugging test hangs/timeouts, run focused tests and avoid watch-mode noise.
 2. Verify renderer store reducer/merge path.
 3. Check stale state race (polling overwrites, optimistic updates, focus/session switch).
 
+### Blank, crashed, or frozen window
+
+1. Preserve main logs and Playwright artifacts before relaunching.
+2. Reproduce with renderer devtools and capture console/network evidence.
+3. Check preload path, sandbox/context-isolation assumptions, and packaged asset
+   path in `electron/main/window.ts`.
+4. Record that Electron `did-fail-load`, `render-process-gone`, `unresponsive`,
+   and renderer global exception envelopes are not implemented. Without a repro,
+   the original cause may be unresolvable.
+
+### Session or utility process stalls
+
+1. Find the newest `running` execution step and calculate its age.
+2. Check utility exit/stderr records and runtime/session status.
+3. Determine whether the external dependency has a deadline.
+4. Do not call a stale step “slow” or “dead” without heartbeat/progress evidence;
+   current command deadline and last-pong telemetry is incomplete.
+
+### Schedule appears not to fire
+
+1. Inspect `schedule_runtime_states` and its subscription IDs.
+2. Inspect source runtime state/polls and session activity conditions.
+3. Compare due time and actual start time in UTC.
+4. If `next_run_at` is overdue with no start record, report a probable missed fire
+   plus the missing missed-tick/clock-jump evidence, not a proven timer root cause.
+
+### Packaged-only failure
+
+1. Prove the E2E harness launched the packaged artifact, not its source fallback.
+2. Capture platform/arch, Electron/app versions, commit/build ID, artifact hash,
+   resource paths, DB migration head, and crash/load artifacts.
+3. Current packaging does not guarantee all of that provenance. Unknown build
+   identity blocks high-confidence comparison with a source checkout.
+
 ## What “Root Cause Found” Means
 
 A root cause statement must include:
@@ -404,13 +567,16 @@ Example format:
 
 Use this checklist verbatim for debugging tasks:
 
-1. Capture expected vs actual vs repro vs last-known-good.
-2. Classify layer and choose first trace point.
-3. Gather logs with IDs and timestamps; avoid sensitive output.
-4. Trace execution path and bisect to first divergence.
-5. Write a single-sentence root-cause statement with file:line.
-6. Propose minimal fix + validation steps.
-7. Add/adjust logs or tests to prevent recurrence.
+1. Freeze expected, actual, invariant, UTC window, build, boot, and last known good.
+2. Collect evidence before restart/edit; list missing bundle sections and safety risks.
+3. Classify the layer and assemble all available causal/domain IDs.
+4. Trace from root operation to side effect; label facts, inferences, and unknowns.
+5. Find the first divergence, not the loudest downstream error.
+6. Write one root-cause sentence with `path:line` and evidence IDs.
+7. Reject alternatives explicitly; do not use timestamp adjacency as causality.
+8. Apply the minimal fix and replay the original reproduction/failure injection.
+9. Add the signal/test that would have made the first divergence immediate.
+10. Return unresolved ambiguity as `not currently observable`, never as certainty.
 
 ## Debugging Anti-Patterns (Forbidden)
 
@@ -419,6 +585,10 @@ Use this checklist verbatim for debugging tasks:
 - Logging sensitive values “just for now”.
 - Mixing unrelated refactors into a debug fix.
 - Declaring “fixed” without replaying the original repro.
+- Treating missing logs, events, rows, or heartbeats as proof that work did not happen.
+- Correlating independent operations only because timestamps are close.
+- Restarting, resetting, or opening the original DB before preserving volatile evidence.
+- Claiming a debug bundle is complete without checking its manifest and omissions.
 
 ## References
 
@@ -427,3 +597,8 @@ Use this checklist verbatim for debugging tasks:
 - Node inspector/debugger flags (`--inspect`, `--inspect-wait`, `--inspect-brk`): https://nodejs.org/api/debugger.html
 - Vitest debugging flags and single-file debugging: https://vitest.dev/guide/debugging
 - Pino API (levels, child loggers, multistream, destination, redaction): https://github.com/pinojs/pino/blob/main/docs/api.md
+- Exva observability contract and known gaps: [observability-guide.md](./observability-guide.md)
+- Electron crash/process events: https://electronjs.org/docs/latest/api/app
+- Electron crash reporter: https://electronjs.org/docs/latest/api/crash-reporter
+- SQLite PRAGMA semantics: https://sqlite.org/pragma.html
+- SQLite WAL behavior: https://sqlite.org/wal.html

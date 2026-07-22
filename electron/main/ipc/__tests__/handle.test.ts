@@ -6,6 +6,7 @@ import { AppError } from "@electron/shared/infra/errors";
 import { payloadMeta } from "../../services/infra/log-safety";
 import { handle } from "../handle";
 import { ipcNoPayloadSchema } from "../payload-schemas";
+import { createIpcInvokeEnvelope } from "@electron/shared/infra/trace-context";
 import {
   createIpcInvokeEvent,
   ipcHarness,
@@ -57,7 +58,10 @@ describe("ipc handle()", () => {
 
     ipcHarness.windows = [ipcHarness.mockBrowserWindow];
     await expect(
-      registered(createIpcInvokeEvent(), { sessionId: "s1" }),
+      registered(
+        createIpcInvokeEvent(),
+        createIpcInvokeEnvelope({ sessionId: "s1" }),
+      ),
     ).resolves.toEqual({ ok: true });
   });
 
@@ -72,9 +76,10 @@ describe("ipc handle()", () => {
     expect(registered).toBeDefined();
     if (!registered) return;
 
-    const error = await registered(createIpcInvokeEvent(), {}).catch(
-      (err: unknown) => err,
-    );
+    const error = await registered(
+      createIpcInvokeEvent(),
+      createIpcInvokeEnvelope({}),
+    ).catch((err: unknown) => err);
     expect((error as Error).message).toBe("Invalid IPC payload");
     expect((error as Error & { code?: string }).code).toBe("INVALID_PAYLOAD");
   });
@@ -90,9 +95,10 @@ describe("ipc handle()", () => {
     expect(registered).toBeDefined();
     if (!registered) return;
 
-    const error = await registered(createIpcInvokeEvent(), undefined).catch(
-      (err: unknown) => err,
-    );
+    const error = await registered(
+      createIpcInvokeEvent(),
+      createIpcInvokeEnvelope(undefined),
+    ).catch((err: unknown) => err);
 
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toBe("Invalid session mode");
@@ -113,9 +119,10 @@ describe("ipc handle()", () => {
     expect(registered).toBeDefined();
     if (!registered) return;
 
-    const error = await registered(createIpcInvokeEvent(), undefined).catch(
-      (err: unknown) => err,
-    );
+    const error = await registered(
+      createIpcInvokeEvent(),
+      createIpcInvokeEnvelope(undefined),
+    ).catch((err: unknown) => err);
 
     expect((error as Error).message).toBe("database exploded");
     expect((error as Error).message).not.toContain("/var/app/internal");

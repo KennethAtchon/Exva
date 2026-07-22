@@ -1,5 +1,6 @@
 import type { ExvaEventName } from "@electron/shared/ipc/channels";
 import type { SerializedAppError } from "@electron/shared/infra/errors";
+import type { TraceCarrier } from "@electron/shared/infra/trace-context";
 
 export type RuntimeInitialStatus = "active" | "paused" | "monitoring_only";
 
@@ -25,13 +26,14 @@ export type RuntimeWorkerCommand =
 
 export type RuntimeWorkerCommandEnvelope = RuntimeWorkerCommand & {
   requestId: string;
+  context?: TraceCarrier;
 };
 
-export type RuntimeWorkerMessage =
+type RuntimeWorkerMessagePayload =
   | { type: "worker_ready" }
   | { type: "ready"; startedAt: string }
   | { type: "stopped" }
-  | { type: "pong"; at: string }
+  | { type: "pong"; at: string; requestId: string }
   | { type: "command_ack"; requestId: string }
   | { type: "command_error"; requestId: string; error: SerializedAppError }
   | {
@@ -39,7 +41,13 @@ export type RuntimeWorkerMessage =
       requestId: string;
       result: unknown;
     }
-  | { type: "rpc_request"; id: number; path: string; args: unknown[] }
+  | {
+      type: "rpc_request";
+      id: number;
+      requestId: string;
+      path: string;
+      args: unknown[];
+    }
   | {
       type: "rpc_response";
       id: number;
@@ -59,9 +67,17 @@ export type RuntimeWorkerMessage =
       meta?: Record<string, unknown>;
     };
 
+export type RuntimeWorkerMessage = RuntimeWorkerMessagePayload & {
+  context?: TraceCarrier;
+};
+
 export type RuntimeHostInitMessage = {
   type: "host_init";
   sessionId: string;
+  bootId: string;
 };
 
-export type RuntimeHostMessage = RuntimeHostInitMessage | RuntimeWorkerCommand;
+export type RuntimeHostMessage =
+  | RuntimeHostInitMessage
+  | RuntimeWorkerCommandEnvelope
+  | Extract<RuntimeWorkerMessage, { type: "rpc_response" }>;

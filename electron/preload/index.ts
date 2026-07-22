@@ -37,14 +37,22 @@ import {
 } from "@/lib/schemas";
 import type { ExvaEventMap } from "@electron/shared/ipc/dto";
 import type { ExvaApi } from "./exva-api";
+import { createIpcInvokeEnvelope } from "@electron/shared/infra/trace-context";
 
 function invoke<T>(channel: string, payload?: unknown): Promise<T> {
-  return ipcRenderer.invoke(channel, payload) as Promise<T>;
+  return ipcRenderer.invoke(
+    channel,
+    createIpcInvokeEnvelope(payload),
+  ) as Promise<T>;
 }
 
 const eventAllowlist = new Set<string>(mainToRendererEvents);
 
 const exva: ExvaApi = {
+  diagnostics: {
+    reportRendererError: (input) =>
+      invoke(channels.diagnostics.reportRendererError, input),
+  },
   dashboard: {
     getStats: () => invoke(channels.dashboard.getStats),
     getCostBreakdown: (dateRange) =>

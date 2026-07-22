@@ -233,14 +233,6 @@ export async function executeRunAgent<T = undefined>(
 
   logger.info(
     {
-      ...agentLogContext(params),
-      systemPrompt: system ?? null,
-      userPrompt: prompt,
-    },
-    "agent prompt",
-  );
-  logger.info(
-    {
       providerType: params.providerType ?? null,
       ...agentLogContext(params),
       temperature: params.temperature ?? null,
@@ -312,8 +304,9 @@ export async function executeRunAgent<T = undefined>(
             ...agentLogContext(params),
             step: stepIndex + 1,
             tool: String(tc.toolName),
-            toolArgs: tc.input,
-            toolResult: rawOut ?? null,
+            toolArgsBytes: serializedBytes(tc.input),
+            toolResultBytes: serializedBytes(rawOut),
+            hasToolResult: rawOut !== undefined,
           },
           "agent tool call",
         );
@@ -328,7 +321,7 @@ export async function executeRunAgent<T = undefined>(
         {
           ...agentLogContext(params),
           step: stepIndex + 1,
-          fullText: step.text,
+          textChars: step.text.length,
         },
         "agent step text",
       );
@@ -410,7 +403,6 @@ export async function executeRunAgent<T = undefined>(
       {
         ...agentLogContext(params),
         thinkingChars: result.reasoningText.length,
-        thinking: result.reasoningText,
       },
       "agent reasoning",
     );
@@ -432,7 +424,7 @@ export async function executeRunAgent<T = undefined>(
       costSource,
       spendExceeded,
       stepCapHit,
-      responseText: result.text,
+      responseChars: result.text.length,
     },
     "execute run agent complete",
   );
@@ -455,4 +447,13 @@ export async function executeRunAgent<T = undefined>(
     costUsd: totalCost,
     costSource,
   };
+}
+
+function serializedBytes(value: unknown): number {
+  if (value === undefined) return 0;
+  try {
+    return Buffer.byteLength(JSON.stringify(value) ?? "", "utf8");
+  } catch {
+    return 0;
+  }
 }

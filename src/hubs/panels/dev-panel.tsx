@@ -1856,7 +1856,7 @@ const DebugCaptureModal = ({
       mainLevel: "debug",
       eventLevel: "DEBUG",
       includePrompts: false,
-      includeTools: true,
+      includeTools: false,
       traceConfirm: false,
       error: null,
     },
@@ -1879,8 +1879,7 @@ const DebugCaptureModal = ({
         throw new Error("Developer API unavailable.");
       }
       return developer.setLogLevel({
-        scopeType: activeScope.type,
-        scopeId: activeScope.id,
+        scopeType: "global",
         mainLogLevel: form.mainLevel,
         eventMinLevel: form.eventLevel,
         durationMinutes: form.untilStopped ? undefined : (form.duration ?? 15),
@@ -1902,7 +1901,7 @@ const DebugCaptureModal = ({
     >
       <div className={devClass.modalPanel} role="dialog" aria-modal="true">
         <div className={devClass.exportHeaderRow}>
-          <div className={devClass.modalTitle}>CAPTURE DEBUG WINDOW</div>
+          <div className={devClass.modalTitle}>CAPTURE MAIN-PROCESS LOGS</div>
           <button
             onClick={onClose}
             className={cn(devClass.closeBtn, "text-sm")}
@@ -2450,7 +2449,7 @@ export const DevPanel = ({
       const res = await developer.exportDebugBundle({
         scope: { type: uiState.activeScope.type, id: uiState.activeScope.id },
         includePrompts: false,
-        includeToolPayloads: true,
+        includeToolPayloads: false,
         timeWindowMinutes: filterState.timeWindow,
       });
       if (res) {

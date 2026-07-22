@@ -14,11 +14,30 @@ import type {
   ManagedSessionRuntime,
   SessionOrchestrator,
 } from "./session-types";
+import {
+  currentTraceCarrier,
+  getBootId,
+  runWithChildSpan,
+  runWithRootSpan,
+} from "../infra/telemetry-context";
+import type { RuntimeDiagnosticKind } from "../infra/runtime-diagnostics";
 
 type PendingCommand = {
   resolve: () => void;
   reject: (error: unknown) => void;
+  timer: ReturnType<typeof setTimeout>;
 };
+
+type RecordUtilityDiagnostic = (input: {
+  kind: Extract<RuntimeDiagnosticKind, "utility_error" | "utility_exit">;
+  detail: Record<string, unknown>;
+  severity?: "WARN" | "ERROR" | "CRITICAL";
+}) => void;
+
+const COMMAND_TIMEOUT_MS = 30_000;
+const LONG_COMMAND_TIMEOUT_MS = 5 * 60_000;
+const HEARTBEAT_INTERVAL_MS = 15_000;
+const MAX_MISSED_HEARTBEATS = 3;
 
 export class RemoteOrchestrator implements SessionOrchestrator {
   constructor(
@@ -118,9 +137,12 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
     {
       resolve: (value: unknown) => void;
       reject: (error: unknown) => void;
+      timer: ReturnType<typeof setTimeout>;
     }
   >();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private heartbeatRequestId: string | null = null;
+  private missedHeartbeats = 0;
   private shutDown = false;
   private disposed = false;
   private readonly onDispose?: () => void;
@@ -132,13 +154,13 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
     private readonly logger: Logger,
     startedAt: string,
     onDispose?: () => void,
+    private readonly recordDiagnostic?: RecordUtilityDiagnostic,
   ) {
     this.onDispose = onDispose;
     this.startedAtValue = startedAt;
     this.orchestrator = new RemoteOrchestrator((command) =>
       this.sendCommand(command),
     );
-    this.startHeartbeat();
   }
 
   static async connect(input: {
@@ -147,6 +169,7 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
     bridge: MainRuntimeRpcBridge;
     logger: Logger;
     onDispose?: () => void;
+    recordDiagnostic?: RecordUtilityDiagnostic;
   }): Promise<UtilityProcessSessionRuntime> {
     const runtime = new UtilityProcessSessionRuntime(
       input.sessionId,
@@ -155,8 +178,10 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
       input.logger,
       new Date().toISOString(),
       input.onDispose,
+      input.recordDiagnostic,
     );
     await runtime.waitForReady();
+    runtime.startHeartbeat();
     return runtime;
   }
 
@@ -209,32 +234,45 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
   }
 
   handleMessage(message: RuntimeWorkerMessage): void {
-    void this.bridge.handle(message);
+    if (
+      message.type === "rpc_request" ||
+      message.type === "event" ||
+      message.type === "runtime_status" ||
+      message.type === "log"
+    ) {
+      void this.bridge.handle(message);
+    }
     switch (message.type) {
       case "ready":
         this.startedAtValue = message.startedAt;
         return;
       case "command_ack":
-        this.pendingCommands.get(message.requestId)?.resolve();
-        this.pendingCommands.delete(message.requestId);
+        this.resolvePending(this.pendingCommands, message.requestId, undefined);
         return;
       case "command_error":
-        this.pendingCommands
-          .get(message.requestId)
-          ?.reject(new Error(message.error.message));
-        this.pendingCommands.delete(message.requestId);
-        this.pendingOrchestrator
-          .get(message.requestId)
-          ?.reject(new Error(message.error.message));
-        this.pendingOrchestrator.delete(message.requestId);
+        this.rejectPending(
+          this.pendingCommands,
+          message.requestId,
+          new Error(message.error.message),
+        );
+        this.rejectPending(
+          this.pendingOrchestrator,
+          message.requestId,
+          new Error(message.error.message),
+        );
         return;
       case "orchestrator_result":
-        this.pendingOrchestrator
-          .get(message.requestId)
-          ?.resolve(message.result);
-        this.pendingOrchestrator.delete(message.requestId);
+        this.resolvePending(
+          this.pendingOrchestrator,
+          message.requestId,
+          message.result,
+        );
         return;
       case "pong":
+        if (message.requestId === this.heartbeatRequestId) {
+          this.heartbeatRequestId = null;
+          this.missedHeartbeats = 0;
+        }
         return;
       case "stopped":
         this.dispose();
@@ -249,6 +287,11 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
       { sessionId: this.sessionId, exitCode: code },
       "utility process session runtime exited",
     );
+    this.recordDiagnostic?.({
+      kind: "utility_exit",
+      severity: code === 0 ? "WARN" : "ERROR",
+      detail: { exitCode: code },
+    });
     this.dispose();
   }
 
@@ -265,6 +308,7 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
           this.child.postMessage({
             type: "host_init",
             sessionId: this.sessionId,
+            bootId: getBootId(),
           } satisfies RuntimeHostMessage);
           resolve();
         }
@@ -275,31 +319,99 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
 
   private sendCommand(command: RuntimeWorkerCommand): Promise<unknown> {
     const requestId = crypto.randomUUID();
-    return new Promise((resolve, reject) => {
-      if (command.type === "orchestrator") {
-        this.pendingOrchestrator.set(requestId, { resolve, reject });
-      } else {
-        this.pendingCommands.set(requestId, {
-          resolve: () => resolve(undefined),
-          reject,
-        });
-      }
-      this.child.postMessage({
-        ...command,
-        requestId,
-      } satisfies RuntimeWorkerCommandEnvelope);
+    const timeoutMs =
+      command.type === "orchestrator" && command.method === "runApprovalRecheck"
+        ? LONG_COMMAND_TIMEOUT_MS
+        : COMMAND_TIMEOUT_MS;
+    return runWithChildSpan({ utilityRequestId: requestId }, () => {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          const error = new Error(`Utility command timed out: ${command.type}`);
+          this.rejectPending(this.pendingCommands, requestId, error);
+          this.rejectPending(this.pendingOrchestrator, requestId, error);
+          this.logger.error(
+            {
+              eventName: "utility.command.timeout",
+              sessionId: this.sessionId,
+              utilityRequestId: requestId,
+              command: command.type,
+              deadlineMs: timeoutMs,
+              outcome: "timeout",
+            },
+            "utility process command timed out",
+          );
+          this.recordDiagnostic?.({
+            kind: "utility_error",
+            detail: {
+              failure: "command_timeout",
+              utilityRequestId: requestId,
+              command: command.type,
+              deadlineMs: timeoutMs,
+            },
+          });
+          this.child.kill();
+          this.dispose();
+        }, timeoutMs);
+        if (command.type === "orchestrator") {
+          this.pendingOrchestrator.set(requestId, { resolve, reject, timer });
+        } else {
+          this.pendingCommands.set(requestId, {
+            resolve: () => resolve(undefined),
+            reject,
+            timer,
+          });
+        }
+        try {
+          this.child.postMessage({
+            ...command,
+            requestId,
+            context: currentTraceCarrier(requestId) ?? undefined,
+          } satisfies RuntimeWorkerCommandEnvelope);
+        } catch (error) {
+          this.rejectPending(this.pendingCommands, requestId, error);
+          this.rejectPending(this.pendingOrchestrator, requestId, error);
+        }
+      });
     });
   }
 
   private startHeartbeat(): void {
     this.heartbeatTimer = setInterval(() => {
-      void this.sendCommand({ type: "ping" }).catch((error) => {
+      if (this.heartbeatRequestId) {
+        this.missedHeartbeats += 1;
         this.logger.warn(
-          { sessionId: this.sessionId, err: error },
-          "utility process heartbeat failed",
+          {
+            eventName: "utility.heartbeat.missed",
+            sessionId: this.sessionId,
+            missedHeartbeats: this.missedHeartbeats,
+          },
+          "utility process heartbeat missed",
         );
+        if (this.missedHeartbeats >= MAX_MISSED_HEARTBEATS) {
+          this.recordDiagnostic?.({
+            kind: "utility_error",
+            detail: {
+              failure: "heartbeat_timeout",
+              utilityRequestId: this.heartbeatRequestId,
+              missedHeartbeats: this.missedHeartbeats,
+              heartbeatIntervalMs: HEARTBEAT_INTERVAL_MS,
+            },
+          });
+          this.child.kill();
+          this.dispose();
+        }
+        return;
+      }
+      const requestId = crypto.randomUUID();
+      runWithRootSpan({ utilityRequestId: requestId }, () => {
+        this.heartbeatRequestId = requestId;
+        this.child.postMessage({
+          type: "ping",
+          requestId,
+          context: currentTraceCarrier(requestId) ?? undefined,
+        } satisfies RuntimeWorkerCommandEnvelope);
       });
-    }, 15_000);
+    }, HEARTBEAT_INTERVAL_MS);
   }
 
   private dispose(): void {
@@ -311,12 +423,53 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
     }
     this.onDispose?.();
     for (const pending of this.pendingCommands.values()) {
+      clearTimeout(pending.timer);
       pending.reject(new Error("Utility process runtime disposed"));
     }
     this.pendingCommands.clear();
     for (const pending of this.pendingOrchestrator.values()) {
+      clearTimeout(pending.timer);
       pending.reject(new Error("Utility process runtime disposed"));
     }
     this.pendingOrchestrator.clear();
+    this.heartbeatRequestId = null;
+  }
+
+  private resolvePending<T>(
+    pendingMap: Map<
+      string,
+      {
+        resolve: (value: T) => void;
+        reject: (error: unknown) => void;
+        timer: ReturnType<typeof setTimeout>;
+      }
+    >,
+    requestId: string,
+    value: T,
+  ): void {
+    const pending = pendingMap.get(requestId);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    pendingMap.delete(requestId);
+    pending.resolve(value);
+  }
+
+  private rejectPending<T>(
+    pendingMap: Map<
+      string,
+      {
+        resolve: (value: T) => void;
+        reject: (error: unknown) => void;
+        timer: ReturnType<typeof setTimeout>;
+      }
+    >,
+    requestId: string,
+    error: unknown,
+  ): void {
+    const pending = pendingMap.get(requestId);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    pendingMap.delete(requestId);
+    pending.reject(error);
   }
 }

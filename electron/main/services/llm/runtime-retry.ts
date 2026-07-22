@@ -27,9 +27,20 @@ export interface LLMRetryContext {
   cycleId?: string | null;
 }
 
+export interface LLMRetryHooks<T> {
+  onAttempt?: (input: {
+    attempt: number;
+    durationMs: number;
+    status: "ok" | "error";
+    retryable: boolean;
+    value?: T;
+  }) => void;
+}
+
 export async function withLLMRetry<T>(
   action: (abortSignal: AbortSignal) => Promise<T>,
   ctx: LLMRetryContext = {},
+  hooks: LLMRetryHooks<T> = {},
 ): Promise<T> {
   const startedAt = Date.now();
   let lastError: unknown;
@@ -48,6 +59,13 @@ export async function withLLMRetry<T>(
         "provider request attempt",
       );
       const value = await withTimeout(action);
+      notifyAttemptHook(hooks, {
+        attempt,
+        durationMs: Date.now() - attemptStartedAt,
+        status: "ok",
+        retryable: false,
+        value,
+      });
       if (attempt > 1) {
         logger.info(
           {
@@ -63,7 +81,13 @@ export async function withLLMRetry<T>(
     } catch (error) {
       lastError = error;
       const retryable = shouldRetry(error);
-      const details = extractProviderErrorDetails(error);
+      const details = safeProviderErrorDetails(error);
+      notifyAttemptHook(hooks, {
+        attempt,
+        durationMs: Date.now() - attemptStartedAt,
+        status: "error",
+        retryable,
+      });
       logger.warn(
         {
           ...ctx,
@@ -74,12 +98,9 @@ export async function withLLMRetry<T>(
           willRetry: retryable && attempt < MAX_PROVIDER_ATTEMPTS,
           attemptMs: Date.now() - attemptStartedAt,
           providerErrorName: details.name,
-          providerErrorMessage: details.message,
+          providerErrorKind: details.kind,
           providerErrorStatus: details.status,
           providerErrorCode: details.code,
-          providerErrorCause: details.causeMessage,
-          providerErrorCauseChain: details.causeChain,
-          providerErrorBody: details.responseBody,
         },
         "provider request attempt failed",
       );
@@ -94,6 +115,24 @@ export async function withLLMRetry<T>(
 
   // Unreachable but TS-safe
   throw wrapProviderError(lastError, false, ctx, MAX_PROVIDER_ATTEMPTS);
+}
+
+function notifyAttemptHook<T>(
+  hooks: LLMRetryHooks<T>,
+  input: Parameters<NonNullable<LLMRetryHooks<T>["onAttempt"]>>[0],
+): void {
+  try {
+    hooks.onAttempt?.(input);
+  } catch {
+    logger.error(
+      {
+        eventName: "provider.attempt.persistence_failed",
+        attempt: input.attempt,
+        status: input.status,
+      },
+      "provider attempt telemetry failed",
+    );
+  }
 }
 
 async function withTimeout<T>(
@@ -165,25 +204,22 @@ function wrapProviderError(
   attempts: number,
 ): AppError {
   if (error instanceof AppError) return error;
-  const details = extractProviderErrorDetails(error);
+  const details = safeProviderErrorDetails(error);
   logger.warn(
     {
       ...ctx,
       attempts,
       retryable,
       providerErrorName: details.name,
-      providerErrorMessage: details.message,
+      providerErrorKind: details.kind,
       providerErrorStatus: details.status,
       providerErrorCode: details.code,
-      providerErrorCause: details.causeMessage,
-      providerErrorCauseChain: details.causeChain,
-      providerErrorBody: details.responseBody,
     },
     "provider request failed",
   );
   const providerPrefix = ctx.providerType ? `${ctx.providerType} ` : "";
   return new AppError(
-    `${providerPrefix}provider unreachable after ${attempts} attempt(s): ${details.summary}`,
+    `${providerPrefix}provider request failed after ${attempts} attempt(s) (${details.kind})`,
     "PROVIDER_UNREACHABLE",
     {
       retryable,
@@ -191,11 +227,8 @@ function wrapProviderError(
       providerType: ctx.providerType ?? null,
       modelId: ctx.modelId ?? null,
       status: details.status,
-      rawMessage: details.message,
-      causeMessage: details.causeMessage,
-      causeChain: details.causeChain,
-      responseBody: details.responseBody,
       providerCode: details.code,
+      errorKind: details.kind,
     },
   );
 }
@@ -240,38 +273,49 @@ function collectMessageChain(error: unknown): string[] {
 
 type ProviderErrorDetails = {
   name: string | null;
-  message: string;
-  summary: string;
-  causeMessage: string | null;
-  causeChain: string[];
-  responseBody: string | null;
+  kind:
+    | "authentication"
+    | "rate_limit"
+    | "timeout"
+    | "network"
+    | "provider_4xx"
+    | "provider_5xx"
+    | "validation"
+    | "unknown";
   status: number | null;
   code: string | null;
 };
 
-function extractProviderErrorDetails(error: unknown): ProviderErrorDetails {
-  const message = error instanceof Error ? error.message : String(error);
+function safeProviderErrorDetails(error: unknown): ProviderErrorDetails {
   const status = readHttpStatusDeep(error);
-  const code = readErrorCodeDeep(error);
-  const causeChain = collectMessageChain(error).slice(1); // skip top-level message
-  const causeMessage = causeChain[0] ?? null;
-  const responseBody = readResponseBodyDeep(error);
-  const summaryParts = [
-    message,
-    causeMessage && causeMessage !== message ? `cause=${causeMessage}` : null,
-    responseBody && responseBody !== message && responseBody !== causeMessage
-      ? `body=${responseBody}`
-      : null,
-    status != null ? `status=${status}` : null,
-    code ? `code=${code}` : null,
-  ].filter(Boolean);
+  const rawCode = readErrorCodeDeep(error);
+  const code =
+    rawCode && /^[A-Za-z0-9_.-]{1,64}$/.test(rawCode) ? rawCode : null;
+  const rawName = error instanceof Error ? error.name : null;
+  const name =
+    rawName && /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(rawName) ? rawName : null;
+  const messages = collectMessageChain(error).join(" | ").toLowerCase();
+  let kind: ProviderErrorDetails["kind"] = "unknown";
+  if (status === 401 || status === 403) kind = "authentication";
+  else if (status === 429) kind = "rate_limit";
+  else if (status != null && status >= 500) kind = "provider_5xx";
+  else if (status != null && status >= 400) kind = "provider_4xx";
+  else if (messages.includes("validation") || messages.includes("schema"))
+    kind = "validation";
+  else if (messages.includes("timeout") || messages.includes("timed out"))
+    kind = "timeout";
+  else if (
+    messages.includes("network") ||
+    messages.includes("fetch failed") ||
+    messages.includes("econn") ||
+    messages.includes("enotfound") ||
+    messages.includes("eai_again") ||
+    messages.includes("socket")
+  )
+    kind = "network";
   return {
-    name: error instanceof Error ? error.name : null,
-    message,
-    summary: summaryParts.join(" | "),
-    causeMessage,
-    causeChain,
-    responseBody,
+    name,
+    kind,
     status,
     code,
   };

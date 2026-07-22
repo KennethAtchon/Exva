@@ -10,8 +10,8 @@ import type { RuntimeWorkerMessage } from "./runtime-worker-protocol";
 export function createWorkerOrchestratorDeps(
   sessionId: string,
   post: (message: RuntimeWorkerMessage) => void,
+  rpc = new WorkerRuntimeRpcClient(post),
 ): OrchestratorDeps {
-  const rpc = new WorkerRuntimeRpcClient(post);
   const bus = new WorkerForwardingEventBus(sessionId, post);
   const logger = new WorkerLogger(sessionId, post);
 

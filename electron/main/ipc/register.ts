@@ -21,8 +21,10 @@ import { registerAnalyticsHandlers } from "./analytics";
 import { registerControlHandlers } from "./control";
 import { registerExperienceCatalogHandlers } from "./experience-catalog";
 import { registerOperatorHandlers } from "./operator";
+import { registerDiagnosticsHandlers } from "./system/diagnostics";
 
 export function registerIpcHandlers(services: AppServices): void {
+  registerDiagnosticsHandlers(services);
   registerExperienceCatalogHandlers(services);
   registerExperienceHandlers(services);
   registerAnalyticsHandlers(services);

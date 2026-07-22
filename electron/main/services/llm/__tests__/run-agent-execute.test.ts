@@ -41,7 +41,7 @@ describe("executeRunAgent logging", () => {
     generateTextMock.mockReset();
   });
 
-  it("logs full prompt, tool payloads, and response text under non-preview field names", async () => {
+  it("logs safe AI metadata without prompt, tool, reasoning, or response content", async () => {
     const { executeRunAgent } = await import("../adapters/run-agent-execute");
 
     const longPrompt = "P".repeat(700);
@@ -106,9 +106,6 @@ describe("executeRunAgent logging", () => {
     const startEntry = infoSpy.mock.calls.find(
       ([, message]) => message === "execute run agent start",
     )?.[0];
-    const promptEntry = infoSpy.mock.calls.find(
-      ([, message]) => message === "agent prompt",
-    )?.[0];
     const toolEntry = infoSpy.mock.calls.find(
       ([, message]) => message === "agent tool call",
     )?.[0];
@@ -122,35 +119,28 @@ describe("executeRunAgent logging", () => {
       role: "selector",
       modelId: "google/gemma-4-31b-it",
     });
-    expect(promptEntry).toMatchObject({
-      role: "selector",
-      modelId: "google/gemma-4-31b-it",
-      systemPrompt: "System instructions",
-      userPrompt: `user: ${longPrompt}`,
-    });
-    expect(startEntry).not.toHaveProperty("userPromptPreview");
-
     expect(toolEntry).toMatchObject({
       role: "selector",
       modelId: "google/gemma-4-31b-it",
       step: 1,
       tool: "get_quote",
-      toolArgs: { symbol: "SOL", instrumentClass: "crypto" },
-      toolResult,
+      hasToolResult: true,
     });
-    expect(toolEntry).not.toHaveProperty("argsPreview");
-    expect(toolEntry).not.toHaveProperty("resultPreview");
-    expect(toolEntry.toolResult.detail).toHaveLength(600);
+    expect(toolEntry.toolArgsBytes).toBeGreaterThan(0);
+    expect(toolEntry.toolResultBytes).toBeGreaterThan(0);
 
     expect(completeEntry).toMatchObject({
       role: "selector",
       modelId: "google/gemma-4-31b-it",
-      responseText: longResponse,
+      responseChars: 900,
       costSource: "provider",
       totalCostUsd: 0.00042,
     });
-    expect(completeEntry).not.toHaveProperty("responsePreview");
-    expect(completeEntry.responseText).toHaveLength(900);
+    const serializedLogs = JSON.stringify(infoSpy.mock.calls);
+    expect(serializedLogs).not.toContain("System instructions");
+    expect(serializedLogs).not.toContain(longPrompt);
+    expect(serializedLogs).not.toContain("D".repeat(100));
+    expect(serializedLogs).not.toContain(longResponse);
     expect(
       infoSpy.mock.calls.find(
         ([, message]) => message === "selector attempt summary",

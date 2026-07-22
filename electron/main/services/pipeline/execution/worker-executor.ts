@@ -308,9 +308,41 @@ export async function runAIWorker<TOutput>(
         sessionId,
         cycleId: cycleId ?? null,
       },
+      {
+        onAttempt: ({ attempt, durationMs, status, retryable }) => {
+          deps.toolContext.apiCallLogRepo.insert({
+            id: crypto.randomUUID(),
+            session_id: sessionId,
+            trade_id: tradeId ?? null,
+            cycle_id: cycleId ?? null,
+            provider: adapter.providerType,
+            endpoint: workerExecConfig.modelId,
+            call_type: "llm_attempt",
+            credits_used: null,
+            cost_usd: null,
+            latency_ms: durationMs,
+            status:
+              status === "ok" ? "ok" : retryable ? "error_retryable" : "error",
+            from_cache: false,
+            created_at: new Date().toISOString(),
+          });
+          logger.debug(
+            {
+              ...logCtx(),
+              eventName: "llm.attempt.recorded",
+              attempt,
+              status,
+              retryable,
+              durationMs,
+            },
+            "LLM attempt recorded",
+          );
+        },
+      },
     );
 
   let trace = await runAgent();
+  const firstTrace = trace;
   let output: TOutput;
   let parseFallback = trace.parseFallback;
 
@@ -332,7 +364,14 @@ export async function runAIWorker<TOutput>(
         },
         "worker terminal output validation failed; retrying once",
       );
-      trace = await runAgent();
+      const retryTrace = await runAgent();
+      trace = {
+        ...retryTrace,
+        inputTokens: firstTrace.inputTokens + retryTrace.inputTokens,
+        outputTokens: firstTrace.outputTokens + retryTrace.outputTokens,
+        costUsd: firstTrace.costUsd + retryTrace.costUsd,
+        durationMs: firstTrace.durationMs + retryTrace.durationMs,
+      };
       resolution = parseWorkerOutput<TOutput>(
         outputContract,
         extractWorkerSubmission(trace, terminalToolName),

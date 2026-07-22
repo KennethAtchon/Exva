@@ -8,6 +8,12 @@ import type {
   RuntimeWorkerCommandEnvelope,
   RuntimeWorkerMessage,
 } from "../services/session/runtime-worker-protocol";
+import {
+  configureTelemetryBootId,
+  currentTraceCarrier,
+  runWithRemoteParent,
+  runWithRootSpan,
+} from "../services/infra/telemetry-context";
 
 let runtime: SessionRuntime | null = null;
 let sessionId = "";
@@ -15,7 +21,10 @@ let rpcClient: WorkerRuntimeRpcClient | null = null;
 let startedAtMs = Date.now();
 
 function post(message: RuntimeWorkerMessage): void {
-  process.parentPort?.postMessage(message);
+  process.parentPort?.postMessage({
+    ...message,
+    context: message.context ?? currentTraceCarrier() ?? undefined,
+  });
 }
 
 function uptimeMin(): number {
@@ -58,14 +67,16 @@ async function handleCommand(
         break;
       case "stop":
         await runtime.stop();
-        post({ type: "stopped" });
         break;
       case "shutdown":
         await runtime.stop();
-        post({ type: "stopped" });
         break;
       case "ping":
-        post({ type: "pong", at: new Date().toISOString() });
+        post({
+          type: "pong",
+          at: new Date().toISOString(),
+          requestId: envelope.requestId,
+        });
         break;
       case "orchestrator": {
         const orchestrator = runtime.orchestrator;
@@ -117,6 +128,9 @@ async function handleCommand(
         throw new Error("Unknown worker command");
     }
     post({ type: "command_ack", requestId: envelope.requestId });
+    if (envelope.type === "stop" || envelope.type === "shutdown") {
+      post({ type: "stopped" });
+    }
   } catch (error) {
     post({
       type: "command_error",
@@ -141,14 +155,22 @@ process.parentPort?.on("message", (event: MessageEvent) => {
   if ("type" in message && message.type === "host_init") {
     const init = message as RuntimeHostInitMessage;
     sessionId = init.sessionId;
+    configureTelemetryBootId(init.bootId);
     rpcClient = new WorkerRuntimeRpcClient(post);
-    const deps = createWorkerOrchestratorDeps(sessionId, post);
+    const deps = createWorkerOrchestratorDeps(sessionId, post, rpcClient);
     runtime = buildWorkerSessionRuntime(sessionId, deps, uptimeMin);
     return;
   }
 
   if ("requestId" in message) {
-    void handleCommand(message as RuntimeWorkerCommandEnvelope);
+    const envelope = message as RuntimeWorkerCommandEnvelope;
+    if (envelope.context) {
+      void runWithRemoteParent(envelope.context, () => handleCommand(envelope));
+    } else {
+      void runWithRootSpan({ utilityRequestId: envelope.requestId }, () =>
+        handleCommand(envelope),
+      );
+    }
   }
 });
 

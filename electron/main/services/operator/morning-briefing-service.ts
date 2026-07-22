@@ -5,6 +5,7 @@ import type {
 } from "../../db/repositories/system/briefings-repo";
 import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
+import type { AgentRunsRepo } from "../../db/repositories/agents/agent-runs-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import type { SupervisorService } from "../supervisor/supervisor-service";
 import type { NotificationService } from "../infra/notification-service";
@@ -18,6 +19,7 @@ export interface MorningBriefingDeps {
   trades: TradesRepo;
   sessions: SessionRepo;
   apiCallLog: ApiCallLogRepo;
+  agentRuns: AgentRunsRepo;
   db: DbClient;
   supervisor: SupervisorService;
   notifications: NotificationService;
@@ -69,6 +71,7 @@ export class MorningBriefingService {
     let aiSpendUsd = 0;
     for (const s of sessions) {
       aiSpendUsd += this.deps.apiCallLog.dailyDataSpendUsd(s.id, forDate);
+      aiSpendUsd += this.deps.agentRuns.dailyAiSpendUsd(s.id, forDate);
     }
     const aiBudgetUsd = this.deps.getAiBudgetUsd?.() ?? 25;
 

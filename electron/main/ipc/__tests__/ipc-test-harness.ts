@@ -76,6 +76,7 @@ import { registerStrategyHandlers } from "../workspace/strategy";
 import { registerStrategyConfigHandlers } from "../workspace/strategy-config";
 import "../../experiences/index";
 import { ipcHarness } from "./ipc-electron-mock";
+import { createIpcInvokeEnvelope } from "@electron/shared/infra/trace-context";
 
 export { ipcHarness } from "./ipc-electron-mock";
 export type IpcTestContext = IpcTestHarness;
@@ -359,7 +360,8 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     tradeAutopsy: {} as AppServices["tradeAutopsy"],
     autopsyExport: {} as AppServices["autopsyExport"],
     signals: {} as unknown as AppServices["signals"],
-    sessionActivityTracker: {} as unknown as AppServices["sessionActivityTracker"],
+    sessionActivityTracker:
+      {} as unknown as AppServices["sessionActivityTracker"],
     pipelineWorkerProgress: {
       get: () => null,
     } as unknown as AppServices["pipelineWorkerProgress"],
@@ -434,6 +436,7 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
       trades: repos.trades,
       sessions: repos.session,
       apiCallLog: repos.apiCallLog,
+      agentRuns: repos.agentRuns,
       eventBus,
     }),
     whatIfReplay: new WhatIfReplayService({
@@ -587,7 +590,10 @@ export async function invokeIpc<T>(
     throw new Error(`No IPC handler registered for ${channel}`);
   }
 
-  return (await handler(createIpcInvokeEvent(options), payload)) as T;
+  return (await handler(
+    createIpcInvokeEvent(options),
+    createIpcInvokeEnvelope(payload),
+  )) as T;
 }
 
 export async function invokeIpcError(

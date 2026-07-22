@@ -4,6 +4,8 @@ import { AppError, toIpcError } from "@shared/infra/errors";
 import type { z } from "zod";
 import { createLogger } from "../services/infra/log";
 import { payloadMeta } from "../services/infra/log-safety";
+import { parseIpcInvokeEnvelope } from "@electron/shared/infra/trace-context";
+import { runWithRemoteParent } from "../services/infra/telemetry-context";
 
 const logger = createLogger("ipc");
 
@@ -38,7 +40,7 @@ export function handle<TSchema extends z.ZodType, TOut>(
   schema: TSchema,
   handler: Handler<z.infer<TSchema>, TOut>,
 ): void {
-  ipcMain.handle(channel, async (event, payload) => {
+  ipcMain.handle(channel, async (event, envelopeValue) => {
     if (!isTrustedSender(event)) {
       logger.warn(
         { channel, senderId: event.sender.id },
@@ -46,51 +48,72 @@ export function handle<TSchema extends z.ZodType, TOut>(
       );
       throw new Error("Untrusted IPC sender");
     }
-    const startedAt = Date.now();
-    const meta = payloadMeta(payload);
-    logger.debug(
-      {
-        channel,
-        hasPayload: payload !== undefined,
-        payloadSizeBytes: meta.sizeBytes,
-        payloadTooLarge: meta.tooLarge,
-        sensitiveKeyDetected: meta.sensitiveKeyDetected,
-        sensitiveKeyCount: meta.sensitiveKeyCount,
-      },
-      "ipc invoke start",
-    );
-    try {
-      const parsed = schema.safeParse(payload);
-      if (!parsed.success) {
-        throw new AppError("Invalid IPC payload", "INVALID_PAYLOAD", {
-          channel,
-          issues: parsed.error.issues.map((issue) => ({
-            path: issue.path.join("."),
-            message: issue.message,
-          })),
-        });
-      }
-      const result = await handler(parsed.data, event);
-      logger.debug(
-        { channel, durationMs: Date.now() - startedAt },
-        "ipc invoke success",
-      );
-      return result;
-    } catch (error) {
-      const ipcError = toIpcError(error);
-      logger.error(
-        {
-          err: error,
-          channel,
-          code: ipcError.code,
-          durationMs: Date.now() - startedAt,
-        },
-        "ipc handler failed",
-      );
-      const wrapped = new Error(ipcError.message);
-      // reason: Electron only serializes plain Error across the context bridge; we attach code so the renderer can distinguish error types without message-matching
-      (wrapped as Error & { code?: string }).code = ipcError.code;
+    const envelope = parseIpcInvokeEnvelope(envelopeValue);
+    if (!envelope) {
+      const wrapped = new Error("Invalid IPC payload");
+      (wrapped as Error & { code?: string }).code = "INVALID_PAYLOAD";
       throw wrapped;
     }
+    const parent = {
+      traceparent: envelope.context.traceparent,
+      ipcInvocationId: envelope.context.ipcInvocationId,
+    };
+    return runWithRemoteParent(parent, async () => {
+      const startedAt = Date.now();
+      const payload = envelope.payload;
+      const meta = payloadMeta(payload);
+      logger.debug(
+        {
+          eventName: "ipc.invoke.started",
+          channel,
+          hasPayload: payload !== undefined,
+          payloadSizeBytes: meta.sizeBytes,
+          payloadTooLarge: meta.tooLarge,
+          sensitiveKeyDetected: meta.sensitiveKeyDetected,
+          sensitiveKeyCount: meta.sensitiveKeyCount,
+        },
+        "ipc invoke start",
+      );
+      try {
+        const parsed = schema.safeParse(payload);
+        if (!parsed.success) {
+          throw new AppError("Invalid IPC payload", "INVALID_PAYLOAD", {
+            channel,
+            issues: parsed.error.issues.map((issue) => ({
+              path: issue.path.join("."),
+              message: issue.message,
+            })),
+          });
+        }
+        const result = await handler(parsed.data, event);
+        logger.debug(
+          {
+            eventName: "ipc.invoke.completed",
+            channel,
+            durationMs: Date.now() - startedAt,
+            outcome: "ok",
+          },
+          "ipc invoke success",
+        );
+        return result;
+      } catch (error) {
+        const ipcError = toIpcError(error);
+        logger.error(
+          {
+            eventName: "ipc.invoke.failed",
+            errorType: error instanceof Error ? error.name : typeof error,
+            channel,
+            code: ipcError.code,
+            durationMs: Date.now() - startedAt,
+            outcome: "error",
+          },
+          "ipc handler failed",
+        );
+        const wrapped = new Error(ipcError.message);
+        // reason: Electron only serializes plain Error across the context bridge; we attach code so the renderer can distinguish error types without message-matching
+        (wrapped as Error & { code?: string }).code = ipcError.code;
+        throw wrapped;
+      }
+    });
   });
 }

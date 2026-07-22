@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import type { DbClient } from "../../db/client";
 import {
   apiCallLog,
+  agentRuns,
   events,
   scheduleRuntimeStates,
   sessionExecutionSteps,
@@ -82,7 +83,9 @@ const STEP_FAILURE_CONDITIONS: Record<
   },
 };
 
-function parseScheduleSubscriptionIds(json: string | null | undefined): string[] {
+function parseScheduleSubscriptionIds(
+  json: string | null | undefined,
+): string[] {
   return (JSON.parse(json || "[]") as string[]) ?? [];
 }
 
@@ -249,10 +252,7 @@ export class SessionActivityTracker {
       this.deps.bus.on("step:failed", (p) => {
         this.clearCondition(p.sessionId, "cycle_running");
         this.handleStepFailed(p);
-        this.setActivity(
-          p.sessionId,
-          `${p.stage} failed: ${p.errorMessage}`,
-        );
+        this.setActivity(p.sessionId, `${p.stage} failed: ${p.errorMessage}`);
       }),
       this.deps.bus.on("step:retrying", (p) => {
         this.clearCondition(p.sessionId, "cycle_running");
@@ -263,10 +263,7 @@ export class SessionActivityTracker {
           "info",
           `Re-evaluating ${p.stage} after retry — next attempt ${when}.`,
         );
-        this.setActivity(
-          p.sessionId,
-          `Waiting to retry ${p.stage} at ${when}`,
-        );
+        this.setActivity(p.sessionId, `Waiting to retry ${p.stage} at ${when}`);
       }),
       this.deps.bus.on("approval_required", (p) => {
         if (!p.session_id) return;
@@ -642,9 +639,7 @@ export class SessionActivityTracker {
   }
 
   private sweepWaitingScanTick(sessionId: string): void {
-    if (
-      this.hasCondition(sessionId, ["market_closed", "cycle_running"])
-    ) {
+    if (this.hasCondition(sessionId, ["market_closed", "cycle_running"])) {
       this.clearCondition(sessionId, "waiting_scan_tick");
       return;
     }
@@ -728,10 +723,7 @@ export class SessionActivityTracker {
     );
   }
 
-  private sweepNoSignalStale(session: {
-    id: string;
-    createdAt: string;
-  }): void {
+  private sweepNoSignalStale(session: { id: string; createdAt: string }): void {
     const ageMs = Date.now() - Date.parse(session.createdAt);
     if (!Number.isFinite(ageMs) || ageMs < NO_SIGNAL_STALE_GRACE_MS) {
       this.clearCondition(session.id, "no_signal_stale");
@@ -960,14 +952,30 @@ export class SessionActivityTracker {
       return;
     }
 
-    const errors = rows.filter((row) => isProviderCallError(row.status));
-    const rate = errors.length / rows.length;
-    if (rate >= PROVIDER_ERROR_RATE) {
+    const byProvider = new Map<string, typeof rows>();
+    for (const row of rows) {
+      const group = byProvider.get(row.provider) ?? [];
+      group.push(row);
+      byProvider.set(row.provider, group);
+    }
+    const degraded = [...byProvider.entries()]
+      .map(([provider, calls]) => {
+        const errors = calls.filter((row) => isProviderCallError(row.status));
+        return { provider, calls, errors, rate: errors.length / calls.length };
+      })
+      .filter(
+        (entry) =>
+          entry.calls.length >= PROVIDER_MIN_CALLS &&
+          entry.rate >= PROVIDER_ERROR_RATE,
+      )
+      .sort((a, b) => b.rate - a.rate);
+    const worst = degraded[0];
+    if (worst) {
       this.reportCondition(
         sessionId,
         "provider_degraded",
         "warn",
-        `Provider error rate ${(rate * 100).toFixed(0)}% over last 15m (${errors.length}/${rows.length} calls).`,
+        `Provider ${worst.provider} error rate ${(worst.rate * 100).toFixed(0)}% over last 15m (${worst.errors.length}/${worst.calls.length} calls).`,
       );
     } else {
       this.clearCondition(sessionId, "provider_degraded");
@@ -976,7 +984,7 @@ export class SessionActivityTracker {
 
   private sweepSpendLimit(sessionId: string): void {
     const day = new Date().toISOString().slice(0, 10);
-    const row = this.deps.db.db
+    const apiRow = this.deps.db.db
       .select({
         total: sql<number>`coalesce(sum(${apiCallLog.costUsd}), 0)`,
       })
@@ -988,7 +996,19 @@ export class SessionActivityTracker {
         ),
       )
       .get();
-    const spend = Number(row?.total ?? 0);
+    const aiRow = this.deps.db.db
+      .select({
+        total: sql<number>`coalesce(sum(${agentRuns.costUsd}), 0)`,
+      })
+      .from(agentRuns)
+      .where(
+        and(
+          eq(agentRuns.sessionId, sessionId),
+          sql`substr(${agentRuns.createdAt}, 1, 10) = ${day}`,
+        ),
+      )
+      .get();
+    const spend = Number(apiRow?.total ?? 0) + Number(aiRow?.total ?? 0);
     if (!Number.isFinite(spend)) return;
 
     if (spend >= this.aiSpendLimitUsd) {
@@ -1095,9 +1115,7 @@ export class SessionActivityTracker {
     const errorCount = this.deps.db.db
       .select({ n: sql<number>`count(*)` })
       .from(events)
-      .where(
-        and(eq(events.sessionId, sessionId), eq(events.level, "ERROR")),
-      )
+      .where(and(eq(events.sessionId, sessionId), eq(events.level, "ERROR")))
       .get();
     return {
       cyclesRun: Number(cyclesRun?.n ?? 0),
@@ -1154,7 +1172,9 @@ export class SessionActivityTracker {
     }
   }
 
-  private attachStats(snapshot: SessionActivitySnapshot): SessionActivitySnapshot {
+  private attachStats(
+    snapshot: SessionActivitySnapshot,
+  ): SessionActivitySnapshot {
     return {
       ...snapshot,
       stats: this.computeStats(snapshot.sessionId),
@@ -1172,14 +1192,14 @@ export class SessionActivityTracker {
   }
 
   /** Most-recent-first history of activity/condition transitions for a session. */
-  listTransitions(sessionId: string, limit?: number): SessionActivitySnapshot[] {
+  listTransitions(
+    sessionId: string,
+    limit?: number,
+  ): SessionActivitySnapshot[] {
     return this.deps.activityRepo.listTransitions(sessionId, limit);
   }
 
-  getAnalytics(
-    sessionId: string,
-    limit = 200,
-  ): SessionActivityAnalytics {
+  getAnalytics(sessionId: string, limit = 200): SessionActivityAnalytics {
     return computeSessionActivityAnalytics(
       this.deps.activityRepo.listTransitions(sessionId, limit),
     );

@@ -11,7 +11,7 @@ vi.mock("../../infra/log", () => ({
 }));
 
 describe("withLLMRetry", () => {
-  it("surfaces nested provider error details, walks the cause chain, and tags the provider", async () => {
+  it("classifies provider errors without retaining dependency content", async () => {
     warnSpy.mockReset();
     infoSpy.mockReset();
     const { withLLMRetry } = await import("../runtime-retry");
@@ -51,12 +51,8 @@ describe("withLLMRetry", () => {
         modelId: "google/gemma-4-31b-it",
         attempts: 1,
         status: 400,
-        rawMessage:
-          "Failed after 3 attempts. Last error: Provider returned error",
-        causeMessage: "OpenRouter 400: Unsupported parameter: toolChoice",
-        responseBody:
-          '{"error":{"message":"Unsupported parameter: toolChoice"}}',
         providerCode: "BAD_REQUEST",
+        errorKind: "provider_4xx",
       },
     });
 
@@ -69,7 +65,7 @@ describe("withLLMRetry", () => {
       ),
     ).rejects.toMatchObject({
       message: expect.stringMatching(
-        /^openrouter provider unreachable after 1 attempt\(s\): /,
+        /^openrouter provider request failed after 1 attempt\(s\)/,
       ),
     });
 
@@ -80,9 +76,12 @@ describe("withLLMRetry", () => {
         retryable: false,
         providerErrorStatus: 400,
         providerErrorCode: "BAD_REQUEST",
-        providerErrorCause: "OpenRouter 400: Unsupported parameter: toolChoice",
+        providerErrorKind: "provider_4xx",
       }),
       "provider request attempt failed",
+    );
+    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain(
+      "Unsupported parameter: toolChoice",
     );
   });
 

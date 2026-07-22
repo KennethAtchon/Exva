@@ -1,4 +1,7 @@
 export const channels = {
+  diagnostics: {
+    reportRendererError: "diagnostics:renderer-error",
+  },
   dashboard: {
     getStats: "dashboard:get-stats",
     getCostBreakdown: "dashboard:get-cost-breakdown",

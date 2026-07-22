@@ -7,6 +7,7 @@ import type { PaperBalancesRepo } from "../../db/repositories/brokers/paper-bala
 import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
+import type { AgentRunsRepo } from "../../db/repositories/agents/agent-runs-repo";
 import type { EventBus } from "../infra/event-bus";
 
 export type EquityRange = "1W" | "1M" | "3M" | "all";
@@ -26,6 +27,7 @@ export class EquitySnapshotService {
       trades: TradesRepo;
       sessions: SessionRepo;
       apiCallLog: ApiCallLogRepo;
+      agentRuns: AgentRunsRepo;
       eventBus: EventBus;
     },
   ) {}
@@ -88,6 +90,7 @@ export class EquitySnapshotService {
     let aiSpendUsd = 0;
     for (const s of this.deps.sessions.list({ includeArchived: false })) {
       aiSpendUsd += this.deps.apiCallLog.dailyDataSpendUsd(s.id, today);
+      aiSpendUsd += this.deps.agentRuns.dailyAiSpendUsd(s.id, today);
       if (s.experienceId) {
         perExperience[s.experienceId] = perExperience[s.experienceId] ?? 0;
       }
