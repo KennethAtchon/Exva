@@ -27,7 +27,6 @@ type RailProps = {
   onNavigate: (page: PageKey) => void;
   onNavigateToAttentionSessions?: () => void;
   attentionCount: number;
-  settingsAlarm: boolean;
   needsStrategyConfig: boolean;
 };
 
@@ -36,7 +35,6 @@ export function Rail({
   onNavigate,
   onNavigateToAttentionSessions,
   attentionCount,
-  settingsAlarm,
   needsStrategyConfig,
 }: RailProps) {
   const { theme, toggleTheme } = useTheme();
@@ -64,7 +62,6 @@ export function Rail({
           const active = activePage === id;
           const showAttention = id === "dashboard" && attentionCount > 0;
           const showConfigHint = id === "sessions" && needsStrategyConfig;
-          const showAlarm = id === "settings" && settingsAlarm;
 
           return (
             <Tooltip key={id}>
@@ -112,7 +109,7 @@ export function Rail({
                       {attentionCount}
                     </span>
                   )}
-                  {(showConfigHint || showAlarm) && (
+                  {showConfigHint && (
                     <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-text1" />
                   )}
                 </button>

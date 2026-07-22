@@ -14,7 +14,6 @@ export type ShellProps = {
   onNavigate: (p: PageKey) => void;
   onNavigateToAttentionSessions?: () => void;
   attentionCountOnDashboard?: boolean;
-  settingsAlarm?: boolean;
   sessionStatus: SessionStatus;
   onSessionAction: (
     a: "start" | "pause" | "resume" | "stop" | "forceStop",
@@ -30,7 +29,6 @@ export function Shell({
   onNavigate,
   onNavigateToAttentionSessions,
   attentionCountOnDashboard = true,
-  settingsAlarm = false,
   sessionStatus,
   onSessionAction,
   sessionActionPending = false,
@@ -73,7 +71,6 @@ export function Shell({
           onNavigate={onNavigate}
           onNavigateToAttentionSessions={onNavigateToAttentionSessions}
           attentionCount={shownAttention}
-          settingsAlarm={settingsAlarm}
           needsStrategyConfig={needsStrategyConfig && activePage !== "sessions"}
         />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1784566476148,
+      "when": 1784713706936,
       "tag": "0000_initial",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1784614267529,
-      "tag": "0001_confused_mephisto",
       "breakpoints": true
     }
   ]

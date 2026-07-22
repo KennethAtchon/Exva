@@ -61,7 +61,9 @@ export function DashboardHub() {
   );
   const [scorecardsError, setScorecardsError] = useState<string | null>(null);
   const [backupLabel, setBackupLabel] = useState("—");
-  const [sinkOk, setSinkOk] = useState(true);
+  const [sinkStatus, setSinkStatus] = useState<
+    "loading" | "external" | "in_app_only" | "unavailable"
+  >("loading");
   const [approvalsError, setApprovalsError] = useState<string | null>(null);
 
   const refreshSessions = useCallback(() => {
@@ -129,15 +131,17 @@ export function DashboardHub() {
             ? new Date(backup.lastBackup.backedUpAt).toLocaleString()
             : "Never",
         );
-        setSinkOk(
+        setSinkStatus(
           routing.ntfyConfigured ||
             routing.telegramConfigured ||
-            routing.smtpConfigured,
+            routing.smtpConfigured
+            ? "external"
+            : "in_app_only",
         );
       })
       .catch(() => {
         setBackupLabel("Unavailable");
-        setSinkOk(false);
+        setSinkStatus("unavailable");
       });
   }, []);
 
@@ -280,8 +284,18 @@ export function DashboardHub() {
           },
           {
             label: "Notify sinks",
-            value: sinkOk ? "Configured" : "None",
-            ok: sinkOk,
+            value:
+              sinkStatus === "external"
+                ? "External + in-app"
+                : sinkStatus === "in_app_only"
+                  ? "In-app only"
+                  : sinkStatus === "unavailable"
+                    ? "Unavailable"
+                    : "Loading",
+            ok:
+              sinkStatus === "loading"
+                ? undefined
+                : sinkStatus !== "unavailable",
           },
           {
             label: "Approvals",

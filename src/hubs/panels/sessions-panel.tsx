@@ -275,6 +275,21 @@ const SEVERITY_RANK: Record<SessionActivitySeverity, number> = {
   error: 3,
 };
 
+function isPreferredSessionListCondition(
+  condition: SessionActivitySnapshot["conditions"][number],
+  current: SessionActivitySnapshot["conditions"][number] | undefined,
+): boolean {
+  if (!current) return true;
+  if (condition.kind === "market_closed") {
+    return current.kind !== "market_closed";
+  }
+  if (current.kind === "market_closed") return false;
+  const conditionRank = SEVERITY_RANK[condition.severity];
+  const currentRank = SEVERITY_RANK[current.severity];
+  if (conditionRank !== currentRank) return conditionRank > currentRank;
+  return false;
+}
+
 const SessionListCard = ({
   session,
   progressPct,
@@ -292,9 +307,7 @@ const SessionListCard = ({
     SessionActivitySnapshot["conditions"][number] | undefined
   >(
     (worst, condition) =>
-      !worst || SEVERITY_RANK[condition.severity] > SEVERITY_RANK[worst.severity]
-        ? condition
-        : worst,
+      isPreferredSessionListCondition(condition, worst) ? condition : worst,
     undefined,
   );
 

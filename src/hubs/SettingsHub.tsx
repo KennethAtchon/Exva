@@ -12,7 +12,6 @@ type Props = {
   onJumpToSession?: (sessionId: string) => void | Promise<void>;
   devPanelFocus?: DevPanelFocus | null;
   onDevFocusConsumed?: () => void;
-  sinkAlarm?: boolean;
 };
 
 /**
@@ -24,7 +23,6 @@ export function SettingsHub({
   onJumpToSession,
   devPanelFocus,
   onDevFocusConsumed,
-  sinkAlarm = false,
 }: Props) {
   const isDev =
     typeof window !== "undefined" && Boolean(window.exva?.developer);
@@ -48,7 +46,6 @@ export function SettingsHub({
       id: "accounts",
       label: "Accounts",
       hint: "AI, search, notifications, backups",
-      badge: sinkAlarm ? "!" : null,
     },
     {
       id: "brokers",

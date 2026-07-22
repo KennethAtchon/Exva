@@ -85,7 +85,6 @@ export default function App() {
     periodAutopsySessionId: null,
     periodAutopsyId: null,
   });
-  const [sinkAlarm, setSinkAlarm] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const loadErrorRef = useRef<string | null>(null);
   loadErrorRef.current = ui.loadError;
@@ -168,21 +167,6 @@ export default function App() {
     void reloadStats();
     void reloadTrades();
   }, [environmentMode, reloadStats, reloadTrades]);
-
-  useEffect(() => {
-    const ops = window.exva?.ops;
-    if (!ops) return;
-    void ops
-      .getNotificationRouting()
-      .then((routing) => {
-        setSinkAlarm(
-          !routing.ntfyConfigured &&
-            !routing.telegramConfigured &&
-            !routing.smtpConfigured,
-        );
-      })
-      .catch(() => setSinkAlarm(false));
-  }, [ui.page]);
 
   useEffect(() => {
     const listener = (event: Event) => {
@@ -485,7 +469,6 @@ export default function App() {
         return (
           <SettingsHub
             initialTab={ui.settingsTab}
-            sinkAlarm={sinkAlarm}
             devPanelFocus={ui.devPanelFocus}
             onDevFocusConsumed={() => dispatchUi({ devPanelFocus: null })}
             onJumpToSession={async (sessionId) => {
@@ -523,7 +506,6 @@ export default function App() {
         setSelected(null);
       }}
       attentionCountOnDashboard
-      settingsAlarm={sinkAlarm}
       sessionStatus={status}
       onSessionAction={handleSession}
       sessionActionPending={ui.sessionActionPending}

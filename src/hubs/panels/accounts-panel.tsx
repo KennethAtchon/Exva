@@ -69,6 +69,12 @@ function providerTypeLabel(providerType: string): string {
   }
 }
 
+function searchProviderDisplayName(provider: ProviderAccount): string {
+  return isBuiltInSearchProviderAccount(provider)
+    ? providerTypeLabel(provider.providerType)
+    : provider.name;
+}
+
 const InputField = ({
   label,
   hint,
@@ -993,42 +999,31 @@ export const AccountsPage = () => {
           </Card>
 
           <Card>
-            <div className={webSearchHeaderClass}>
-              <div className={cardTitleClass}>
-                Web Search{" "}
-                <HelpTooltip
-                  topic="Search providers"
-                  body="Search-style sessions use these external search services when they need web discovery beyond the built-in defaults."
-                />
-              </div>
-              <div className={cardSubtitleClass}>
-                AI-selected universe sessions require a dedicated search
-                account. Brave and Tavily are supported today.
-              </div>
-            </div>
-            <div className={webSearchMetaRowClass}>
-              <div className={webSearchHintClass}>
-                OpenRouter model accounts do not satisfy this requirement.
-                DuckDuckGo is built in by default, and you can add Brave or
-                Tavily if you want an API-backed override.
+            <div className={cardHeaderRowClass}>
+              <div>
+                <div className={cardTitleClass}>
+                  Web Search{" "}
+                  <HelpTooltip
+                    topic="Search providers"
+                    body="Selector discovery uses the workspace default search provider. DuckDuckGo is built in; add Brave or Tavily for an API-backed override. OpenRouter model accounts do not count."
+                  />
+                </div>
+                <div className={cardSubtitleClass}>
+                  DuckDuckGo is included. Add Brave or Tavily only if you want
+                  an API-backed override.
+                </div>
               </div>
               {searchProviders.length === 0 ? (
                 <span className={noneYetLabelClass}>None yet</span>
-              ) : !hasTestedSearchProvider ? (
-                <span className={noneYetLabelClass}>Built-in default</span>
-              ) : (
+              ) : hasTestedSearchProvider ? (
                 <ConnBadge ok={status.search} />
+              ) : (
+                <span className={noneYetLabelClass}>Ready</span>
               )}
             </div>
             <div className={cardSectionStackClass}>
               {searchProviders.map((p) => {
                 const isBuiltIn = isBuiltInSearchProviderAccount(p);
-                const statusColor =
-                  p.lastTestStatus === "ok"
-                    ? "var(--color-success)"
-                    : p.lastTestStatus === "error"
-                      ? "var(--color-error)"
-                      : "var(--text3)";
                 const statusLabel =
                   p.lastTestStatus === "ok"
                     ? "OK"
@@ -1040,74 +1035,80 @@ export const AccountsPage = () => {
                   prefs?.defaultSearchProviderId === p.id;
                 return (
                   <div key={p.id} className={providerCardClass}>
-                    <div className={providerCardHeaderClass}>
-                      <div>
-                        <div className={providerNameRowClass}>
-                          <div className={providerNameClass}>{p.name}</div>
-                          {isWorkspaceDefault ? (
-                            <Badge variant="blue" size="sm">
-                              workspace default
-                            </Badge>
-                          ) : null}
-                          {isBuiltIn ? (
-                            <Badge variant="default" size="sm">
-                              built-in
-                            </Badge>
-                          ) : null}
+                    <div className={providerNameRowClass}>
+                      <div className={providerTitleLineClass}>
+                        <div className={providerNameClass}>
+                          {searchProviderDisplayName(p)}
                         </div>
+                        {isBuiltIn ? (
+                          <Badge variant="default" size="sm">
+                            Built-in
+                          </Badge>
+                        ) : null}
+                        {isWorkspaceDefault ? (
+                          <Badge variant="blue" size="sm">
+                            Default
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {!isBuiltIn ? (
                         <div className={providerTypeMonoClass}>
                           {providerTypeLabel(p.providerType)}
                         </div>
-                        <div
-                          className={providerStatusClass}
-                          style={{ color: statusColor }}
-                        >
-                          {statusLabel}
-                        </div>
+                      ) : null}
+                      <div
+                        className={cn(
+                          providerStatusClass,
+                          p.lastTestStatus === "ok" && "text-success",
+                          p.lastTestStatus === "error" && "text-error",
+                          p.lastTestStatus === "unknown" && "text-text3",
+                        )}
+                      >
+                        {statusLabel}
                       </div>
-                      {!isEditing ? (
-                        <div className={providerActionsClass}>
-                          {!isBuiltIn ? (
-                            <button
-                              type="button"
-                              onClick={() => beginEditProviderKey(p)}
-                              className={outlineBtnClass}
-                            >
-                              Update key
-                            </button>
-                          ) : null}
+                    </div>
+                    {!isEditing ? (
+                      <div className={providerActionsClass}>
+                        {!isBuiltIn ? (
+                          <button
+                            type="button"
+                            onClick={() => beginEditProviderKey(p)}
+                            className={outlineBtnClass}
+                          >
+                            Update key
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          disabled={rowSavingId === p.id}
+                          onClick={async () => {
+                            const r = await api
+                              .testProvider(p.id)
+                              .catch(() => ({ ok: false as const }));
+                            setStatus((s) => ({
+                              ...s,
+                              search: r.ok || s.search,
+                            }));
+                            void refetchProviders();
+                          }}
+                          className={testBtnClass}
+                        >
+                          Test
+                        </button>
+                        {!isBuiltIn ? (
                           <button
                             type="button"
                             disabled={rowSavingId === p.id}
-                            onClick={async () => {
-                              const r = await api
-                                .testProvider(p.id)
-                                .catch(() => ({ ok: false as const }));
-                              setStatus((s) => ({
-                                ...s,
-                                search: r.ok || s.search,
-                              }));
-                              void refetchProviders();
-                            }}
-                            className={testBtnClass}
+                            onClick={() => void deleteProvider(p)}
+                            className={deleteProviderBtnClass(
+                              rowSavingId === p.id,
+                            )}
                           >
-                            Test
+                            {rowSavingId === p.id ? "Deleting…" : "Delete"}
                           </button>
-                          {!isBuiltIn ? (
-                            <button
-                              type="button"
-                              disabled={rowSavingId === p.id}
-                              onClick={() => void deleteProvider(p)}
-                              className={deleteProviderBtnClass(
-                                rowSavingId === p.id,
-                              )}
-                            >
-                              {rowSavingId === p.id ? "Deleting…" : "Delete"}
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {isEditing ? (
                       <div className={editFormClass}>
                         <InputField
@@ -1150,7 +1151,7 @@ export const AccountsPage = () => {
             <div className={searchDefaultSectionClass}>
               <div>
                 <div className={searchDefaultLabelClass}>
-                  Workspace default search provider
+                  Workspace default
                   <HelpTooltip
                     topic="Workspace default search provider"
                     body="Used when a session does not specify its own search provider override."
@@ -1170,7 +1171,7 @@ export const AccountsPage = () => {
                     { value: "", label: "No workspace default" },
                     ...searchProviders.map((provider) => ({
                       value: provider.id,
-                      label: provider.name,
+                      label: searchProviderDisplayName(provider),
                     })),
                   ]}
                 />
@@ -1279,6 +1280,11 @@ function OpsHardeningCard() {
     telegram: false,
     smtp: false,
   });
+  const configuredSinkNames = [
+    configured.ntfy ? "ntfy" : null,
+    configured.telegram ? "Telegram" : null,
+    configured.smtp ? "SMTP" : null,
+  ].filter((name): name is string => name !== null);
 
   const refresh = async () => {
     const ops = window.exva?.ops;
@@ -1308,6 +1314,16 @@ function OpsHardeningCard() {
         DB backups, Telegram/ntfy sinks, and digest routing (kill → push now;
         daily summary → {digestHour}:00 local).
       </p>
+      <div className="rounded-sm border border-success-border bg-success-dim px-3 py-2.5">
+        <div className="font-sans text-label text-success">
+          In-app alerts active
+        </div>
+        <div className="mt-0.5 font-sans text-caption leading-relaxed text-text2">
+          {configuredSinkNames.length > 0
+            ? `External delivery also configured through ${configuredSinkNames.join(", ")}.`
+            : "External ntfy, Telegram, and SMTP delivery is optional. Configure a sink only when you want alerts outside Exva."}
+        </div>
+      </div>
       <div className={cardSectionStackClass}>
         <div className={prefsFieldClass}>
           <div className={prefsFieldLabelClass}>Last backup</div>
@@ -1480,13 +1496,12 @@ const noneYetLabelClass = "font-sans text-caption font-medium text-text3";
 
 const providerCardClass =
   "flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border bg-surface2 px-3.5 py-3";
-const providerCardHeaderClass =
-  "flex min-w-0 flex-1 items-center justify-between gap-3";
 const providerNameClass = "font-sans text-label text-text1";
 const providerTypeMonoClass = "font-mono text-caption text-text3";
 const providerStatusClass = "mt-0.5 font-mono text-caption font-medium";
 const providerActionsClass = "flex shrink-0 flex-wrap items-center gap-2";
 const providerNameRowClass = "flex min-w-0 flex-1 flex-col";
+const providerTitleLineClass = "flex min-w-0 flex-wrap items-center gap-1.5";
 
 const outlineBtnClass =
   "cursor-pointer rounded-sm border border-border bg-surface px-2.5 py-1.5 font-sans text-caption text-text2 hover:bg-surface3";
@@ -1545,11 +1560,6 @@ const saveSearchSettingsBtnClass = accentActionBtnClass;
 const prefsFieldClass = "mb-2.5";
 const prefsFieldLabelClass =
   "mb-1 font-mono text-micro uppercase tracking-wider text-text3";
-
-const webSearchHeaderClass = "mb-3";
-const webSearchMetaRowClass = "mb-3 flex items-start justify-between gap-3";
-const webSearchHintClass =
-  "max-w-sm font-sans text-caption leading-relaxed text-text3";
 
 const searchDefaultSectionClass = "mt-3 grid gap-2.5";
 const searchDefaultLabelClass =
