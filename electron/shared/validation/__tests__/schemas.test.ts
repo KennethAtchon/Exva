@@ -37,8 +37,11 @@ describe("validation schemas", () => {
 
   it("coerces workspace prefs patch and rejects unknown fields", () => {
     expect(
-      workspacePrefsPatchSchema.parse({ globalIncludeArchived: true }),
-    ).toEqual({ globalIncludeArchived: true });
+      workspacePrefsPatchSchema.parse({
+        globalIncludeArchived: true,
+        autoApproveAssistantTools: true,
+      }),
+    ).toEqual({ globalIncludeArchived: true, autoApproveAssistantTools: true });
     expect(() =>
       workspacePrefsPatchSchema.parse({
         globalIncludeArchived: true,

@@ -1,5 +1,9 @@
 import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
-import type { BrokerAdapter, BrokerOrder } from "./adapters/broker-adapter";
+import type {
+  BrokerAdapter,
+  BrokerOrder,
+  MarketDiscoveryAdapter,
+} from "./adapters/broker-adapter";
 import {
   createBrokerInteractionLogger,
   formatPlaceOrderEndpoint,
@@ -28,7 +32,7 @@ export function createInstrumentedBrokerAdapter(
       provider: options.provider,
     });
 
-  const adapter: BrokerAdapter = {
+  const adapter: BrokerAdapter & Partial<MarketDiscoveryAdapter> = {
     brokerType: inner.brokerType,
     supportedInstrumentClasses: inner.supportedInstrumentClasses,
     launchCapable: inner.launchCapable,
@@ -97,6 +101,23 @@ export function createInstrumentedBrokerAdapter(
         {
           resolveStatus: (bars) => resolveOhlcvCallStatus(bars, barCount),
         },
+      );
+  }
+
+  if (
+    "fetchMarketCandidates" in inner &&
+    typeof (inner as Partial<MarketDiscoveryAdapter>).fetchMarketCandidates ===
+      "function"
+  ) {
+    const fetchMarketCandidates = (
+      inner as BrokerAdapter & MarketDiscoveryAdapter
+    ).fetchMarketCandidates.bind(inner);
+    adapter.fetchMarketCandidates = () =>
+      traceBrokerInteraction(
+        logger,
+        "fetchMarketCandidates",
+        "markets",
+        fetchMarketCandidates,
       );
   }
 

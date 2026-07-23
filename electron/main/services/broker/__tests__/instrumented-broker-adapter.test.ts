@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ApiCallLogRepo } from "../../../db/repositories/system/api-call-log-repo";
-import type { BrokerAdapter } from "../adapters/broker-adapter";
+import {
+  isMarketDiscoveryAdapter,
+  type BrokerAdapter,
+  type MarketDiscoveryAdapter,
+} from "../adapters/broker-adapter";
 import { createInstrumentedBrokerAdapter } from "../instrumented-broker-adapter";
 
 function createMockAdapter(
@@ -76,7 +80,11 @@ describe("createInstrumentedBrokerAdapter", () => {
     });
 
     expect(inner.placeOrder).toHaveBeenCalledTimes(1);
-    expect(inner.getMarketSnapshot).toHaveBeenNthCalledWith(1, "SPY", undefined);
+    expect(inner.getMarketSnapshot).toHaveBeenNthCalledWith(
+      1,
+      "SPY",
+      undefined,
+    );
     expect(inner.getMarketSnapshot).toHaveBeenNthCalledWith(2, "pm:cond-1", {
       predictionOutcome: "NO",
     });
@@ -191,9 +199,9 @@ describe("createInstrumentedBrokerAdapter", () => {
       provider: "alpaca",
     });
 
-    await expect(
-      adapter.getOhlcv?.("SPY", "1h", 10),
-    ).resolves.toMatchObject([{ ts: "2026-01-01T00:00:00.000Z" }]);
+    await expect(adapter.getOhlcv?.("SPY", "1h", 10)).resolves.toMatchObject([
+      { ts: "2026-01-01T00:00:00.000Z" },
+    ]);
   });
 
   it("omits getOhlcv when the inner adapter does not implement it", () => {
@@ -206,5 +214,32 @@ describe("createInstrumentedBrokerAdapter", () => {
     });
 
     expect(adapter.getOhlcv).toBeUndefined();
+  });
+
+  it("preserves market discovery methods through the instrumentation wrapper", async () => {
+    const inserts: unknown[] = [];
+    const fetchMarketCandidates = vi.fn(async () => []);
+    const inner = Object.assign(createMockAdapter(), {
+      fetchMarketCandidates,
+    }) as BrokerAdapter & MarketDiscoveryAdapter;
+    const adapter = createInstrumentedBrokerAdapter(inner, {
+      apiCallLogRepo: {
+        insert: (entry: unknown) => inserts.push(entry),
+      } as unknown as ApiCallLogRepo,
+      brokerAccountId: "broker-1",
+      provider: "polymarket",
+    });
+
+    expect(isMarketDiscoveryAdapter(adapter)).toBe(true);
+    if (!isMarketDiscoveryAdapter(adapter))
+      throw new Error("Expected discovery adapter");
+    await adapter.fetchMarketCandidates();
+
+    expect(fetchMarketCandidates).toHaveBeenCalledOnce();
+    expect(inserts.at(-1)).toMatchObject({
+      call_type: "fetchMarketCandidates",
+      endpoint: "broker-1/markets",
+      status: "ok",
+    });
   });
 });

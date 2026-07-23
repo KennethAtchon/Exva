@@ -24,7 +24,7 @@ export function AssistantRuntimeMeta() {
             type="checkbox"
             className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-info"
             checked={autoApproveTools}
-            onChange={(e) => setAutoApproveTools(e.target.checked)}
+            onChange={(e) => void setAutoApproveTools(e.target.checked)}
           />
           <span>
             <span className="block font-sans font-medium text-text1">

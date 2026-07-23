@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { WorkspacePreferences, WorkspaceViewMode } from "@/lib/types";
 import { api } from "@/lib/exva";
 import { clearWorkspaceEnvironmentCache } from "@/lib/workspace-environment-cache";
+import { useControlStore } from "@/store/controlStore";
 
 interface WorkspaceState {
   viewMode: WorkspaceViewMode;
@@ -67,6 +68,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       preferences: view.preferences,
       environmentMode: view.preferences.globalEnvironmentMode ?? "paper",
       focusedSessionAiReady: null,
+    });
+    useControlStore.setState({
+      autoApproveTools: view.preferences.autoApproveAssistantTools ?? false,
     });
     if (view.focusedSessionId) {
       try {

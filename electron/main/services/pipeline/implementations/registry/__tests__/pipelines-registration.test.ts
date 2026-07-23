@@ -31,6 +31,12 @@ describe("pipelines registration", () => {
     expect(byId["options-flow-cycle"]?.signalSources).toEqual([]);
   });
 
+  it("uses the pipeline ID as each registered cycle plan ID", () => {
+    for (const pipeline of ALL_PIPELINES) {
+      expect(pipeline.plan.id).toBe(pipeline.id);
+    }
+  });
+
   it("marks exactly one pipeline as default", () => {
     const defaults = ALL_PIPELINES.filter((pipeline) => pipeline.isDefault);
     expect(defaults).toHaveLength(1);

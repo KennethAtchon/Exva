@@ -14,6 +14,7 @@ import { api } from "@/lib/exva";
 import { useSessionStore } from "@/store/sessionStore";
 import { useTradeStore } from "@/store/tradeStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
+import { useControlStore } from "@/store/controlStore";
 
 const mockStats = {
   session_status: "active",
@@ -69,8 +70,10 @@ describe("workspaceStore", () => {
       environmentMode: "paper",
       focusedSessionAiReady: null,
     });
+    useControlStore.setState({ autoApproveTools: false });
     vi.mocked(api.getWorkspaceView).mockReset();
     vi.mocked(api.getStrategy).mockReset();
+    vi.mocked(api.patchWorkspacePreferences).mockReset();
   });
 
   it("setViewMode updates mode and focused session", () => {
@@ -86,6 +89,7 @@ describe("workspaceStore", () => {
       preferences: {
         id: 1,
         globalEnvironmentMode: "live",
+        autoApproveAssistantTools: true,
       } as WorkspaceViewResponse["preferences"],
     });
     vi.mocked(api.getStrategy).mockResolvedValue({
@@ -100,5 +104,19 @@ describe("workspaceStore", () => {
     expect(state.focusedSessionId).toBe("sess-1");
     expect(state.environmentMode).toBe("live");
     expect(state.focusedSessionAiReady).toBe(true);
+    expect(useControlStore.getState().autoApproveTools).toBe(true);
+  });
+
+  it("persists the assistant confirmation preference", async () => {
+    vi.mocked(api.patchWorkspacePreferences).mockResolvedValue(
+      {} as Awaited<ReturnType<typeof api.patchWorkspacePreferences>>,
+    );
+
+    await useControlStore.getState().setAutoApproveTools(true);
+
+    expect(api.patchWorkspacePreferences).toHaveBeenCalledWith({
+      autoApproveAssistantTools: true,
+    });
+    expect(useControlStore.getState().autoApproveTools).toBe(true);
   });
 });

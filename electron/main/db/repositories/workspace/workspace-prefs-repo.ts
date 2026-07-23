@@ -30,6 +30,7 @@ export class WorkspacePreferencesRepo {
       defaultModelReasoningLevel:
         (row.defaultModelReasoningLevel as WorkspacePreferences["defaultModelReasoningLevel"]) ??
         "off",
+      autoApproveAssistantTools: row.autoApproveAssistantTools,
       updatedAt: row.updatedAt,
     };
   }
@@ -50,6 +51,7 @@ export class WorkspacePreferencesRepo {
         defaultModelProviderKey: next.defaultModelProviderKey,
         defaultModelModelId: next.defaultModelModelId,
         defaultModelReasoningLevel: next.defaultModelReasoningLevel,
+        autoApproveAssistantTools: next.autoApproveAssistantTools,
         updatedAt: next.updatedAt,
       })
       .where(eq(workspacePreferences.id, 1))

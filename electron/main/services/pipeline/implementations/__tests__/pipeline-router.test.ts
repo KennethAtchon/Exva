@@ -46,7 +46,7 @@ describe("pipeline router", () => {
         automation: "ai",
         phases: [...FOUR_PHASES],
         signalSources: [],
-        plan: clonePlan("dup-plan"),
+        plan: DEFAULT_TRADE_CYCLE,
         phaseWorkers: PIPELINE_WORKER_SETS.defaultTrade,
       } satisfies PipelineDescriptor),
     ).toThrow(/already registered/);
@@ -61,10 +61,24 @@ describe("pipeline router", () => {
         // @ts-expect-error intentionally invalid phase
         phases: ["not-a-phase"],
         signalSources: [],
-        plan: clonePlan("bad-phase-plan"),
+        plan: clonePlan("bad-phase"),
         phaseWorkers: {},
       }),
     ).toThrow(/unknown phase/);
+  });
+
+  it("rejects a descriptor whose plan uses a different ID", () => {
+    expect(() =>
+      registerPipeline({
+        id: "descriptor-id",
+        displayName: "mismatched plan ID",
+        automation: "ai",
+        phases: [...FOUR_PHASES],
+        signalSources: [],
+        plan: clonePlan("plan-id"),
+        phaseWorkers: PIPELINE_WORKER_SETS.defaultTrade,
+      } satisfies PipelineDescriptor),
+    ).toThrow(/must use a plan with the same id/);
   });
 
   it("rejects a descriptor whose declared phases differ from its plan", () => {
@@ -75,7 +89,7 @@ describe("pipeline router", () => {
         automation: "ai",
         phases: ["technical"],
         signalSources: [],
-        plan: clonePlan("mismatch-plan"), // plan runs all four
+        plan: clonePlan("mismatch"), // plan runs all four
         phaseWorkers: PIPELINE_WORKER_SETS.defaultTrade,
       } satisfies PipelineDescriptor),
     ).toThrow(/declares phases/);
@@ -89,7 +103,7 @@ describe("pipeline router", () => {
       automation: "ai",
       phases: [...FOUR_PHASES],
       signalSources: ["manual"], // already claimed by default-trade-cycle
-      plan: clonePlan("conflict-plan"),
+      plan: clonePlan("conflict"),
       phaseWorkers: PIPELINE_WORKER_SETS.defaultTrade,
     });
     expect(() => validatePipelineRegistry()).toThrow(/claimed by both/);

@@ -351,6 +351,7 @@ export const workspacePrefsPatchSchema = z
       .enum(["hard", "warn"])
       .nullable()
       .optional(),
+    autoApproveAssistantTools: z.boolean().optional(),
   })
   .strict();
 

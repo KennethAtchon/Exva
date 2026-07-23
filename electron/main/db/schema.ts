@@ -386,6 +386,11 @@ export const workspacePreferences = sqliteTable("workspace_preferences", {
   defaultModelReasoningLevel: text("default_model_reasoning_level")
     .notNull()
     .default("off"),
+  autoApproveAssistantTools: integer("auto_approve_assistant_tools", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(false),
   updatedAt: text("updated_at").notNull(),
 });
 

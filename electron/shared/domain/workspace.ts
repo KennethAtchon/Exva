@@ -100,6 +100,7 @@ export interface WorkspacePreferences {
   defaultModelProviderKey: string;
   defaultModelModelId: string;
   defaultModelReasoningLevel: ReasoningLevel;
+  autoApproveAssistantTools: boolean;
   updatedAt: string;
 }
 

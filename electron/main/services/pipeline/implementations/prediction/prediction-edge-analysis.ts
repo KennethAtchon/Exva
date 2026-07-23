@@ -101,7 +101,7 @@ const PREDICTION_EDGE_STAGES: readonly DeclarativeCycleStageConfig[] = [
 
 export const PREDICTION_EDGE_CYCLE: InstrumentAnalysis<InstrumentAnalysisState> =
   {
-    id: "prediction-edge-cycle",
+    id: "prediction-event-cycle",
     initialState: (_ctx, seed = {}) => ({ ...seed }),
     inspect: {
       stageIds: PREDICTION_EDGE_STAGES.map((s) => s.id),

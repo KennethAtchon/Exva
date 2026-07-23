@@ -52,6 +52,11 @@ const SIGNAL_PRODUCING_PHASES: readonly PipelinePhase[] = [
 export function validatePipelineDescriptor(
   descriptor: PipelineDescriptor,
 ): void {
+  if (descriptor.plan.id !== descriptor.id) {
+    throw new Error(
+      `Pipeline '${descriptor.id}' must use a plan with the same id; found '${descriptor.plan.id}'.`,
+    );
+  }
   for (const phase of descriptor.phases) {
     if (!PHASE_POOL.has(phase)) {
       throw new Error(

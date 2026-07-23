@@ -22,12 +22,14 @@ describe("WorkspacePreferencesRepo", () => {
       globalIncludeArchived: false,
       defaultSearchProviderId: "builtin-search-duckduckgo",
       allocationEnforcementOverride: null,
+      autoApproveAssistantTools: false,
     });
 
     const updated = repo.update({
       globalIncludeArchived: true,
       defaultSearchProviderId: "provider-123",
       allocationEnforcementOverride: "warn",
+      autoApproveAssistantTools: true,
     });
 
     expect(updated).toMatchObject({
@@ -35,6 +37,7 @@ describe("WorkspacePreferencesRepo", () => {
       globalIncludeArchived: true,
       defaultSearchProviderId: "provider-123",
       allocationEnforcementOverride: "warn",
+      autoApproveAssistantTools: true,
     });
     expect(repo.get()).toMatchObject(updated);
 

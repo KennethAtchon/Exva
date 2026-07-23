@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ControlScopeKind } from "@/lib/exva";
+import { api } from "@/lib/exva";
 
 interface ControlUiContext {
   route: string | null;
@@ -30,12 +31,12 @@ interface ControlState {
   toggleSlideOver: () => void;
   clearPendingScope: () => void;
   setUiContext: (ctx: ControlUiContext) => void;
-  setAutoApproveTools: (on: boolean) => void;
+  setAutoApproveTools: (on: boolean) => Promise<void>;
   setDraft: (conversationId: string, text: string) => void;
   clearDraft: (conversationId: string) => void;
 }
 
-export const useControlStore = create<ControlState>((set) => ({
+export const useControlStore = create<ControlState>((set, get) => ({
   activeConversationId: null,
   slideOverOpen: false,
   pendingScope: null,
@@ -49,7 +50,16 @@ export const useControlStore = create<ControlState>((set) => ({
   toggleSlideOver: () => set((s) => ({ slideOverOpen: !s.slideOverOpen })),
   clearPendingScope: () => set({ pendingScope: null }),
   setUiContext: (uiContext) => set({ uiContext }),
-  setAutoApproveTools: (autoApproveTools) => set({ autoApproveTools }),
+  setAutoApproveTools: async (autoApproveTools) => {
+    const previous = get().autoApproveTools;
+    set({ autoApproveTools });
+    try {
+      await api.patchWorkspacePreferences({ autoApproveAssistantTools: autoApproveTools });
+    } catch (error) {
+      set({ autoApproveTools: previous });
+      throw error;
+    }
+  },
   setDraft: (conversationId, text) =>
     set((s) => ({
       draftsByConversationId: {
