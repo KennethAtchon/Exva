@@ -1,5 +1,6 @@
 import type { ConnectionTestResult } from "@/lib/types";
 import { BROKER_SUPPORTED_INSTRUMENT_CLASSES } from "@electron/shared/domain/broker-capabilities";
+import type { TradingTimeframe } from "@electron/shared/domain/enums";
 import type {
   BrokerAdapter,
   BrokerOrder,
@@ -72,6 +73,7 @@ const HOUR_MS = 60 * 60 * 1000;
 const FIFTEEN_MIN_MS = 15 * 60 * 1000;
 
 const BAR_MS: Record<string, number> = {
+  "5m": 5 * 60 * 1000,
   "1d": DAY_MS,
   "4h": 4 * HOUR_MS,
   "1h": HOUR_MS,
@@ -392,7 +394,7 @@ export class MockBrokerAdapter implements BrokerAdapter {
 
   async getOhlcv(
     instrumentSymbol: string,
-    timeframe: "1h" | "4h" | "1d",
+    timeframe: TradingTimeframe,
     barCount: number,
   ): Promise<MockOhlcvBar[]> {
     return this.getMockOhlcv(instrumentSymbol, timeframe, barCount);

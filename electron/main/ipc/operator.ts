@@ -5,7 +5,15 @@ import type { AppServices } from "../services/app-services";
 import { handle } from "./handle";
 import { ipcNoPayloadSchema, ipcPayloadUnknownSchema } from "./payload-schemas";
 
-const tradingTimeframeSchema = z.enum(["15m", "30m", "1h", "4h", "1d", "1w"]);
+const tradingTimeframeSchema = z.enum([
+  "5m",
+  "15m",
+  "30m",
+  "1h",
+  "4h",
+  "1d",
+  "1w",
+]);
 
 export function registerOperatorHandlers(services: AppServices): void {
   // ── T1 palette ──────────────────────────────────────────────────────────
@@ -116,7 +124,10 @@ export function registerOperatorHandlers(services: AppServices): void {
     ipcPayloadUnknownSchema,
     async (payload) => {
       const { symbol, timeframe } = z
-        .object({ symbol: z.string().min(1), timeframe: tradingTimeframeSchema })
+        .object({
+          symbol: z.string().min(1),
+          timeframe: tradingTimeframeSchema,
+        })
         .parse(payload);
       return { coverage: services.marketData.getCoverage(symbol, timeframe) };
     },

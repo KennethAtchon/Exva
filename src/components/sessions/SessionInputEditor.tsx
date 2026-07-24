@@ -65,6 +65,7 @@ type EditorState = {
 // ---------------------------------------------------------------------------
 
 const TIMEFRAME_LABELS: Record<TradingTimeframe, string> = {
+  "5m": "5 minutes",
   "15m": "15 minutes",
   "30m": "30 minutes",
   "1h": "1 hour",

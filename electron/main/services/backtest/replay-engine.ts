@@ -16,6 +16,15 @@ export interface DeterministicStrategySignal {
   strength: number;
   evidence: Record<string, number>;
   barWindowHash: string;
+  lifecycle?: PriceLifecyclePlan;
+}
+
+/** Absolute-price lifecycle for deterministic strategies with staged exits. */
+export interface PriceLifecyclePlan {
+  initialStopPrice: number;
+  firstTarget: { price: number; closeFraction: number };
+  sessionEndTs: string;
+  sameBarPriority: "stop_before_target";
 }
 
 export interface DeterministicStrategy {
@@ -70,6 +79,11 @@ export interface BacktestTrade {
   netReturnBps: number;
   fold: number;
   evidence: Record<string, number>;
+  fills?: Array<{
+    kind: "stop" | "tp1" | "runner_stop" | "session_close";
+    price: number;
+    fraction: number;
+  }>;
 }
 
 export interface FoldMetrics {
@@ -131,12 +145,26 @@ export function runBacktest(spec: BacktestSpec): BacktestResult {
 
       const entry = bars[i];
       if (!entry) continue;
-      const exitIdx = resolveExitIndex(bars, i, signal.action, spec.exitPolicy);
+      const lifecycleExit = signal.lifecycle
+        ? resolveLifecycleExit(bars, i, signal.action, signal.lifecycle)
+        : null;
+      const exitIdx =
+        lifecycleExit?.exitIdx ??
+        resolveExitIndex(bars, i, signal.action, spec.exitPolicy);
       const exit = bars[exitIdx];
       if (!exit) continue;
       const direction = signal.action === "buy" ? 1 : -1;
-      const rawReturnBps =
-        ((exit.close - entry.close) / entry.close) * 10_000 * direction;
+      const rawReturnBps = lifecycleExit
+        ? lifecycleExit.fills.reduce(
+            (total, fill) =>
+              total +
+              ((fill.price - entry.close) / entry.close) *
+                10_000 *
+                direction *
+                fill.fraction,
+            0,
+          )
+        : ((exit.close - entry.close) / entry.close) * 10_000 * direction;
 
       allTrades.push({
         symbol,
@@ -149,6 +177,7 @@ export function runBacktest(spec: BacktestSpec): BacktestResult {
         netReturnBps: rawReturnBps - costBps,
         fold,
         evidence: signal.evidence,
+        ...(lifecycleExit ? { fills: lifecycleExit.fills } : {}),
       });
       i = exitIdx; // skip overlapping hold
     }
@@ -190,6 +219,87 @@ export function runBacktest(spec: BacktestSpec): BacktestResult {
     sharpe,
     maxDrawdownPct,
     costDragBps: costBps,
+  };
+}
+
+function resolveLifecycleExit(
+  bars: OhlcvBar[],
+  entryIdx: number,
+  action: "buy" | "sell",
+  lifecycle: PriceLifecyclePlan,
+): {
+  exitIdx: number;
+  fills: Array<{
+    kind: "stop" | "tp1" | "runner_stop" | "session_close";
+    price: number;
+    fraction: number;
+  }>;
+} {
+  const isLong = action === "buy";
+  const tpFraction = lifecycle.firstTarget.closeFraction;
+  const runnerFraction = 1 - tpFraction;
+  let runnerStop = lifecycle.initialStopPrice;
+  let tp1Hit = false;
+  const cutoffMs = new Date(lifecycle.sessionEndTs).getTime();
+
+  for (let j = entryIdx + 1; j < bars.length; j++) {
+    const bar = bars[j];
+    if (!bar) continue;
+    const hitsStop = isLong ? bar.low <= runnerStop : bar.high >= runnerStop;
+    const hitsTarget =
+      !tp1Hit &&
+      (isLong
+        ? bar.high >= lifecycle.firstTarget.price
+        : bar.low <= lifecycle.firstTarget.price);
+    if (hitsStop) {
+      return {
+        exitIdx: j,
+        fills: tp1Hit
+          ? [
+              {
+                kind: "tp1",
+                price: lifecycle.firstTarget.price,
+                fraction: tpFraction,
+              },
+              {
+                kind: "runner_stop",
+                price: runnerStop,
+                fraction: runnerFraction,
+              },
+            ]
+          : [{ kind: "stop", price: runnerStop, fraction: 1 }],
+      };
+    }
+    if (hitsTarget) {
+      tp1Hit = true;
+      runnerStop = bars[entryIdx]?.close ?? runnerStop;
+    }
+    if (new Date(bar.ts).getTime() >= cutoffMs) {
+      return {
+        exitIdx: j,
+        fills: tp1Hit
+          ? [
+              {
+                kind: "tp1",
+                price: lifecycle.firstTarget.price,
+                fraction: tpFraction,
+              },
+              {
+                kind: "session_close",
+                price: bar.close,
+                fraction: runnerFraction,
+              },
+            ]
+          : [{ kind: "session_close", price: bar.close, fraction: 1 }],
+      };
+    }
+  }
+  const lastIdx = bars.length - 1;
+  return {
+    exitIdx: lastIdx,
+    fills: [
+      { kind: "session_close", price: bars[lastIdx]?.close ?? 0, fraction: 1 },
+    ],
   };
 }
 

@@ -104,7 +104,15 @@ const stopLossTypeSchema = z.enum([
   "broker_native_trailing",
   "none",
 ]);
-const tradingTimeframeSchema = z.enum(["15m", "30m", "1h", "4h", "1d", "1w"]);
+const tradingTimeframeSchema = z.enum([
+  "5m",
+  "15m",
+  "30m",
+  "1h",
+  "4h",
+  "1d",
+  "1w",
+]);
 const holdingStyleSchema = z.enum([
   "multi_day_swing",
   "weeks_position",

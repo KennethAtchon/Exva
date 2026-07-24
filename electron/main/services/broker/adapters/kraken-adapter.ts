@@ -84,6 +84,7 @@ const REST = "https://api.kraken.com";
 const WS_V2 = "wss://ws-auth.kraken.com/v2";
 
 const OHLC_INTERVAL: Record<string, number> = {
+  "5m": 5,
   "15m": 15,
   "30m": 30,
   "1h": 60,

@@ -156,4 +156,52 @@ describe("runBacktest", () => {
     expect(a.runHash).toBe(b.runHash);
     expect(a.runHash).toHaveLength(24);
   });
+
+  it("models a partial target then a breakeven runner stop using bar high and low", () => {
+    const bars: OhlcvBar[] = [
+      bar("2026-01-01T00:00:00.000Z", 100),
+      bar("2026-01-01T01:00:00.000Z", 100),
+      bar("2026-01-01T02:00:00.000Z", 100),
+      bar("2026-01-01T03:00:00.000Z", 100),
+      bar("2026-01-01T04:00:00.000Z", 100),
+      { ...bar("2026-01-01T05:00:00.000Z", 100), high: 111, low: 99 },
+      { ...bar("2026-01-01T06:00:00.000Z", 100), high: 101, low: 99 },
+    ];
+    const strategy: DeterministicStrategy = {
+      id: "partial-lifecycle",
+      warmupBars: 3,
+      evaluate(window) {
+        if (window.length !== 5) return null;
+        return {
+          action: "buy",
+          strength: 1,
+          evidence: {},
+          barWindowHash: hashBarWindow(window),
+          lifecycle: {
+            initialStopPrice: 90,
+            firstTarget: { price: 110, closeFraction: 0.8 },
+            sessionEndTs: "2026-01-01T06:00:00.000Z",
+            sameBarPriority: "stop_before_target",
+          },
+        };
+      },
+    };
+
+    const result = runBacktest(
+      baseSpec({
+        strategy,
+        folds: 1,
+        foldConfig: { purge: 0 },
+        costs: { spreadBps: 0, feeBps: 0, slippageBps: 0 },
+        barsBySymbol: { SPY: bars },
+      }),
+    );
+
+    expect(result.trades[0]?.fills).toMatchObject([
+      { kind: "tp1", price: 110, fraction: 0.8 },
+      { kind: "runner_stop", price: 100 },
+    ]);
+    expect(result.trades[0]?.fills?.[1]?.fraction).toBeCloseTo(0.2);
+    expect(result.trades[0]?.netReturnBps).toBeCloseTo(800);
+  });
 });

@@ -1,12 +1,14 @@
 import type { InstrumentClass } from "@/lib/types";
-import type { BrokerAdapter, OhlcvBar } from "../broker/adapters/broker-adapter";
+import type { TradingTimeframe } from "@electron/shared/domain/enums";
+import type {
+  BrokerAdapter,
+  OhlcvBar,
+} from "../broker/adapters/broker-adapter";
 import type { GetBarsCallback } from "../scheduling/scheduled-strategy-executor";
 import type { GetBarsInput, MarketDataProviderId } from "./market-data-service";
 
 export interface SessionRoutedGetBarsDeps {
-  resolveFanout: (
-    subscriptionIds: string[],
-  ) => Array<{ sessionId: string }>;
+  resolveFanout: (subscriptionIds: string[]) => Array<{ sessionId: string }>;
   resolveAdapter: (
     sessionId: string,
     instrumentClass: InstrumentClass,
@@ -21,7 +23,7 @@ export interface SessionRoutedGetBarsDeps {
     instrumentClass: InstrumentClass,
   ) => string;
   getBars: (input: GetBarsInput) => Promise<OhlcvBar[]>;
-  mapOhlcvTimeframe: (timeframe: string) => "1h" | "4h" | "1d";
+  mapOhlcvTimeframe: (timeframe: string) => TradingTimeframe;
   marketDataProviderForBroker: (brokerType: string) => MarketDataProviderId;
 }
 

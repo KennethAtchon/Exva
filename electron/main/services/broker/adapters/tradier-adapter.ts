@@ -46,6 +46,7 @@ const SANDBOX = "https://sandbox.tradier.com";
 const PROD = "https://api.tradier.com";
 
 const TIMEFRAME_MAP: Record<string, string> = {
+  "5m": "5min",
   "15m": "15min",
   "30m": "30min",
   "1h": "1hour", // Tradier uses daily/weekly primarily; intraday via timesales
@@ -521,9 +522,7 @@ export class TradierAdapter implements BrokerAdapter {
     const list = Array.isArray(rows) ? rows : [rows];
     return list
       .slice(-barCount)
-      .map((d) =>
-        parseTradierOhlcvBar(d, d.time ?? new Date().toISOString()),
-      )
+      .map((d) => parseTradierOhlcvBar(d, d.time ?? new Date().toISOString()))
       .filter((bar): bar is OhlcvBar => bar != null);
   }
 

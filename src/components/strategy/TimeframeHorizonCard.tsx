@@ -9,6 +9,7 @@ import {
 
 function barSizeHint(value: SessionTimeframeConfig["primaryTradingTimeframe"]) {
   switch (value) {
+    case "5m":
     case "15m":
     case "30m":
       return "Intraday detail — lots of noise, fast reactions.";

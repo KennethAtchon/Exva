@@ -142,7 +142,7 @@ export type TimeframePresetId =
   | "custom";
 
 /** Bar size the session uses for analysis and agent context. */
-export type TradingTimeframe = "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
+export type TradingTimeframe = "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
 
 /** Coarse intended hold length — steers prompts and approval copy. */
 export type HoldingStyle = "multi_day_swing" | "weeks_position" | "custom";
@@ -269,6 +269,7 @@ export const STOP_LOSS_TYPES: readonly StopLossType[] = [
 ];
 
 export const TRADING_TIMEFRAMES: readonly TradingTimeframe[] = [
+  "5m",
   "15m",
   "30m",
   "1h",

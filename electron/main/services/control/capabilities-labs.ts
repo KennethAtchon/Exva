@@ -6,7 +6,7 @@ import { CONFIRM_CLASS, emptyInputSchema } from "./capabilities-shared";
 import { resolveSession } from "./resolve-session";
 import { safeJsonParse } from "../infra/safe-json-parse";
 
-const timeframeSchema = z.enum(["15m", "30m", "1h", "4h", "1d", "1w"]);
+const timeframeSchema = z.enum(["5m", "15m", "30m", "1h", "4h", "1d", "1w"]);
 
 function compactBacktestRun(r: BacktestRun) {
   const fold = safeJsonParse<{ strategyId?: string }>(

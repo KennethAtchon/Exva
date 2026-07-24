@@ -1,7 +1,11 @@
 #!/usr/bin/env bun
 /**
  * Populate OHLCV bars through the same historical backfill service as the UI.
- * Usage: bun scripts/backfill-bars.ts SPY 1h 2026-01-01 2026-07-01
+ *
+ * better-sqlite3 is built for Electron's Node ABI — run under Electron:
+ *   ELECTRON_RUN_AS_NODE=1 ./node_modules/.bin/electron \
+ *     ./node_modules/vite-node/vite-node.mjs --config vitest.config.ts \
+ *     scripts/backfill-bars.ts SPY 1h 2026-01-01 2026-07-01
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -17,7 +21,7 @@ import { MarketDataService } from "../electron/main/services/marketdata/market-d
 import type { TradingTimeframe } from "../electron/shared/domain/enums";
 
 const [symbol, timeframe, start, end] = process.argv.slice(2);
-const validTimeframes = new Set(["15m", "30m", "1h", "4h", "1d", "1w"]);
+const validTimeframes = new Set(["5m", "15m", "30m", "1h", "4h", "1d", "1w"]);
 
 if (
   !symbol ||

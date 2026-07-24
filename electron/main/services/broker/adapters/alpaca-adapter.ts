@@ -48,6 +48,7 @@ const FILL_POLL_INTERVAL_MS = 500;
 const ORDER_EVENT_POLL_MS_PAPER = 15_000;
 const ORDER_EVENT_POLL_MS_LIVE = 5_000;
 const ALPACA_TIMEFRAME_MAP: Record<string, string> = {
+  "5m": "5Min",
   "15m": "15Min",
   "30m": "30Min",
   "1h": "1Hour",
@@ -57,6 +58,7 @@ const ALPACA_TIMEFRAME_MAP: Record<string, string> = {
 
 /** Minutes spanned by one bar of each Alpaca timeframe. */
 const ALPACA_TIMEFRAME_MINUTES: Record<string, number> = {
+  "5Min": 5,
   "15Min": 15,
   "30Min": 30,
   "1Hour": 60,
@@ -574,9 +576,7 @@ export class AlpacaAdapter implements BrokerAdapter {
         const data = await this.dataRequest<{
           bars?: AlpacaBarWire[];
           next_page_token?: string | null;
-        }>(
-          `/v2/stocks/${encodeURIComponent(instrumentSymbol)}/bars?${params}`,
-        );
+        }>(`/v2/stocks/${encodeURIComponent(instrumentSymbol)}/bars?${params}`);
         bars.push(...(data.bars ?? []).map(toOhlcvBar));
         nextPageToken = data.next_page_token ?? undefined;
       }

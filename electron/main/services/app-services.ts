@@ -87,7 +87,10 @@ import {
 } from "./research/ladder-automation";
 import { evaluatePromotion } from "./research/promotion-gate";
 import { listExperiences, requireExperience } from "../experiences/index";
-import type { InstrumentClass } from "@electron/shared/domain/enums";
+import type {
+  InstrumentClass,
+  TradingTimeframe,
+} from "@electron/shared/domain/enums";
 import { AgentOrchestrator } from "./orchestration/cycle/agent-orchestrator";
 import { registerDefaultEngines } from "./pipeline/engines/signal-registry/register-default-engines";
 import { assertValidPipelineDefinitionCatalog } from "./pipeline/effective-ai-phase-config";
@@ -381,10 +384,14 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const searchRegistry = new SearchRegistry(repos.providerAccounts, secrets);
   const notifications = new NotificationService(eventBus);
   const marketData = new MarketDataService(db);
-  const mapOhlcvTimeframe = (timeframe: string): "1h" | "4h" | "1d" => {
+  const mapOhlcvTimeframe = (timeframe: string): TradingTimeframe => {
+    if (timeframe === "5m") return "5m";
+    if (timeframe === "15m") return "15m";
+    if (timeframe === "30m") return "30m";
+    if (timeframe === "1h") return "1h";
     if (timeframe === "4h") return "4h";
-    if (timeframe === "1d" || timeframe === "1w") return "1d";
-    return "1h";
+    // Providers do not expose weekly bars through this adapter surface.
+    return "1d";
   };
   const marketDataProviderForBroker = (
     brokerType: string,

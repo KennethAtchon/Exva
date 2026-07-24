@@ -7,6 +7,7 @@ import { unusualVolumeDefinition } from "./definitions/unusual-volume";
 import { crossVenueDislocationDefinition } from "./definitions/cross-venue-dislocation";
 import { fundingBasisDefinition } from "./definitions/funding-basis";
 import { form4InsiderClusterDefinition } from "./definitions/form4-insider-cluster";
+import { nyRangeBreakoutDefinition } from "./definitions/ny-range-breakout";
 
 let registry: StrategyDefinitionRegistry | null = null;
 
@@ -21,6 +22,7 @@ export function getStrategyDefinitionRegistry(): StrategyDefinitionRegistry {
     registry.register(crossVenueDislocationDefinition);
     registry.register(fundingBasisDefinition);
     registry.register(form4InsiderClusterDefinition);
+    registry.register(nyRangeBreakoutDefinition);
   }
   return registry;
 }
