@@ -425,6 +425,9 @@ const exva: ExvaApi = {
     compare: (input: { runIds: string[] }) =>
       invoke(channels.backtest.compare, input),
     sweep: (input: unknown) => invoke(channels.backtest.sweep, input),
+    backfill: (input: unknown) => invoke(channels.backtest.backfill, input),
+    coverage: (input: { symbol: string; timeframe: string }) =>
+      invoke(channels.backtest.coverage, input),
   },
   dataDoctor: {
     coverage: () => invoke(channels.dataDoctor.coverage),

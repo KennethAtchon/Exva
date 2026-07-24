@@ -19,6 +19,7 @@ import {
 } from "../worker-tools/worker-tool-factory";
 import type { AIPhaseConfigResolver } from "../ai-phase-config-resolver";
 import { buildWorkerPrompt } from "../prompting/worker-prompt-builder";
+import { candidateOutputSchema } from "../definitions/selector.schemas";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { resolveScriptedWorkerOutput } from "../../broker/mock/mock-scenario-worker-outputs";
 import { createLogger } from "../../infra/log";
@@ -34,6 +35,19 @@ import {
 } from "./worker-tool-requirements";
 
 const logger = createLogger("pipeline-runtime");
+
+export function recoverBareCandidateArray(
+  output: unknown,
+): unknown | undefined {
+  if (!Array.isArray(output)) return undefined;
+  const recovered = candidateOutputSchema.safeParse({ candidates: output });
+  if (!recovered.success) return undefined;
+  logger.warn(
+    { candidateCount: recovered.data.candidates.length },
+    "worker submitted a bare candidate array; recovered terminal output",
+  );
+  return recovered.data;
+}
 
 function workerNameFromPrompt(markdown: string): string | undefined {
   const line = markdown.split("\n").find((entry) => entry.startsWith("# "));
@@ -339,6 +353,7 @@ export async function runAIWorker<TOutput>(
           );
         },
       },
+      { timeoutMs: resolvedConfig.retry.timeoutMs },
     );
 
   let trace = await runAgent();
@@ -353,6 +368,9 @@ export async function runAIWorker<TOutput>(
       outputContract,
       extractWorkerSubmission(trace, terminalToolName),
       false,
+      worker.outputSchema === candidateOutputSchema
+        ? recoverBareCandidateArray
+        : undefined,
     );
     if ("needsRetry" in resolution) {
       logger.warn(
@@ -376,6 +394,9 @@ export async function runAIWorker<TOutput>(
         outputContract,
         extractWorkerSubmission(trace, terminalToolName),
         true,
+        worker.outputSchema === candidateOutputSchema
+          ? recoverBareCandidateArray
+          : undefined,
       );
     }
     if ("needsRetry" in resolution) {
@@ -509,7 +530,14 @@ function tryRunScriptedWorker<TOutput>(
   );
   if (raw === undefined) return null;
 
-  const resolution = parseWorkerOutput<TOutput>(outputContract, raw, false);
+  const resolution = parseWorkerOutput<TOutput>(
+    outputContract,
+    raw,
+    false,
+    opts.worker.outputSchema === candidateOutputSchema
+      ? recoverBareCandidateArray
+      : undefined,
+  );
   if ("needsRetry" in resolution) {
     throw new AppError(
       `Scripted output for worker ${opts.worker.id} failed schema validation.`,

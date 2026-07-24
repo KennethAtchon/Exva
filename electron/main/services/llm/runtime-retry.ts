@@ -37,11 +37,17 @@ export interface LLMRetryHooks<T> {
   }) => void;
 }
 
+export interface LLMRetryOptions {
+  timeoutMs?: number;
+}
+
 export async function withLLMRetry<T>(
   action: (abortSignal: AbortSignal) => Promise<T>,
   ctx: LLMRetryContext = {},
   hooks: LLMRetryHooks<T> = {},
+  options: LLMRetryOptions = {},
 ): Promise<T> {
+  const timeoutMs = options.timeoutMs ?? RETRY_CONFIG.timeoutMs;
   const startedAt = Date.now();
   let lastError: unknown;
 
@@ -54,11 +60,11 @@ export async function withLLMRetry<T>(
           attempt,
           maxAttempts: MAX_PROVIDER_ATTEMPTS,
           maxRetries: RETRY_CONFIG.maxRetries,
-          timeoutMs: RETRY_CONFIG.timeoutMs,
+          timeoutMs,
         },
         "provider request attempt",
       );
-      const value = await withTimeout(action);
+      const value = await withTimeout(action, timeoutMs);
       notifyAttemptHook(hooks, {
         attempt,
         durationMs: Date.now() - attemptStartedAt,
@@ -137,6 +143,7 @@ function notifyAttemptHook<T>(
 
 async function withTimeout<T>(
   action: (abortSignal: AbortSignal) => Promise<T>,
+  timeoutMs: number,
 ): Promise<T> {
   const controller = new AbortController();
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -144,7 +151,7 @@ async function withTimeout<T>(
     timeoutId = setTimeout(() => {
       controller.abort();
       reject(new Error("AI request timed out"));
-    }, RETRY_CONFIG.timeoutMs);
+    }, timeoutMs);
   });
   try {
     return await Promise.race([action(controller.signal), timeoutPromise]);

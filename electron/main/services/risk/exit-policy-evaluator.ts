@@ -1,5 +1,6 @@
 import type { InstrumentClass } from "@/lib/types";
 import type { StopLossType } from "@electron/shared/domain";
+import { computeAtr } from "@electron/shared/quant/atr";
 
 type ExitReason = "stop_loss_fixed" | "stop_loss_trailing_atr" | "take_profit";
 
@@ -91,7 +92,7 @@ export class ExitPolicyEvaluator {
 
     if (stopLossType === "trailing_atr") {
       if (atrStopMultiplier == null) return { shouldExit: false };
-      const atr = computeATR(ohlcvBars);
+      const atr = computeAtr(ohlcvBars);
       if (atr == null) return { shouldExit: false };
 
       if (isLong) {
@@ -125,26 +126,4 @@ export class ExitPolicyEvaluator {
 
     return { shouldExit: false };
   }
-}
-
-function computeATR(bars: OhlcvBar[], period = 14): number | null {
-  if (bars.length < period + 1) return null;
-  const recent = bars.slice(-(period + 1));
-
-  const trueRanges = recent.slice(1).map((bar, i) => {
-    const prev = recent[i];
-    if (!prev) return bar.high - bar.low;
-    return Math.max(
-      bar.high - bar.low,
-      Math.abs(bar.high - prev.close),
-      Math.abs(bar.low - prev.close),
-    );
-  });
-
-  let atr = trueRanges.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  for (const tr of trueRanges.slice(period)) {
-    atr = (atr * (period - 1) + tr) / period;
-  }
-
-  return atr;
 }

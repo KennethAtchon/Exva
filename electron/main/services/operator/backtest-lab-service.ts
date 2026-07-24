@@ -107,7 +107,9 @@ export class BacktestLabService {
         instrumentClass,
         timeframe: input.timeframe,
         window: { start: input.windowStart, end: input.windowEnd },
-        failOnGaps: false,
+        // An empty requested window makes any result meaningless. Historical
+        // population is an explicit operator action through backfill.
+        failOnGaps: true,
       });
       this.emitProgress({
         runId,

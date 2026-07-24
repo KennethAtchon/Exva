@@ -831,6 +831,10 @@ export interface ExvaApi {
     run(input: unknown): Promise<unknown>;
     compare(input: { runIds: string[] }): Promise<unknown>;
     sweep(input: unknown): Promise<unknown>;
+    backfill(input: unknown): Promise<unknown>;
+    coverage(input: { symbol: string; timeframe: string }): Promise<{
+      coverage: { firstTs: string; lastTs: string; provider: string } | null;
+    }>;
   };
   dataDoctor: {
     coverage(): Promise<{ cells: unknown[] }>;

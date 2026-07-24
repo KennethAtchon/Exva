@@ -190,6 +190,8 @@ export const channels = {
     compare: "backtest:compare",
     sweep: "backtest:sweep",
     listStrategies: "backtest:list-strategies",
+    backfill: "backtest:backfill",
+    coverage: "backtest:coverage",
   },
   dataDoctor: {
     coverage: "data-doctor:coverage",
@@ -284,6 +286,7 @@ export const mainToRendererEvents = [
   "control_turn_complete",
   "control_error",
   "backtest_progress",
+  "backfill_progress",
   "equity_snapshot",
   "session_activity_changed",
 ] as const;

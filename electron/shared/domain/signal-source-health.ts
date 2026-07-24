@@ -32,6 +32,7 @@ export interface SignalSourcePollHistoryEntry {
   detected: number;
   passed: number;
   dropped: number;
+  dropReasons?: Record<string, number>;
   errors: string[];
   durationMs: number;
   status: SignalSourceRuntimeStatus;

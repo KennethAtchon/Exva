@@ -85,6 +85,8 @@ export interface PollResult {
   detected: number;
   passed: number;
   dropped: number;
+  /** Source-specific counts for healthy filtering decisions. */
+  dropReasons?: Record<string, number>;
   errors: string[];
 }
 

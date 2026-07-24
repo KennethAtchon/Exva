@@ -98,11 +98,11 @@ Prefer reuse over duplication. Map any equivalent anonymous sessions such as `ST
 
 Use this legacy rename map when those sessions still match the listed experience, broker, and input. Do not rely on the old name alone:
 
-| Legacy name                     | Canonical role                    |
+| Legacy name                     | Canonical role or disposition     |
 | ------------------------------- | --------------------------------- |
 | `STRESS-01`                     | `EDGAR-FANOUT-PRIMARY`            |
-| `STRESS-02`                     | `EDGAR-AI-CONCURRENCY`            |
-| `STRESS-03`                     | `EDGAR-SYMBOL-CONTENTION`         |
+| `STRESS-02`                     | Retire/stop; do not recreate      |
+| `STRESS-03`                     | Retire/stop; do not recreate      |
 | `STRESS-04`                     | `ETF-REVERSION-PRIMARY`           |
 | `STRESS-05`                     | `ETF-REVERSION-CONTENDER`         |
 | `STRESS-06`                     | `CRYPTO-BREAKOUT-24X7`            |
@@ -110,11 +110,13 @@ Use this legacy rename map when those sessions still match the listed experience
 
 If both Polymarket legacy aliases exist, select at most one for reuse and report the other as a duplicate candidate. Do not launch both under the same canonical role.
 
+For `STRESS-02` and `STRESS-03`, explicitly retire/stop the legacy session when it is safe to do so; do not rename it into another role and do not recreate it. Never force-stop a session with open trades. If open positions prevent retirement, leave it untouched and report the retirement debt.
+
 If an equivalent session is active or paused and cannot be updated safely, propose the required stop-update-restart sequence. Never force-stop a session with open trades merely to rename it. If open positions prevent safe reuse, leave it untouched, report the naming/configuration debt, and propose a non-conflicting replacement only after confirmation.
 
 ## Phase 2: canonical stress matrix
 
-The required matrix is nine sessions: three EDGAR concurrency roles, two mean-reversion concurrency roles, one crypto role, one futures role, one options role, and one Polymarket role. These nine rows cover all six currently registered experiences and all five instrument classes. Add the tenth optional crypto contender only when broker capacity and the allocation envelope permit it.
+The required matrix is seven sessions: one EDGAR role, two mean-reversion roles, one crypto role, one futures role, one options role, and one Polymarket role. These seven rows cover all six currently registered experiences and all five instrument classes. Add the eighth optional crypto contender only when broker capacity and the allocation envelope permit it.
 
 Use the exact names and objectives below. The `objective` text is deliberately strategy-safe: it describes the valid trading job while identifying the operational proof lane.
 
@@ -137,25 +139,9 @@ The manifest fails if any catalog experience lacks a role or any class is repres
 - **Exact objective:** `Evaluate eligible 8-K filings for catalyst-driven stock opportunities in paper mode, while tracing one complete path from EDGAR polling through signal delivery, AI analysis, risk gating, and Alpaca order handling.`
 - **Expected startup state:** Source healthy and waiting for an EDGAR signal. It may remain quiet when no eligible filing arrives.
 - **What this session must prove:** The baseline event-driven path is connected end to end and failures can be correlated to this session.
-- **Why stress it this way:** A persisted subscription can exist without a working poller. This primary lane separates source/pipeline health from the concurrency effects introduced by the next two EDGAR sessions.
+- **Why stress it this way:** A persisted subscription can exist without a working poller. This primary lane isolates source and pipeline health so filing, AI, risk, and routing failures remain attributable to one EDGAR session.
 
-### 2. `EDGAR-AI-CONCURRENCY`
-
-- **Experience/input:** `edgar-catalyst` with the same default EDGAR 8-K event source.
-- **Exact objective:** `Evaluate eligible 8-K filings independently in paper mode so concurrent AI phases, retries, provider limits, and per-session AI cost attribution can be distinguished from the primary EDGAR lane.`
-- **Expected startup state:** Source healthy and waiting for the same event stream as the primary lane.
-- **What this session must prove:** One filing can fan out into a second independent AI execution without mixing cycle IDs, retries, decisions, or spend accounting.
-- **Why stress it this way:** Shared OpenRouter capacity is a system boundary. Two identical event consumers reveal provider throttling, cross-session state leakage, and cost-attribution defects that a single session cannot expose.
-
-### 3. `EDGAR-SYMBOL-CONTENTION`
-
-- **Experience/input:** `edgar-catalyst` with the same default EDGAR 8-K event source.
-- **Exact objective:** `Evaluate eligible 8-K filings independently in paper mode and exercise shared-account symbol locking and duplicate-order prevention when multiple sessions reach the same stock.`
-- **Expected startup state:** Source healthy and waiting for the same event stream as the other EDGAR lanes.
-- **What this session must prove:** Fanout remains isolated through decision and risk stages, while shared-account symbol locks or duplicate-order protections prevent unsafe double execution.
-- **Why stress it this way:** The same filing naturally gives all subscribers the same ticker. Intentional overlap is the most realistic way to test race handling at the broker, reservation, and symbol-lock boundaries.
-
-### 4. `ETF-REVERSION-PRIMARY`
+### 2. `ETF-REVERSION-PRIMARY`
 
 - **Experience/input:** `rules-mean-reversion`; default SPY/QQQ scan every 15 minutes, 1h bars, `nyse-regular` calendar.
 - **Exact objective:** `Scan the seeded SPY and QQQ universe for deterministic mean-reversion entries in paper mode, validating NYSE calendar gating, OHLCV retrieval, rule evaluation, risk gating, and Alpaca routing.`
@@ -163,7 +149,7 @@ The manifest fails if any catalog experience lacks a role or any class is repres
 - **What this session must prove:** The deterministic equity scan can fetch bars and reach a rules decision only when its market calendar permits execution.
 - **Why stress it this way:** This lane catches both false-open calendar behavior and silent OHLCV failures. It must remain visibly closed on nights/weekends rather than looking stale or running wasteful scans.
 
-### 5. `ETF-REVERSION-CONTENDER`
+### 3. `ETF-REVERSION-CONTENDER`
 
 - **Experience/input:** `rules-mean-reversion` with the same fixed SPY/QQQ profile.
 - **Exact objective:** `Run the same SPY and QQQ mean-reversion scan as a concurrent paper contender, testing duplicate scheduling, shared-account reservations, symbol contention, and deterministic decision isolation.`
@@ -171,7 +157,7 @@ The manifest fails if any catalog experience lacks a role or any class is repres
 - **What this session must prove:** Two scheduled sessions can scan the same fixed universe concurrently without sharing state, double-reserving capital, or bypassing symbol conflict controls.
 - **Why stress it this way:** The overlap is intentional. Splitting the fixed seeded universe through `instrumentScope` would create a false claim unless status reads prove the profile actually changed; identical universes put real pressure on scheduler and account-level concurrency controls.
 
-### 6. `CRYPTO-BREAKOUT-24X7`
+### 4. `CRYPTO-BREAKOUT-24X7`
 
 - **Experience/input:** `rules-breakout`; default BTC-USD hourly scan, 4h bars, `always-open` calendar.
 - **Exact objective:** `Scan BTC-USD continuously for deterministic resistance breakouts in paper mode, validating always-open scheduling, 4h OHLCV retrieval, breakout rules, risk gating, and Alpaca crypto routing.`
@@ -179,7 +165,7 @@ The manifest fails if any catalog experience lacks a role or any class is repres
 - **What this session must prove:** The scheduled strategy path continues to operate when equity markets are closed and uses the crypto route rather than stock-market calendar behavior.
 - **Why stress it this way:** This is the matrix's 24/7 control lane. During nights and weekends it distinguishes a globally broken scheduler/data path from expected ETF market closure.
 
-### 7. `FUTURES-TREND-4H-LIFECYCLE`
+### 5. `FUTURES-TREND-4H-LIFECYCLE`
 
 - **Experience/input:** `rules-trend-following`; default GC/CL scan every 4 hours, 4h bars, `always-open` calendar.
 - **Broker:** A dedicated paper Mock account so futures bars, orders, positions, and closes are exercised locally. If missing, ask me to add a Mock account in Settings, then continue; it requires no credentials.
@@ -189,7 +175,7 @@ The manifest fails if any catalog experience lacks a role or any class is repres
 - **Why stress it this way:** This is the only registered `futures` experience. Mock is intentionally used for the in-process system proof because the current Tradovate adapter has no `getOhlcv` implementation and cannot honestly drive this seeded strategy end to end. Mock broker positions are memory-only, so broker-position restart persistence remains `partial`, not proven.
 - **External-adapter gap to report:** If a paper Tradovate account exists, report it separately as blocked until `getOhlcv`, persisted positions, and close behavior work. A successful account test or session start is not futures lifecycle proof.
 
-### 8. `OPTIONS-FLOW-MULTILEG-LIFECYCLE`
+### 6. `OPTIONS-FLOW-MULTILEG-LIFECYCLE`
 
 - **Experience/input:** `options-flow-edge`; default AAPL/NVDA underlying scan every 15 minutes, 1d analysis, `nyse-regular` calendar.
 - **Broker:** Prefer a paper Tradier sandbox account because the experience descriptor intends defined-risk vertical spreads. If no Tradier account exists, assign `seed-alpaca-paper` so the required experience remains a real visible session, but mark options execution proof blocked.
@@ -199,7 +185,7 @@ The manifest fails if any catalog experience lacks a role or any class is repres
 - **Why stress it this way:** Options use contract identity, chain data, whole-contract sizing, multiple legs, max-debit risk, and different close semantics. No stock or crypto session exercises those boundaries.
 - **Known implementation blockers that must remain visible:** The seeded catalog/profile is still stock-class AAPL/NVDA, the scheduled `options-flow` evaluator currently returns no setup, and the production order path does not construct spread legs. Record the first observed blocker and never report this role green until an OCC contract reaches an options-class order.
 
-### 9. `POLYMARKET-DISCOVERY-RESOLUTION`
+### 7. `POLYMARKET-DISCOVERY-RESOLUTION`
 
 - **Experience/input:** `prediction-event-edge` with the default Prediction Event source.
 - **Broker:** `seed-polymarket-paper` only; never route this session to Alpaca or the generic `mock` broker.
@@ -208,7 +194,7 @@ The manifest fails if any catalog experience lacks a role or any class is repres
 - **What this session must prove:** Selector workers use `list_markets` and copy real symbols into quote/risk/order stages; paper orders use live public prices while balances and positions remain virtual and persisted.
 - **Why stress it this way:** Prediction symbols are not safely guessable. This lane specifically tests the market-discovery boundary that prevents hallucinated IDs, then tests the adapter's distinct ghost-fill and real-resolution behavior.
 
-### 10. Optional `CRYPTO-BREAKOUT-CONTENDER`
+### 8. Optional `CRYPTO-BREAKOUT-CONTENDER`
 
 - **Create only if:** The seeded Alpaca account supports another concurrent session and total Alpaca allocation remains within the envelope below.
 - **Experience/input:** `rules-breakout` with the same BTC-USD profile.
@@ -229,7 +215,7 @@ Do not omit `rules-trend-following` or `options-flow-edge`. They are registered 
 - Never exceed broker free capital or session limits.
 - Preserve the experience defaults and existing moderate/conservative risk controls, kill switches, daily-loss limits, drawdown limits, calendar blackouts, and AI-spend limits.
 - Do not loosen a control to increase throughput. A risk, allocation, symbol-lock, or provider rejection is a useful stress result.
-- All nine required roles must remain real session rows. Capacity pressure may prevent a required session from starting, but it may not remove that row: create or reuse it when configuration is valid, leave it stopped/blocked when capacity is unavailable, and report the exact cap. Only role 10 (`CRYPTO-BREAKOUT-CONTENDER`) may be omitted. If startup capacity is constrained, start the six primary experience-coverage roles first: 1 (`EDGAR-FANOUT-PRIMARY`), 4 (`ETF-REVERSION-PRIMARY`), 6 (`CRYPTO-BREAKOUT-24X7`), 7 (`FUTURES-TREND-4H-LIFECYCLE`), 8 (`OPTIONS-FLOW-MULTILEG-LIFECYCLE`), and 9 (`POLYMARKET-DISCOVERY-RESOLUTION`); then start required contention roles 2, 5, and 3 as capacity becomes available.
+- All seven required roles must remain real session rows. Capacity pressure may prevent a required session from starting, but it may not remove that row: create or reuse it when configuration is valid, leave it stopped/blocked when capacity is unavailable, and report the exact cap. Only role 8 (`CRYPTO-BREAKOUT-CONTENDER`) may be omitted. If startup capacity is constrained, start the six primary experience-coverage roles first: 1 (`EDGAR-FANOUT-PRIMARY`), 2 (`ETF-REVERSION-PRIMARY`), 4 (`CRYPTO-BREAKOUT-24X7`), 5 (`FUTURES-TREND-4H-LIFECYCLE`), 6 (`OPTIONS-FLOW-MULTILEG-LIFECYCLE`), and 7 (`POLYMARKET-DISCOVERY-RESOLUTION`); then start the required contention role 3 (`ETF-REVERSION-CONTENDER`) as capacity becomes available.
 
 ## Phase 3: propose, confirm, launch
 

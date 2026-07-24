@@ -1171,9 +1171,10 @@ export class PolymarketAdapter
   }
 
   private async getAuthedClient(): Promise<ClobClient> {
-    if (!this.authClientPromise) {
-      this.authClientPromise = this.createAuthedClient();
-    }
+    this.authClientPromise ??= this.createAuthedClient().catch((error) => {
+      this.authClientPromise = null;
+      throw error;
+    });
     return this.authClientPromise;
   }
 
@@ -1420,9 +1421,9 @@ function extractOrderId(response: unknown): string {
   throw err;
 }
 
-function readTokenOutcomeUpper(
-  token: { outcome?: unknown },
-): "YES" | "NO" | null {
+function readTokenOutcomeUpper(token: {
+  outcome?: unknown;
+}): "YES" | "NO" | null {
   if (typeof token.outcome !== "string") return null;
   const upper = token.outcome.trim().toUpperCase();
   if (upper === "YES" || upper === "NO") return upper;
@@ -1461,10 +1462,10 @@ function pickTokenForOutcome(
   return selected ? readPickedToken(selected) : null;
 }
 
-function readPickedToken(selected: {
-  outcome?: unknown;
-  price?: unknown;
-}): { outcome: "YES" | "NO" | null; price: number | null } {
+function readPickedToken(selected: { outcome?: unknown; price?: unknown }): {
+  outcome: "YES" | "NO" | null;
+  price: number | null;
+} {
   const outcome = readTokenOutcomeUpper(selected);
   if (selected.price == null || selected.price === "") {
     return { outcome, price: null };

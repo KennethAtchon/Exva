@@ -733,4 +733,46 @@ describe("AlpacaAdapter money-field validation", () => {
       code: "BROKER_DATA",
     });
   });
+
+  it("pages bounded stock and crypto OHLCV ranges in ascending order", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      const crypto = url.includes("/v1beta3/crypto/us/bars");
+      if (url.includes("page_token=next")) {
+        return jsonResponse({
+          bars: crypto
+            ? { "BTC/USD": [{ t: "2026-01-02T00:00:00Z", o: 2, h: 3, l: 1, c: 2, v: 20 }] }
+            : [{ t: "2026-01-02T00:00:00Z", o: 2, h: 3, l: 1, c: 2, v: 20 }],
+          next_page_token: null,
+        });
+      }
+      return jsonResponse({
+        bars: crypto
+          ? { "BTC/USD": [{ t: "2026-01-01T00:00:00Z", o: 1, h: 2, l: 0.5, c: 1, v: 10 }] }
+          : [{ t: "2026-01-01T00:00:00Z", o: 1, h: 2, l: 0.5, c: 1, v: 10 }],
+        next_page_token: "next",
+      });
+    });
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+    const bars = await adapter.getOhlcvRange("SPY", "15m", {
+      startIso: "2026-01-01T00:00:00.000Z",
+      endIso: "2026-01-03T00:00:00.000Z",
+    });
+
+    expect(bars.map((bar) => bar.ts)).toEqual([
+      "2026-01-01T00:00:00Z",
+      "2026-01-02T00:00:00Z",
+    ]);
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("/v2/stocks/SPY/bars?");
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("sort=asc");
+    expect(fetchMock.mock.calls[1]?.[0]).toContain("page_token=next");
+
+    fetchMock.mockClear();
+    const cryptoBars = await adapter.getOhlcvRange("BTC/USD", "15m", {
+      startIso: "2026-01-01T00:00:00.000Z",
+      endIso: "2026-01-03T00:00:00.000Z",
+    });
+    expect(cryptoBars).toHaveLength(2);
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("/v1beta3/crypto/us/bars?");
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("symbols=BTC%2FUSD");
+  });
 });

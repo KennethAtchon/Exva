@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { parseWorkerOutput } from "../worker-structured-output";
+import { candidateOutputSchema } from "../../definitions/selector.schemas";
+import { recoverBareCandidateArray } from "../worker-executor";
 
 const schema = z.object({
   score: z.number().min(0).max(1).default(0),
@@ -47,5 +49,45 @@ describe("parseWorkerOutput", () => {
       parseFallback: true,
       retried: true,
     });
+  });
+
+  it("recovers a valid bare discovery candidate array before retrying", () => {
+    const result = parseWorkerOutput(
+      {
+        schema: candidateOutputSchema,
+        strict: true as const,
+        onValidationFailure: "retry_once" as const,
+      },
+      [
+        {
+          symbol: "pm:condition-1",
+          instrumentClass: "prediction_market",
+          source: ["event-prediction-scout"],
+        },
+      ],
+      false,
+      recoverBareCandidateArray,
+    );
+
+    expect(result).toMatchObject({
+      output: { candidates: [{ symbol: "pm:condition-1" }] },
+      parseFallback: false,
+      retried: false,
+    });
+  });
+
+  it("does not recover invalid bare candidate arrays", () => {
+    const result = parseWorkerOutput(
+      {
+        schema: candidateOutputSchema,
+        strict: true as const,
+        onValidationFailure: "retry_once" as const,
+      },
+      [{ symbol: "pm:condition-1" }],
+      false,
+      recoverBareCandidateArray,
+    );
+
+    expect(result).toEqual({ needsRetry: true, retried: true });
   });
 });

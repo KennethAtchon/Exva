@@ -22,7 +22,13 @@ describe("SignalSourceRuntimeRepo", () => {
       polledAt: "2026-07-20T17:00:00.000Z",
       outcome: "success",
       httpStatus: 200,
-      result: { detected: 12, passed: 0, dropped: 12, errors: [] },
+      result: {
+        detected: 12,
+        passed: 0,
+        dropped: 12,
+        dropReasons: { no_cik: 12 },
+        errors: [],
+      },
       status: "running",
       lastError: null,
       durationMs: 42,
@@ -39,7 +45,9 @@ describe("SignalSourceRuntimeRepo", () => {
       lastOutcome: "success",
       httpStatus: 200,
     });
-    expect(runtime.listPolls("source/edgar_8k")).toHaveLength(1);
+    expect(runtime.listPolls("source/edgar_8k")).toEqual([
+      expect.objectContaining({ dropReasons: { no_cik: 12 } }),
+    ]);
     db.sqlite.close();
   });
 

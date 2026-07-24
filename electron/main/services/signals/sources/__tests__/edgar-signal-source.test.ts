@@ -137,6 +137,77 @@ describe("EdgarSignalSource", () => {
     ).toBe(true);
     expect(events[0]).toMatchObject({ ticker: "AAPL" });
     expect(cache.get("320193")).toBe("AAPL");
+    for (const [, options] of fetchMock.mock.calls) {
+      expect(options?.headers).toMatchObject({
+        "User-Agent": expect.stringMatching(/^Exva\/[^ ]+ \(contact: .+\)$/),
+      });
+    }
+    db.sqlite.close();
+  });
+
+  it("extracts and normalizes the CIK from the live accession-number feed shape", async () => {
+    const db = createTestDb();
+    const cache = new CikTickerCache(db);
+    cache.upsert("1868419", "CYCU");
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><entry>
+          <id>urn:tag:sec.gov,2008:accession-number=0001493152-26-034443</id>
+          <title>8-K - Cycurion, Inc. (0001868419) (Filer)</title>
+          <updated>2026-07-23T15:00:00Z</updated>
+          <summary>Item 8.01 Other Events</summary>
+          <link href="https://www.sec.gov/Archives/edgar/data/1868419/000149315226034443/form8-k.htm"/>
+        </entry></feed>`,
+        { status: 200 },
+      ),
+    );
+
+    const source = new EdgarSignalSource("edgar-live-shape", "{}", cache);
+    const events: unknown[] = [];
+    source.onSignal((event) => events.push(event));
+
+    const result = await source.test();
+
+    expect(result).toMatchObject({
+      detected: 1,
+      passed: 1,
+      dropped: 0,
+      dropReasons: {},
+    });
+    expect(events[0]).toMatchObject({ ticker: "CYCU" });
+    expect(cache.get("1868419")).toBe("CYCU");
+    db.sqlite.close();
+  });
+
+  it("counts no-ticker drops by gate", async () => {
+    const db = createTestDb();
+    const cache = new CikTickerCache(db);
+    cache.upsert("320193", null);
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        atomFeed([
+          {
+            cik: "320193",
+            title: "Apple Inc.",
+            updated: "2024-06-01T15:00:00Z",
+            summary: "Item 8.01 Other Events",
+            accession: "0000320193-24-000004",
+          },
+        ]),
+        { status: 200 },
+      ),
+    );
+
+    const result = await new EdgarSignalSource(
+      "edgar-no-ticker",
+      "{}",
+      cache,
+    ).test();
+
+    expect(result.dropReasons).toEqual({ no_ticker: 1 });
+    expect(
+      Object.values(result.dropReasons ?? {}).reduce((a, b) => a + b, 0),
+    ).toBe(result.dropped);
     db.sqlite.close();
   });
 

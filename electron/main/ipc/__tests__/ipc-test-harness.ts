@@ -416,6 +416,9 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
       experienceExperiments: repos.experienceExperiments,
       eventBus,
     }),
+    historicalBackfill: {
+      backfill: async () => ({ chunks: 0, barsWritten: 0 }),
+    } as unknown as AppServices["historicalBackfill"],
     dataDoctor: new DataDoctorService({
       db,
       marketData: new MarketDataService(db),

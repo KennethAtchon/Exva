@@ -112,6 +112,22 @@ function buildAlpacaOhlcvParams(
   });
 }
 
+/** Parameters for a bounded historical pull. Kept separate from lookback fetches. */
+function buildAlpacaOhlcvRangeParams(
+  alpacaTimeframe: string,
+  window: { startIso: string; endIso: string },
+  extra: Record<string, string> = {},
+): URLSearchParams {
+  return new URLSearchParams({
+    ...extra,
+    timeframe: alpacaTimeframe,
+    start: window.startIso,
+    end: window.endIso,
+    sort: "asc",
+    limit: "10000",
+  });
+}
+
 /**
  * Alpaca uses a slash in crypto wire symbols (e.g. `BTC/USD`) and a bare ticker
  * for equities (`AAPL`). The instrument normalizer emits these formats, so the
@@ -504,7 +520,7 @@ export class AlpacaAdapter implements BrokerAdapter {
 
   async getOhlcv(
     instrumentSymbol: string,
-    timeframe: "1h" | "4h" | "1d",
+    timeframe: import("@electron/shared/domain/enums").TradingTimeframe,
     barCount: number,
   ): Promise<OhlcvBar[]> {
     const alpacaTimeframe = ALPACA_TIMEFRAME_MAP[timeframe] ?? "1Day";
@@ -527,6 +543,46 @@ export class AlpacaAdapter implements BrokerAdapter {
       );
       return (data.bars ?? []).map(toOhlcvBar);
     });
+  }
+
+  async getOhlcvRange(
+    instrumentSymbol: string,
+    timeframe: import("@electron/shared/domain/enums").TradingTimeframe,
+    window: { startIso: string; endIso: string },
+  ): Promise<OhlcvBar[]> {
+    const alpacaTimeframe = ALPACA_TIMEFRAME_MAP[timeframe] ?? "1Day";
+    const bars: OhlcvBar[] = [];
+    let nextPageToken: string | undefined;
+
+    do {
+      const extra: Record<string, string> = isCryptoWireSymbol(instrumentSymbol)
+        ? { symbols: instrumentSymbol }
+        : { feed: "iex" };
+      const params = buildAlpacaOhlcvRangeParams(
+        alpacaTimeframe,
+        window,
+        nextPageToken ? { ...extra, page_token: nextPageToken } : extra,
+      );
+      if (isCryptoWireSymbol(instrumentSymbol)) {
+        const data = await this.dataRequest<{
+          bars?: Record<string, AlpacaBarWire[]>;
+          next_page_token?: string | null;
+        }>(`/v1beta3/crypto/us/bars?${params}`);
+        bars.push(...(data.bars?.[instrumentSymbol] ?? []).map(toOhlcvBar));
+        nextPageToken = data.next_page_token ?? undefined;
+      } else {
+        const data = await this.dataRequest<{
+          bars?: AlpacaBarWire[];
+          next_page_token?: string | null;
+        }>(
+          `/v2/stocks/${encodeURIComponent(instrumentSymbol)}/bars?${params}`,
+        );
+        bars.push(...(data.bars ?? []).map(toOhlcvBar));
+        nextPageToken = data.next_page_token ?? undefined;
+      }
+    } while (nextPageToken);
+
+    return bars;
   }
 
   private async getCryptoOhlcv(

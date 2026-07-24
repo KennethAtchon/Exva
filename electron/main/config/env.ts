@@ -69,6 +69,8 @@ const envSchema = z.object({
   OPEN_ROUTER_MODEL: z.string().optional(),
   ALPACA_API_KEY: z.string().optional(),
   ALPACA_SECRET_KEY: z.string().optional(),
+  EXVA_SEC_CONTACT: z.string().email().optional(),
+  EXVA_APP_VERSION: z.string().min(1).optional(),
   /** ntfy.sh topic URL for supervisor push (e.g. https://ntfy.sh/exva-ken). */
   EXVA_NTFY_URL: z.string().optional(),
   EXVA_NTFY_TOPIC_URL: z.string().optional(),
@@ -125,6 +127,11 @@ function loadEnv(source: NodeJS.ProcessEnv = process.env) {
     openRouterModel: normalizeOptionalSecret(parsed.data.OPEN_ROUTER_MODEL),
     alpacaApiKey: normalizeOptionalSecret(parsed.data.ALPACA_API_KEY),
     alpacaSecretKey: normalizeOptionalSecret(parsed.data.ALPACA_SECRET_KEY),
+    secContact:
+      normalizeOptionalSecret(parsed.data.EXVA_SEC_CONTACT) ??
+      "support@exva.app",
+    appVersion:
+      normalizeOptionalSecret(parsed.data.EXVA_APP_VERSION) ?? "0.1.0",
     ntfyTopicUrl:
       normalizeOptionalSecret(parsed.data.EXVA_NTFY_URL) ??
       normalizeOptionalSecret(parsed.data.EXVA_NTFY_TOPIC_URL),

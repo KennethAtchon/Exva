@@ -1,5 +1,6 @@
 import type { App } from "electron";
 import { env } from "../config/env";
+import { AppError } from "@electron/shared/infra/errors";
 import { createDbClient } from "@main/db/client";
 import {
   SEEDED_ALPACA_BROKER_ID,
@@ -62,6 +63,7 @@ import { attachEventBusObserver } from "./infra/event-bus-observer";
 import { createLogger } from "./infra/log";
 import { NotificationService } from "./infra/notification-service";
 import { MarketDataService } from "./marketdata/market-data-service";
+import { HistoricalBackfillService } from "./marketdata/historical-backfill-service";
 import { createSessionRoutedGetBars } from "./marketdata/session-routed-get-bars";
 import { resolveWorkspaceBrokerAccountId } from "./marketdata/workspace-broker-account";
 import { CalibrationService } from "./signals/forecast/calibration-service";
@@ -270,6 +272,7 @@ export interface AppServices {
   // Finish-line 08 operator power tools
   paletteQuery: PaletteQueryService;
   backtestLab: BacktestLabService;
+  historicalBackfill: HistoricalBackfillService;
   dataDoctor: DataDoctorService;
   morningBriefing: MorningBriefingService;
   equitySnapshots: EquitySnapshotService;
@@ -1111,6 +1114,41 @@ export async function createAppServices(app: App): Promise<AppServices> {
     experienceExperiments: repos.experienceExperiments,
     eventBus,
   });
+  const historicalBackfill = new HistoricalBackfillService({
+    marketData,
+    eventBus,
+    resolveAdapter: async (input) => {
+      const accountId =
+        input.brokerAccountId ??
+        resolveWorkspaceBrokerAccountId({
+          brokerType: "alpaca",
+          instrumentClass: input.instrumentClass,
+          listAccounts: () => repos.brokerAccounts.list(),
+          findAccount: (id) => repos.brokerAccounts.find(id),
+          listGlobalDefaults: () => repos.brokerRouting.listGlobalDefaults(),
+        });
+      if (!accountId) {
+        throw new AppError(
+          `No Alpaca account is configured for ${input.instrumentClass} market data`,
+          "NOT_FOUND",
+        );
+      }
+      const account = repos.brokerAccounts.require(accountId);
+      if (account.brokerType !== "alpaca") {
+        throw new AppError(
+          "Historical backfill currently requires an Alpaca broker account",
+          "UNSUPPORTED_INSTRUMENT",
+        );
+      }
+      return brokerRegistry.get(accountId);
+    },
+    normalizeWireSymbol: ({ symbol, instrumentClass, brokerType }) =>
+      instrumentNormalizer.toBrokerSymbol({
+        symbol: resolveCanonicalSymbol(symbol, instrumentClass),
+        instrumentClass,
+        brokerType,
+      }),
+  });
   const dataDoctor = new DataDoctorService({
     db,
     marketData,
@@ -1300,6 +1338,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     alphaSourceScans,
     paletteQuery,
     backtestLab,
+    historicalBackfill,
     dataDoctor,
     morningBriefing,
     equitySnapshots: equitySnapshotService,

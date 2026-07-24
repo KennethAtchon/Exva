@@ -112,6 +112,37 @@ export function registerOperatorHandlers(services: AppServices): void {
 
   handle(
     ipcMain,
+    channels.backtest.coverage,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const { symbol, timeframe } = z
+        .object({ symbol: z.string().min(1), timeframe: tradingTimeframeSchema })
+        .parse(payload);
+      return { coverage: services.marketData.getCoverage(symbol, timeframe) };
+    },
+  );
+
+  handle(
+    ipcMain,
+    channels.backtest.backfill,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const input = z
+        .object({
+          symbol: z.string().min(1),
+          instrumentClass: z.enum(["stock", "crypto", "options", "futures"]),
+          timeframe: tradingTimeframeSchema,
+          startIso: z.string().datetime(),
+          endIso: z.string().datetime(),
+          brokerAccountId: z.string().min(1).optional(),
+        })
+        .parse(payload);
+      return services.historicalBackfill.backfill(input);
+    },
+  );
+
+  handle(
+    ipcMain,
     channels.backtest.sweep,
     ipcPayloadUnknownSchema,
     async (payload) => {

@@ -143,6 +143,13 @@ export interface BrokerAdapter {
     barCount: number,
   ): Promise<OhlcvBar[]>;
 
+  /** Optional: return all bars in an explicit historical window. */
+  getOhlcvRange?(
+    instrumentSymbol: string,
+    timeframe: TradingTimeframe,
+    window: { startIso: string; endIso: string },
+  ): Promise<OhlcvBar[]>;
+
   /**
    * Optional: return the option chain (volume/OI/greeks per contract) for an
    * underlying. Used by the options-flow experience for UOA detection and

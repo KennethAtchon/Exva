@@ -60,20 +60,24 @@ export function buildWorkerPrompt(input: WorkerPromptInput): LLMMessage[] {
     input.strategyContext.aiSettings.workerGuidanceMarkdown,
   );
   const engineResults = input.engineResults ?? {};
-
-  const userContent = [
+  const taskBlock = `<task>\n${JSON.stringify(task, null, 2)}\n</task>`;
+  const userBlocks = [
     `<trusted_strategy_facts>\n${strategyPrompt}\n</trusted_strategy_facts>`,
     presetGuidance.trim()
       ? `<trusted_strategy_guidance>\n${presetGuidance}\n</trusted_strategy_guidance>`
       : null,
     workerGuidance,
-    Object.keys(engineResults).length > 0
-      ? `<engine_results>\n${JSON.stringify(engineResults, null, 2)}\n</engine_results>`
-      : null,
-    `<task>\n${JSON.stringify(task, null, 2)}\n</task>`,
-  ]
-    .filter((block): block is string => block != null)
-    .join("\n\n");
+  ].filter((block): block is string => block != null);
+  const userWithoutEngineResults = [...userBlocks, taskBlock].join("\n\n");
+  const engineResultsBlock = renderEngineResultsBlock(
+    engineResults,
+    RUNTIME_DEFAULTS.prompt.maxUserPayloadChars -
+      userWithoutEngineResults.length -
+      2,
+  );
+  const userContent = engineResultsBlock
+    ? [...userBlocks, engineResultsBlock, taskBlock].join("\n\n")
+    : userWithoutEngineResults;
 
   const systemSections = [input.basePromptMarkdown.trim()];
   if (sandboxMode) {
@@ -105,11 +109,47 @@ export function buildWorkerPrompt(input: WorkerPromptInput): LLMMessage[] {
         workerId: input.workerId,
         ...sizes,
       },
-      "worker prompt exceeds RUNTIME_DEFAULTS.prompt limits (content unchanged — shorten session config or worker task)",
+      "worker prompt exceeds RUNTIME_DEFAULTS.prompt limits after engine-results truncation",
     );
   }
 
   return messages;
+}
+
+function renderEngineResultsBlock(
+  engineResults: Record<string, unknown>,
+  maxChars: number,
+): string | null {
+  if (Object.keys(engineResults).length === 0) return null;
+  const content = JSON.stringify(engineResults, null, 2);
+  const open = "<engine_results>\n";
+  const close = "\n</engine_results>";
+  const availableContentChars = maxChars - open.length - close.length;
+  if (availableContentChars <= 0) {
+    logger.warn(
+      {
+        originalChars: content.length,
+        retainedChars: 0,
+        cutChars: content.length,
+      },
+      "worker engine-results block omitted because protected prompt blocks consume the budget",
+    );
+    return null;
+  }
+  if (content.length <= availableContentChars)
+    return `${open}${content}${close}`;
+
+  const marker = "\n... engine results truncated";
+  const retainedChars = Math.max(0, availableContentChars - marker.length);
+  logger.warn(
+    {
+      originalChars: content.length,
+      retainedChars,
+      cutChars: content.length - retainedChars,
+    },
+    "worker engine-results block truncated to preserve protected prompt blocks",
+  );
+  return `${open}${content.slice(0, retainedChars)}${marker}${close}`;
 }
 
 function renderSandboxSystemBlock(

@@ -15,6 +15,13 @@
       "when": 1784768698889,
       "tag": "0001_thick_maginty",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784937600000,
+      "tag": "0002_signal_source_poll_drop_reasons",
+      "breakpoints": true
     }
   ]
 }

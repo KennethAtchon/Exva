@@ -479,6 +479,19 @@ describe("runMigrations", () => {
     testDb.sqlite.close();
   });
 
+  it("adds nullable poll drop-reason persistence", () => {
+    const testDb = createTestDb();
+    const cols = testDb.sqlite
+      .prepare(`PRAGMA table_info(signal_source_polls)`)
+      .all() as Array<{ name: string; notnull: number }>;
+    expect(
+      cols.some(
+        (column) => column.name === "drop_reasons_json" && column.notnull === 0,
+      ),
+    ).toBe(true);
+    testDb.sqlite.close();
+  });
+
   it("upgrades fixtures at 0012/0013/0014 to identical head schema", () => {
     const head = createTestDb();
     assertIntegrity(head.sqlite);

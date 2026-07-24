@@ -365,6 +365,14 @@ export type ExvaEventMap = {
     message: string;
     pct: number;
   };
+  backfill_progress: {
+    symbol: string;
+    timeframe: string;
+    chunkStart: string;
+    chunkEnd: string;
+    barsWritten: number;
+    done: boolean;
+  };
   equity_snapshot: {
     ts: string;
     total: number;

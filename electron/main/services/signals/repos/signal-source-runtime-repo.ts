@@ -18,6 +18,28 @@ function parseErrors(json: string): string[] {
   return Array.isArray(parsed) ? parsed.filter((e) => typeof e === "string") : [];
 }
 
+function parseDropReasons(
+  json: string | null,
+): Record<string, number> | undefined {
+  if (!json) return undefined;
+  const parsed = safeJsonParse<Record<string, unknown>>(
+    json,
+    undefined,
+    "source-poll.drop-reasons",
+  );
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return undefined;
+  }
+
+  const reasons: Record<string, number> = {};
+  for (const [reason, count] of Object.entries(parsed)) {
+    if (typeof count === "number" && Number.isFinite(count)) {
+      reasons[reason] = count;
+    }
+  }
+  return Object.keys(reasons).length > 0 ? reasons : undefined;
+}
+
 function toRuntimeState(row: {
   sourceId: string;
   status: string;
@@ -87,6 +109,7 @@ export class SignalSourceRuntimeRepo {
         detected: row.detected,
         passed: row.passed,
         dropped: row.dropped,
+        dropReasons: parseDropReasons(row.dropReasonsJson),
         errors: parseErrors(row.errorsJson),
         durationMs: row.durationMs,
         status: row.status as SignalSourceRuntimeStatus,
@@ -97,8 +120,9 @@ export class SignalSourceRuntimeRepo {
   recordPoll(input: RecordSignalSourcePollInput): SignalSourceRuntimeState {
     const prev = this.get(input.sourceId);
     const success = input.outcome === "success";
-    const { detected, passed, dropped, errors } = input.result;
+    const { detected, passed, dropped, dropReasons, errors } = input.result;
     const errorsJson = JSON.stringify(errors);
+    const dropReasonsJson = dropReasons ? JSON.stringify(dropReasons) : null;
     const updatedAt = new Date().toISOString();
 
     const stateRow = {
@@ -137,6 +161,7 @@ export class SignalSourceRuntimeRepo {
         detected,
         passed,
         dropped,
+        dropReasonsJson,
         errorsJson,
         durationMs: input.durationMs,
         status: input.status,

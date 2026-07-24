@@ -18,10 +18,19 @@ import {
   persistSourcePoll,
 } from "../persist-source-poll";
 import { createLogger } from "../../infra/log";
+import { env } from "../../../config/env";
 import { safeJsonParse } from "../../infra/safe-json-parse";
 
 const FEED_URL =
   "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&dateb=&owner=include&count=40&search_text=&output=atom";
+const SEC_USER_AGENT = `Exva/${env.appVersion} (contact: ${env.secContact})`;
+
+type EdgarDropReason =
+  | "no_cik"
+  | "cik_whitelist"
+  | "no_ticker"
+  | "too_fresh"
+  | "item_code";
 
 type EdgarConfig = {
   cikWhitelist?: string[];
@@ -113,6 +122,7 @@ export class EdgarSignalSource implements ISignalSource {
 
   private async pollOnce(): Promise<PollResult> {
     const result = emptyPollResult();
+    result.dropReasons = {};
     const polledAt = new Date().toISOString();
     const startedMs = Date.now();
     let outcome: SignalSourcePollOutcome = "success";
@@ -120,7 +130,7 @@ export class EdgarSignalSource implements ISignalSource {
     try {
       const response = await fetch(FEED_URL, {
         headers: {
-          "User-Agent": "Exva Signal Monitor",
+          "User-Agent": SEC_USER_AGENT,
           Accept: "application/atom+xml",
         },
       });
@@ -130,20 +140,25 @@ export class EdgarSignalSource implements ISignalSource {
       const entries = parseAtomEntries(body);
       result.detected = entries.length;
       for (const entry of entries) {
-        const cik = extractCik(entry.id);
-        if (this.config.cikWhitelist?.length && cik) {
-          if (!this.config.cikWhitelist.includes(cik)) {
-            result.dropped += 1;
+        const cik = extractCik(entry);
+        if (!cik) {
+          incrementDropReason(result, "no_cik");
+          continue;
+        }
+        if (this.config.cikWhitelist?.length) {
+          const whitelist = this.config.cikWhitelist.map(normalizeCik);
+          if (!whitelist.includes(cik)) {
+            incrementDropReason(result, "cik_whitelist");
             continue;
           }
         }
-        const ticker = cik ? await this.resolveTicker(cik) : null;
+        const ticker = await this.resolveTicker(cik);
         if (!ticker) {
-          result.dropped += 1;
+          incrementDropReason(result, "no_ticker");
           continue;
         }
         if (isTooFresh(entry.updated, this.config.minFilingAgeMinutes ?? 0)) {
-          result.dropped += 1;
+          incrementDropReason(result, "too_fresh");
           continue;
         }
         const itemCodes = extractItemCodes(entry.summary, entry.title);
@@ -152,7 +167,7 @@ export class EdgarSignalSource implements ISignalSource {
           itemCodeWhitelist?.length &&
           !itemCodes.some((code) => itemCodeWhitelist.includes(code))
         ) {
-          result.dropped += 1;
+          incrementDropReason(result, "item_code");
           continue;
         }
         const accessionNumber = extractAccession(entry.id);
@@ -193,7 +208,7 @@ export class EdgarSignalSource implements ISignalSource {
       this.pushActivity({
         at: polledAt,
         kind: "ok",
-        summary: `Poll OK - ${result.detected} detected, ${result.passed} passed, ${result.dropped} dropped`,
+        summary: `Poll OK - ${result.detected} detected, ${result.passed} passed, ${result.dropped} dropped (${formatDropReasons(result.dropReasons)})`,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -240,7 +255,7 @@ export class EdgarSignalSource implements ISignalSource {
       `https://data.sec.gov/submissions/CIK${padded}.json`,
       {
         headers: {
-          "User-Agent": "Exva Signal Monitor",
+          "User-Agent": SEC_USER_AGENT,
           Accept: "application/json",
         },
       },
@@ -306,9 +321,38 @@ function extractAccession(id: string): string | null {
   return match?.[1] ?? null;
 }
 
-function extractCik(id: string): string | null {
-  const match = id.match(/CIK=([0-9]+)/i);
-  return match?.[1] ?? null;
+function extractCik(entry: {
+  id: string;
+  title: string | null;
+  link: string | null;
+}): string | null {
+  const raw =
+    entry.id.match(/CIK=(\d+)/i)?.[1] ??
+    entry.link?.match(/\/edgar\/data\/(\d+)\//i)?.[1] ??
+    entry.title?.match(/\((\d{7,10})\)/)?.[1];
+  return raw ? normalizeCik(raw) : null;
+}
+
+function normalizeCik(cik: string): string {
+  return cik.replace(/^0+/, "") || "0";
+}
+
+function incrementDropReason(
+  result: PollResult,
+  reason: EdgarDropReason,
+): void {
+  result.dropped += 1;
+  result.dropReasons ??= {};
+  result.dropReasons[reason] = (result.dropReasons[reason] ?? 0) + 1;
+}
+
+function formatDropReasons(
+  reasons: Record<string, number> | undefined,
+): string {
+  const entries = Object.entries(reasons ?? {});
+  return entries.length > 0
+    ? entries.map(([reason, count]) => `${reason}=${count}`).join(", ")
+    : "none";
 }
 
 function isTooFresh(filedAtIso: string, minAgeMinutes: number): boolean {

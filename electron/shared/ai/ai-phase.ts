@@ -136,6 +136,7 @@ export interface PipelineDefinition<TInput = unknown, TOutput = unknown> {
 
 export interface RuntimeDefaultsConfig {
   retry: {
+    timeoutMs: number;
     providerAttempts: number;
     providerBackoffMs: readonly number[];
     stepAttempts: number;
@@ -163,6 +164,7 @@ export interface PhaseDefaultsConfig {
 
 export const RUNTIME_DEFAULTS: RuntimeDefaultsConfig = {
   retry: {
+    timeoutMs: 60_000,
     providerAttempts: 4,
     providerBackoffMs: [1_000, 2_000, 4_000, 8_000],
     stepAttempts: 5,
@@ -184,6 +186,7 @@ export const PHASE_DEFAULTS: Record<PipelinePhase, PhaseDefaultsConfig> = {
     phase: "selector",
     phaseSpendCapUsd: 0.3,
     workerCaps: { maxSteps: 50, spendLimitUsd: 0.3 },
+    retry: { timeoutMs: 120_000 },
   },
   technical: {
     phase: "technical",

@@ -280,3 +280,23 @@ describe("global worker guidance", () => {
     expect(user).toContain("Prefer liquid large caps only.");
   });
 });
+
+describe("engine results budget", () => {
+  it("truncates only engine results while preserving the complete task block", () => {
+    const task = { instrumentSymbol: "PM:EVENT", instruction: "keep this" };
+    const messages = buildWorkerPrompt({
+      phase: "selector",
+      workerId: "event-prediction-scout",
+      basePromptMarkdown: "# Scout",
+      task,
+      strategyContext: baseContext(),
+      strategyContextRequest: TEST_STRATEGY_CONTEXT_REQUEST,
+      engineResults: { oversized: "x".repeat(30_000) },
+    });
+    const user = messages.find((message) => message.role === "user")?.content;
+
+    expect(measureWorkerPrompt(messages).exceedsUser).toBe(false);
+    expect(user).toContain("... engine results truncated");
+    expect(user).toContain(JSON.stringify(task, null, 2));
+  });
+});

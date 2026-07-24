@@ -104,6 +104,17 @@ export function createInstrumentedBrokerAdapter(
       );
   }
 
+  if (inner.getOhlcvRange) {
+    const getOhlcvRange = inner.getOhlcvRange.bind(inner);
+    adapter.getOhlcvRange = (instrumentSymbol, timeframe, window) =>
+      traceBrokerInteraction(
+        logger,
+        "getOhlcvRange",
+        `${instrumentSymbol}/${timeframe}?start=${window.startIso}&end=${window.endIso}`,
+        () => getOhlcvRange(instrumentSymbol, timeframe, window),
+      );
+  }
+
   if (
     "fetchMarketCandidates" in inner &&
     typeof (inner as Partial<MarketDiscoveryAdapter>).fetchMarketCandidates ===

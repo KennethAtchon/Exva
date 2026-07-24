@@ -1344,6 +1344,7 @@ export const signalSourcePolls = sqliteTable(
     detected: integer("detected").notNull().default(0),
     passed: integer("passed").notNull().default(0),
     dropped: integer("dropped").notNull().default(0),
+    dropReasonsJson: text("drop_reasons_json"),
     errorsJson: text("errors_json").notNull().default("[]"),
     durationMs: integer("duration_ms").notNull().default(0),
     status: text("status").notNull(),

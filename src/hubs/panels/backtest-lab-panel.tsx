@@ -20,6 +20,7 @@ type RunRow = {
   windowStart: string;
   windowEnd: string;
 };
+type Coverage = { firstTs: string; lastTs: string; provider: string } | null;
 
 /**
  * Backtest Lab — run / compare / threshold sweep.
@@ -38,6 +39,8 @@ export function BacktestLabPanel() {
   const [sweepValues, setSweepValues] = useState("-2.5,-2,-1.5");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
+  const [backfillProgress, setBackfillProgress] = useState<string | null>(null);
+  const [coverage, setCoverage] = useState<Coverage>(null);
   const [lastResult, setLastResult] = useState<Record<string, unknown> | null>(
     null,
   );
@@ -69,6 +72,20 @@ export function BacktestLabPanel() {
   useExvaEvent("backtest_progress", (p) => {
     setProgress(`${p.phase} ${p.pct}% — ${p.message}`);
   });
+  useExvaEvent("backfill_progress", (p) => {
+    setBackfillProgress(
+      `${p.done ? "Complete" : "Fetching"} ${p.chunkStart.slice(0, 10)} to ${p.chunkEnd.slice(0, 10)} · ${p.barsWritten} bars`,
+    );
+  });
+
+  const selectedSymbol = symbols.split(/[\s,]+/).find(Boolean) ?? "";
+  useEffect(() => {
+    if (!selectedSymbol) return;
+    void api
+      .backtestCoverage(selectedSymbol, timeframe)
+      .then((result) => setCoverage(result.coverage))
+      .catch((err) => setError(formatIpcError(err).display));
+  }, [selectedSymbol, timeframe]);
 
   const baseInput = useMemo(
     () => ({
@@ -135,6 +152,31 @@ export function BacktestLabPanel() {
       setBusy(false);
     }
   };
+
+  const backfill = async () => {
+    if (!selectedSymbol) return;
+    setBusy(true);
+    setError(null);
+    setBackfillProgress("Starting historical pull…");
+    try {
+      await api.backtestBackfill({
+        symbol: selectedSymbol,
+        instrumentClass: selectedSymbol.includes("-") ? "crypto" : "stock",
+        timeframe,
+        startIso: windowStart,
+        endIso: windowEnd,
+      });
+      const result = await api.backtestCoverage(selectedSymbol, timeframe);
+      setCoverage(result.coverage);
+    } catch (err) {
+      setError(formatIpcError(err).display);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const requestedRangeExceedsCoverage =
+    coverage && (windowStart < coverage.firstTs || windowEnd > coverage.lastTs);
 
   const compare = async () => {
     if (compareIds.length < 2) return;
@@ -212,7 +254,35 @@ export function BacktestLabPanel() {
               onChange={(e) => setWindowEnd(e.target.value)}
             />
           </Field>
+          <div className="border-y border-hairline py-3">
+            <div className="font-mono text-micro uppercase tracking-wider text-text3">
+              Data coverage
+            </div>
+            <div className="mt-1 font-mono text-micro text-text2">
+              {coverage
+                ? `${coverage.firstTs.slice(0, 10)} to ${coverage.lastTs.slice(0, 10)} · ${coverage.provider}`
+                : "No stored bars for selected symbol/timeframe."}
+            </div>
+            {requestedRangeExceedsCoverage ? (
+              <div className="mt-1 font-sans text-caption text-warning">
+                Requested run window exceeds stored coverage. Backfill it before
+                running.
+              </div>
+            ) : null}
+            {backfillProgress ? (
+              <div className="mt-1 font-mono text-micro text-text3">
+                {backfillProgress}
+              </div>
+            ) : null}
+          </div>
           <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              disabled={busy}
+              onClick={() => void backfill()}
+            >
+              Backfill range
+            </Button>
             <Button disabled={busy} onClick={() => void run()}>
               Run
             </Button>

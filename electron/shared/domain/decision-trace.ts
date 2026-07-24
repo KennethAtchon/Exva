@@ -103,6 +103,12 @@ export interface TradeDecisionTrace {
     fractionalKelly: number;
     cappedBy: string;
   };
+  /** Stop/target values used to calculate the pre-trade edge estimate. */
+  effectiveRisk?: {
+    stopLossPct: number;
+    takeProfitPct: number;
+    derivation: "explicit" | "atr_derived" | "default_fallback";
+  };
 }
 
 /** Row shape persisted in the `decision_traces` table. */

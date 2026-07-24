@@ -579,6 +579,9 @@ export const api = {
   backtestRun: (input: unknown) => bridge().backtest.run(input),
   backtestCompare: (runIds: string[]) => bridge().backtest.compare({ runIds }),
   backtestSweep: (input: unknown) => bridge().backtest.sweep(input),
+  backtestBackfill: (input: unknown) => bridge().backtest.backfill(input),
+  backtestCoverage: (symbol: string, timeframe: string) =>
+    bridge().backtest.coverage({ symbol, timeframe }),
   dataDoctorCoverage: () => bridge().dataDoctor.coverage(),
   dataDoctorGaps: (symbol: string, timeframe: string) =>
     bridge().dataDoctor.gaps({ symbol, timeframe }),

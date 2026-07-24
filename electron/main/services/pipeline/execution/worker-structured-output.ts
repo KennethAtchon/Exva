@@ -10,11 +10,17 @@ export function parseWorkerOutput<T>(
   contract: AIWorkerOutputSchema<T>,
   structuredOutput: unknown | undefined,
   retried: boolean,
+  recover?: (output: unknown) => unknown | undefined,
 ): WorkerOutputAttempt<T> | { needsRetry: true; retried: boolean } {
-  const parsed =
+  let parsed =
     structuredOutput !== undefined
       ? contract.schema.safeParse(structuredOutput)
       : { success: false as const, error: null };
+
+  if (!parsed.success && structuredOutput !== undefined && recover) {
+    const recovered = recover(structuredOutput);
+    if (recovered !== undefined) parsed = contract.schema.safeParse(recovered);
+  }
 
   if (parsed.success) {
     return { output: parsed.data, parseFallback: false, retried };

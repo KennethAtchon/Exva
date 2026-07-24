@@ -602,6 +602,23 @@ describe("PolymarketAdapter", () => {
       message: expect.stringMatching(/private key and funder address/i),
     });
   });
+
+  it("retries live authentication after a failed handshake", async () => {
+    clobClientMethods.createOrDeriveApiKey
+      .mockRejectedValueOnce(new Error("temporary auth failure"))
+      .mockResolvedValueOnce({
+        apiKey: "pm-key",
+        secret: "pm-secret",
+        passphrase: "pm-pass",
+      });
+    const adapter = new PolymarketAdapter(credentials, "live");
+
+    await expect(adapter.getAccountBalance()).rejects.toThrow(
+      "temporary auth failure",
+    );
+    await expect(adapter.getAccountBalance()).resolves.toBe(750);
+    expect(clobClientMethods.createOrDeriveApiKey).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("PolymarketAdapter money-field validation", () => {

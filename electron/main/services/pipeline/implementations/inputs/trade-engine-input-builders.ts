@@ -29,10 +29,14 @@ import {
   kellyFractionBinary,
 } from "@electron/shared/quant/kelly";
 import { evaluateEdgeDecision } from "@electron/shared/quant/decision-gate";
+import { computeAtr } from "@electron/shared/quant/atr";
+import { DEFAULT_STRATEGY_SECTION } from "@electron/shared/domain/session-strategy-config-defaults";
 import { defaultCalibrationService } from "../../../signals/forecast/calibration-service";
 import { requireExperience } from "../../../../experiences/index";
+import { resolveRulesOhlcvRequest } from "./rules-ohlcv-timeframe";
 
 const logger = createLogger("trade-engine-input-builders");
+const FALLBACK_REWARD_RISK_RATIO = 1;
 
 /**
  * Pre-trade edge + execution-cost + capital-allocation analytics (P4/P5/P6).
@@ -117,7 +121,7 @@ function computePreTradeEconomics(input: {
 
   const edge: EdgeEstimate = {
     modelId: `rules:${input.experienceId}`,
-    modelVersion: "proxy-1",
+    modelVersion: "proxy-2",
     asOf: new Date().toISOString(),
     targetHorizon: contract?.label.horizon ?? "1d",
     predictedProbability: confidence,
@@ -337,6 +341,63 @@ export const riskGateInputBuilder: EngineInputBuilder = {
         blackoutHours,
       }) ?? [];
 
+    let effectiveStopLossPct: number;
+    let derivation: "explicit" | "atr_derived" | "default_fallback";
+    if (ctx.strategyContext.riskConfig.stopLossPct != null) {
+      effectiveStopLossPct = ctx.strategyContext.riskConfig.stopLossPct;
+      derivation = "explicit";
+    } else if (
+      ctx.strategyContext.riskConfig.stopLossType === "trailing_atr" &&
+      ctx.strategyContext.riskConfig.atrStopMultiplier != null
+    ) {
+      try {
+        const wireSymbol = ctx.services.instrumentNormalizer.toBrokerSymbol({
+          symbol: ctx.instrument.symbol,
+          instrumentClass: ctx.instrument.instrumentClass,
+          brokerType: adapter.brokerType,
+        });
+        const getOhlcv = adapter.getOhlcv?.bind(adapter);
+        if (!getOhlcv) throw new Error("Broker does not provide OHLCV data");
+        const { timeframe, barCount } = resolveRulesOhlcvRequest(
+          ctx.instrument.instrumentMetadataJson,
+        );
+        const bars = await getOhlcv(wireSymbol, timeframe, Math.max(barCount, 15));
+        const atr = computeAtr(bars);
+        const referencePrice = state.quoteSnapshot?.price ?? bars.at(-1)?.close;
+        if (
+          !atr ||
+          referencePrice == null ||
+          !Number.isFinite(referencePrice) ||
+          referencePrice <= 0
+        ) {
+          throw new Error("ATR derivation requires a positive ATR and reference price");
+        }
+        effectiveStopLossPct =
+          (ctx.strategyContext.riskConfig.atrStopMultiplier * atr * 100) /
+          referencePrice;
+        derivation = "atr_derived";
+      } catch (err) {
+        logger.warn(
+          {
+            err,
+            sessionId: ctx.sessionId,
+            cycleId: ctx.cycleId,
+            symbol: ctx.instrument.symbol,
+            rung: "atr_derived",
+          },
+          "risk gate ATR stop derivation failed; using default stop",
+        );
+        effectiveStopLossPct = DEFAULT_STRATEGY_SECTION.stopLossPct;
+        derivation = "default_fallback";
+      }
+    } else {
+      effectiveStopLossPct = DEFAULT_STRATEGY_SECTION.stopLossPct;
+      derivation = "default_fallback";
+    }
+    const effectiveTakeProfitPct =
+      ctx.strategyContext.riskConfig.takeProfitPct ??
+      effectiveStopLossPct * FALLBACK_REWARD_RISK_RATIO;
+
     // P4/P5/P6: compute pre-trade edge, cost hurdle, and capital-allocator
     // size. Persist to the decision trace (observability), cap the order to the
     // allocator recommendation, and skip negative-expectancy trades.
@@ -345,8 +406,8 @@ export const riskGateInputBuilder: EngineInputBuilder = {
       instrumentClass: ctx.instrument.instrumentClass,
       side,
       confidence: decision.output.confidence,
-      takeProfitPct: executionProfile.takeProfitPct,
-      stopLossPct: executionProfile.stopLossPct,
+      takeProfitPct: effectiveTakeProfitPct,
+      stopLossPct: effectiveStopLossPct,
       sizeUsd: scaledSizeUsd,
       maxPositionUsd: ctx.strategyContext.riskConfig.maxPositionUsd,
       maxExposureUsd: ctx.strategyContext.riskConfig.maxExposureUsd ?? null,
@@ -360,6 +421,11 @@ export const riskGateInputBuilder: EngineInputBuilder = {
         recommendedSizeUsd: economics.allocation.sizeUsd,
         fractionalKelly: economics.allocation.fractionalKelly,
         cappedBy: economics.allocation.cappedBy,
+      },
+      effectiveRisk: {
+        stopLossPct: effectiveStopLossPct,
+        takeProfitPct: effectiveTakeProfitPct,
+        derivation,
       },
     });
     const calibrationHaircut = defaultCalibrationService.calibrationHaircut(
