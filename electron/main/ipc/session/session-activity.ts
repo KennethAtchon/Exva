@@ -53,4 +53,15 @@ export function registerSessionActivityHandlers(services: AppServices): void {
       return services.sessionActivityTracker.getAnalytics(sessionId);
     },
   );
+
+  handle(
+    ipcMain,
+    channels.sessionActivity.firstDivergence,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const { sessionId } = sessionIdParamSchema.parse(payload);
+      assertSessionInWorkspaceEnvironment(services, sessionId);
+      return services.cycleFunnel.firstDivergence(sessionId);
+    },
+  );
 }

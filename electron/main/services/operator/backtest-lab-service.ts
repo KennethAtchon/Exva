@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 import type { TradingTimeframe } from "@electron/shared/domain/enums";
 import type { BacktestRun, BacktestVerdict } from "@electron/shared/domain";
+import {
+  DEFAULT_BACKTEST_V2_EXECUTION,
+  DEFAULT_BACKTEST_V2_PORTFOLIO,
+  type BacktestRunSpecV2,
+} from "@electron/shared/domain/backtest-v2";
 import type { BacktestRunsRepo } from "../../db/repositories/research/experiment-repos";
 import type { ExperienceExperimentsRepo } from "../../db/repositories/experiences/experience-experiments-repo";
 import type { EventBus } from "../infra/event-bus";
@@ -12,9 +17,21 @@ import {
   type ExitPolicyConfig,
   type FoldConfig,
 } from "../backtest/replay-engine";
+import { PortfolioReplayEngine } from "../backtest/portfolio-replay-engine";
 import { getStrategyDefinitionRegistry } from "../strategies";
 import { requireExperience } from "../../experiences";
 import { safeJsonParse } from "../infra/safe-json-parse";
+
+const ENGINE_VERSION_V2 = 2;
+
+/** Strategies that the V2 portfolio engine can drive today. */
+const V2_OHLCV_STRATEGY_IDS = new Set([
+  "mean-reversion",
+  "breakout",
+  "unusual-volume",
+  "trend-following",
+  "ny-range-breakout",
+]);
 
 export interface BacktestLabRunInput {
   experienceId: string;
@@ -122,7 +139,7 @@ export class BacktestLabService {
     this.emitProgress({
       runId,
       phase: "running",
-      message: "Running walk-forward…",
+      message: "Running portfolio replay…",
       pct: 40,
     });
 
@@ -143,18 +160,140 @@ export class BacktestLabService {
       // Experience may be a free-form lab id.
     }
 
-    const result = runBacktest({
-      experienceId: input.experienceId,
-      strategy,
-      symbols: input.symbols,
-      timeframe: input.timeframe,
-      window: { start: input.windowStart, end: input.windowEnd },
-      folds: input.folds,
-      foldConfig: input.foldConfig,
-      costs,
-      exitPolicy: input.exitPolicy ?? { maxHoldBars: 20, stopLossPct: 0.02 },
-      barsBySymbol,
-    });
+    const useV2 = V2_OHLCV_STRATEGY_IDS.has(input.strategyId);
+    let result: BacktestResult;
+    let portfolioExtras: {
+      netPnlUsd: number;
+      endingEquityUsd: number;
+      maxDrawdownUsd: number;
+      equityPointCount: number;
+    } | null = null;
+    let specHash: string | null = null;
+    let datasetHash: string | null = null;
+
+    if (useV2) {
+      const barsMap = new Map(
+        Object.entries(barsBySymbol).map(([symbol, bars]) => [symbol, bars]),
+      );
+      datasetHash = createHash("sha256")
+        .update(
+          [...barsMap.entries()]
+            .map(
+              ([symbol, bars]) =>
+                `${symbol}:${bars.map((b) => `${b.ts}:${b.close}`).join(",")}`,
+            )
+            .join("|"),
+        )
+        .digest("hex")
+        .slice(0, 16);
+
+      const spec: BacktestRunSpecV2 = {
+        schemaVersion: 2,
+        experienceId: input.experienceId,
+        strategy: {
+          id: input.strategyId,
+          implementationVersion: def.implementationVersion,
+          parameters: params as Record<string, unknown>,
+        },
+        instruments: input.symbols.map((symbol) => ({
+          symbol,
+          instrumentClass: (input.instrumentClass ?? "stock") as
+            | "stock"
+            | "crypto"
+            | "futures"
+            | "options"
+            | "prediction_market",
+          timeframe: input.timeframe,
+        })),
+        window: { start: input.windowStart, end: input.windowEnd },
+        folds: {
+          count: input.folds,
+          purgeBars: input.foldConfig?.purge ?? 1,
+        },
+        portfolio: { ...DEFAULT_BACKTEST_V2_PORTFOLIO },
+        execution: { ...DEFAULT_BACKTEST_V2_EXECUTION },
+        costs: {
+          spreadBps: costs.spreadBps,
+          commissionBps: costs.feeBps,
+          slippageBps: costs.slippageBps,
+        },
+      };
+      specHash = createHash("sha256")
+        .update(JSON.stringify(spec))
+        .digest("hex")
+        .slice(0, 16);
+
+      const portfolio = new PortfolioReplayEngine().run({
+        spec,
+        strategy,
+        barsBySymbol: barsMap,
+      });
+      portfolioExtras = {
+        netPnlUsd: portfolio.netPnlUsd,
+        endingEquityUsd: portfolio.endingEquityUsd,
+        maxDrawdownUsd: portfolio.maxDrawdownUsd,
+        equityPointCount: portfolio.equity.length,
+      };
+
+      const closed = portfolio.trades.filter((t) => t.exitTs != null);
+      const expectancyBps =
+        closed.length > 0
+          ? closed.reduce((sum, t) => sum + (t.returnBps ?? 0), 0) /
+            closed.length
+          : 0;
+      result = {
+        runHash: createHash("sha256")
+          .update(`${specHash}:${datasetHash}:${portfolio.netPnlUsd}`)
+          .digest("hex")
+          .slice(0, 16),
+        experienceId: input.experienceId,
+        strategyId: input.strategyId,
+        trades: closed.map((t) => ({
+          symbol: t.symbol,
+          side: t.side === "long" ? ("buy" as const) : ("sell" as const),
+          entryTs: t.entryTs,
+          exitTs: t.exitTs!,
+          entryPrice: t.entryPrice,
+          exitPrice: t.exitPrice!,
+          returnBps: t.returnBps ?? 0,
+          netReturnBps: t.returnBps ?? 0,
+          fold: 0,
+          evidence: {},
+        })),
+        folds: [
+          {
+            fold: 0,
+            tradeCount: closed.length,
+            expectancyBps,
+            sharpe: 0,
+            maxDrawdownPct: portfolio.maxDrawdownPct,
+            winRate:
+              closed.length > 0
+                ? closed.filter((t) => t.realizedPnlUsd > 0).length /
+                  closed.length
+                : 0,
+          },
+        ],
+        tradeCount: closed.length,
+        expectancyBps,
+        sharpe: 0,
+        maxDrawdownPct: portfolio.maxDrawdownPct,
+        costDragBps: costs.spreadBps + costs.feeBps + costs.slippageBps,
+      };
+    } else {
+      result = runBacktest({
+        experienceId: input.experienceId,
+        strategy,
+        symbols: input.symbols,
+        timeframe: input.timeframe,
+        window: { start: input.windowStart, end: input.windowEnd },
+        folds: input.folds,
+        foldConfig: input.foldConfig,
+        costs,
+        exitPolicy: input.exitPolicy ?? { maxHoldBars: 20, stopLossPct: 0.02 },
+        barsBySymbol,
+      });
+    }
 
     this.emitProgress({
       runId,
@@ -180,6 +319,7 @@ export class BacktestLabService {
         symbols: input.symbols,
         timeframe: input.timeframe,
         exitPolicy: input.exitPolicy ?? {},
+        engineVersion: useV2 ? ENGINE_VERSION_V2 : 1,
       }),
       costModelJson: JSON.stringify(costs),
       metricsJson: JSON.stringify({
@@ -191,9 +331,14 @@ export class BacktestLabService {
         folds: result.folds,
         strategyId: result.strategyId,
         runHash: result.runHash,
+        ...(portfolioExtras ?? {}),
       }),
       verdict,
       createdAt: new Date().toISOString(),
+      engineVersion: useV2 ? ENGINE_VERSION_V2 : 1,
+      specHash,
+      datasetHash,
+      researchContractHash: contractHash,
     };
     this.deps.backtestRuns.insert(run);
 

@@ -446,6 +446,8 @@ export const trades = sqliteTable(
     executionCostUsd: real("execution_cost_usd"),
     takeProfitTouchedAt: text("take_profit_touched_at"),
     stopTouchedAt: text("stop_touched_at"),
+    /** strategy | certification — existing rows read as strategy. */
+    originKind: text("origin_kind").notNull().default("strategy"),
     createdAt: text("created_at").notNull(),
   },
   (table) => ({
@@ -920,6 +922,11 @@ export const backtestRuns = sqliteTable(
     costModelJson: text("cost_model_json").notNull(),
     metricsJson: text("metrics_json").notNull(),
     verdict: text("verdict").notNull(),
+    /** Null reads as V1. */
+    engineVersion: integer("engine_version"),
+    specHash: text("spec_hash"),
+    datasetHash: text("dataset_hash"),
+    researchContractHash: text("research_contract_hash"),
     createdAt: text("created_at").notNull(),
   },
   (table) => ({
@@ -1528,6 +1535,160 @@ export const paperPositions = sqliteTable(
     accountOpenIdx: index("idx_paper_positions_account_open").on(
       table.accountId,
       table.open,
+    ),
+  }),
+);
+
+/** Paper certification runs (Solution 01). */
+export const paperCertificationRuns = sqliteTable(
+  "paper_certification_runs",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    brokerAccountId: text("broker_account_id")
+      .notNull()
+      .references(() => brokerAccounts.id),
+    symbol: text("symbol").notNull().default("SPY"),
+    notionalUsd: real("notional_usd").notNull().default(10),
+    status: text("status").notNull(),
+    entryClientOrderId: text("entry_client_order_id").notNull(),
+    entryWireClientOrderId: text("entry_wire_client_order_id"),
+    entryBrokerOrderId: text("entry_broker_order_id"),
+    exitClientOrderId: text("exit_client_order_id"),
+    exitWireClientOrderId: text("exit_wire_client_order_id"),
+    exitBrokerOrderId: text("exit_broker_order_id"),
+    filledQuantity: real("filled_quantity").notNull().default(0),
+    failureCode: text("failure_code"),
+    failureMessage: text("failure_message"),
+    armedAt: text("armed_at").notNull(),
+    completedAt: text("completed_at"),
+  },
+  (table) => ({
+    accountDayIdx: index("idx_paper_cert_account_armed").on(
+      table.brokerAccountId,
+      table.armedAt,
+    ),
+  }),
+);
+
+/** Idempotent order intents before broker HTTP (Solution 01 / 02). */
+export const orderIntents = sqliteTable(
+  "order_intents",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    signalId: text("signal_id"),
+    originKind: text("origin_kind").notNull().default("strategy"),
+    brokerAccountId: text("broker_account_id")
+      .notNull()
+      .references(() => brokerAccounts.id),
+    canonicalClientOrderId: text("canonical_client_order_id").notNull(),
+    wireClientOrderId: text("wire_client_order_id").notNull(),
+    status: text("status").notNull(),
+    side: text("side").notNull(),
+    symbol: text("symbol").notNull(),
+    notionalUsd: real("notional_usd"),
+    quantity: real("quantity"),
+    brokerOrderId: text("broker_order_id"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => ({
+    clientOrderUnique: uniqueIndex("idx_order_intents_client").on(
+      table.brokerAccountId,
+      table.canonicalClientOrderId,
+    ),
+    wireClientUnique: uniqueIndex("idx_order_intents_wire").on(
+      table.brokerAccountId,
+      table.wireClientOrderId,
+    ),
+  }),
+);
+
+export const brokerOrderEvents = sqliteTable(
+  "broker_order_events",
+  {
+    id: text("id").primaryKey(),
+    orderIntentId: text("order_intent_id")
+      .notNull()
+      .references(() => orderIntents.id, { onDelete: "cascade" }),
+    brokerOrderId: text("broker_order_id"),
+    status: text("status").notNull(),
+    rawStatus: text("raw_status"),
+    payloadJson: text("payload_json").notNull().default("{}"),
+    occurredAt: text("occurred_at").notNull(),
+  },
+  (table) => ({
+    intentIdx: index("idx_broker_order_events_intent").on(table.orderIntentId),
+  }),
+);
+
+export const brokerFills = sqliteTable(
+  "broker_fills",
+  {
+    id: text("id").primaryKey(),
+    orderIntentId: text("order_intent_id")
+      .notNull()
+      .references(() => orderIntents.id, { onDelete: "cascade" }),
+    brokerOrderId: text("broker_order_id").notNull(),
+    quantity: real("quantity").notNull(),
+    price: real("price").notNull(),
+    feeUsd: real("fee_usd").notNull().default(0),
+    filledAt: text("filled_at").notNull(),
+  },
+  (table) => ({
+    intentIdx: index("idx_broker_fills_intent").on(table.orderIntentId),
+  }),
+);
+
+/** One terminal funnel outcome per cycle (Solution 02 WS9). */
+export const cycleFunnelOutcomes = sqliteTable(
+  "cycle_funnel_outcomes",
+  {
+    cycleId: text("cycle_id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    inputId: text("input_id"),
+    originKind: text("origin_kind").notNull().default("strategy"),
+    terminalStage: text("terminal_stage").notNull(),
+    outcome: text("outcome").notNull(),
+    reasonCode: text("reason_code").notNull(),
+    detailJson: text("detail_json").notNull().default("{}"),
+    occurredAt: text("occurred_at").notNull(),
+  },
+  (table) => ({
+    sessionIdx: index("idx_cycle_funnel_session").on(
+      table.sessionId,
+      table.occurredAt,
+    ),
+  }),
+);
+
+/** Per-session per-day uptime coverage (Solution 08 WS4). */
+export const sessionUptimeDays = sqliteTable(
+  "session_uptime_days",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    dayKey: text("day_key").notNull(),
+    eligibleWindowMinutes: real("eligible_window_minutes").notNull().default(0),
+    liveMinutes: real("live_minutes").notNull().default(0),
+    coveragePct: real("coverage_pct").notNull().default(0),
+    firstEligibleScanAt: text("first_eligible_scan_at"),
+    minutesLateAtOpen: real("minutes_late_at_open"),
+    unplannedStops: integer("unplanned_stops").notNull().default(0),
+  },
+  (table) => ({
+    sessionDayUnique: uniqueIndex("idx_session_uptime_day").on(
+      table.sessionId,
+      table.dayKey,
     ),
   }),
 );

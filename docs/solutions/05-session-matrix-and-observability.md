@@ -2,6 +2,8 @@
 
 > **Outcome:** The default matrix contains one guaranteed paper plumbing proof, reachable primary
 > strategies, one EDGAR lane, one Polymarket lane, and honest sentinels for unfinished classes.
+> Equity-hours sessions go dormant after close (wake via `setTimeout` at next open) so post-close
+> activity and logs collapse and open-market first-divergence stays readable.
 
 Implements: docs/engineering/CODING_GUIDELINES.md
 
@@ -99,6 +101,119 @@ open-market stale-data failure exists.
 `NO_SETUP` is the only headline that means "the strategy looked and declined." Every other code above
 means the strategy never got a fair look, and they must never be collapsed into it.
 
+## Workstream: Dormant Until Market Open (P2-3)
+
+> **Problem:** §5.5 of the diagnosis. After the equity close the session keeps working — selector
+> cycles, delivery processing, exclusion WARNs, and `Signal delivery queued; market is closed`
+> messages (115+ EDGAR drops on July 27). Hours filtering was correct; the noise and wasted cycles
+> buried the earlier open-market first divergence and made operators blame market hours for a day that
+> failed while the market was open.
+> **Owns:** P2-3.
+
+### Verified current behavior
+
+Partial wake-at-open already exists for the **empty-selector** path only:
+
+- `MarketHoursService.nextTradableAt()` returns the next equity open when exclusions are hours-only.
+- `TradingCycleContext.marketClosedRetryAt` + `noInstrumentRetryTimer` (`setTimeout` in
+  `cycle-refill.ts`) defer the next selector refill until open (or the fixed retry floor).
+- `instrument-queue.ts` can emit "Waiting until the next open … instead of re-polling."
+
+That is not dormancy. After close, EDGAR (and any other signal source) keeps delivering. Each queued
+delivery still runs a full selector cycle (`agent-orchestrator` → `run-selector`), which excludes
+everything as `exchange_closed`, logs WARN, and may re-arm timers. The session stays busy and the log
+grows linearly with after-hours traffic.
+
+### Required behavior
+
+When a session's tradable universe is blocked solely by market hours, the session enters
+`market_closed` **dormancy** until the next open. Not "keep cycling quietly" — **stop activity**.
+
+```text
+open-market work
+      │
+      ▼
+hours-only block detected ──► ONE enter log (reason + nextOpenAt ET)
+      │
+      ▼
+arm setTimeout(wakeAtOpen)   ◄── reuse/extend noInstrumentRetryTimer
+      │
+      ▼
+DORMANT until timer fires
+  • no selector cycles
+  • no trade cycles
+  • no per-delivery processing that re-runs market-hours filter
+  • inbound equity-hours deliveries: queue/hold OR quiet-complete + counter
+  • no exchange_closed / "market is closed" log spam
+      │
+      ▼
+timer fires (or clock past nextOpenAt) ──► ONE resume log (+ skip count)
+      │
+      ▼
+resume normal scan / delivery / selector work
+```
+
+| Transition | Session action | Log / event |
+| ---------- | -------------- | ----------- |
+| Enter `market_closed` dormancy | Clear in-flight selector/refill work that would only re-hit hours; arm wake-at-open `setTimeout`; set activity `market_closed` | One INFO: reason + `nextOpenAt` ET |
+| While dormant | No orchestrator activity for that session until wake | Counters only (`market_closed_skips_N`); zero WARN walls |
+| Leave dormancy | Clear timer/state; resume listener + next eligible cycle | One INFO: resumed + quiet drop/hold count |
+
+Rules:
+
+1. **Dormancy is the primary fix; log collapse is a consequence.** If the session is truly idle until
+   open, the wall cannot form.
+2. **Wake with `setTimeout` to `nextOpenAt`** (clamp to Node's max delay; if open is farther, chain
+   or re-arm). Reuse `noInstrumentRetryTimer` / `scheduleCycleRefillAfterDelayIfIdle` — do not invent a
+   second timer family. Do not poll on the fixed no-instrument interval while dormant.
+3. **One enter log per closed window per session.** Same `nextOpenAt` → no re-log, no re-entry churn.
+4. **While dormant, signal deliveries must not restart the orchestrator.** Hold until wake, or
+   quiet-complete with `dropReason: market_hours_filtered` and bump a counter. Never run selector just
+   to discover `exchange_closed` again.
+5. **Scheduled equity scans also pause.** A rules session on NYSE hours must not keep firing
+   evaluations that can only return hours-blocked / closed-market freshness. Crypto / always-open
+   calendars are exempt and must keep running.
+6. **Open-market failures stay loud.** Stale input, insufficient history, provider errors, and
+   `no_setup` during regular hours are never folded into dormancy.
+7. **UI headline:** `WAITING: MARKET_CLOSED` with `nextOpenAt`, never `attention_required`, and never
+   the card headline when an earlier open-market first-divergence already exists for that day.
+8. **Stop / restart clears dormancy cleanly.** Stopping the session clears the timer; starting while
+   still closed re-enters with at most one new enter log for that window.
+
+### Touch points
+
+| Area | Change |
+| ---- | ------ |
+| `trading-cycle-context.ts` / `cycle-refill.ts` | Durable dormancy flag + single wake-at-open `setTimeout`; clear on stop/resume |
+| `instrument-queue.ts` | Enter dormancy on hours-only empty handoff; no fixed-interval re-poll while waiting |
+| `agent-orchestrator.ts` signal listener | Ignore or quiet-complete queued deliveries while dormant; do not `scheduleSelectorCycle` |
+| `run-selector.ts` | First hours-only all-filtered result enters dormancy; later cycles never run until wake |
+| Scheduled scan / alpha source path | Skip tick for equity-hours sessions while dormant (or arm next tick at open) |
+| `session-activity-tracker.ts` | Align `market_closed` enter/clear with dormancy + single log |
+| Funnel / session card | Waiting state + skip/hold count; preserve earlier first-divergence |
+
+### Required tests
+
+- After-hours burst of N queued deliveries → session enters dormancy once; **zero** selector cycles
+  after enter; N holds/quiet drops; exactly one enter log.
+- `setTimeout` / fake timers: advance to `nextOpenAt` → one resume log, then normal activity resumes.
+- While dormant, fixed no-instrument retry does **not** fire extra selector cycles.
+- Same closed window revisited → still one enter log; timer not duplicated.
+- Regular-hours stale/insufficient/no_setup paths still emit and still run cycles.
+- BTC / always-open session never enters equity `market_closed` dormancy from this path.
+- Session stop during dormancy clears the timer; no wake callback after stop.
+
+### Acceptance
+
+- [ ] After equity close, an affected session does **no** selector/trade-cycle work until the next open
+      (or explicit stop).
+- [ ] Wake is a single timer to `nextOpenAt`, not fixed-interval polling.
+- [ ] Post-close soak with EDGAR (or fixture deliveries) produces **one** market-closed transition
+      log per session, not a wall.
+- [ ] On reopen, one resume log; subsequent open-market cycles run and log normally.
+- [ ] Open-market first-divergence remains findable in the same day's log.
+- [ ] Funnel still counts after-hours holds/drops; activity and log volume both collapse.
+
 ## Alerts
 
 ### Fix the Existing Staleness Detector First
@@ -171,4 +286,5 @@ The report must contain:
 - [ ] `no_setup` is never used for a scan that was stale, starved, or degraded.
 - [ ] Staleness detection catches a session that goes quiet, not only one that starts dead.
 - [ ] Uptime coverage is reported before any setup-rate claim.
+- [ ] Post-close equity-hours sessions go dormant until next open (one timer, one enter/resume log; P2-3).
 - [ ] A new alpha session exists only if Lab V2 promotion passes.

@@ -22,6 +22,7 @@ import { registerControlHandlers } from "./control";
 import { registerExperienceCatalogHandlers } from "./experience-catalog";
 import { registerOperatorHandlers } from "./operator";
 import { registerDiagnosticsHandlers } from "./system/diagnostics";
+import { registerPaperCertificationHandlers } from "./trading/paper-certification";
 
 export function registerIpcHandlers(services: AppServices): void {
   registerDiagnosticsHandlers(services);
@@ -47,4 +48,5 @@ export function registerIpcHandlers(services: AppServices): void {
   registerOpsHandlers(services);
   registerControlHandlers(services);
   registerOperatorHandlers(services);
+  registerPaperCertificationHandlers(services);
 }

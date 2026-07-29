@@ -12,6 +12,10 @@ export function scheduleCycleRefillIfIdle(
     return;
   }
   if (ctx.stopped || !ctx.runtimeIsActive()) return;
+  if (ctx.marketClosedDormant) {
+    ctx.noteMarketClosedSkip();
+    return;
+  }
   if (ctx.cycleRestartInFlight) return;
   if (!canScheduleAutonomousSelector(ctx)) return;
 
@@ -75,6 +79,9 @@ export function scheduleCycleRefillAfterDelayIfIdle(
       return;
     }
     if (!ctx.runtimeIsActive()) return;
+    if (ctx.marketClosedDormant) {
+      ctx.leaveMarketClosedDormancy();
+    }
     scheduleCycleRefillIfIdle(ctx, scheduleSelectorCycle, label);
   }, retryMs);
 }

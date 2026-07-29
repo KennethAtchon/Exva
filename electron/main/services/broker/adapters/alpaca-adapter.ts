@@ -210,6 +210,50 @@ export class AlpacaAdapter implements BrokerAdapter {
     return resolveAccountBalance(account);
   }
 
+  /** Synchronous canonical → wire client order ID (Solution 01). */
+  prepareClientOrderId(canonicalClientOrderId: string): string {
+    return toAlpacaClientOrderId(canonicalClientOrderId);
+  }
+
+  async findOrderByClientOrderId(wireClientOrderId: string): Promise<{
+    brokerOrderId: string;
+    status: string;
+    filledQty: number;
+    filledAvgPrice: number | null;
+    rawStatus: string;
+  } | null> {
+    const params = new URLSearchParams({
+      client_order_id: wireClientOrderId,
+    });
+    try {
+      const order = await this.request<{
+        id: string;
+        status: string;
+        filled_qty?: string;
+        filled_avg_price?: string | null;
+      }>(`/v2/orders:by_client_order_id?${params}`);
+      return {
+        brokerOrderId: order.id,
+        status: mapAlpacaOrderStatus(order.status),
+        filledQty: Number(order.filled_qty ?? 0),
+        filledAvgPrice: order.filled_avg_price
+          ? Number(order.filled_avg_price)
+          : null,
+        rawStatus: order.status,
+      };
+    } catch (err) {
+      if (err instanceof AppError && err.code === "BROKER_NOT_FOUND") {
+        return null;
+      }
+      // Alpaca returns 404 when the client order id is unknown.
+      const message = err instanceof Error ? err.message : String(err);
+      if (/\b404\b/.test(message) || /not found/i.test(message)) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
   async getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot> {
     if (isCryptoWireSymbol(instrumentSymbol)) {
       return this.getCryptoMarketSnapshot(instrumentSymbol);
@@ -1323,6 +1367,17 @@ function sleep(ms: number): Promise<void> {
 function toAlpacaClientOrderId(clientOrderId: string): string {
   if (/^[A-Za-z0-9_-]{1,48}$/.test(clientOrderId)) return clientOrderId;
   return `exva-${createHash("sha256").update(clientOrderId).digest("hex").slice(0, 43)}`;
+}
+
+function mapAlpacaOrderStatus(raw: string): string {
+  const s = raw.toLowerCase();
+  if (s === "filled") return "filled";
+  if (s === "partially_filled") return "partially_filled";
+  if (s === "canceled" || s === "cancelled") return "canceled";
+  if (s === "expired") return "expired";
+  if (s === "rejected") return "rejected";
+  if (s === "new" || s === "accepted" || s === "pending_new") return "open";
+  return s;
 }
 
 /** Decode an Alpaca websocket frame into JSON, or null if it isn't parseable JSON. */

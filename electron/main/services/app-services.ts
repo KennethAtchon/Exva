@@ -48,6 +48,11 @@ import { DriftMonitorTicker } from "./research/drift-monitor-ticker";
 import { ResearchExperimentService } from "./research/research-experiment-service";
 import { WorkspacePreferencesRepo } from "../db/repositories/workspace/workspace-prefs-repo";
 import { LLMRuntime } from "./llm/index";
+import { HistoryProvisioningService } from "./marketdata/history-provisioning-service";
+import { CycleFunnelService } from "./orchestration/cycle-funnel-service";
+import { SignalCatchupService } from "./signals/signal-catchup-service";
+import { EdgarCandidateScreeningService } from "./signals/edgar-candidate-screening-service";
+import { SessionUptimeService } from "./session/session-uptime-service";
 import {
   BrokerBalanceCacheService,
   BrokerBalanceTicker,
@@ -140,6 +145,7 @@ import { MorningBriefingService } from "./operator/morning-briefing-service";
 import { EquitySnapshotService } from "./operator/equity-snapshot-service";
 import { WhatIfReplayService } from "./operator/what-if-replay-service";
 import { KillSwitchService } from "./operator/kill-switch-service";
+import { PaperCertificationService } from "./certification/paper-certification-service";
 import type { KillSwitchGauge } from "./operator/kill-switch-service";
 import { SignalSourcesRepo } from "./signals/repos/signal-sources-repo";
 import { SignalEventsRepo } from "./signals/repos/signal-events-repo";
@@ -281,6 +287,9 @@ export interface AppServices {
   equitySnapshots: EquitySnapshotService;
   whatIfReplay: WhatIfReplayService;
   killSwitch: KillSwitchService;
+  paperCertification: PaperCertificationService;
+  cycleFunnel: CycleFunnelService;
+  sessionUptime: SessionUptimeService;
   refreshTelegramCreds: () => Promise<void>;
 }
 
@@ -592,6 +601,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
   let runtimeManager: SessionRuntimeManager;
   // reason: killSwitch is constructed after orchestrator deps; order path reads via this ref
   let killSwitchRef: KillSwitchService | null = null;
+  const cycleFunnel = new CycleFunnelService(db);
+  const edgarScreening = new EdgarCandidateScreeningService();
   const orchestratorDepsBase: OrchestratorDeps = {
     sessionRepo: repos.session,
     strategyContextService: strategyContext,
@@ -628,6 +639,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
     calendarEventsRepo,
     supervisor,
     isOrderHalted: () => killSwitchRef?.isHalted() ?? false,
+    cycleFunnel,
+    edgarScreening,
   };
 
   const runtimeManagerDeps: SessionRuntimeManagerDeps = {
@@ -787,6 +800,11 @@ export async function createAppServices(app: App): Promise<AppServices> {
     researchExperiment,
   );
 
+  // Set after HistoricalBackfillService is constructed (below).
+  let provisionHistoryImpl:
+    | ((session: import("@/lib/types").WorkspaceSession) => Promise<void>)
+    | undefined;
+
   const session = new SessionService({
     sessionRepo: repos.session,
     tradesRepo: repos.trades,
@@ -799,6 +817,9 @@ export async function createAppServices(app: App): Promise<AppServices> {
     orchestratorDeps: orchestratorDepsBase,
     liveReadiness,
     clearOrderHalt: () => killSwitchRef?.clearHalt(),
+    provisionHistory: async (s) => {
+      if (provisionHistoryImpl) await provisionHistoryImpl(s);
+    },
   });
   pauseSessionForSupervisor = async (sessionId, reason) => {
     const status = repos.session.getStatus(sessionId);
@@ -1156,6 +1177,65 @@ export async function createAppServices(app: App): Promise<AppServices> {
         brokerType,
       }),
   });
+  const historyProvisioning = new HistoryProvisioningService({
+    marketData,
+    backfill: historicalBackfill,
+  });
+  const sessionUptime = new SessionUptimeService(db);
+  const signalCatchup = new SignalCatchupService({
+    db,
+    deliveryGate: () => true,
+  });
+  provisionHistoryImpl = async (workspaceSession) => {
+    const assignments = repos.sessionBrokerAssignments.listAssignments(
+      workspaceSession.id,
+    );
+    const brokerAccountId = assignments[0]?.brokerAccountId;
+    if (!brokerAccountId) return;
+    const symbols = workspaceSession.instrumentScope
+      .split(/[\s,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 20);
+    for (const symbol of symbols) {
+      const instrumentClass = workspaceSession.instrumentClasses[0] ?? "stock";
+      await historyProvisioning.ensure({
+        symbol,
+        instrumentClass,
+        timeframe: "15m",
+        contract: {
+          minEvaluableBars: 50,
+          preferredContextBars: 100,
+          warmupBars: 21,
+        },
+        brokerAccountId,
+      });
+    }
+    sessionUptime.heartbeat(workspaceSession.id);
+  };
+  // Catch-up prediction events that arrived before subscription (Solution 02 WS5).
+  const prevOnSessionResumed = signals.onSessionResumed.bind(signals);
+  signals.onSessionResumed = (sessionId: string) => {
+    prevOnSessionResumed(sessionId);
+    void (async () => {
+      const subs = activitySubscriptionRepo.listBySession(sessionId);
+      for (const sub of subs) {
+        if (sub.mode !== "event_source") continue;
+        const ttlBoundary = new Date(
+          Date.now() - 24 * 60 * 60_000,
+        ).toISOString();
+        await signalCatchup.catchUp({
+          sessionId,
+          subscriptionId: sub.id,
+          sourceId: null,
+          catchupFrom: sub.createdAt ?? ttlBoundary,
+          ttlBoundaryIso: ttlBoundary,
+        });
+      }
+    })().catch((err) => {
+      logger.warn({ err, sessionId }, "signal catch-up failed");
+    });
+  };
   const dataDoctor = new DataDoctorService({
     db,
     marketData,
@@ -1191,7 +1271,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
         forceImmediate: true,
       });
     },
-    getAiBudgetUsd: () => 25,
+    getAiBudgetUsd: () => 100,
     getLadderNotes: () => {
       const notes: string[] = [];
       for (const [experienceId, state] of ladderStates) {
@@ -1267,6 +1347,19 @@ export async function createAppServices(app: App): Promise<AppServices> {
     },
   });
   killSwitchRef = killSwitch;
+
+  const paperCertification = new PaperCertificationService({
+    db,
+    getAdapter: (brokerAccountId) => brokerRegistry.get(brokerAccountId),
+    isKillSwitchEngaged: () => killSwitch.isHalted(),
+    getWorkspaceMode: () => {
+      const prefs = repos.workspacePreferences.get();
+      return prefs.globalEnvironmentMode === "live" ? "live" : "paper";
+    },
+    onUpdated: (run) => {
+      eventBus.emit("paper_certification_updated", run);
+    },
+  });
 
   const prevSendDigest = nightlyResearch.sendDigest;
   nightlyResearch.sendDigest = (summary) => {
@@ -1351,6 +1444,9 @@ export async function createAppServices(app: App): Promise<AppServices> {
     equitySnapshots: equitySnapshotService,
     whatIfReplay,
     killSwitch,
+    paperCertification,
+    cycleFunnel,
+    sessionUptime,
     refreshTelegramCreds: async () => {
       const raw = await secrets.get("notify:telegram");
       telegramCredsCache = parseTelegramSecretJson(raw);

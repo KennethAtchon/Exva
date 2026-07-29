@@ -20,6 +20,19 @@ export interface InstrumentedBrokerAdapterOptions {
   interactionLogger?: BrokerInteractionLogger;
 }
 
+/** Optional BrokerAdapter methods that instrumentation must preserve (P1-4). */
+export const OPTIONAL_BROKER_METHODS = [
+  "placeOrderV2",
+  "getOhlcv",
+  "getOhlcvRange",
+  "getOptionChain",
+  "createOrderEventFeed",
+  "getOpenOrders",
+  "prepareClientOrderId",
+  "findOrderByClientOrderId",
+  "capabilities",
+] as const;
+
 export function createInstrumentedBrokerAdapter(
   inner: BrokerAdapter,
   options: InstrumentedBrokerAdapterOptions,
@@ -67,15 +80,15 @@ export function createInstrumentedBrokerAdapter(
 
     getMarketSnapshot: (
       instrumentSymbol: string,
-      options?: { predictionOutcome?: "YES" | "NO" | null },
+      opts?: { predictionOutcome?: "YES" | "NO" | null },
     ) =>
       traceBrokerInteraction(
         logger,
         "getMarketSnapshot",
-        options?.predictionOutcome
-          ? `${instrumentSymbol}/${options.predictionOutcome}`
+        opts?.predictionOutcome
+          ? `${instrumentSymbol}/${opts.predictionOutcome}`
           : instrumentSymbol,
-        () => inner.getMarketSnapshot(instrumentSymbol, options),
+        () => inner.getMarketSnapshot(instrumentSymbol, opts),
       ),
 
     getOrderStatus: (orderId: string) =>
@@ -89,7 +102,22 @@ export function createInstrumentedBrokerAdapter(
       ),
   };
 
+  if (inner.capabilities) {
+    adapter.capabilities = inner.capabilities;
+  }
+
   // bind keeps class-adapter `this` (do not destructure the method).
+  if (inner.placeOrderV2) {
+    const placeOrderV2 = inner.placeOrderV2.bind(inner);
+    adapter.placeOrderV2 = (order) =>
+      traceBrokerInteraction(
+        logger,
+        "placeOrderV2",
+        formatPlaceOrderEndpoint(order as unknown as BrokerOrder),
+        () => placeOrderV2(order),
+      );
+  }
+
   if (inner.getOhlcv) {
     const getOhlcv = inner.getOhlcv.bind(inner);
     adapter.getOhlcv = (instrumentSymbol, timeframe, barCount) =>
@@ -112,6 +140,46 @@ export function createInstrumentedBrokerAdapter(
         "getOhlcvRange",
         `${instrumentSymbol}/${timeframe}?start=${window.startIso}&end=${window.endIso}`,
         () => getOhlcvRange(instrumentSymbol, timeframe, window),
+      );
+  }
+
+  if (inner.getOptionChain) {
+    const getOptionChain = inner.getOptionChain.bind(inner);
+    adapter.getOptionChain = (underlyingSymbol) =>
+      traceBrokerInteraction(
+        logger,
+        "getOptionChain",
+        underlyingSymbol,
+        () => getOptionChain(underlyingSymbol),
+      );
+  }
+
+  if (inner.createOrderEventFeed) {
+    const createOrderEventFeed = inner.createOrderEventFeed.bind(inner);
+    adapter.createOrderEventFeed = (opts) => createOrderEventFeed(opts);
+  }
+
+  if (inner.getOpenOrders) {
+    const getOpenOrders = inner.getOpenOrders.bind(inner);
+    adapter.getOpenOrders = () =>
+      traceBrokerInteraction(logger, "getOpenOrders", "open-orders", () =>
+        getOpenOrders(),
+      );
+  }
+
+  if (inner.prepareClientOrderId) {
+    // Synchronous — no tracing wrapper (must stay sync for pre-submit persist).
+    adapter.prepareClientOrderId = inner.prepareClientOrderId.bind(inner);
+  }
+
+  if (inner.findOrderByClientOrderId) {
+    const findOrder = inner.findOrderByClientOrderId.bind(inner);
+    adapter.findOrderByClientOrderId = (wireClientOrderId) =>
+      traceBrokerInteraction(
+        logger,
+        "findOrderByClientOrderId",
+        wireClientOrderId,
+        () => findOrder(wireClientOrderId),
       );
   }
 

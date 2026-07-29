@@ -39,6 +39,70 @@ export async function runSelector(
     "selector orchestrator step starting pipeline run",
   );
 
+  // Pre-AI EDGAR gates (Solution 02 WS7) — reject before paid model spend.
+  if (
+    signalTrigger?.sourceType === "edgar_8k" &&
+    ctx.deps.edgarScreening &&
+    signalTrigger.payloadJson
+  ) {
+    const payload = signalTrigger.payloadJson as Record<string, unknown>;
+    const items = Array.isArray(payload.items)
+      ? payload.items.map(String)
+      : typeof payload.itemCodes === "string"
+        ? payload.itemCodes.split(",").map((s) => s.trim())
+        : [];
+    const screen = ctx.deps.edgarScreening.screen({
+      identity: {
+        cik: String(payload.cik ?? ""),
+        accession: String(
+          signalTrigger.accessionNumber ?? payload.accession ?? "",
+        ),
+        filingUrl: String(
+          signalTrigger.documentUrl ?? payload.filingUrl ?? "",
+        ),
+        acceptedAt: String(
+          payload.acceptedAt ?? payload.filedAt ?? new Date().toISOString(),
+        ),
+        form: String(payload.form ?? "8-K"),
+        items,
+        ticker: signalTrigger.ticker ?? null,
+        companyName: signalTrigger.companyName ?? null,
+      },
+      market: null,
+    });
+    if (!screen.ok) {
+      logger.info(
+        {
+          sessionId: ctx.sessionId,
+          cycleId,
+          gate: screen.gate,
+          reason: screen.reason,
+        },
+        "EDGAR candidate rejected before AI",
+      );
+      ctx.deps.cycleFunnel?.record({
+        cycleId,
+        sessionId: ctx.sessionId,
+        inputId: signalTrigger.deliveryId ?? null,
+        originKind: "strategy",
+        terminalStage: "signal",
+        outcome: "rejected",
+        reasonCode: `EDGAR_${screen.gate}`.toUpperCase(),
+        detailJson: JSON.stringify({ gate: screen.gate, reason: screen.reason }),
+        occurredAt: new Date().toISOString(),
+      });
+      if (signalTrigger.deliveryId && ctx.deps.signalDeliveryLifecycle) {
+        ctx.deps.signalDeliveryLifecycle.complete(signalTrigger.deliveryId, {
+          sessionId: ctx.sessionId,
+          signalId: signalTrigger.signalId,
+          status: "rejected",
+          dropReason: `edgar_${screen.gate}`,
+        });
+      }
+      return [];
+    }
+  }
+
   const result = (await ctx.deps.ai.runPlan("selector", {
     sessionId: session.id,
     cycleId,
@@ -207,13 +271,17 @@ export async function runSelector(
   }
 
   if (tradable.length === 0 && capped.length > 0) {
-    // All accepted instruments were filtered purely by market hours. Tell the
-    // orchestrator when the market reopens so it waits for the open instead of
-    // retrying on the fixed interval and getting blocked again.
+    // All accepted instruments were filtered purely by market hours. Enter
+    // dormancy until the next open (Solution 05 P2-3) instead of burning
+    // retries that only produce expected skips.
     const nextOpen = marketHours.nextTradableAt(excluded, new Date(), {
       offHoursTrading,
     });
-    ctx.setMarketClosedRetryAt(nextOpen ? nextOpen.getTime() : null);
+    if (nextOpen && typeof ctx.enterMarketClosedDormancy === "function") {
+      ctx.enterMarketClosedDormancy(nextOpen);
+    } else {
+      ctx.setMarketClosedRetryAt(nextOpen ? nextOpen.getTime() : null);
+    }
     logger.warn(
       {
         sessionId: ctx.sessionId,
@@ -225,8 +293,7 @@ export async function runSelector(
       },
       "selector returning no tradable instruments; trade cycles will not be enqueued",
     );
-  } else if (tradable.length > 0) {
-    logger.info(
+  } else if (tradable.length > 0) {    logger.info(
       {
         sessionId: ctx.sessionId,
         cycleId,

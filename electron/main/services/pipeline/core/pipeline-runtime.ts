@@ -30,6 +30,7 @@ import {
   resolveTotalSpendCapUsd,
 } from "@electron/shared/ai/ai-phase-config";
 import { AISpendTracker } from "../execution/ai-spend-tracker";
+import { aiBudgetGuard, workspaceDayKey } from "../../llm/ai-reliability";
 import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-ai-phase-config";
 import {
   assertValidEffectivePipelineConfig,
@@ -327,6 +328,27 @@ export class PipelineRuntime {
           PAPER_MOCK_BUDGETS.sessionMaxAiSpendUsd,
         )
       : strategyContext.riskConfig.maxAiSpendUsd;
+
+    if (!sandboxBudget) {
+      const budget = aiBudgetGuard.check({
+        cycleId: cycleKey,
+        sessionId: opts.sessionId,
+        workspaceDayKey: workspaceDayKey(),
+        estimatedCostUsd: Math.min(sessionSpendCapUsd, 0.5),
+      });
+      if (budget.kind === "deny") {
+        throw new AppError(
+          `AI budget exhausted: ${budget.reasonCode} (spent $${budget.spentUsd.toFixed(2)} / $${budget.limitUsd.toFixed(2)})`,
+          "VALIDATION_FAILED",
+          {
+            reasonCode: budget.reasonCode,
+            spentUsd: budget.spentUsd,
+            limitUsd: budget.limitUsd,
+          },
+        );
+      }
+    }
+
     const spendTracker = new AISpendTracker({
       phaseSpendCapUsd: this.deps.phaseConfigResolver.resolvePhaseSpendCapUsd(
         opts.phase,
@@ -418,6 +440,14 @@ export class PipelineRuntime {
         }),
     );
     this.recordCycleSpend(cycleKey, spendTracker.phaseSpent);
+    if (spendTracker.phaseSpent > 0) {
+      aiBudgetGuard.record({
+        cycleId: cycleKey,
+        sessionId: opts.sessionId,
+        workspaceDayKey: workspaceDayKey(),
+        costUsd: spendTracker.phaseSpent,
+      });
+    }
     logger.info(
       {
         sessionId: opts.sessionId,

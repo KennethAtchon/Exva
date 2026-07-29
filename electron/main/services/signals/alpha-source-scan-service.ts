@@ -68,7 +68,10 @@ export class AlphaSourceScanService {
   start(): void {
     if (this.running) return;
     this.running = true;
-    this.arm();
+    // Immediate first tick (Solution 08 WS2) — do not wait a full interval.
+    void this.tick().finally(() => {
+      if (this.running) this.arm();
+    });
     logger.info({ intervalMs: this.intervalMs }, "alpha source scans armed");
   }
 

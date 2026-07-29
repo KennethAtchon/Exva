@@ -1,0 +1,12 @@
+import { ProviderHealthTracker } from "./provider-health-tracker";
+import { AiBudgetGuard } from "./ai-budget-guard";
+
+/** Process-wide provider circuit breaker (Solution 07). */
+export const providerHealthTracker = new ProviderHealthTracker();
+
+/** Process-wide AI budget guard (Solution 07). */
+export const aiBudgetGuard = new AiBudgetGuard();
+
+export function workspaceDayKey(now = new Date()): string {
+  return now.toISOString().slice(0, 10);
+}

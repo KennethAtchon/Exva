@@ -70,10 +70,35 @@ export function waitForApproval(
 
   ctx.pendingApprovalIds.set(trade.id, approval.id);
 
+  const timeoutMs = 15 * 60_000;
   return new Promise((resolve) => {
-    ctx.approvalCallbacks.set(trade.id, (approved) => {
+    const timer = setTimeout(() => {
+      if (!ctx.approvalCallbacks.has(trade.id)) return;
       ctx.approvalCallbacks.delete(trade.id);
       ctx.pendingApprovalIds.delete(trade.id);
+      ctx.deps.capitalReservation.runInTransaction(() => {
+        ctx.deps.capitalReservation.releaseByApproval(approval.id);
+        ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
+      });
+      ctx.emitEvent(
+        "WARN",
+        trade.id,
+        `Approval timed out after ${timeoutMs / 60_000}m; reservation released.`,
+      );
+      resolve({ approved: false, approvalId: approval.id });
+    }, timeoutMs);
+
+    ctx.approvalCallbacks.set(trade.id, (approved) => {
+      clearTimeout(timer);
+      ctx.approvalCallbacks.delete(trade.id);
+      ctx.pendingApprovalIds.delete(trade.id);
+      if (!approved) {
+        // Rejection must resolve the waiter (P2-2) and release reservation.
+        ctx.deps.capitalReservation.runInTransaction(() => {
+          ctx.deps.capitalReservation.releaseByApproval(approval.id);
+          ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
+        });
+      }
       resolve({ approved, approvalId: approval.id });
     });
   });
@@ -100,7 +125,7 @@ export function resolveApproval(
 ): boolean {
   const resolve = ctx.approvalCallbacks.get(tradeId);
   if (!resolve) return false;
-  ctx.approvalCallbacks.delete(tradeId);
+  // Deletion of the callback is owned by the waiter so timeout cleanup stays consistent.
   resolve(approved);
   return true;
 }

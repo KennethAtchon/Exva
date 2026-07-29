@@ -163,17 +163,23 @@ export interface BrokerAdapter {
   }): OrderEventFeed;
 
   /**
-   * Optional: list resting/open orders at the venue. Paper ghost adapters
-   * return resting GhostFillSimulator limits; live adapters may omit.
+   * Optional: normalize a canonical client order ID to the exact wire ID the
+   * venue will receive. Must be synchronous so the wire ID can be persisted
+   * before any HTTP call (Solution 01).
    */
-  getOpenOrders?(): Promise<
-    Array<{
-      brokerOrderId: string;
-      clientOrderId?: string;
-      status: "open";
-      remainingQty?: number;
-    }>
-  >;
+  prepareClientOrderId?(canonicalClientOrderId: string): string;
+
+  /**
+   * Optional: look up an order by the exact wire client order ID (for
+   * timeout-safe reconciliation without blind retry).
+   */
+  findOrderByClientOrderId?(wireClientOrderId: string): Promise<{
+    brokerOrderId: string;
+    status: string;
+    filledQty: number;
+    filledAvgPrice: number | null;
+    rawStatus: string;
+  } | null>;
 }
 
 export function adapterCapabilitiesOf(

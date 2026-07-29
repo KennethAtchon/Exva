@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { ALL_PIPELINES } from "../pipelines";
 
 describe("pipelines registration", () => {
-  it("declares all seven shipped pipeline descriptors", () => {
-    expect(ALL_PIPELINES).toHaveLength(7);
+  it("declares all eight shipped pipeline descriptors", () => {
+    expect(ALL_PIPELINES).toHaveLength(8);
     expect(ALL_PIPELINES.map((pipeline) => pipeline.id)).toEqual([
       "default-trade-cycle",
       "edgar-8k-cycle",
@@ -12,6 +12,7 @@ describe("pipelines registration", () => {
       "rules-breakout-cycle",
       "options-flow-cycle",
       "prediction-event-cycle",
+      "paper-certification",
     ]);
   });
 

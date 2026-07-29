@@ -785,7 +785,7 @@ universe-level backfill entry point over the existing `HistoricalBackfillService
 **Data changes:** Evaluation-outcome counters; no destructive migration. Bar rows are additive.
 
 **Rollout:** Provision the current three-instrument universe first and confirm depth, then widen the
-liquid-equity set only after the setup rate is measured.
+liquid-equity set to the decided **20–25** target only after the setup rate is measured.
 
 **Validation:** No scheduled evaluation runs below its declared minimum; an empty-store session either
 provisions or reports a named block; setup rate and eligible-evaluation counts are queryable.
@@ -1002,13 +1002,14 @@ Abort conditions:
 |  O4 | What minimum V2 research contract should qualify the first new alpha experience?                                           | Prevents ad hoc promotion                        | Kenneth + quant review    | Before Phase 7                 |
 
 | O5 | Should the primary structured-output route be a direct first-party key, with OpenRouter as fallback? | Determines the dominant AI failure mode | Kenneth | Before Phase 3 enforcement |
-| O6 | How many liquid equities should the rules universe hold once depth is provisioned? | Sets opportunity count and provider load | Kenneth + strategy review | Before Phase 2.5 widening |
+| O6 | How many liquid equities should the rules universe hold once depth is provisioned? | **Decided: 20–25** liquidity-screened liquid equities (see Solution 06 WS3). Sets opportunity count and provider load | Kenneth | Resolved 2026-07-29; apply at Phase 2.5 widening |
 | O7 | Is options or futures the next class after the funnel is green, or neither this quarter? | Both are multi-week projects; only one can be next | Kenneth | Before Phase 7 review |
 
 These questions do not block Phase 0. Default implementation choices are IEX with explicit labeling,
 the four listed EDGAR item codes, automatic paper close, no alpha promotion until O4 is decided, a
-direct first-party primary route with OpenRouter fallback, no universe widening until the setup rate is
-measured, and both options and futures remaining blocked sentinels.
+direct first-party primary route with OpenRouter fallback, universe widening to **20–25** liquid
+equities only after the setup rate is measured (O6 decided), and both options and futures remaining
+blocked sentinels.
 
 ## 15. Appendix
 

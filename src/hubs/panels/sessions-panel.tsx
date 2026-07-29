@@ -30,6 +30,7 @@ import {
 } from "@/components/sessions/SessionExecutionProgress";
 import { TradesPage } from "./trades-panel";
 import { StrategyConfig } from "./strategy-config-panel";
+import { PaperCertificationPanel } from "./paper-certification-panel";
 import {
   api,
   listenEvent,
@@ -200,7 +201,12 @@ const executeLifecycleAction = async ({
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-export type SessionsTab = "run" | "activity" | "trades" | "config";
+export type SessionsTab =
+  | "run"
+  | "activity"
+  | "trades"
+  | "config"
+  | "certification";
 
 const SessionListFilters = ({
   statusFilter,
@@ -1120,6 +1126,7 @@ export const SessionsMasterDetail = ({
             <TabsTrigger value="activity">Activity</TabsTrigger>
             <TabsTrigger value="trades">Trades</TabsTrigger>
             <TabsTrigger value="config">Config</TabsTrigger>
+            <TabsTrigger value="certification">Certify</TabsTrigger>
           </TabsList>
 
           <TabsContent
@@ -1299,6 +1306,21 @@ export const SessionsMasterDetail = ({
               onGoToSessions={() => onTabChange("run")}
             />
           </TabsContent>
+
+          <TabsContent
+            value="certification"
+            className="mt-0 min-h-0 flex-1 overflow-y-auto px-5 pb-5 data-[state=inactive]:hidden"
+          >
+            {!runTabSession ? (
+              <EmptyState
+                title="No session selected"
+                message="Select a paper session to arm Alpaca order-path certification."
+                className="mt-4"
+              />
+            ) : (
+              <SessionCertificationTab session={runTabSession} />
+            )}
+          </TabsContent>
         </Tabs>
       </main>
 
@@ -1381,6 +1403,86 @@ export const SessionsMasterDetail = ({
     </div>
   );
 };
+
+function SessionCertificationTab({ session }: { session: SessionSummary }) {
+  const [broker, setBroker] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    void (async () => {
+      try {
+        if (session.executionMode !== "paper_only") {
+          if (!cancelled) {
+            setBroker(null);
+            setError(
+              "Paper certification requires a paper_only session. Switch execution mode or pick another session.",
+            );
+          }
+          return;
+        }
+        const [payload, accounts] = await Promise.all([
+          api.buildTemplatePayloadFromSession(session.id),
+          api.listBrokerAccountState(),
+        ]);
+        if (cancelled) return;
+        const assignedIds = payload.brokerAssignments.map(
+          (a) => a.brokerAccountId,
+        );
+        const alpacaPaper = accounts.find(
+          (a) =>
+            assignedIds.includes(a.id) &&
+            a.brokerType === "alpaca" &&
+            a.mode === "paper",
+        );
+        if (!alpacaPaper) {
+          setBroker(null);
+          setError(
+            "Assign an Alpaca paper broker to this session before arming certification.",
+          );
+          return;
+        }
+        setBroker({ id: alpacaPaper.id, name: alpacaPaper.name });
+      } catch (err) {
+        if (!cancelled) {
+          setBroker(null);
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session.id, session.executionMode]);
+
+  if (loading) {
+    return <PanelLoading className="mt-4" />;
+  }
+  if (error || !broker) {
+    return (
+      <EmptyState
+        title="Certification unavailable"
+        message={error ?? "No eligible paper broker."}
+        className="mt-4"
+      />
+    );
+  }
+  return (
+    <PaperCertificationPanel
+      sessionId={session.id}
+      brokerAccountId={broker.id}
+      brokerAccountName={broker.name}
+    />
+  );
+}
 
 const SessionRunTab = ({
   session,
@@ -1589,17 +1691,25 @@ const SessionActivityTab = ({ sessionId }: { sessionId: string }) => {
   const [analytics, setAnalytics] = useState<SessionActivityAnalytics | null>(
     null,
   );
+  const [firstDivergence, setFirstDivergence] = useState<{
+    terminalStage: string;
+    outcome: string;
+    reasonCode: string;
+    occurredAt: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async (id: string) => {
     setLoading(true);
     try {
-      const [rows, stats] = await Promise.all([
+      const [rows, stats, divergence] = await Promise.all([
         api.listSessionActivityTransitions(id),
         api.getSessionActivityAnalytics(id),
+        api.getCycleFunnelFirstDivergence(id),
       ]);
       setTransitions(rows);
       setAnalytics(stats);
+      setFirstDivergence(divergence);
     } finally {
       setLoading(false);
     }
@@ -1613,10 +1723,10 @@ const SessionActivityTab = ({ sessionId }: { sessionId: string }) => {
     if (snapshot.sessionId === sessionId) void load(sessionId);
   });
 
-  if (loading && transitions.length === 0) {
+  if (loading && transitions.length === 0 && !firstDivergence) {
     return <div className="mt-4 px-1 text-body text-text3">Loading...</div>;
   }
-  if (transitions.length === 0) {
+  if (transitions.length === 0 && !firstDivergence) {
     return (
       <EmptyState
         title="No activity yet"
@@ -1628,6 +1738,20 @@ const SessionActivityTab = ({ sessionId }: { sessionId: string }) => {
 
   return (
     <div className="mt-4 flex flex-col gap-4 px-1 pb-5">
+      {firstDivergence ? (
+        <div className="grid gap-1 rounded-sm border border-border bg-surface p-3">
+          <div className="font-sans text-label text-text1">
+            First no-trade divergence
+          </div>
+          <div className="font-mono text-micro text-text2">
+            {firstDivergence.terminalStage} · {firstDivergence.outcome} ·{" "}
+            {firstDivergence.reasonCode}
+          </div>
+          <div className="font-mono text-micro text-text3">
+            {formatTimestamp(firstDivergence.occurredAt)}
+          </div>
+        </div>
+      ) : null}
       {analytics ? <ActivityAnalyticsCard analytics={analytics} /> : null}
 
       <div className="flex flex-col gap-2">

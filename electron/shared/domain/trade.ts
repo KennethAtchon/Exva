@@ -85,6 +85,8 @@ export interface Trade {
   created_at: string;
   current_price?: number | null;
   unrealized_pnl?: number | null;
+  /** strategy (default) | certification — certification excluded from alpha analytics. */
+  originKind?: "strategy" | "certification";
 }
 
 export interface AgentRun {

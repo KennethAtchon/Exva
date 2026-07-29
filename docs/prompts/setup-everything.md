@@ -19,6 +19,13 @@ This setup proves catalog coverage, input/routing readiness, and honest visibili
 
 ## Host prerequisites
 
+Install the headless LaunchAgent so Exva is running before the open (Solution 08):
+
+```bash
+bash scripts/install-launchd.sh
+launchctl print "gui/$(id -u)/com.exva.headless" | head -20
+```
+
 The seeded accounts exist only when the host supplied their prerequisites at database seed time:
 
 - `seed-alpaca-paper` requires `ALPACA_API_KEY` and `ALPACA_SECRET_KEY`.
@@ -114,7 +121,25 @@ For `STRESS-02` and `STRESS-03`, explicitly retire/stop the legacy session when 
 
 If an equivalent session is active or paused and cannot be updated safely, propose the required stop-update-restart sequence. Never force-stop a session with open trades merely to rename it. If open positions prevent safe reuse, leave it untouched, report the naming/configuration debt, and propose a non-conflicting replacement only after confirmation.
 
-## Phase 2: canonical stress matrix
+## Phase 2: canonical recovery matrix (Solution 05)
+
+Replace the old stress matrix with the recovery matrix. Remove
+`ETF-REVERSION-CONTENDER` from the default set (same schedule group as primary —
+not an independent lane).
+
+| Name                           | Experience               | Broker           | Start state                                      |
+| ------------------------------ | ------------------------ | ---------------- | ------------------------------------------------ |
+| `PAPER-EXECUTION-CANARY`       | `paper-execution-canary` | Alpaca paper     | Manual arm; regular hours only                   |
+| `ETF-REVERSION-PRIMARY`        | `rules-mean-reversion`   | Alpaca paper     | After freshness/parity repair                    |
+| `CRYPTO-BREAKOUT-24X7`         | `rules-breakout`         | Alpaca paper     | After freshness/parity repair                    |
+| `EDGAR-CATALYST-PRIMARY`       | `edgar-catalyst`         | Alpaca paper     | After EDGAR early gates                          |
+| `POLYMARKET-EVENT-PRIMARY`     | `prediction-event-edge`  | Polymarket paper | After catch-up + AI repair                       |
+| `FUTURES-INTEGRATION-SENTINEL` | `rules-trend-following`  | Mock paper       | Stopped; `BLOCKED: FUTURES_ADAPTER_SIMULATED`    |
+| `OPTIONS-INTEGRATION-SENTINEL` | `options-flow-edge`      | Alpaca/Tradier   | Stopped; `BLOCKED: OPTIONS_PRODUCER_UNREACHABLE` |
+
+Sentinels do not count toward working coverage. Do not start them by default.
+
+## Phase 2 (legacy stress matrix — superseded)
 
 The required matrix is seven sessions: one EDGAR role, two mean-reversion roles, one crypto role, one futures role, one options role, and one Polymarket role. These seven rows cover all six currently registered experiences and all five instrument classes. Add the eighth optional crypto contender only when broker capacity and the allocation envelope permit it.
 
@@ -130,6 +155,7 @@ Before creating anything, verify this coverage invariant:
 | `rules-breakout`        | `CRYPTO-BREAKOUT-24X7`            | `crypto`; BTC-USD                                            |
 | `options-flow-edge`     | `OPTIONS-FLOW-MULTILEG-LIFECYCLE` | Intended `options`; AAPL/NVDA underlyings then OCC contracts |
 | `prediction-event-edge` | `POLYMARKET-DISCOVERY-RESOLUTION` | `prediction_market`; dynamic real market IDs                 |
+| `paper-execution-canary`| `PAPER-EXECUTION-CANARY`          | `stock`; SPY $10 certification                               |
 
 The manifest fails if any catalog experience lacks a role or any class is represented only by a broker capability flag. Extra contention roles are useful load, but they never substitute for a missing primary experience/class lane.
 

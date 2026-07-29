@@ -805,6 +805,11 @@ export interface ExvaApi {
     }): Promise<
       import("@electron/shared/domain/session-activity-analytics").SessionActivityAnalytics
     >;
+    firstDivergence(input: {
+      sessionId: string;
+    }): Promise<
+      import("@electron/shared/domain/cycle-funnel").CycleFunnelOutcome | null
+    >;
   };
   palette: {
     query(input: { q: string; limit?: number }): Promise<{
@@ -835,6 +840,24 @@ export interface ExvaApi {
     coverage(input: { symbol: string; timeframe: string }): Promise<{
       coverage: { firstTs: string; lastTs: string; provider: string } | null;
     }>;
+  };
+  paperCertification: {
+    arm(input: {
+      sessionId: string;
+      brokerAccountId: string;
+    }): Promise<
+      import("@electron/shared/domain/paper-certification").PaperCertificationRun
+    >;
+    get(
+      runId: string,
+    ): Promise<
+      import("@electron/shared/domain/paper-certification").PaperCertificationRun
+    >;
+    reconcile(
+      runId: string,
+    ): Promise<
+      import("@electron/shared/domain/paper-certification").PaperCertificationRun
+    >;
   };
   dataDoctor: {
     coverage(): Promise<{ cells: unknown[] }>;

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { InstrumentClass } from "./enums";
+import type { DeterministicSignalFactV1 } from "./deterministic-signal-fact";
 
 /**
  * Typed information-bearing signal envelope (replaces EDGAR-shaped SignalEvent
@@ -109,6 +110,8 @@ export interface ScanHitPayload {
   evidence: Record<string, number>;
   barWindowHash: string;
   proposedAction: "buy" | "sell";
+  /** Immutable scheduled fact (Solution 02 WS2). Optional during migration. */
+  deterministicFact?: DeterministicSignalFactV1;
 }
 
 export interface NewsPayload {
@@ -251,6 +254,7 @@ export const scanHitPayloadSchema = z
     evidence: z.record(z.number()),
     barWindowHash: z.string(),
     proposedAction: z.enum(["buy", "sell"]),
+    deterministicFact: z.record(z.unknown()).optional(),
   })
   .strict();
 

@@ -65,6 +65,8 @@ export function toTrade(row: Row): Trade {
     take_profit_touched_at: nullableString(row.take_profit_touched_at),
     stop_touched_at: nullableString(row.stop_touched_at),
     created_at: String(row.created_at),
+    originKind:
+      row.origin_kind === "certification" ? "certification" : "strategy",
   };
 }
 

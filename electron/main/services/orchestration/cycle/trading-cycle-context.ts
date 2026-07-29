@@ -54,6 +54,13 @@ export class TradingCycleContext {
    * instead of polling on the fixed interval. null = no pending market wait.
    */
   private marketClosedRetryAt: number | null = null;
+  /**
+   * Solution 05: when true, equity-hours session is dormant until next open.
+   * No selector/trade cycles; wake via noInstrumentRetryTimer at nextOpenAt.
+   */
+  marketClosedDormant = false;
+  marketClosedDormantNextOpenAt: string | null = null;
+  marketClosedSkipCount = 0;
   consecutiveHardFailures = 0;
   /** Streak of identical reasonCategory on no_trade/transient skips. */
   consecutiveSameSkipReason: FailureHistoryReasonCategory | null = null;
@@ -266,6 +273,45 @@ export class TradingCycleContext {
     this.marketClosedRetryAt = at;
   }
 
+  /** Enter market-closed dormancy until nextOpenAt (Solution 05 P2-3). */
+  enterMarketClosedDormancy(nextOpenAt: Date): void {
+    const nextIso = nextOpenAt.toISOString();
+    if (
+      this.marketClosedDormant &&
+      this.marketClosedDormantNextOpenAt === nextIso
+    ) {
+      return; // same closed window — no re-log / re-arm churn
+    }
+    this.marketClosedDormant = true;
+    this.marketClosedDormantNextOpenAt = nextIso;
+    this.marketClosedSkipCount = 0;
+    this.setMarketClosedRetryAt(nextOpenAt.getTime());
+    this.emitEvent(
+      "INFO",
+      null,
+      `Entering market_closed dormancy until ${nextIso} (ET open). Selector/trade cycles paused.`,
+      "orchestrator",
+    );
+  }
+
+  leaveMarketClosedDormancy(): void {
+    if (!this.marketClosedDormant) return;
+    const skips = this.marketClosedSkipCount;
+    this.marketClosedDormant = false;
+    this.marketClosedDormantNextOpenAt = null;
+    this.marketClosedSkipCount = 0;
+    this.emitEvent(
+      "INFO",
+      null,
+      `Leaving market_closed dormancy; quiet holds/skips during close: ${skips}.`,
+      "orchestrator",
+    );
+  }
+
+  noteMarketClosedSkip(): void {
+    if (this.marketClosedDormant) this.marketClosedSkipCount += 1;
+  }
+
   /** Reads and clears the pending market-open wake time (single-shot). */
   consumeMarketClosedRetryAt(): number | null {
     const at = this.marketClosedRetryAt;
@@ -358,6 +404,25 @@ export class TradingCycleContext {
       reasonCategory: input.reasonCategory,
     });
     this.pruneFailureHistory();
+
+    const funnelOutcome =
+      input.outcome === "no_trade"
+        ? ("no_setup" as const)
+        : input.outcome === "bug"
+          ? ("failed" as const)
+          : ("rejected" as const);
+    this.deps.cycleFunnel?.record({
+      cycleId: input.cycleId,
+      sessionId: this.sessionId,
+      inputId: null,
+      originKind: "strategy",
+      terminalStage: mapStageToFunnel(input.stage),
+      outcome: funnelOutcome,
+      reasonCode: input.code ?? input.reasonCategory,
+      detailJson: JSON.stringify({ message: input.message }),
+      occurredAt,
+    });
+
     this.maybeRaiseConsecutiveSkipAlarm(input);
   }
 
@@ -435,5 +500,32 @@ export class TradingCycleContext {
         this.deps.capitalReservation.releaseOnFailure(r.tradeId);
       }
     }
+  }
+}
+
+function mapStageToFunnel(
+  stage: ExecutionStage | "trade_cycle" | "selector_cycle",
+): import("@electron/shared/domain/cycle-funnel").CycleFunnelOutcome["terminalStage"] {
+  switch (stage) {
+    case "selector":
+    case "selector_cycle":
+      return "selector";
+    case "fundamental":
+    case "technical":
+    case "review":
+    case "candidate_validation":
+      return "research";
+    case "decision":
+      return "decision";
+    case "risk_gate":
+      return "risk";
+    case "broker_order":
+      return "order";
+    case "monitoring":
+      return "fill";
+    case "trade_cycle":
+      return "decision";
+    default:
+      return "decision";
   }
 }

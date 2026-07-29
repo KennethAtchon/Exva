@@ -379,6 +379,7 @@ export type ExvaEventMap = {
     marksStale: boolean;
   };
   session_activity_changed: import("../domain/session-activity").SessionActivitySnapshot;
+  paper_certification_updated: import("../domain/paper-certification").PaperCertificationRun;
 };
 
 export type ExvaEventName = keyof ExvaEventMap;

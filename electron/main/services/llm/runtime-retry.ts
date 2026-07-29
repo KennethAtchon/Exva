@@ -1,5 +1,6 @@
 import { AppError } from "@electron/shared/infra/errors";
 import { createLogger } from "../infra/log";
+import { providerHealthTracker } from "./ai-reliability";
 
 const logger = createLogger("ai-runtime");
 
@@ -50,6 +51,24 @@ export async function withLLMRetry<T>(
   const timeoutMs = options.timeoutMs ?? RETRY_CONFIG.timeoutMs;
   const startedAt = Date.now();
   let lastError: unknown;
+  const providerType = ctx.providerType ?? "unknown";
+  const modelId = ctx.modelId ?? "unknown";
+
+  if (!providerHealthTracker.isAvailable(providerType, modelId)) {
+    const health = providerHealthTracker.get(providerType, modelId);
+    throw new AppError(
+      `Provider route ${providerType}::${modelId} circuit open until cooldown ends`,
+      "PROVIDER_UNREACHABLE",
+      {
+        retryable: false,
+        circuitState: health.state,
+        openedAt: health.openedAt,
+        cooldownMs: health.cooldownMs,
+        providerType,
+        modelId,
+      },
+    );
+  }
 
   for (let attempt = 1; attempt <= MAX_PROVIDER_ATTEMPTS; attempt += 1) {
     const attemptStartedAt = Date.now();
@@ -72,6 +91,7 @@ export async function withLLMRetry<T>(
         retryable: false,
         value,
       });
+      providerHealthTracker.recordSuccess(providerType, modelId);
       if (attempt > 1) {
         logger.info(
           {
@@ -94,6 +114,18 @@ export async function withLLMRetry<T>(
         status: "error",
         retryable,
       });
+      providerHealthTracker.recordFailure(
+        providerType,
+        modelId,
+        {
+          code: details.code ?? details.kind,
+          message: details.kind,
+        },
+        {
+          timeoutExhaustion:
+            details.kind === "timeout" && attempt >= MAX_PROVIDER_ATTEMPTS,
+        },
+      );
       logger.warn(
         {
           ...ctx,

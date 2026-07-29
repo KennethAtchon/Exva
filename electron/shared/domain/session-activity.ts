@@ -14,6 +14,7 @@ export type SessionActivityConditionKind =
   | "symbol_locked"
   | "awaiting_approval"
   | "no_signal_stale"
+  | "no_signal_went_quiet"
   | "input_source_dead"
   | "data_feed_failing"
   | "selector_rejecting_all"

@@ -89,7 +89,8 @@ export class PaperScorecardService {
   generate(sessionId: string): TradeScorecard {
     const closedTrades = this.deps.trades
       .listClosed(sessionId)
-      .filter((trade) => !isMockBrokerTrade(trade, this.deps.brokerAccounts));
+      .filter((trade) => !isMockBrokerTrade(trade, this.deps.brokerAccounts))
+      .filter((trade) => trade.originKind !== "certification");
 
     const session = this.deps.session.get(sessionId);
     const strategyPresetLabel = session?.name ?? sessionId;

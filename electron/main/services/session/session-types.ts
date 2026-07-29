@@ -102,6 +102,10 @@ export interface OrchestratorDeps {
    * adapter order submission. Optional for worker stubs / unit tests.
    */
   isOrderHalted?: () => boolean;
+  /** Optional cycle funnel recorder (Solution 02 WS9 / 05). */
+  cycleFunnel?: import("../orchestration/cycle-funnel-service").CycleFunnelService | null;
+  /** Optional EDGAR pre-AI screening (Solution 02 WS7). */
+  edgarScreening?: import("../signals/edgar-candidate-screening-service").EdgarCandidateScreeningService | null;
 }
 
 /** Per-check failure (preflight runner adds `check` name). */
@@ -193,4 +197,6 @@ export interface SessionLifecycleDeps {
   };
   /** Clears kill-switch last-mile order halt when an operator resumes. */
   clearOrderHalt?: () => void;
+  /** Optional history depth provision before start/resume (Solution 06). */
+  provisionHistory?: (session: WorkspaceSession) => Promise<void>;
 }

@@ -26,7 +26,9 @@ export function computeMeanReversionSignal(
   input: z.infer<typeof meanReversionInputSchema>,
 ): TradeSignal {
   const closes = input.ohlcv.map((bar) => bar.close);
-  if (closes.length < MEAN_REVERSION_WARMUP_BARS) {
+  // Baseline is the preceding N bars only — current bar is the outlier under test
+  // (Solution 02 WS3 / P2-1). Need N+1 closes.
+  if (closes.length < MEAN_REVERSION_WARMUP_BARS + 1) {
     return tradeSignalSchema.parse({
       symbol: input.symbol,
       action: "skip",
@@ -37,12 +39,15 @@ export function computeMeanReversionSignal(
     });
   }
 
-  const window = closes.slice(-MEAN_REVERSION_WARMUP_BARS);
+  const last = closes[closes.length - 1]!;
+  const window = closes.slice(
+    -(MEAN_REVERSION_WARMUP_BARS + 1),
+    -1,
+  );
   const mean = window.reduce((a, b) => a + b, 0) / window.length;
   const variance =
     window.reduce((sum, v) => sum + (v - mean) ** 2, 0) / window.length;
   const std = Math.sqrt(variance) || 1;
-  const last = closes[closes.length - 1] ?? mean;
   const zScore = (last - mean) / std;
 
   if (zScore <= input.zScoreEntry) {
@@ -74,7 +79,8 @@ export function createMeanReversionStrategy(options?: {
   const zScoreEntry = options?.zScoreEntry ?? -2;
   return {
     id: options?.id ?? "mean-reversion",
-    warmupBars: MEAN_REVERSION_WARMUP_BARS,
+    // Evaluator needs preceding N + current bar.
+    warmupBars: MEAN_REVERSION_WARMUP_BARS + 1,
     evaluate(bars: OhlcvBar[], ctx) {
       const signal = computeMeanReversionSignal({
         symbol: ctx.symbol,
@@ -84,7 +90,11 @@ export function createMeanReversionStrategy(options?: {
       if (signal.action !== "buy" && signal.action !== "sell") return null;
 
       const closes = bars.map((b) => b.close);
-      const window = closes.slice(-MEAN_REVERSION_WARMUP_BARS);
+      const last = closes[closes.length - 1]!;
+      const window = closes.slice(
+        -(MEAN_REVERSION_WARMUP_BARS + 1),
+        -1,
+      );
       const mean =
         window.length > 0
           ? window.reduce((a, b) => a + b, 0) / window.length
@@ -94,7 +104,6 @@ export function createMeanReversionStrategy(options?: {
           ? window.reduce((sum, v) => sum + (v - mean) ** 2, 0) / window.length
           : 0;
       const std = Math.sqrt(variance) || 1;
-      const last = closes[closes.length - 1] ?? mean;
       const zScore = (last - mean) / std;
       const strength = signal.strength ?? signal.confidence;
 

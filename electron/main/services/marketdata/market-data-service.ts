@@ -3,6 +3,10 @@ import type { DbClient } from "../../db/client";
 import { dataCoverage, ohlcvBars } from "../../db/schema";
 import type { TradingTimeframe } from "@electron/shared/domain/enums";
 import type { OhlcvBar } from "../broker/adapters/broker-adapter";
+import {
+  LiveBarFreshnessService,
+  type FreshnessDecision,
+} from "./live-bar-freshness-service";
 
 export type MarketDataProviderId = "alpaca" | "tradier" | "kraken" | "manual";
 
@@ -24,6 +28,12 @@ export interface GetBarsInput {
   provider?: MarketDataProviderId;
   /** Session-routed fetch that already normalized the wire symbol. */
   fetchOverride?: () => Promise<OhlcvBar[]>;
+  /** Market calendar for freshness (defaults nyse-regular; crypto → always-open). */
+  marketCalendarId?: string;
+  /** Wall clock for freshness; injectable for tests. */
+  now?: Date;
+  /** When true, skip freshness and keep legacy count-only cache hit. */
+  skipFreshnessCheck?: boolean;
 }
 
 export type BarFetcher = (input: {
@@ -32,6 +42,17 @@ export type BarFetcher = (input: {
   timeframe: TradingTimeframe;
   barCount: number;
 }) => Promise<OhlcvBar[]>;
+
+export class InputStaleError extends Error {
+  readonly code = "input_stale" as const;
+  constructor(
+    message: string,
+    readonly decision: FreshnessDecision,
+  ) {
+    super(message);
+    this.name = "InputStaleError";
+  }
+}
 
 function mergeBarsByTs(a: OhlcvBar[], b: OhlcvBar[]): OhlcvBar[] {
   const byTs = new Map<string, OhlcvBar>();
@@ -43,11 +64,16 @@ function mergeBarsByTs(a: OhlcvBar[], b: OhlcvBar[]): OhlcvBar[] {
 }
 
 /**
- * Point-in-time OHLCV store. Live cycles: DB first, provider on miss, write-back.
- * Backtests: DB only, fail-loud on gaps.
+ * Point-in-time OHLCV store. Live cycles: DB first, freshness gate, provider
+ * refresh when stale, write-back. Backtests: DB only, fail-loud on gaps.
  */
 export class MarketDataService {
   private fetchers = new Map<MarketDataProviderId, BarFetcher>();
+  private readonly freshness = new LiveBarFreshnessService();
+  /** Last freshness decision for telemetry / funnel. */
+  lastFreshnessDecision: FreshnessDecision | null = null;
+  /** Alpaca equity bars currently use IEX unless SIP entitlement is configured. */
+  readonly equityDataFeed: "iex" | "sip" = "iex";
 
   constructor(private readonly db: DbClient) {}
 
@@ -61,7 +87,49 @@ export class MarketDataService {
     }
     const barCount = input.barCount ?? 100;
     const cached = this.readRecent(input.symbol, input.timeframe, barCount);
-    if (cached.length >= barCount) return cached;
+    const now = input.now ?? new Date();
+    const calendarId =
+      input.marketCalendarId ??
+      (input.instrumentClass === "crypto" ? "always-open" : "nyse-regular");
+
+    const newestCachedTs =
+      cached.length > 0 ? cached[cached.length - 1]!.ts : null;
+
+    let needsProvider = cached.length < barCount;
+    if (
+      !input.skipFreshnessCheck &&
+      !input.failOnGaps &&
+      cached.length >= barCount
+    ) {
+      const decision = this.freshness.resolve({
+        symbol: input.symbol,
+        instrumentClass: input.instrumentClass,
+        timeframe: input.timeframe,
+        marketCalendarId: calendarId,
+        newestCachedTs,
+        now,
+      });
+      this.lastFreshnessDecision = decision;
+      if (
+        decision.kind === "cache_fresh" ||
+        decision.kind === "market_closed_fresh"
+      ) {
+        return cached;
+      }
+      if (decision.kind === "unavailable") {
+        throw new InputStaleError(
+          `MarketData freshness unavailable for ${input.symbol} ${input.timeframe}: ${decision.reason}`,
+          decision,
+        );
+      }
+      needsProvider = true;
+    } else if (cached.length >= barCount && input.skipFreshnessCheck) {
+      return cached;
+    }
+
+    if (!needsProvider && cached.length >= barCount) {
+      return cached;
+    }
 
     if (input.failOnGaps) {
       throw new Error(
@@ -93,7 +161,32 @@ export class MarketDataService {
       fetched,
       provider,
     );
-    return mergeBarsByTs(cached, fetched).slice(-barCount);
+    const merged = mergeBarsByTs(cached, fetched).slice(-barCount);
+
+    if (!input.skipFreshnessCheck) {
+      const postNewest =
+        merged.length > 0 ? merged[merged.length - 1]!.ts : null;
+      const postDecision = this.freshness.resolve({
+        symbol: input.symbol,
+        instrumentClass: input.instrumentClass,
+        timeframe: input.timeframe,
+        marketCalendarId: calendarId,
+        newestCachedTs: postNewest,
+        now,
+      });
+      this.lastFreshnessDecision = postDecision;
+      if (
+        postDecision.kind === "provider_refresh" ||
+        postDecision.kind === "unavailable"
+      ) {
+        throw new InputStaleError(
+          `MarketData still stale after provider refresh for ${input.symbol} ${input.timeframe}`,
+          postDecision,
+        );
+      }
+    }
+
+    return merged;
   }
 
   freshnessLagMs(

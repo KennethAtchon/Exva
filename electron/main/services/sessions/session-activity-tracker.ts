@@ -727,9 +727,11 @@ export class SessionActivityTracker {
     const ageMs = Date.now() - Date.parse(session.createdAt);
     if (!Number.isFinite(ageMs) || ageMs < NO_SIGNAL_STALE_GRACE_MS) {
       this.clearCondition(session.id, "no_signal_stale");
+      this.clearCondition(session.id, "no_signal_went_quiet");
       return;
     }
 
+    // Born-dead: never consumed any input (Solution 08 WS5 — keep distinct).
     const stepCount = this.deps.db.db
       .select()
       .from(sessionExecutionSteps)
@@ -752,8 +754,50 @@ export class SessionActivityTracker {
         `Session has consumed no input and run no execution cycle in ${hours >= 1 ? `${hours}h` : "30m"} since start.`,
       );
       this.clearCondition(session.id, "waiting_signal");
+      this.clearCondition(session.id, "no_signal_went_quiet");
+      return;
+    }
+
+    this.clearCondition(session.id, "no_signal_stale");
+
+    // Went-quiet: had activity, then silence beyond rolling cadence window.
+    const latestStep = this.deps.db.db
+      .select()
+      .from(sessionExecutionSteps)
+      .where(eq(sessionExecutionSteps.sessionId, session.id))
+      .orderBy(desc(sessionExecutionSteps.updatedAt))
+      .limit(1)
+      .get();
+    const latestDelivery = this.deps.db.db
+      .select()
+      .from(sessionSignalDeliveries)
+      .where(eq(sessionSignalDeliveries.sessionId, session.id))
+      .orderBy(desc(sessionSignalDeliveries.enqueuedAt))
+      .limit(1)
+      .get();
+
+    const latestMs = Math.max(
+      latestStep?.updatedAt ? Date.parse(latestStep.updatedAt) : 0,
+      latestDelivery?.enqueuedAt ? Date.parse(latestDelivery.enqueuedAt) : 0,
+    );
+    if (!latestMs) {
+      this.clearCondition(session.id, "no_signal_went_quiet");
+      return;
+    }
+
+    const quietMs = Date.now() - latestMs;
+    // Default rolling window: 2 × 1h bars. Callers can tighten later via cadence.
+    const quietThresholdMs = 2 * 60 * 60_000;
+    if (quietMs > quietThresholdMs) {
+      const quietHours = Math.floor(quietMs / (60 * 60 * 1000));
+      this.reportCondition(
+        session.id,
+        "no_signal_went_quiet",
+        "warn",
+        `Session went quiet for ${quietHours >= 1 ? `${quietHours}h` : `${Math.floor(quietMs / 60_000)}m`} after earlier activity.`,
+      );
     } else {
-      this.clearCondition(session.id, "no_signal_stale");
+      this.clearCondition(session.id, "no_signal_went_quiet");
     }
   }
 

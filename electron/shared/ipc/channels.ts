@@ -193,6 +193,11 @@ export const channels = {
     backfill: "backtest:backfill",
     coverage: "backtest:coverage",
   },
+  paperCertification: {
+    arm: "paperCertification:arm",
+    get: "paperCertification:get",
+    reconcile: "paperCertification:reconcile",
+  },
   dataDoctor: {
     coverage: "data-doctor:coverage",
     gaps: "data-doctor:gaps",
@@ -249,6 +254,7 @@ export const channels = {
     listTransitions: "session-activity:list-transitions",
     monitoringHealth: "session-activity:monitoring-health",
     analytics: "session-activity:analytics",
+    firstDivergence: "session-activity:first-divergence",
   },
 } as const;
 
@@ -289,6 +295,7 @@ export const mainToRendererEvents = [
   "backfill_progress",
   "equity_snapshot",
   "session_activity_changed",
+  "paper_certification_updated",
 ] as const;
 
 export type ExvaEventName = (typeof mainToRendererEvents)[number];

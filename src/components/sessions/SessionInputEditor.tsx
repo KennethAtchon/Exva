@@ -379,11 +379,22 @@ export function SessionInputEditor({
       .listTemplates()
       .then(({ templates }) => {
         if (cancelled) return;
-        dispatch({ templates, templatesLoaded: true });
+        dispatch({
+          templates,
+          templatesLoaded: true,
+          templateError: null,
+        });
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
-        dispatch({ templates: [], templatesLoaded: true });
+        dispatch({
+          templates: [],
+          templatesLoaded: true,
+          templateError:
+            err instanceof Error
+              ? err.message
+              : "Failed to load templates.",
+        });
       });
     return () => {
       cancelled = true;
@@ -460,6 +471,7 @@ export function SessionInputEditor({
   const {
     templates,
     templatesLoaded,
+    templateError,
     options,
     optionsLoaded,
     optionsError,
@@ -475,6 +487,14 @@ export function SessionInputEditor({
             className="h-12 animate-pulse rounded-lg border border-border bg-surface"
           />
         ))}
+      </div>
+    );
+  }
+
+  if (templateError) {
+    return (
+      <div className={hintClass} role="alert">
+        Could not load templates: {templateError}
       </div>
     );
   }

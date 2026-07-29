@@ -2,6 +2,7 @@ import type { SessionStatus } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
 import { canTransition } from "@electron/shared/domain";
 import { countOpenTrades } from "./session-trade-state";
+import { prepareForActivation } from "./prepare-for-activation";
 import type { SessionLifecycleDeps } from "./session-types";
 
 export interface PortfolioValueResult {
@@ -59,30 +60,15 @@ export class SessionService {
     }
     this.assertTransition(session.status, "active");
 
-    if (session.executionMode === "live_allowed") {
-      const readiness = await this.deps.liveReadiness.check(sessionId);
-      if (!readiness.readyToStart) {
-        const blockedBy = readiness.checks
-          .filter((c) => !c.passed)
-          .map((c) => c.name);
-        const message = `Live readiness gate failed: ${blockedBy.join(", ")}`;
-        this.emitSessionEvent(sessionId, "ERROR", message, "preflight");
-        throw new AppError(message, "VALIDATION_FAILED", {
-          blockedBy,
-          checks: readiness.checks,
-        });
-      }
-    }
-
-    const preflight = await this.deps.preflight(
+    await prepareForActivation({
       session,
-      this.deps.orchestratorDeps,
-    );
-    if (!preflight.ok) {
-      const fullMessage = `Preflight ${preflight.check} failed: ${preflight.message}`;
-      this.emitSessionEvent(sessionId, "ERROR", fullMessage, "preflight");
-      throw new AppError(fullMessage, preflight.code, preflight.details);
-    }
+      liveReadiness: this.deps.liveReadiness,
+      preflight: this.deps.preflight,
+      orchestratorDeps: this.deps.orchestratorDeps,
+      emitSessionEvent: (id, level, message, agentType) =>
+        this.emitSessionEvent(id, level, message, agentType),
+      provisionHistory: this.deps.provisionHistory,
+    });
 
     this.emitSessionEvent(sessionId, "INFO", "Session starting...", "session");
     try {
@@ -128,6 +114,17 @@ export class SessionService {
   private async resumeImpl(sessionId: string): Promise<SessionStatus> {
     const session = this.deps.sessionRepo.requireById(sessionId);
     this.assertTransition(session.status, "active");
+
+    await prepareForActivation({
+      session,
+      liveReadiness: this.deps.liveReadiness,
+      preflight: this.deps.preflight,
+      orchestratorDeps: this.deps.orchestratorDeps,
+      emitSessionEvent: (id, level, message, agentType) =>
+        this.emitSessionEvent(id, level, message, agentType),
+      provisionHistory: this.deps.provisionHistory,
+    });
+
     await this.deps.runtimeManager.resumeSession(sessionId);
     this.deps.clearOrderHalt?.();
     this.emitSessionEvent(sessionId, "INFO", "Session resumed.", "session");

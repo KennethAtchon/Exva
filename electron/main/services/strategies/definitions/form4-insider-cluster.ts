@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { createMeanReversionStrategy } from "../../signals/strategy/mean-reversion-signal";
 import type { StrategyDefinition } from "../strategy-definition-registry";
 
 /**
@@ -26,9 +25,10 @@ export const form4InsiderClusterDefinition: StrategyDefinition<Parameters> = {
   implementationVersion: 1,
   create(parameters: Parameters) {
     void parameters;
-    return createMeanReversionStrategy({
+    return {
       id: "form4-insider-cluster",
-      zScoreEntry: -999,
-    });
+      warmupBars: 0,
+      evaluate: () => null,
+    };
   },
 };

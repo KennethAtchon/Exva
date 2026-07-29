@@ -64,7 +64,8 @@ export class ExperienceScorecardService {
     const closedTrades = sessions.flatMap((session) =>
       this.deps.trades
         .listClosed(session.id)
-        .filter((trade) => !isMockBrokerTrade(trade, this.deps.brokerAccounts)),
+        .filter((trade) => !isMockBrokerTrade(trade, this.deps.brokerAccounts))
+        .filter((trade) => trade.originKind !== "certification"),
     );
 
     const apiLog = sessions.flatMap((session) =>

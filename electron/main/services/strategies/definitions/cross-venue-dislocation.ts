@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { createMeanReversionStrategy } from "../../signals/strategy/mean-reversion-signal";
 import type { StrategyDefinition } from "../strategy-definition-registry";
 
 /**
@@ -33,9 +32,10 @@ export const crossVenueDislocationDefinition: StrategyDefinition<Parameters> = {
     // Cross-venue emits are produced by runCrossVenueDislocationScan with
     // live quotes + approved match table, not from OHLCV bars.
     void parameters;
-    return createMeanReversionStrategy({
+    return {
       id: "cross-venue-dislocation",
-      zScoreEntry: -999,
-    });
+      warmupBars: 0,
+      evaluate: () => null,
+    };
   },
 };

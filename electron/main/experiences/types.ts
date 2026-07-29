@@ -8,6 +8,11 @@ export type {
   BrokerRequirement,
 } from "@electron/shared/domain/experience";
 
+export type ExperienceSupportState =
+  | "available"
+  | "forward_paper_only"
+  | "blocked";
+
 export interface ExperienceDescriptor {
   id: string;
   displayName: string;
@@ -20,6 +25,13 @@ export interface ExperienceDescriptor {
    * receive signals via subscription fan-out.
    */
   acceptsScanHit?: boolean;
+  /**
+   * Reachability of the producer/route. Defaults to `available`.
+   * `blocked` experiences are sentinel-only (Solution 10).
+   */
+  supportState?: ExperienceSupportState;
+  blockerCode?: string;
+  blockerMessage?: string;
   defaultPresets: ExperiencePresetIds;
   promptVariantKey: ProcessingMode;
   /**

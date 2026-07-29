@@ -111,6 +111,13 @@ export const api = {
     await bridge().trades.approve(tradeId, approved);
   },
 
+  paperCertification: {
+    arm: (input: { sessionId: string; brokerAccountId: string }) =>
+      bridge().paperCertification.arm(input),
+    get: (runId: string) => bridge().paperCertification.get(runId),
+    reconcile: (runId: string) => bridge().paperCertification.reconcile(runId),
+  },
+
   startSession: (): Promise<SessionStatus> => bridge().session.start(),
   pauseSession: (): Promise<SessionStatus> => bridge().session.pause(),
   resumeSession: (): Promise<SessionStatus> => bridge().session.resume(),
@@ -142,6 +149,11 @@ export const api = {
   ): Promise<
     import("@electron/shared/domain/session-activity-analytics").SessionActivityAnalytics
   > => bridge().sessionActivity.analytics({ sessionId }),
+  getCycleFunnelFirstDivergence: (
+    sessionId: string,
+  ): Promise<
+    import("@electron/shared/domain/cycle-funnel").CycleFunnelOutcome | null
+  > => bridge().sessionActivity.firstDivergence({ sessionId }),
   retrySessionStep: (input: {
     sessionId: string;
     cycleId: string;

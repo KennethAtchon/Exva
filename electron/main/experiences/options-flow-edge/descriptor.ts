@@ -9,12 +9,17 @@ export const OPTIONS_FLOW_EDGE_EXPERIENCE: ExperienceDescriptor = {
   id: "options-flow-edge",
   displayName: "Options Flow Edge",
   description:
-    "Detects unusual options activity and trades defined-risk vertical spreads (Tradier placeSpread). Forward-paper evidence class.",
+    "BLOCKED: OPTIONS_PRODUCER_UNREACHABLE — scheduled options evaluator returns null; no option chain reaches the pipeline. Sentinel only until Solution 10.",
   capabilities: {
     signalSourceTypes: [],
     brokerRequirement: "any_supported_class",
   },
   pipelineId: "options-flow-cycle",
+  /** Unreachable producer — not assignable to non-sentinel sessions. */
+  supportState: "blocked",
+  blockerCode: "OPTIONS_PRODUCER_UNREACHABLE",
+  blockerMessage:
+    "Scheduled options evaluator returns null; no option chain reaches the pipeline.",
   defaultPresets: {
     posturePresetId: "manual_watchlist",
     rulesPresetId: "catalyst_entry",

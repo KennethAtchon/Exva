@@ -26,6 +26,11 @@ export interface BacktestRun {
   metricsJson: string;
   verdict: BacktestVerdict;
   createdAt: string;
+  /** Null/undefined reads as V1. */
+  engineVersion?: number | null;
+  specHash?: string | null;
+  datasetHash?: string | null;
+  researchContractHash?: string | null;
 }
 
 export type ResearchTier = "research" | "backtest" | "paper" | "live";

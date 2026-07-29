@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { createMeanReversionStrategy } from "../../signals/strategy/mean-reversion-signal";
 import type { StrategyDefinition } from "../strategy-definition-registry";
 
 /**
@@ -25,9 +24,10 @@ export const fundingBasisDefinition: StrategyDefinition<Parameters> = {
   implementationVersion: 1,
   create(parameters: Parameters) {
     void parameters;
-    return createMeanReversionStrategy({
+    return {
       id: "funding-basis",
-      zScoreEntry: -999,
-    });
+      warmupBars: 0,
+      evaluate: () => null,
+    };
   },
 };

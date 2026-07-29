@@ -12,7 +12,7 @@
  *   Kalshi:  KALSHI_KEY_ID, KALSHI_PRIVATE_KEY_PEM  (optional KALSHI_MODE=paper|live)
  *   Tradier: TRADIER_ACCESS_TOKEN, TRADIER_ACCOUNT_ID  (optional TRADIER_MODE=paper|live)
  *   Kraken:  KRAKEN_API_KEY, KRAKEN_API_SECRET  (paper uses validate-only)
- *   Alpaca:  ALPACA_API_KEY, ALPACA_API_SECRET  (optional ALPACA_MODE=paper|live)
+ *   Alpaca:  ALPACA_API_KEY, ALPACA_SECRET_KEY  (optional ALPACA_MODE=paper|live)
  */
 
 import { MockBrokerAdapter } from "../electron/main/services/broker/adapters/mock-adapter";
@@ -125,14 +125,14 @@ async function buildAdapter(): Promise<{
       };
     }
     case "alpaca": {
-      const env = requireEnv(["ALPACA_API_KEY", "ALPACA_API_SECRET"], "alpaca");
+      const env = requireEnv(["ALPACA_API_KEY", "ALPACA_SECRET_KEY"], "alpaca");
       const mode =
         process.env.ALPACA_MODE === "live" ? ("live" as const) : "paper";
       return {
         adapter: new AlpacaAdapter({
           provider: "alpaca",
           api_key: env.ALPACA_API_KEY,
-          secret_key: env.ALPACA_API_SECRET,
+          secret_key: env.ALPACA_SECRET_KEY,
           mode,
         }),
         symbol: process.env.ALPACA_CERT_SYMBOL ?? "AAPL",

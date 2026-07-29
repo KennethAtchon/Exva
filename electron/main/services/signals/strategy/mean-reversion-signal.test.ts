@@ -10,21 +10,13 @@ function flatCloses(value: number, count: number) {
 }
 
 function closesWithLastZScore(lastZScore: number) {
-  const sumOthers = -lastZScore;
-  const sumSquaresOthers = 20 - lastZScore ** 2;
-  const discriminant = 18 * (19 * sumSquaresOthers - sumOthers ** 2);
-  const repeated = (18 * sumOthers + Math.sqrt(discriminant)) / (18 * 19);
-  const outlier = sumOthers - 18 * repeated;
-  return [
-    ...Array.from({ length: 18 }, () => ({ close: 100 + repeated })),
-    { close: 100 + outlier },
-    { close: 100 + lastZScore },
-  ];
+  // Preceding 20 flat bars → std guard = 1, so last close = 100 + z.
+  return [...flatCloses(100, 20), { close: 100 + lastZScore }];
 }
 
 describe("computeMeanReversionSignal", () => {
-  it.each([0, 19])(
-    "skips with low strength when %i closes cannot form a 20-bar z-score",
+  it.each([0, 20])(
+    "skips with low strength when %i closes cannot form a 20-bar baseline + current",
     (count) => {
       const signal = computeMeanReversionSignal({
         symbol: "SPY",
@@ -40,7 +32,7 @@ describe("computeMeanReversionSignal", () => {
     },
   );
 
-  it("skips when there are fewer than 20 bars", () => {
+  it("skips when there are fewer than 21 bars", () => {
     const signal = computeMeanReversionSignal({
       symbol: "SPY",
       ohlcv: flatCloses(100, 10),
@@ -53,7 +45,7 @@ describe("computeMeanReversionSignal", () => {
   });
 
   it("buys when z-score is below the entry threshold", () => {
-    const ohlcv = [...flatCloses(100, 19), { close: 70 }];
+    const ohlcv = [...flatCloses(100, 20), { close: 70 }];
     const signal = computeMeanReversionSignal({
       symbol: "QQQ",
       ohlcv,
@@ -92,7 +84,7 @@ describe("computeMeanReversionSignal", () => {
   it("clamps extreme mean-reversion strength at 0.95", () => {
     const signal = computeMeanReversionSignal({
       symbol: "QQQ",
-      ohlcv: [...flatCloses(100, 19), { close: 1 }],
+      ohlcv: [...flatCloses(100, 20), { close: 1 }],
       zScoreEntry: -2,
     });
 
@@ -115,7 +107,7 @@ describe("computeMeanReversionSignal", () => {
   it("skips when price is not extended enough", () => {
     const signal = computeMeanReversionSignal({
       symbol: "SPY",
-      ohlcv: flatCloses(100, 20),
+      ohlcv: flatCloses(100, 21),
       zScoreEntry: -2,
     });
 
@@ -126,7 +118,7 @@ describe("computeMeanReversionSignal", () => {
   it("uses the zero-variance guard for a constant series", () => {
     const signal = computeMeanReversionSignal({
       symbol: "SPY",
-      ohlcv: flatCloses(100, 20),
+      ohlcv: flatCloses(100, 21),
       zScoreEntry: -2,
     });
 

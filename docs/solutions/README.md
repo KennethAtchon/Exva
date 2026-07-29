@@ -12,7 +12,7 @@ This folder is the implementation handoff for the verified diagnosis in
 |     2 | [`02-repair-live-trading-funnel.md`](./02-repair-live-trading-funnel.md)             | Fresh market data, immutable signals, event replay, broker/order fixes            |
 |     3 | [`03-rebuild-backtest-lab.md`](./03-rebuild-backtest-lab.md)                         | Portfolio simulator, persistence, dollar P&L, charts, and promotion contract      |
 |     4 | [`04-broker-account-setup.md`](./04-broker-account-setup.md)                         | Exact user setup versus code work for Alpaca, Tradier, Tradovate, and Polymarket  |
-|     5 | [`05-session-matrix-and-observability.md`](./05-session-matrix-and-observability.md) | Replacement sessions and the no-trade diagnostic surface                          |
+|     5 | [`05-session-matrix-and-observability.md`](./05-session-matrix-and-observability.md) | Replacement sessions, no-trade funnel, and dormant-until-open market hours        |
 |     6 | [`06-market-data-provisioning.md`](./06-market-data-provisioning.md)                 | History depth, `requiredBarCount` enforcement, universe breadth, opportunity rate |
 |     7 | [`07-ai-reliability-and-spend.md`](./07-ai-reliability-and-spend.md)                 | Provider fallback, circuit breaking, spend ordering, and AI budgets               |
 |     8 | [`08-uptime-and-scan-cadence.md`](./08-uptime-and-scan-cadence.md)                   | Autostart, immediate first tick, market-open alignment, uptime coverage           |
@@ -64,7 +64,7 @@ Every problem ID from the diagnosis, and where it is solved. No ID may be left w
 | P1-8  | Tradovate and options claims exceed production capability       | 04 + 10         |
 | P2-1  | Mean-reversion baseline includes the tested bar                 | 02 WS3          |
 | P2-2  | Approval rejection leaves waiter unresolved                     | 02 WS8          |
-| P2-3  | Post-close expected skips bury first-divergence logs            | 05              |
+| P2-3  | Post-close expected skips bury first-divergence logs            | 05 (dormant until open) |
 | P2-4  | Session input editor contracts inconsistent, swallow failures   | 09              |
 | P2-5  | `requiredBarCount` declared but never read; depth unprovisioned | 06 WS1–WS2      |
 | P2-6  | Universe breadth and opportunity rate are unmeasured            | 06 WS3–WS4      |

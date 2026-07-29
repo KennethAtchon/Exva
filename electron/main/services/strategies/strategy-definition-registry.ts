@@ -28,6 +28,16 @@ export class StrategyDefinitionRegistry {
         `Strategy definition already registered: "${definition.id}"`,
       );
     }
+    // Solution 06 WS1: requiredBarCount must cover evaluator warmup.
+    const warmupProbe = definition.create(
+      definition.parameterSchema.parse({}),
+    );
+    if (definition.requiredBarCount < warmupProbe.warmupBars) {
+      throw new Error(
+        `Strategy "${definition.id}" requiredBarCount (${definition.requiredBarCount}) ` +
+          `< warmupBars (${warmupProbe.warmupBars})`,
+      );
+    }
     this.definitions.set(
       definition.id,
       definition as StrategyDefinition<unknown>,

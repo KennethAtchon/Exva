@@ -465,6 +465,28 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
       capitalReservation: capitalReservation as never,
       loadGauges: () => [],
     }),
+    cycleFunnel: {
+      record: () => undefined,
+      get: () => null,
+      latestForSession: () => [],
+      firstDivergence: () => null,
+    } as never,
+    sessionUptime: {
+      heartbeat: () => undefined,
+      coverage: () => null,
+      assertSufficientCoverage: () => undefined,
+    } as never,
+    paperCertification: {
+      arm: async () => {
+        throw new Error("paperCertification stub");
+      },
+      get: () => {
+        throw new Error("paperCertification stub");
+      },
+      reconcile: async () => {
+        throw new Error("paperCertification stub");
+      },
+    } as never,
   };
 
   function configureAiProvider(sessionId?: string) {

@@ -59,6 +59,7 @@ export type InstrumentEvalKind =
   | "signal"
   | "no_setup"
   | "insufficient_bars"
+  | "input_stale"
   | "bars_failed"
   | "evaluate_failed"
   | "empty_universe";
@@ -68,6 +69,8 @@ export type InstrumentEvalOutcome = {
   kind: InstrumentEvalKind;
   barsActual?: number;
   barsRequired?: number;
+  preferredContextBars?: number;
+  warmupBars?: number;
   error?: string;
 };
 
@@ -93,6 +96,7 @@ export function summarizeScanExecution(
 
 const UNEVALUABLE_KINDS: ReadonlySet<InstrumentEvalKind> = new Set([
   "insufficient_bars",
+  "input_stale",
   "bars_failed",
   "evaluate_failed",
   "empty_universe",
@@ -170,6 +174,8 @@ export class ScheduledStrategyExecutor {
 
     const strategyDef = strategyRegistry.require(plan.strategyId);
     const strategy = strategyDef.create(plan.strategyParameters);
+    const minEvaluableBars = strategyDef.requiredBarCount;
+    const preferredContextBars = Math.max(minEvaluableBars * 4, 250);
 
     const signals: MarketSignal[] = [];
     const instruments: InstrumentEvalOutcome[] = [];
@@ -191,6 +197,16 @@ export class ScheduledStrategyExecutor {
             getBars,
             now,
             instrumentClass,
+            {
+              minEvaluableBars,
+              preferredContextBars,
+              warmupBars: strategy.warmupBars,
+              strategyImplementationVersion: strategyDef.implementationVersion,
+              strategyParameters: plan.strategyParameters as Record<
+                string,
+                unknown
+              >,
+            },
           ),
         ),
       );
@@ -211,36 +227,55 @@ export class ScheduledStrategyExecutor {
     getBars: GetBarsCallback,
     now: string,
     instrumentClass: InstrumentClass,
+    contract: {
+      minEvaluableBars: number;
+      preferredContextBars: number;
+      warmupBars: number;
+      strategyImplementationVersion: number;
+      strategyParameters: Record<string, unknown>;
+    },
   ): Promise<{
     signal: MarketSignal | null;
     diag: InstrumentEvalOutcome;
   }> {
-    const barsRequired = strategy.warmupBars;
+    const barsRequired = contract.minEvaluableBars;
+    const requestCount = Math.max(
+      contract.preferredContextBars,
+      contract.warmupBars + 1,
+      barsRequired,
+    );
     let bars: OhlcvBar[];
     try {
       bars = await getBars(
         displaySymbol,
         plan.analysisTimeframe,
-        strategy.warmupBars + 1,
+        requestCount,
         instrumentClass,
         { subscriptionIds: plan.subscriptionIds },
       );
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
+      const isStale =
+        err instanceof Error &&
+        (err.name === "InputStaleError" ||
+          errorMessage.includes("still stale") ||
+          errorMessage.includes("input_stale"));
       logger.warn({ symbol: displaySymbol, err }, "getBars failed");
       this.deps.onBarsFailed?.(plan, displaySymbol, errorMessage);
       return {
         signal: null,
         diag: {
           symbol: displaySymbol,
-          kind: "bars_failed",
+          kind: isStale ? "input_stale" : "bars_failed",
           barsRequired,
+          preferredContextBars: contract.preferredContextBars,
+          warmupBars: contract.warmupBars,
           error: errorMessage,
         },
       };
     }
 
-    if (bars.length < strategy.warmupBars) {
+    if (bars.length < barsRequired) {
       return {
         signal: null,
         diag: {
@@ -248,6 +283,8 @@ export class ScheduledStrategyExecutor {
           kind: "insufficient_bars",
           barsActual: bars.length,
           barsRequired,
+          preferredContextBars: contract.preferredContextBars,
+          warmupBars: contract.warmupBars,
         },
       };
     }
@@ -271,6 +308,8 @@ export class ScheduledStrategyExecutor {
           kind: "evaluate_failed",
           barsActual: bars.length,
           barsRequired,
+          preferredContextBars: contract.preferredContextBars,
+          warmupBars: contract.warmupBars,
           error: errorMessage,
         },
       };
@@ -284,19 +323,44 @@ export class ScheduledStrategyExecutor {
           kind: "no_setup",
           barsActual: bars.length,
           barsRequired,
+          preferredContextBars: contract.preferredContextBars,
+          warmupBars: contract.warmupBars,
         },
       };
     }
+
+    const newestBarTs = bars[bars.length - 1]!.ts;
+    const factPayload = {
+      schemaVersion: 1 as const,
+      signalId: crypto.randomUUID(),
+      originKind: "strategy" as const,
+      sessionInputGroupKey: plan.groupKey,
+      strategyId: plan.strategyId,
+      strategyImplementationVersion: contract.strategyImplementationVersion,
+      strategyParameters: contract.strategyParameters,
+      symbol: displaySymbol,
+      instrumentClass,
+      timeframe: plan.analysisTimeframe,
+      evaluatedAt: now,
+      newestBarTs,
+      barWindowHash: signal.barWindowHash,
+      action: signal.action,
+      strength: signal.strength,
+      evidence: signal.evidence,
+      ...(signal.lifecycle ? { lifecycle: signal.lifecycle } : {}),
+    };
 
     const payload: ScanHitPayload = {
       strategyId: plan.strategyId,
       evidence: signal.evidence,
       barWindowHash: signal.barWindowHash,
       proposedAction: signal.action,
+      // Immutable fact travels with the sparse payload for downstream consumers.
+      deterministicFact: factPayload,
     };
 
     const marketSignal: MarketSignal = {
-      id: crypto.randomUUID(),
+      id: factPayload.signalId,
       sourceId: `schedule:${plan.groupKey}`,
       kind: "scan_hit",
       instrumentClass,
@@ -312,7 +376,8 @@ export class ScheduledStrategyExecutor {
       provenance: {
         raw: {
           scheduleGroupKey: plan.groupKey,
-          originKind: "scheduled_scan",
+          originKind: "strategy",
+          deterministicFact: factPayload,
         },
       },
       payload,
@@ -325,6 +390,8 @@ export class ScheduledStrategyExecutor {
         kind: "signal",
         barsActual: bars.length,
         barsRequired,
+        preferredContextBars: contract.preferredContextBars,
+        warmupBars: contract.warmupBars,
       },
     };
   }

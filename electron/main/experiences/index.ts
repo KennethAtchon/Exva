@@ -4,6 +4,7 @@ import { RULES_MEAN_REVERSION_EXPERIENCE } from "./rules-mean-reversion/descript
 import { RULES_TREND_FOLLOWING_EXPERIENCE } from "./rules-trend-following/descriptor";
 import { RULES_BREAKOUT_EXPERIENCE } from "./rules-breakout/descriptor";
 import { OPTIONS_FLOW_EDGE_EXPERIENCE } from "./options-flow-edge/descriptor";
+import { PAPER_EXECUTION_CANARY_EXPERIENCE } from "./paper-execution-canary/descriptor";
 import type { ExperienceDescriptor } from "./types";
 import { validateExperienceSourceEmissions } from "./validate-source-capabilities";
 import {
@@ -97,3 +98,4 @@ registerExperience(RULES_TREND_FOLLOWING_EXPERIENCE);
 registerExperience(RULES_BREAKOUT_EXPERIENCE);
 registerExperience(OPTIONS_FLOW_EDGE_EXPERIENCE);
 registerExperience(PREDICTION_EVENT_EDGE_EXPERIENCE);
+registerExperience(PAPER_EXECUTION_CANARY_EXPERIENCE);

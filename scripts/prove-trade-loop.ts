@@ -10,11 +10,16 @@
  *                    forced restart -> rehydration -> settlement journey,
  *                    entirely against a scratch DB (never touches daily DB)
  *
+ *   certification  — arms PaperCertificationService against EXVA_DB_PATH
+ *                    (requires EXVA_CERT_SESSION_ID + EXVA_CERT_BROKER_ACCOUNT_ID),
+ *                    waits for terminal state, then runs the alpaca audit
+ *
  * Usage:
  *   bun run prove
  *   bun run prove -- --mode=mock
  *   bun run prove -- --mode=alpaca
  *   bun run prove -- --mode=polymarket
+ *   bun run prove -- --mode=certification
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -42,13 +47,20 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MOCK_TEST =
   "electron/main/services/orchestration/__tests__/mock-trade-rehearsal.integration.test.ts";
 
-type ProveMode = "mock" | "alpaca" | "polymarket";
+type ProveMode = "mock" | "alpaca" | "polymarket" | "certification";
 
 function parseMode(): ProveMode {
   const arg = process.argv.find((a) => a.startsWith("--mode="));
   const mode = (arg?.slice("--mode=".length) ?? "mock") as string;
-  if (mode !== "mock" && mode !== "alpaca" && mode !== "polymarket") {
-    console.error(`Unknown mode "${mode}". Use mock|alpaca|polymarket.`);
+  if (
+    mode !== "mock" &&
+    mode !== "alpaca" &&
+    mode !== "polymarket" &&
+    mode !== "certification"
+  ) {
+    console.error(
+      `Unknown mode "${mode}". Use mock|alpaca|polymarket|certification.`,
+    );
     process.exit(2);
   }
   return mode;
@@ -548,11 +560,105 @@ async function provePolymarket(): Promise<void> {
   }
 }
 
-const mode = parseMode();
+/**
+ * Mode 4: arm paper certification against the daily DB, wait for terminal
+ * state, then hand off to the alpaca read-only audit.
+ *
+ * Required env:
+ *   EXVA_DB_PATH, ALPACA_API_KEY, ALPACA_SECRET_KEY,
+ *   EXVA_CERT_SESSION_ID, EXVA_CERT_BROKER_ACCOUNT_ID
+ */
+async function proveCertification(): Promise<void> {
+  console.log("▶ prove (certification): arm paper SPY $10 round-trip");
+  const key = env.alpacaApiKey ?? process.env.ALPACA_API_KEY?.trim();
+  const secret = env.alpacaSecretKey ?? process.env.ALPACA_SECRET_KEY?.trim();
+  if (!key || !secret) {
+    failStage("alpaca_credentials", [
+      "Certification mode requires ALPACA_API_KEY and ALPACA_SECRET_KEY.",
+    ]);
+  }
+  const dbPath = env.dbPath?.trim();
+  if (!dbPath || !fs.existsSync(dbPath)) {
+    failStage("db_path", [
+      "EXVA_DB_PATH must point at the writable daily database.",
+    ]);
+  }
+  const sessionId = process.env.EXVA_CERT_SESSION_ID?.trim();
+  const brokerAccountId = process.env.EXVA_CERT_BROKER_ACCOUNT_ID?.trim();
+  if (!sessionId || !brokerAccountId) {
+    failStage("cert_ids", [
+      "Set EXVA_CERT_SESSION_ID and EXVA_CERT_BROKER_ACCOUNT_ID to a paper_only",
+      "session with an assigned Alpaca paper broker, then re-run.",
+    ]);
+  }
+
+  const { createDbClient } = await import("../electron/main/db/client");
+  const { PaperCertificationService } = await import(
+    "../electron/main/services/certification/paper-certification-service"
+  );
+  const { AlpacaAdapter } = await import(
+    "../electron/main/services/broker/adapters/alpaca-adapter"
+  );
+
+  const userDataPath = path.dirname(dbPath);
+  // createDbClient expects userData dir when EXVA_DB_PATH is set — use env path.
+  process.env.EXVA_DB_PATH = dbPath;
+  const db = createDbClient(userDataPath);
+  const adapter = new AlpacaAdapter({
+    provider: "alpaca",
+    api_key: key,
+    secret_key: secret,
+    mode: "paper",
+  });
+
+  const service = new PaperCertificationService({
+    db,
+    getAdapter: async () => adapter,
+    isKillSwitchEngaged: () => false,
+    getWorkspaceMode: () => "paper",
+  });
+
+  console.log(
+    `  arming session=${sessionId} broker=${brokerAccountId}…`,
+  );
+  let run = await service.arm({ sessionId, brokerAccountId });
+  console.log(`  PASS  armed run=${run.id} status=${run.status}`);
+
+  const deadline = Date.now() + 5 * 60_000;
+  while (
+    Date.now() < deadline &&
+    run.status !== "closed" &&
+    run.status !== "failed" &&
+    run.status !== "reconciliation_required"
+  ) {
+    await new Promise((r) => setTimeout(r, 2_000));
+    run = await service.reconcile(run.id);
+    console.log(`  … status=${run.status}`);
+  }
+
+  if (run.status !== "closed") {
+    failStage("certification_terminal", [
+      `Run ${run.id} ended as ${run.status}`,
+      run.failureMessage ?? "(no failure message)",
+    ]);
+  }
+  console.log(
+    `  PASS  certification_closed entry=${run.entryBrokerOrderId} exit=${run.exitBrokerOrderId}`,
+  );
+  console.log(
+    "  RECEIPT: paper-simulation integration certified — not strategy validated.",
+  );
+  db.sqlite.close();
+
+  console.log("\n▶ handoff to alpaca audit…");
+  proveAlpaca();
+}
 if (mode === "alpaca") {
   proveAlpaca();
 } else if (mode === "polymarket") {
   await provePolymarket();
+} else if (mode === "certification") {
+  await proveCertification();
 } else {
   proveMock();
 }

@@ -379,6 +379,8 @@ const exva: ExvaApi = {
     monitoringHealth: () => invoke(channels.sessionActivity.monitoringHealth),
     analytics: (input: { sessionId: string }) =>
       invoke(channels.sessionActivity.analytics, input),
+    firstDivergence: (input: { sessionId: string }) =>
+      invoke(channels.sessionActivity.firstDivergence, input),
   },
   developer: {
     getSettings: () => invoke(channels.developer.getSettings),
@@ -428,6 +430,14 @@ const exva: ExvaApi = {
     backfill: (input: unknown) => invoke(channels.backtest.backfill, input),
     coverage: (input: { symbol: string; timeframe: string }) =>
       invoke(channels.backtest.coverage, input),
+  },
+  paperCertification: {
+    arm: (input: { sessionId: string; brokerAccountId: string }) =>
+      invoke(channels.paperCertification.arm, input),
+    get: (runId: string) =>
+      invoke(channels.paperCertification.get, { runId }),
+    reconcile: (runId: string) =>
+      invoke(channels.paperCertification.reconcile, { runId }),
   },
   dataDoctor: {
     coverage: () => invoke(channels.dataDoctor.coverage),

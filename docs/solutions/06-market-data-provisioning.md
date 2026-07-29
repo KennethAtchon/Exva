@@ -134,17 +134,22 @@ Breadth is a configuration decision, not a code fix, but the system must make it
 Current default scheduled universe: `SPY`, `QQQ` (mean reversion), `BTC-USD` (breakout), `AAPL`,
 `NVDA` (unreachable options producer). Three instruments actually evaluable.
 
+**Decided target (O6):** the rules liquid-equity instrument set holds **20–25** symbols once depth is
+provisioned and the setup rate on the current three-instrument universe is measured. That size is the
+minimum intended to move daily expected setups out of the ~0.3 regime diagnosed on 2026-07-27.
+
 Requirements:
 
 1. Instrument sets declare the strategy classes they are valid for; class mismatches are rejected at
    configuration time rather than producing silent zero-evaluation lanes.
-2. The liquid-equity set expands to a documented, liquidity-screened list once Solutions 01 and 02 are
-   green — not before, because more symbols against stale data only multiplies the same defect.
+2. The liquid-equity set expands to a documented, liquidity-screened list of **20–25** names once
+   Solutions 01 and 02 are green — not before, because more symbols against stale data only multiplies
+   the same defect.
 3. Every added symbol must pass the same tradability screen the EDGAR path uses (listed venue, price
    floor, dollar-volume floor) so the universe cannot silently acquire untradeable names.
 
 Do not expand the universe as a way to force trades. Expand it after Workstream 4 quantifies what the
-current universe can produce.
+current universe can produce, then widen to the 20–25 target in one documented set revision.
 
 ## Workstream 4: Measure the Opportunity Rate
 
@@ -218,3 +223,4 @@ gaps for the requested window.
 - [ ] Setup rate and eligible-evaluation count are queryable per session per day.
 - [ ] One command provisions an entire instrument set.
 - [ ] Universe expansion is gated on the measured setup rate, not on impatience.
+- [ ] Rules liquid-equity set is widened to 20–25 liquidity-screened symbols after that gate.

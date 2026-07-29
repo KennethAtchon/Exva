@@ -151,12 +151,11 @@ describe("StrategyDefinitionRegistry", () => {
       expect(strategy.id).toBe("trend-following");
     });
 
-    it("options-flow is available (v2 verticals)", () => {
+    it("options-flow is disabled until Solution 10 producer exists", () => {
       const registry = getStrategyDefinitionRegistry();
-      const def = registry.require("options-flow");
-      expect(def.implementationStatus).toBe("available");
-      const strategy = def.create({ useVerticalSpreads: true });
-      expect(strategy.id).toBe("options-flow");
+      const def = registry.get("options-flow");
+      expect(def?.implementationStatus).toBe("disabled");
+      expect(() => registry.require("options-flow")).toThrow(/disabled/i);
     });
 
     it("unusual-volume is available", () => {

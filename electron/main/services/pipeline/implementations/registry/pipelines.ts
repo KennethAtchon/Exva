@@ -7,6 +7,7 @@ import { RULES_TREND_FOLLOWING_CYCLE } from "../rules/trend-following-analysis";
 import { RULES_BREAKOUT_CYCLE } from "../rules/breakout-analysis";
 import { OPTIONS_FLOW_CYCLE } from "../rules/options-flow-analysis";
 import { PREDICTION_EDGE_CYCLE } from "../prediction/prediction-edge-analysis";
+import { PAPER_CERTIFICATION_CYCLE } from "../rules/paper-certification-analysis";
 
 export const DEFAULT_PIPELINE: PipelineDescriptor = {
   id: "default-trade-cycle",
@@ -89,6 +90,17 @@ export const PREDICTION_EVENT_PIPELINE: PipelineDescriptor = {
   },
 };
 
+/** Certification uses PaperCertificationService; pipeline is a registry placeholder. */
+export const PAPER_CERTIFICATION_PIPELINE: PipelineDescriptor = {
+  id: "paper-certification",
+  displayName: "Paper execution canary",
+  automation: "deterministic",
+  phases: ["decision"],
+  signalSources: [],
+  plan: PAPER_CERTIFICATION_CYCLE,
+  phaseWorkers: { decision: [] },
+};
+
 export const ALL_PIPELINES: readonly PipelineDescriptor[] = [
   DEFAULT_PIPELINE,
   EDGAR_8K_PIPELINE,
@@ -97,4 +109,5 @@ export const ALL_PIPELINES: readonly PipelineDescriptor[] = [
   RULES_BREAKOUT_PIPELINE,
   OPTIONS_FLOW_PIPELINE,
   PREDICTION_EVENT_PIPELINE,
+  PAPER_CERTIFICATION_PIPELINE,
 ];
