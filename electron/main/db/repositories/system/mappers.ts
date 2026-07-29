@@ -14,9 +14,6 @@ import type {
 } from "@/lib/types";
 import { safeJsonParse } from "../../../services/infra/safe-json-parse";
 import {
-  DEFAULT_MOCK_ACCOUNT_BALANCE_USD,
-  DEFAULT_MOCK_EXECUTION_TIER,
-  DEFAULT_MOCK_SCENARIO_KIND,
   isMockScenarioKind,
   type MockExecutionTier,
 } from "@electron/shared/domain/mock-scenario";
@@ -167,7 +164,6 @@ export function toProviderAccount(row: Row): ProviderAccount {
 
 export function toBrokerAccount(row: Row): BrokerAccount {
   row = normalizeRow(row);
-  const isMockBroker = row.broker_type === "mock";
   const balanceCacheUsd = nullableNumber(row.balance_cache_usd);
   return {
     id: String(row.id),
@@ -181,24 +177,18 @@ export function toBrokerAccount(row: Row): BrokerAccount {
       row.mock_scenario_kind != null &&
       isMockScenarioKind(String(row.mock_scenario_kind))
         ? (String(row.mock_scenario_kind) as BrokerAccount["mockScenarioKind"])
-        : isMockBroker
-          ? DEFAULT_MOCK_SCENARIO_KIND
-          : null,
+        : null,
     mockExecutionTier:
       row.mock_execution_tier === "rehearsal" ||
       row.mock_execution_tier === "scripted"
         ? (row.mock_execution_tier as MockExecutionTier)
-        : isMockBroker
-          ? DEFAULT_MOCK_EXECUTION_TIER
-          : null,
+        : null,
     maxSessions: Number(row.max_sessions ?? 10),
     allocationEnforcement:
       (row.allocation_enforcement as BrokerAccount["allocationEnforcement"]) ??
       "hard",
     balanceRefreshIntervalMin: Number(row.balance_refresh_interval_min ?? 5),
-    balanceCacheUsd:
-      balanceCacheUsd ??
-      (isMockBroker ? DEFAULT_MOCK_ACCOUNT_BALANCE_USD : null),
+    balanceCacheUsd,
     balanceCachedAt: nullableString(row.balance_cached_at),
     secretRef: String(row.secret_ref),
     updatedAt: String(row.updated_at),

@@ -68,11 +68,6 @@ export interface SignalEvent {
   detectedAt: string;
   /** MarketSignal kind — required at emit time. */
   kind: string;
-  /**
-   * Legacy typed-payload column. Optional; payloadJson is canonical.
-   * Kept for rows written during the dual-write period.
-   */
-  payloadV2?: Record<string, unknown> | null;
   /** Source-computed dedupe key — required at emit time. */
   dedupeKey: string;
   /** ISO-8601 duration TTL for delivery expiry — required at emit time. */

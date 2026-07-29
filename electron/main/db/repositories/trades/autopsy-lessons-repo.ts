@@ -42,11 +42,6 @@ export class AutopsyLessonsRepo {
     return rows.map(toLesson);
   }
 
-  /** @deprecated Prefer listByAutopsy — period runs share the same FK. */
-  listByPeriodAutopsy(periodAutopsyId: string): AutopsyLesson[] {
-    return this.listByAutopsy(periodAutopsyId);
-  }
-
   listBySession(sessionId: string, statuses?: LessonStatus[]): AutopsyLesson[] {
     const conditions = [eq(autopsyLessons.sessionId, sessionId)];
     if (statuses?.length) {

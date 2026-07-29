@@ -777,11 +777,10 @@ CREATE TABLE `signal_events` (
 	`dispatch_status` text NOT NULL,
 	`dispatch_completed_at` text,
 	`source_dropped_reason` text,
-	`kind` text,
-	`payload_v2` text,
-	`dedupe_key` text,
-	`ttl` text,
-	`occurred_at` text,
+	`kind` text NOT NULL,
+	`dedupe_key` text NOT NULL,
+	`ttl` text NOT NULL,
+	`occurred_at` text NOT NULL,
 	`origin_kind` text,
 	`origin_id` text,
 	`schedule_group_key` text
@@ -789,7 +788,7 @@ CREATE TABLE `signal_events` (
 --> statement-breakpoint
 CREATE INDEX `idx_signal_events_source` ON `signal_events` (`source_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `idx_signal_events_accession` ON `signal_events` (`source_id`,`accession_number`) WHERE "signal_events"."accession_number" is not null;--> statement-breakpoint
-CREATE UNIQUE INDEX `idx_signal_events_dedupe` ON `signal_events` (`source_id`,`dedupe_key`) WHERE "signal_events"."dedupe_key" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX `idx_signal_events_dedupe` ON `signal_events` (`source_id`,`dedupe_key`);--> statement-breakpoint
 CREATE INDEX `idx_signal_events_origin` ON `signal_events` (`origin_kind`,`origin_id`);--> statement-breakpoint
 CREATE TABLE `signal_labels` (
 	`observation_id` text NOT NULL,

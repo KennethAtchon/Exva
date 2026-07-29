@@ -4947,35 +4947,28 @@
           "name": "kind",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "payload_v2": {
-          "name": "payload_v2",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "dedupe_key": {
           "name": "dedupe_key",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "ttl": {
           "name": "ttl",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "occurred_at": {
           "name": "occurred_at",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "origin_kind": {
@@ -5015,8 +5008,7 @@
         "idx_signal_events_dedupe": {
           "name": "idx_signal_events_dedupe",
           "columns": ["source_id", "dedupe_key"],
-          "isUnique": true,
-          "where": "\"signal_events\".\"dedupe_key\" is not null"
+          "isUnique": true
         },
         "idx_signal_events_origin": {
           "name": "idx_signal_events_origin",

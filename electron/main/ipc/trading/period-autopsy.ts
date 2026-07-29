@@ -243,7 +243,7 @@ export function registerPeriodAutopsyHandlers(services: AppServices): void {
         assertSessionInWorkspaceEnvironment(services, record.sessionId);
       }
       const lessons =
-        services.repos.autopsyLessons.listByPeriodAutopsy(periodAutopsyId);
+        services.repos.autopsyLessons.listByAutopsy(periodAutopsyId);
       const trades = services.repos.trades.listByIds(
         requireJsonParse<string[]>(
           record.tradeIdsJson,

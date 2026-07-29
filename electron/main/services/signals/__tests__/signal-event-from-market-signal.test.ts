@@ -43,7 +43,6 @@ describe("signalEventFromMarketSignal", () => {
       occurredAt: "2026-07-11T10:00:00.000Z",
     });
     expect(event.payloadJson.instrumentClass).toBe("stock");
-    expect(event.payloadV2).toBeUndefined();
   });
 });
 

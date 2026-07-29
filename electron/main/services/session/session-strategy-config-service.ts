@@ -536,60 +536,7 @@ export class SessionStrategyConfigService {
     this.insertInitial(targetSessionId, source.doc);
   }
 
-  backfillMissingProviderModel(defaults: {
-    providerKey: string;
-    modelId: string;
-  }): number {
-    if (!defaults.providerKey.trim() || !defaults.modelId.trim()) return 0;
-    const rows = this.client.db.select().from(sessionStrategyConfigs).all();
-    let updated = 0;
-    for (const row of rows) {
-      const doc = parseSessionStrategyConfigDoc(row.doc);
-      let changed = false;
-      const phases = doc.ai.phases.map((phase) => {
-        if (phase.providerKey.trim() && phase.modelId.trim()) return phase;
-        changed = true;
-        return {
-          ...phase,
-          providerKey: phase.providerKey.trim()
-            ? phase.providerKey
-            : defaults.providerKey,
-          modelId: phase.modelId.trim() ? phase.modelId : defaults.modelId,
-        };
-      });
-      if (!changed) continue;
-      this.writeNext(row.sessionId, row.version, () =>
-        parseSessionStrategyConfigDoc({ ...doc, ai: { ...doc.ai, phases } }),
-      );
-      updated += 1;
-    }
-    return updated;
-  }
-
-  backfillDefaultReasoningLevel(
-    reasoningLevel: SessionAiPhase["reasoningLevel"],
-  ): number {
-    if (reasoningLevel === "off") return 0;
-    const rows = this.client.db.select().from(sessionStrategyConfigs).all();
-    let updated = 0;
-    for (const row of rows) {
-      const doc = parseSessionStrategyConfigDoc(row.doc);
-      let changed = false;
-      const phases = doc.ai.phases.map((phase) => {
-        if (phase.reasoningLevel !== "off") return phase;
-        changed = true;
-        return { ...phase, reasoningLevel };
-      });
-      if (!changed) continue;
-      this.writeNext(row.sessionId, row.version, () =>
-        parseSessionStrategyConfigDoc({ ...doc, ai: { ...doc.ai, phases } }),
-      );
-      updated += 1;
-    }
-    return updated;
-  }
-
-  /** Convenience patches used by legacy strategy:* adapters (auto-version). */
+  /** Convenience auto-version patch helpers. */
   patchWithCurrentVersion(
     sessionId: string,
     patch: SessionStrategyConfigPatch,

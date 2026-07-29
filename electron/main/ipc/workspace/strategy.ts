@@ -123,13 +123,6 @@ export function registerStrategyHandlers(services: AppServices): void {
         defaultModelModelId: modelId,
         defaultModelReasoningLevel: resolvedReasoningLevel,
       });
-      services.strategyConfig.backfillMissingProviderModel({
-        providerKey,
-        modelId,
-      });
-      services.strategyConfig.backfillDefaultReasoningLevel(
-        resolvedReasoningLevel,
-      );
       return { savedAt: new Date().toISOString() };
     },
   );

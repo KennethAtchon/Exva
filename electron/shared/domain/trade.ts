@@ -69,7 +69,7 @@ export interface Trade {
   high_water_mark_price: number | null;
   low_water_mark_price: number | null;
   exit_reason: string | null;
-  /** How the terminal close was detected: pushed by the broker stream, or found on the next snapshot poll. Null for legacy rows and non-broker closes (e.g. still-open rows). */
+  /** How the terminal close was detected: pushed by the broker stream, or found on the next snapshot poll. Null for open / non-broker closes. */
   closure_source?: "stream" | "poll" | null;
   client_order_id?: string | null;
   close_market_snapshot_json?: string | null;

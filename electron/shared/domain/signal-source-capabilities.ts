@@ -42,9 +42,7 @@ function instrumentClassFromPayload(
 export function extractSignalInstrumentClass(
   signal: SignalEvent,
 ): InstrumentClass | null {
-  const fromPayload =
-    instrumentClassFromPayload(signal.payloadJson) ??
-    instrumentClassFromPayload(signal.payloadV2 ?? undefined);
+  const fromPayload = instrumentClassFromPayload(signal.payloadJson);
   if (fromPayload) return fromPayload;
 
   // scan_hit schedules carry instrumentClass on the MarketSignal envelope,

@@ -482,7 +482,7 @@ export function SessionInputEditor({
   if (templates.length === 0) {
     return (
       <div className={hintClass}>
-        No experience templates found. Using legacy signal sources below.
+        No experience templates found.
       </div>
     );
   }

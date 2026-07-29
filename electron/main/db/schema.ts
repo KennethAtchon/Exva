@@ -124,19 +124,14 @@ export const signalEvents = sqliteTable(
     dispatchCompletedAt: text("dispatch_completed_at"),
     sourceDroppedReason: text("source_dropped_reason"),
     /** MarketSignal kind. */
-    kind: text("kind"),
-    /**
-     * Legacy typed-payload column from dual-write era.
-     * payload_json is canonical; kept for historical rows.
-     */
-    payloadV2: text("payload_v2"),
-    /** Mandatory dedupe key (backfilled for legacy rows). */
-    dedupeKey: text("dedupe_key"),
+    kind: text("kind").notNull(),
+    /** Source-computed dedupe key. */
+    dedupeKey: text("dedupe_key").notNull(),
     /** ISO-8601 duration TTL for delivery expiry. */
-    ttl: text("ttl"),
+    ttl: text("ttl").notNull(),
     /** When the information came into being (may differ from detectedAt). */
-    occurredAt: text("occurred_at"),
-    /** V2 origin: source_definition | scheduled_scan | manual | legacy */
+    occurredAt: text("occurred_at").notNull(),
+    /** Origin: source_definition | scheduled_scan | manual */
     originKind: text("origin_kind"),
     originId: text("origin_id"),
     scheduleGroupKey: text("schedule_group_key"),
@@ -146,9 +141,10 @@ export const signalEvents = sqliteTable(
     sourceAccessionUnique: uniqueIndex("idx_signal_events_accession")
       .on(table.sourceId, table.accessionNumber)
       .where(sql`${table.accessionNumber} is not null`),
-    sourceDedupeUnique: uniqueIndex("idx_signal_events_dedupe")
-      .on(table.sourceId, table.dedupeKey)
-      .where(sql`${table.dedupeKey} is not null`),
+    sourceDedupeUnique: uniqueIndex("idx_signal_events_dedupe").on(
+      table.sourceId,
+      table.dedupeKey,
+    ),
     originIdx: index("idx_signal_events_origin").on(
       table.originKind,
       table.originId,
@@ -437,7 +433,7 @@ export const trades = sqliteTable(
     highWaterMarkPrice: real("high_water_mark_price"),
     lowWaterMarkPrice: real("low_water_mark_price"),
     exitReason: text("exit_reason"),
-    /** How the terminal close was detected: `stream` (pushed by the broker feed) or `poll` (found on the next snapshot poll). Null for legacy rows closed before this was tracked. */
+    /** How the terminal close was detected: `stream` or `poll`. Null for open / non-broker closes. */
     closureSource: text("closure_source"),
     clientOrderId: text("client_order_id"),
     closeMarketSnapshotJson: text("close_market_snapshot_json"),

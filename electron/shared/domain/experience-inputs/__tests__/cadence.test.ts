@@ -4,7 +4,6 @@ import {
   cadenceShortLabel,
   cadenceToMs,
   parseCadence,
-  parseLegacyCadenceLabel,
   serializeCadenceCanonical,
 } from "../cadence";
 
@@ -247,73 +246,5 @@ describe("cadenceShortLabel", () => {
   it("returns 1h for 60-minute cadence after normalization", () => {
     const c = parseCadence({ kind: "interval", every: 60, unit: "minute" });
     expect(cadenceShortLabel(c)).toBe("1h");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// parseLegacyCadenceLabel
-// ---------------------------------------------------------------------------
-
-describe("parseLegacyCadenceLabel", () => {
-  it('parses "15m"', () => {
-    const result = parseLegacyCadenceLabel("15m");
-    expect(result).toMatchObject({
-      kind: "interval",
-      every: 15,
-      unit: "minute",
-    });
-  });
-
-  it('parses "1h"', () => {
-    const result = parseLegacyCadenceLabel("1h");
-    expect(result).toMatchObject({ kind: "interval", every: 1, unit: "hour" });
-  });
-
-  it('parses "4h"', () => {
-    const result = parseLegacyCadenceLabel("4h");
-    expect(result).toMatchObject({ kind: "interval", every: 4, unit: "hour" });
-  });
-
-  it('parses "1d"', () => {
-    const result = parseLegacyCadenceLabel("1d");
-    expect(result).toMatchObject({ kind: "interval", every: 1, unit: "day" });
-  });
-
-  it("trims surrounding whitespace", () => {
-    const result = parseLegacyCadenceLabel("  30m  ");
-    expect(result).toMatchObject({
-      kind: "interval",
-      every: 30,
-      unit: "minute",
-    });
-  });
-
-  it("rejects empty string", () => {
-    expect(() => parseLegacyCadenceLabel("")).toThrow();
-  });
-
-  it("rejects '0m'", () => {
-    // parseCadence rejects every=0
-    expect(() => parseLegacyCadenceLabel("0m")).toThrow();
-  });
-
-  it("rejects negative-like strings", () => {
-    expect(() => parseLegacyCadenceLabel("-15m")).toThrow();
-  });
-
-  it("rejects a bare number", () => {
-    expect(() => parseLegacyCadenceLabel("15")).toThrow();
-  });
-
-  it("rejects an unknown suffix", () => {
-    expect(() => parseLegacyCadenceLabel("15w")).toThrow();
-  });
-
-  it("rejects 'timer'", () => {
-    expect(() => parseLegacyCadenceLabel("timer")).toThrow();
-  });
-
-  it("rejects ISO-8601 duration strings", () => {
-    expect(() => parseLegacyCadenceLabel("PT15M")).toThrow();
   });
 });

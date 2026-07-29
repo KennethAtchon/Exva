@@ -23,7 +23,7 @@ export type SignalDeliveryGateResult =
 
 function isScanHitSignal(signal: SignalEvent): boolean {
   if (signal.kind === "scan_hit") return true;
-  const payloadKind = signal.payloadJson?.kind ?? signal.payloadV2?.kind;
+  const payloadKind = signal.payloadJson?.kind;
   return payloadKind === "scan_hit";
 }
 

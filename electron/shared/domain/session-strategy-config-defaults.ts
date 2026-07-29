@@ -19,7 +19,7 @@ export const DEFAULT_STRATEGY_SECTION: StrategySection = {
   researchDepth: "balanced",
 };
 
-/** Defaults mirroring legacy risk row defaults. */
+/** Risk section defaults. */
 export const DEFAULT_RISK_SECTION: RiskSection = {
   riskPresetId: "custom",
   offHoursTrading: "disabled",
@@ -44,7 +44,7 @@ export const DEFAULT_RISK_SECTION: RiskSection = {
   eventTypedExperience: false,
 };
 
-/** Defaults mirroring legacy timeframe row defaults. */
+/** Timeframe section defaults. */
 export const DEFAULT_TIMEFRAME_SECTION: TimeframeSection = {
   timeframePresetId: "custom",
   primaryTradingTimeframe: "1d",
@@ -54,11 +54,7 @@ export const DEFAULT_TIMEFRAME_SECTION: TimeframeSection = {
   timeframeNotes: "",
 };
 
-/**
- * Defaults mirroring legacy trade-rules row defaults, with entryStyle
- * corrected to a domain-valid value (`catalyst`) — schema column default
- * historically said `breakout`, which is not a StrategyEntryStyle.
- */
+/** Trade-rules section defaults. */
 export const DEFAULT_TRADE_RULES_SECTION: TradeRulesSection = {
   rulesPresetId: "custom",
   setupType: "custom",
@@ -70,7 +66,7 @@ export const DEFAULT_TRADE_RULES_SECTION: TradeRulesSection = {
   ruleNotes: "",
 };
 
-/** Defaults mirroring legacy research-posture row defaults. */
+/** Research-posture section defaults. */
 export const DEFAULT_RESEARCH_POSTURE_SECTION: ResearchPostureSection = {
   posturePresetId: "custom",
   processingMode: "manual",
@@ -80,7 +76,7 @@ export const DEFAULT_RESEARCH_POSTURE_SECTION: ResearchPostureSection = {
   postureNotes: "",
 };
 
-/** Defaults mirroring legacy AI settings/phases defaults. */
+/** AI settings/phases defaults. */
 export function defaultAiSection(opts?: {
   providerKey?: string;
   modelId?: string;
@@ -105,7 +101,7 @@ export function defaultAiSection(opts?: {
   };
 }
 
-/** Defaults mirroring legacy selector row defaults. */
+/** Selector section defaults. */
 export const DEFAULT_SELECTOR_SECTION: SelectorSection = {
   aiPickerEnabled: true,
   noInstrumentRetryMinutes: null,

@@ -36,8 +36,8 @@ import {
 } from "@electron/shared/presets";
 import * as schema from "./schema";
 
-function presetId(kind: ConfigPresetKind, legacyId: string): string {
-  return `${kind}/${legacyId}`;
+function presetId(kind: ConfigPresetKind, id: string): string {
+  return `${kind}/${id}`;
 }
 
 function mergeRisk(
@@ -163,7 +163,7 @@ function insertIfAbsent(
     .run();
 }
 
-/** Idempotent seed of built-in rows into config_presets (post–legacy-table drop). */
+/** Idempotent seed of built-in rows into config_presets. */
 export function seedBuiltinConfigPresets(
   db: BetterSQLite3Database<typeof schema>,
 ): void {

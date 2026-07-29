@@ -1,5 +1,5 @@
 /**
- * Dev/test mock-rehearsal seam: ensure source + migrate sessions.
+ * Dev/test mock-rehearsal seam: ensure source exists and is attached.
  * Composition root (app-services) owns this — not SignalService public API.
  *
  * Gate with EXVA_ENABLE_MOCK_REHEARSAL !== 'false' (default on so tests keep working).
@@ -9,7 +9,6 @@ import { resolveMockRehearsalTicker } from "@electron/shared/instruments/mock-re
 import { env } from "../config/env";
 import type { SignalSourcesRepo } from "../services/signals/repos/signal-sources-repo";
 import { ensureMockRehearsalSignalSource } from "./ensure-mock-rehearsal-signal-source";
-import { migrateEligibleSessionsToMockRehearsal } from "./migrate-mock-rehearsal-subscriptions";
 import { safeJsonParse } from "../services/infra/safe-json-parse";
 
 export {
@@ -19,8 +18,6 @@ export {
   syncMockRehearsalSignalSourceTicker,
   type MockRehearsalSignalConfig,
 } from "./ensure-mock-rehearsal-signal-source";
-
-export { migrateEligibleSessionsToMockRehearsal } from "./migrate-mock-rehearsal-subscriptions";
 
 export function isMockRehearsalEnabled(): boolean {
   return env.enableMockRehearsal;
@@ -83,12 +80,8 @@ export function bootstrapMockRehearsal(deps: {
       | import("@electron/shared/domain/mock-scenario").MockScenarioKind
       | null;
   }>;
-}): string[] {
-  if (!isMockRehearsalEnabled()) return [];
+}): void {
+  if (!isMockRehearsalEnabled()) return;
 
   bootstrapMockRehearsalSignalSource(deps.sourcesRepo, deps.registry);
-  // V2: session subscriptions are managed via session_input_subscriptions.
-  // migrateEligibleSessionsToMockRehearsal is a no-op stub that always returns [].
-  void deps;
-  return migrateEligibleSessionsToMockRehearsal();
 }

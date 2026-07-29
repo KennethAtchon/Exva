@@ -104,11 +104,6 @@ export class AutopsiesRepo {
     return row ? toTradeRecord(row) : null;
   }
 
-  /** @deprecated Prefer findLatestByTrade — kept for call-site continuity. */
-  findLatest(tradeId: string): TradeAutopsyRecord | null {
-    return this.findLatestByTrade(tradeId);
-  }
-
   findTrade(id: string): TradeAutopsyRecord | null {
     const row = this.client.db
       .select()

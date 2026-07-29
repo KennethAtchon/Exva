@@ -57,8 +57,6 @@ function readTimingMetadata(signalTrigger: SignalTrigger): string | null {
   let pollCadence: string | null = null;
   if (typeof payload.pollCadence === "string") {
     pollCadence = payload.pollCadence;
-  } else if (typeof payload.cadence === "string") {
-    pollCadence = payload.cadence;
   }
   const analysisTimeframe = optionalString(payload.analysisTimeframe) ?? null;
   if (!pollCadence && !analysisTimeframe) return null;

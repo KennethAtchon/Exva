@@ -156,37 +156,3 @@ export function cadenceShortLabel(cadence: CadenceSpec): string {
   const { every, unit } = normalizeIntervalUnits(cadence.every, cadence.unit);
   return `${every}${UNIT_ABBREVIATION[unit]}`;
 }
-
-// ---------------------------------------------------------------------------
-// Legacy string parser
-// ---------------------------------------------------------------------------
-
-const LEGACY_LABEL_RE = /^(\d+)(m|h|d)$/;
-
-/**
- * Parse legacy cadence label strings such as "15m", "1h", "4h", "1d" into a
- * CadenceSpec. Throws on unrecognised or zero/negative values.
- */
-export function parseLegacyCadenceLabel(label: string): CadenceSpec {
-  const match = label.trim().match(LEGACY_LABEL_RE);
-  if (!match) {
-    throw new Error(
-      `parseLegacyCadenceLabel: unrecognised cadence label "${label}". ` +
-        `Expected format: <positive-integer>(m|h|d), e.g. "15m", "1h", "4h", "1d".`,
-    );
-  }
-  const every = parseInt(match[1], 10);
-  if (every <= 0) {
-    throw new Error(
-      `parseLegacyCadenceLabel: cadence value must be positive, got ${every}.`,
-    );
-  }
-  const rawUnit = match[2];
-  const unitMap: Record<string, IntervalCadence["unit"]> = {
-    m: "minute",
-    h: "hour",
-    d: "day",
-  };
-  const unit = unitMap[rawUnit];
-  return intervalCadenceSchema.parse({ kind: "interval", every, unit });
-}

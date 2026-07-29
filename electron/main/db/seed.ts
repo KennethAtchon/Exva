@@ -1,5 +1,5 @@
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { env } from "../config/env";
 import {
   BUILT_IN_DUCKDUCKGO_PROVIDER_ID,
@@ -9,7 +9,6 @@ import * as schema from "./schema";
 import type { DbClient } from "./client";
 import { seedExperienceCatalog } from "../services/experience-catalog/seed-experience-catalog";
 import { seedBuiltinConfigPresets } from "./builtin-config-presets";
-import { DEFAULT_PAPER_STARTING_BALANCE_USD } from "./repositories/brokers/paper-balances-repo";
 
 export const SEEDED_OPENROUTER_PROVIDER_ID = "seed-openrouter";
 export const SEEDED_OPENROUTER_SECRET_REF = "provider:seed-openrouter";
@@ -172,26 +171,6 @@ export function runSeed(
         updatedAt: new Date().toISOString(),
       })
       .onConflictDoNothing()
-      .run();
-
-    // Existing installs may already hold a lazily-created $1k row that the
-    // insert above skips. Upgrade it only while it's still the untouched
-    // default (startingBalance unchanged) so real paper-trading state is safe.
-    db.update(schema.paperBalances)
-      .set({
-        balance: SEEDED_POLYMARKET_STARTING_BALANCE_USD,
-        startingBalance: SEEDED_POLYMARKET_STARTING_BALANCE_USD,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(
-        and(
-          eq(schema.paperBalances.accountId, SEEDED_POLYMARKET_BROKER_ID),
-          eq(
-            schema.paperBalances.startingBalance,
-            DEFAULT_PAPER_STARTING_BALANCE_USD,
-          ),
-        ),
-      )
       .run();
   }
 

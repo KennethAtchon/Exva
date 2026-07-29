@@ -6,8 +6,6 @@ export type OhlcvTimeframe = TradingTimeframe;
 export interface SignalInstrumentMetadata {
   pollCadence?: string | null;
   analysisTimeframe?: string | null;
-  /** Legacy timer alias — prefer pollCadence. */
-  cadence?: string | null;
 }
 
 export interface SignalTimingSummary {

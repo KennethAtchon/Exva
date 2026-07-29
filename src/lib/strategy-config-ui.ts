@@ -221,10 +221,10 @@ export function configPresetToUserGlobalRow(
     risk?: { riskPresetId?: string };
     timeframe?: { timeframePresetId?: string };
   };
-  const legacyId = preset.id.startsWith("full/")
+  const shortId = preset.id.startsWith("full/")
     ? preset.id.slice("full/".length)
     : preset.id;
-  const builtIn = builtInGlobalStrategyPresets().find((p) => p.id === legacyId);
+  const builtIn = builtInGlobalStrategyPresets().find((p) => p.id === shortId);
 
   const global: GlobalStrategyPreset = {
     id: preset.id,
