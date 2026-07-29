@@ -57,6 +57,7 @@ import { createLogger } from "../../services/infra/log";
 import { PaperScorecardService } from "../../services/analytics/paper-scorecard-service";
 import { ExperienceScorecardService } from "../../services/analytics/experience-scorecard-service";
 import { ResearchSummaryService } from "../../services/analytics/research-summary-service";
+import { OpportunityRateService } from "../../services/analytics/opportunity-rate-service";
 import { CycleReplayService } from "../../services/replay/cycle-replay-service";
 import { SessionListingService } from "../../services/session/listing-service";
 import { runPreflight } from "../../services/session/preflight";
@@ -402,6 +403,16 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
       getTelemetry: () => null,
       fireNow: async () => null,
     } as unknown as AppServices["scheduleCoordinator"],
+    scanFunnel: {
+      forSession: (sessionId: string) => ({
+        sessionId,
+        groups: [],
+        counts: {},
+        firstBlocked: null,
+        noScheduledInputs: true,
+      }),
+    } as unknown as AppServices["scanFunnel"],
+    opportunityRate: new OpportunityRateService(db),
     alphaSourceScans: {
       list: () => [],
       get: () => null,

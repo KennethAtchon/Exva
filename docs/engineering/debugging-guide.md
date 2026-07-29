@@ -470,7 +470,7 @@ Only when you intentionally want a clean slate — stop the app first:
 rm "$EXVA_DB" "${EXVA_DB}-wal" "${EXVA_DB}-shm" 2>/dev/null
 ```
 
-Migrations and seed data run on next boot. See also `scripts/db-reset.ts`.
+Migrations and seed data run on next boot. See also `scripts/db/reset.ts`.
 
 ## High-Value Commands
 

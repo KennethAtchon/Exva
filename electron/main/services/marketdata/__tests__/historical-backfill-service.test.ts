@@ -20,6 +20,7 @@ describe("HistoricalBackfillService", () => {
       eventBus: { emit } as never,
       resolveAdapter: async () => ({ brokerType: "alpaca", getOhlcvRange }),
       normalizeWireSymbol: ({ symbol }) => symbol,
+      marketDataProviderForBroker: () => "alpaca",
       sleep: async () => undefined,
     });
     const input = {

@@ -12,7 +12,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const HOST_NODE = process.env.EXVA_HOST_NODE ?? "node";
 
 const PROBE_SCRIPT = `

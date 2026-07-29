@@ -6,7 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const ROOT = path.join(import.meta.dir, "..");
+const ROOT = path.join(import.meta.dir, "..", "..");
 const DRIZZLE_DIR = path.join(ROOT, "electron/main/db/drizzle");
 
 function resetMigrationsFolder(): void {

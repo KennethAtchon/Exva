@@ -15,16 +15,16 @@
  *   Alpaca:  ALPACA_API_KEY, ALPACA_SECRET_KEY  (optional ALPACA_MODE=paper|live)
  */
 
-import { MockBrokerAdapter } from "../electron/main/services/broker/adapters/mock-adapter";
-import { KalshiAdapter } from "../electron/main/services/broker/adapters/kalshi-adapter";
-import { TradierAdapter } from "../electron/main/services/broker/adapters/tradier-adapter";
-import { KrakenAdapter } from "../electron/main/services/broker/adapters/kraken-adapter";
-import { AlpacaAdapter } from "../electron/main/services/broker/adapters/alpaca-adapter";
+import { MockBrokerAdapter } from "../../electron/main/services/broker/adapters/mock-adapter";
+import { KalshiAdapter } from "../../electron/main/services/broker/adapters/kalshi-adapter";
+import { TradierAdapter } from "../../electron/main/services/broker/adapters/tradier-adapter";
+import { KrakenAdapter } from "../../electron/main/services/broker/adapters/kraken-adapter";
+import { AlpacaAdapter } from "../../electron/main/services/broker/adapters/alpaca-adapter";
 import {
   formatCertReport,
   runAdapterCertification,
-} from "../electron/main/services/broker/__tests__/adapter-certification";
-import type { BrokerAdapter } from "../electron/main/services/broker/adapters/broker-adapter";
+} from "../../electron/main/services/broker/__tests__/adapter-certification";
+import type { BrokerAdapter } from "../../electron/main/services/broker/adapters/broker-adapter";
 
 const name = (process.argv[2] ?? "").toLowerCase().replace(/^--/, "");
 

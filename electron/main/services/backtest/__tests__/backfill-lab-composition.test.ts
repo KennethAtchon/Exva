@@ -41,11 +41,17 @@ describe("backfill → Backtest Lab composition", () => {
           ),
       }),
       normalizeWireSymbol: ({ symbol }) => symbol,
+      marketDataProviderForBroker: () => "alpaca",
       sleep: async () => undefined,
     });
 
-    const windowStart = allBars[0]!.ts;
-    const windowEnd = allBars[allBars.length - 1]!.ts;
+    const firstBar = allBars[0];
+    const lastBar = allBars.at(-1);
+    expect(firstBar).toBeDefined();
+    expect(lastBar).toBeDefined();
+    if (!firstBar || !lastBar) throw new Error("Expected synthetic bars");
+    const windowStart = firstBar.ts;
+    const windowEnd = lastBar.ts;
     const written = await backfill.backfill({
       symbol: "SPY",
       instrumentClass: "stock",

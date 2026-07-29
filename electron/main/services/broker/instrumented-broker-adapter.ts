@@ -12,6 +12,8 @@ import {
   type BrokerInteractionLogger,
 } from "./broker-interaction-logger";
 
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+
 export interface InstrumentedBrokerAdapterOptions {
   apiCallLogRepo: ApiCallLogRepo;
   brokerAccountId: string;
@@ -45,10 +47,13 @@ export function createInstrumentedBrokerAdapter(
       provider: options.provider,
     });
 
-  const adapter: BrokerAdapter & Partial<MarketDiscoveryAdapter> = {
+  // `capabilities` is readonly on BrokerAdapter, so it has to be set here
+  // rather than patched on below with the other optional methods (P1-4).
+  const adapter: Mutable<BrokerAdapter & Partial<MarketDiscoveryAdapter>> = {
     brokerType: inner.brokerType,
     supportedInstrumentClasses: inner.supportedInstrumentClasses,
     launchCapable: inner.launchCapable,
+    ...(inner.capabilities ? { capabilities: inner.capabilities } : {}),
 
     testConnection: () =>
       traceBrokerInteraction(logger, "testConnection", "connection", () =>
@@ -101,10 +106,6 @@ export function createInstrumentedBrokerAdapter(
         inner.closeOrder(orderId),
       ),
   };
-
-  if (inner.capabilities) {
-    adapter.capabilities = inner.capabilities;
-  }
 
   // bind keeps class-adapter `this` (do not destructure the method).
   if (inner.placeOrderV2) {

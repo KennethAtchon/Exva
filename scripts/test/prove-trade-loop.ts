@@ -27,22 +27,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import BetterSqlite3 from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { env } from "../electron/main/config/env";
-import type { DbClient } from "../electron/main/db/client";
-import * as schema from "../electron/main/db/schema";
-import { createTestDb } from "../electron/main/db/test-helpers";
-import { BrokerAccountsRepo } from "../electron/main/db/repositories/brokers/broker-accounts-repo";
-import { PaperBalancesRepo } from "../electron/main/db/repositories/brokers/paper-balances-repo";
-import { PaperPositionsRepo } from "../electron/main/db/repositories/brokers/paper-positions-repo";
-import { TradesRepo } from "../electron/main/db/repositories/trades/trades-repo";
-import { DecisionTraceRepo } from "../electron/main/db/repositories/trades/decision-trace-repo";
-import { ApiCallLogRepo } from "../electron/main/db/repositories/system/api-call-log-repo";
-import { SessionRepo } from "../electron/main/db/repositories/sessions/session-repo";
-import { SqliteSessionExecutionStepsRepo } from "../electron/main/db/repositories/sessions/session-execution-steps-repo";
-import { PaperScorecardService } from "../electron/main/services/analytics/paper-scorecard-service";
-import { PolymarketAdapter } from "../electron/main/services/broker/adapters/polymarket-adapter";
+import { env } from "../../electron/main/config/env";
+import type { DbClient } from "../../electron/main/db/client";
+import * as schema from "../../electron/main/db/schema";
+import { createTestDb } from "../../electron/main/db/test-helpers";
+import { BrokerAccountsRepo } from "../../electron/main/db/repositories/brokers/broker-accounts-repo";
+import { PaperBalancesRepo } from "../../electron/main/db/repositories/brokers/paper-balances-repo";
+import { PaperPositionsRepo } from "../../electron/main/db/repositories/brokers/paper-positions-repo";
+import { TradesRepo } from "../../electron/main/db/repositories/trades/trades-repo";
+import { DecisionTraceRepo } from "../../electron/main/db/repositories/trades/decision-trace-repo";
+import { ApiCallLogRepo } from "../../electron/main/db/repositories/system/api-call-log-repo";
+import { SessionRepo } from "../../electron/main/db/repositories/sessions/session-repo";
+import { SqliteSessionExecutionStepsRepo } from "../../electron/main/db/repositories/sessions/session-execution-steps-repo";
+import { PaperScorecardService } from "../../electron/main/services/analytics/paper-scorecard-service";
+import { PolymarketAdapter } from "../../electron/main/services/broker/adapters/polymarket-adapter";
 
-const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const MOCK_TEST =
   "electron/main/services/orchestration/__tests__/mock-trade-rehearsal.integration.test.ts";

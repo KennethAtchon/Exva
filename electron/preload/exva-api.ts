@@ -810,6 +810,17 @@ export interface ExvaApi {
     }): Promise<
       import("@electron/shared/domain/cycle-funnel").CycleFunnelOutcome | null
     >;
+    scanFunnel(input: {
+      sessionId: string;
+    }): Promise<
+      import("@electron/shared/domain/scan-funnel").ScanFunnelReport
+    >;
+    opportunityRate(input: {
+      sessionId: string;
+      day?: string;
+    }): Promise<
+      import("@electron/shared/domain/scan-funnel").OpportunityRateSummary
+    >;
   };
   palette: {
     query(input: { q: string; limit?: number }): Promise<{

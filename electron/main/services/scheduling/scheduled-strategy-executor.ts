@@ -15,6 +15,7 @@ import type {
 } from "@electron/shared/domain/enums";
 import type { OhlcvBar } from "../broker/adapters/broker-adapter";
 import type { DeterministicStrategy } from "../backtest/replay-engine";
+import type { InstrumentHistoryContract } from "../marketdata/history-provisioning-service";
 import type { StrategyDefinitionRegistry } from "../strategies/strategy-definition-registry";
 import type { ScheduledRuntimePlan } from "./session-input-runtime-planner";
 import { createLogger } from "../infra/log";
@@ -41,6 +42,13 @@ export interface ScheduledStrategyExecutorDeps {
   db: DbClient;
   strategyRegistry: StrategyDefinitionRegistry;
   getBars: GetBarsCallback;
+  provisionHistory?: (
+    symbol: string,
+    timeframe: TradingTimeframe,
+    instrumentClass: InstrumentClass,
+    contract: InstrumentHistoryContract,
+    context: { subscriptionIds: string[] },
+  ) => Promise<void>;
   /** Maximum concurrent instrument evaluations. Default: 4. */
   concurrency?: number;
   /**
@@ -53,6 +61,21 @@ export interface ScheduledStrategyExecutorDeps {
     symbol: string,
     errorMessage: string,
   ) => void;
+  /** Solution 06 WS4: persist each instrument evaluation for opportunity rate. */
+  onEvaluations?: (
+    plan: ScheduledRuntimePlan,
+    instruments: InstrumentEvalOutcome[],
+  ) => void;
+  /**
+   * Solution 10: option-chain fetch for options-flow scheduled producer.
+   * When absent, options-flow stays no_setup with an explicit reason.
+   */
+  getOptionChain?: (
+    symbol: string,
+    context?: { subscriptionIds: string[] },
+  ) => Promise<
+    import("../broker/adapters/broker-adapter").OptionChainContract[]
+  >;
 }
 
 export type InstrumentEvalKind =
@@ -72,6 +95,18 @@ export type InstrumentEvalOutcome = {
   preferredContextBars?: number;
   warmupBars?: number;
   error?: string;
+  /**
+   * Timestamp of the newest bar the evaluation actually saw. Present whenever
+   * bars (or a chain snapshot) were fetched, including `no_setup`. Consumers
+   * use it to tell a fresh chance from a re-look at the same window.
+   */
+  newestBarTs?: string;
+  /**
+   * Strategy-supplied window identity when a setup was produced. For quiet
+   * evaluations the executor falls back to `newestBarTs`, so opportunity-rate
+   * de-duplication works for both.
+   */
+  barWindowHash?: string;
 };
 
 export type ScheduledExecutionResult = {
@@ -94,7 +129,8 @@ export function summarizeScanExecution(
   };
 }
 
-const UNEVALUABLE_KINDS: ReadonlySet<InstrumentEvalKind> = new Set([
+/** Kinds where the lane never reached a strategy decision. */
+export const UNEVALUABLE_KINDS: ReadonlySet<InstrumentEvalKind> = new Set([
   "insufficient_bars",
   "input_stale",
   "bars_failed",
@@ -216,6 +252,7 @@ export class ScheduledStrategyExecutor {
       }
     }
 
+    this.deps.onEvaluations?.(plan, instruments);
     return { signals, instruments };
   }
 
@@ -244,8 +281,27 @@ export class ScheduledStrategyExecutor {
       contract.warmupBars + 1,
       barsRequired,
     );
+
+    // Solution 10: options-flow scheduled path uses chain snapshot, not bars.
+    if (plan.strategyId === "options-flow") {
+      return this.evaluateOptionsFlow(
+        displaySymbol,
+        plan,
+        now,
+        instrumentClass,
+        contract,
+      );
+    }
+
     let bars: OhlcvBar[];
     try {
+      await this.deps.provisionHistory?.(
+        displaySymbol,
+        plan.analysisTimeframe,
+        instrumentClass,
+        contract,
+        { subscriptionIds: plan.subscriptionIds },
+      );
       bars = await getBars(
         displaySymbol,
         plan.analysisTimeframe,
@@ -275,6 +331,8 @@ export class ScheduledStrategyExecutor {
       };
     }
 
+    const latestBarTs = bars[bars.length - 1]?.ts;
+
     if (bars.length < barsRequired) {
       return {
         signal: null,
@@ -285,6 +343,7 @@ export class ScheduledStrategyExecutor {
           barsRequired,
           preferredContextBars: contract.preferredContextBars,
           warmupBars: contract.warmupBars,
+          ...(latestBarTs ? { newestBarTs: latestBarTs } : {}),
         },
       };
     }
@@ -311,6 +370,7 @@ export class ScheduledStrategyExecutor {
           preferredContextBars: contract.preferredContextBars,
           warmupBars: contract.warmupBars,
           error: errorMessage,
+          ...(latestBarTs ? { newestBarTs: latestBarTs } : {}),
         },
       };
     }
@@ -325,11 +385,26 @@ export class ScheduledStrategyExecutor {
           barsRequired,
           preferredContextBars: contract.preferredContextBars,
           warmupBars: contract.warmupBars,
+          ...(latestBarTs ? { newestBarTs: latestBarTs } : {}),
         },
       };
     }
 
-    const newestBarTs = bars[bars.length - 1]!.ts;
+    if (!latestBarTs) {
+      return {
+        signal: null,
+        diag: {
+          symbol: displaySymbol,
+          kind: "evaluate_failed",
+          barsActual: 0,
+          barsRequired,
+          preferredContextBars: contract.preferredContextBars,
+          warmupBars: contract.warmupBars,
+          error: "strategy produced a signal without market bars",
+        },
+      };
+    }
+    const newestBarTs = latestBarTs;
     const factPayload = {
       schemaVersion: 1 as const,
       signalId: crypto.randomUUID(),
@@ -392,6 +467,147 @@ export class ScheduledStrategyExecutor {
         barsRequired,
         preferredContextBars: contract.preferredContextBars,
         warmupBars: contract.warmupBars,
+        newestBarTs,
+        barWindowHash: signal.barWindowHash,
+      },
+    };
+  }
+
+  private async evaluateOptionsFlow(
+    displaySymbol: string,
+    plan: ScheduledRuntimePlan,
+    now: string,
+    instrumentClass: InstrumentClass,
+    contract: {
+      minEvaluableBars: number;
+      preferredContextBars: number;
+      warmupBars: number;
+      strategyImplementationVersion: number;
+      strategyParameters: Record<string, unknown>;
+    },
+  ): Promise<{
+    signal: MarketSignal | null;
+    diag: InstrumentEvalOutcome;
+  }> {
+    const { produceOptionsFlowSignal } =
+      await import("../signals/options-flow-producer");
+    const getChain = this.deps.getOptionChain;
+    if (!getChain) {
+      return {
+        signal: null,
+        diag: {
+          symbol: displaySymbol,
+          kind: "evaluate_failed",
+          error: "options-flow scheduled producer has no getOptionChain",
+          preferredContextBars: contract.preferredContextBars,
+          warmupBars: contract.warmupBars,
+        },
+      };
+    }
+
+    let chain: Awaited<ReturnType<typeof getChain>>;
+    try {
+      chain = await getChain(displaySymbol, {
+        subscriptionIds: plan.subscriptionIds,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      return {
+        signal: null,
+        diag: {
+          symbol: displaySymbol,
+          kind: "bars_failed",
+          error: errorMessage,
+          preferredContextBars: contract.preferredContextBars,
+          warmupBars: contract.warmupBars,
+        },
+      };
+    }
+
+    const produced = produceOptionsFlowSignal({
+      underlyingSymbol: displaySymbol,
+      chain,
+      sessionInputGroupKey: plan.groupKey,
+      strategyImplementationVersion: contract.strategyImplementationVersion,
+      strategyParameters: contract.strategyParameters,
+      volumeOiRatioThreshold:
+        typeof contract.strategyParameters.volumeOiRatioThreshold === "number"
+          ? contract.strategyParameters.volumeOiRatioThreshold
+          : undefined,
+      bullishSkewThreshold:
+        typeof contract.strategyParameters.bullishSkewThreshold === "number"
+          ? contract.strategyParameters.bullishSkewThreshold
+          : undefined,
+      targetWidth:
+        typeof contract.strategyParameters.targetWidth === "number"
+          ? contract.strategyParameters.targetWidth
+          : undefined,
+    });
+
+    if (produced.kind !== "setup") {
+      return {
+        signal: null,
+        diag: {
+          symbol: displaySymbol,
+          kind:
+            produced.kind === "insufficient_chain"
+              ? "insufficient_bars"
+              : "no_setup",
+          barsActual: chain.length,
+          barsRequired: 1,
+          preferredContextBars: contract.preferredContextBars,
+          warmupBars: contract.warmupBars,
+          error: produced.reason,
+        },
+      };
+    }
+
+    const fact = produced.fact;
+    const payload: ScanHitPayload = {
+      strategyId: plan.strategyId,
+      evidence: fact.evidence,
+      barWindowHash: fact.barWindowHash,
+      proposedAction: fact.action,
+      deterministicFact: fact,
+    };
+
+    const marketSignal: MarketSignal = {
+      id: fact.signalId,
+      sourceId: `schedule:${plan.groupKey}`,
+      kind: "scan_hit",
+      instrumentClass: "options",
+      symbols: [displaySymbol],
+      occurredAt: now,
+      detectedAt: now,
+      ttl: DEFAULT_SIGNAL_TTL["scan_hit"],
+      dedupeKey: computeDedupeKey("scan_hit", {
+        groupKey: plan.groupKey,
+        symbol: displaySymbol,
+        barWindowHash: fact.barWindowHash,
+      }),
+      provenance: {
+        raw: {
+          scheduleGroupKey: plan.groupKey,
+          originKind: "strategy",
+          deterministicFact: fact,
+          optionsLegs: produced.legs,
+          maxDebitUsd: produced.maxDebitUsd,
+        },
+      },
+      payload,
+    };
+
+    void instrumentClass;
+    return {
+      signal: marketSignal,
+      diag: {
+        symbol: displaySymbol,
+        kind: "signal",
+        barsActual: chain.length,
+        barsRequired: 1,
+        preferredContextBars: contract.preferredContextBars,
+        warmupBars: contract.warmupBars,
+        barWindowHash: fact.barWindowHash,
       },
     };
   }

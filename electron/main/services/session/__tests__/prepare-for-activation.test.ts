@@ -3,12 +3,21 @@ import { SessionService } from "../session-service";
 
 describe("SessionService prepareForActivation on resume", () => {
   it("runs live readiness + preflight on resume (P1-5)", async () => {
+    const order: string[] = [];
     const check = vi.fn(async () => ({
       readyToStart: true,
       checks: [{ name: "ok", passed: true }],
     }));
-    const preflight = vi.fn(async () => ({ ok: true as const }));
-    const resumeSession = vi.fn(async () => undefined);
+    const provisionHistory = vi.fn(async () => {
+      order.push("provision");
+    });
+    const preflight = vi.fn(async () => {
+      order.push("preflight");
+      return { ok: true as const };
+    });
+    const resumeSession = vi.fn(async () => {
+      order.push("resume");
+    });
     const insert = vi.fn();
 
     const service = new SessionService({
@@ -25,6 +34,7 @@ describe("SessionService prepareForActivation on resume", () => {
       eventsRepo: { insert },
       runtimeManager: { resumeSession },
       liveReadiness: { check },
+      provisionHistory,
       preflight,
       orchestratorDeps: {},
       clearOrderHalt: vi.fn(),
@@ -32,8 +42,12 @@ describe("SessionService prepareForActivation on resume", () => {
 
     await expect(service.resume("session-1")).resolves.toBe("active");
     expect(check).toHaveBeenCalledWith("session-1");
+    expect(provisionHistory).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "session-1" }),
+    );
     expect(preflight).toHaveBeenCalled();
     expect(resumeSession).toHaveBeenCalledWith("session-1");
+    expect(order).toEqual(["provision", "preflight", "resume"]);
   });
 
   it("blocks resume when preflight fails", async () => {

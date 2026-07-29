@@ -33,6 +33,18 @@ export type AppErrorCode =
   | "SPEND_CAP_EXCEEDED"
   | "FORBIDDEN"
   | "INTERNAL_ERROR"
+  | "MODEL_OUTPUT_INVALID"
+  | "BROKER_NOT_FOUND"
+  // Paper order-path certification (Solution 01). Each names the exact gate
+  // that refused, so a blocked run is reportable without log spelunking.
+  | "CERT_LIVE_WORKSPACE"
+  | "CERT_LIVE_SESSION"
+  | "CERT_LIVE_BROKER"
+  | "CERT_KILL_SWITCH"
+  | "CERT_MARKET_CLOSED"
+  | "CERT_DAILY_LIMIT"
+  | "CERT_BROKER_UNREACHABLE"
+  | "CERT_ADAPTER_INCOMPLETE"
   | "UNKNOWN";
 
 export class AppError extends Error {

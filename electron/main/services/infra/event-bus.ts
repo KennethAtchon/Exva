@@ -10,6 +10,7 @@ import type {
   TradeDecisionPayload,
 } from "@/lib/types";
 import type { CapabilityRisk } from "@electron/shared/domain/control";
+import type { PaperCertificationRun } from "@electron/shared/domain/paper-certification";
 import type { SessionActivitySnapshot } from "@electron/shared/domain/session-activity";
 import type { ExvaEventName } from "@electron/shared/ipc/channels";
 
@@ -197,6 +198,7 @@ export interface ExvaEventMap {
     marksStale: boolean;
   };
   session_activity_changed: SessionActivitySnapshot;
+  paper_certification_updated: PaperCertificationRun;
 }
 
 export class EventBus {

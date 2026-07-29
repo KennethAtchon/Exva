@@ -381,6 +381,10 @@ const exva: ExvaApi = {
       invoke(channels.sessionActivity.analytics, input),
     firstDivergence: (input: { sessionId: string }) =>
       invoke(channels.sessionActivity.firstDivergence, input),
+    scanFunnel: (input: { sessionId: string }) =>
+      invoke(channels.sessionActivity.scanFunnel, input),
+    opportunityRate: (input: { sessionId: string; day?: string }) =>
+      invoke(channels.sessionActivity.opportunityRate, input),
   },
   developer: {
     getSettings: () => invoke(channels.developer.getSettings),

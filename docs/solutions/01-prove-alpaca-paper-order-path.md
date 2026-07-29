@@ -18,7 +18,7 @@ looks dead.
 
 ## What Already Exists
 
-`scripts/prove-trade-loop.ts` (558 lines, wired to `bun run prove` and `bun run check:proof`) is the
+`scripts/test/prove-trade-loop.ts` (558 lines, wired to `bun run prove` and `bun run check:proof`) is the
 existing proof harness. Read its three modes before building anything, because two of them are already
 what this solution needs and one of them is the gap:
 
@@ -202,9 +202,9 @@ verify the receipt after renderer remount.
 
 ## Paper Smoke Runbook
 
-Prerequisite: unify the Alpaca secret environment variable name first. `electron/main/config/env.ts`,
-`scripts/backfill-bars.ts`, and `scripts/prove-trade-loop.ts` all read `ALPACA_SECRET_KEY`, while
-`scripts/cert-broker.ts` reads `ALPACA_API_SECRET`. The certification runbook must not depend on which
+Prerequisite: unify the Alpaca secret environment variable name first. `electron/main/config/env.ts`
+and `scripts/test/prove-trade-loop.ts` read `ALPACA_SECRET_KEY`, while
+`scripts/broker/cert-broker.ts` reads `ALPACA_API_SECRET`. The certification runbook must not depend on which
 script the operator happened to run.
 
 1. Confirm the app and target session show `paper`/`paper_only`.

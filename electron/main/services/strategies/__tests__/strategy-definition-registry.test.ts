@@ -151,11 +151,17 @@ describe("StrategyDefinitionRegistry", () => {
       expect(strategy.id).toBe("trend-following");
     });
 
-    it("options-flow is disabled until Solution 10 producer exists", () => {
+    it("options-flow is available via the v2 chain producer", () => {
       const registry = getStrategyDefinitionRegistry();
-      const def = registry.get("options-flow");
-      expect(def?.implementationStatus).toBe("disabled");
-      expect(() => registry.require("options-flow")).toThrow(/disabled/i);
+      const def = registry.require("options-flow");
+      expect(def.implementationStatus).toBe("available");
+      expect(def.implementationVersion).toBe(2);
+      expect(def.acceptedInstrumentClasses).toContain("options");
+      // Bar-only evaluation stays null by design — chains are not visible to
+      // the replay path, so this strategy is forward-paper only.
+      expect(
+        def.create({}).evaluate([], { symbol: "AAPL", timeframe: "1d" }),
+      ).toBeNull();
     });
 
     it("unusual-volume is available", () => {

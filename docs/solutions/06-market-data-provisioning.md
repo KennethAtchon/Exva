@@ -42,13 +42,15 @@ Two of the three tradeable rules instruments were below their own declared minim
 3. `HistoricalBackfillService` exists and works: it chunks by UTC month, calls
    `adapter.getOhlcvRange()`, and idempotently upserts through `MarketDataService.writeBars()`. Its own
    doc comment states coverage is "an operator readout, not a resumability cursor."
-4. Backfill is only reachable from the Lab UI and `scripts/backfill-bars.ts`, which takes exactly one
-   symbol and one timeframe per invocation and requires an awkward Electron-ABI command line.
-5. **Nothing invokes backfill on behalf of a live session.** A scheduled subscription can go live
-   against an empty store, and the first scan simply reports `no_setup`.
+4. ~~Backfill was only reachable from the Lab UI and a one-symbol CLI.~~ **Superseded:**
+   `HistoryProvisioningService` + `ScheduledHistoryProvisioningService` auto-backfill on session
+   activation and before each scheduled evaluation when depth is below the strategy contract. The
+   CLI (`scripts/marketdata/backfill-bars.ts`) is deleted; Lab / Data Doctor remain operator escapes.
+5. ~~Nothing invoked backfill on behalf of a live session.~~ **Superseded** by WS2 wiring in
+   `prepareForActivation` and `ScheduledStrategyExecutor`.
 
-The consequence: history depth is a manual operator chore that nobody performed for QQQ, AAPL, or
-NVDA, and the system had no way to say so.
+The original consequence was that history depth was a manual operator chore. Auto-provisioning is
+the fix; do not reintroduce CLI backfill scripts.
 
 ## Workstream 1: Make the Bar Contract Real
 
@@ -177,20 +179,13 @@ This replaces the discarded Poisson extrapolation with a measured rate. It also 
 answer to "why did nothing trade today": either the setup rate is genuinely low (a strategy question)
 or the eligible-evaluation count is low (a provisioning question). Those need opposite responses.
 
-## Workstream 5: Backfill Ergonomics
+## Workstream 5: Backfill Ergonomics — RETIRED (auto-provision)
 
-Add a universe-level entry point so provisioning is one command, not one command per symbol.
-
-```bash
-bun run backfill -- --set liquid-us-etfs --timeframe 1h --lookback 2y
-bun run backfill -- --session ETF-REVERSION-PRIMARY   # resolves every member and contract
-bun run backfill -- --audit                            # report only, writes nothing
-```
-
-The command resolves instrument-set members and their strategy contracts, plans missing intervals from
-coverage, and reports per-symbol results. It reuses `HistoricalBackfillService` — no second
-implementation. Document the Electron-ABI invocation requirement in the script header and in
-`docs/engineering/`.
+Universe-level CLI backfill is intentionally not shipped. Session activation
+(`ScheduledHistoryProvisioningService.ensureSession`) and per-scan
+(`HistoryProvisioningService.ensure`) provision every scheduled member against its strategy
+contract. Operator escapes: Lab UI backfill and Data Doctor `run_backfill`. Do not add
+`scripts/marketdata/backfill-*.ts` again.
 
 ## Tests
 
@@ -210,8 +205,8 @@ provisioning runs, bars are written, the first scheduled scan evaluates against
 
 ### Product
 
-`bun run backfill -- --session <name>` followed by a Lab run on the same symbols shows no data-quality
-gaps for the requested window.
+Activate a session with an empty store; first scan evaluates against `>= minEvaluableBars` (or
+fails with a named history block). No CLI backfill step.
 
 ## Acceptance Criteria
 
@@ -221,6 +216,6 @@ gaps for the requested window.
 - [ ] `insufficient_history` and `no_setup` are distinct, separately counted outcomes.
 - [ ] Every scheduled instrument in the default matrix stores at least `preferredContextBars`.
 - [ ] Setup rate and eligible-evaluation count are queryable per session per day.
-- [ ] One command provisions an entire instrument set.
+- [x] Auto-provision replaces universe CLI backfill (WS5 retired).
 - [ ] Universe expansion is gated on the measured setup rate, not on impatience.
 - [ ] Rules liquid-equity set is widened to 20–25 liquidity-screened symbols after that gate.

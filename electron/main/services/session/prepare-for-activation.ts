@@ -22,7 +22,7 @@ export async function prepareForActivation(input: {
     sessionId: string,
     level: "INFO" | "WARN" | "ERROR",
     message: string,
-    agentType: string,
+    agentType: "session" | "preflight",
   ) => void;
   /** Optional history depth provision before preflight (Solution 06). */
   provisionHistory?: (session: WorkspaceSession) => Promise<void>;

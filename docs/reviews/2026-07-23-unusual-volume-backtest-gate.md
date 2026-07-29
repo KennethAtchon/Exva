@@ -11,7 +11,7 @@ The launch plan requires six months of 15m and 1h OHLCV for SPY, QQQ, AAPL, and 
 
 ## Observed Data (after backfill)
 
-Backfilled via `scripts/backfill-bars.ts` (Electron Node ABI) for `2026-01-23` → `2026-07-23`:
+Backfilled via historical backfill (Lab / provisioning path; CLI script since removed) for `2026-01-23` → `2026-07-23`:
 
 | Symbol | 15m bars | 1h bars |
 | --- | ---: | ---: |

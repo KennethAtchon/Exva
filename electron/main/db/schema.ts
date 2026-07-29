@@ -1808,3 +1808,30 @@ export const backtestEquityPoints = sqliteTable(
     runIdx: index("idx_backtest_equity_points_run").on(table.runId, table.ts),
   }),
 );
+
+/** Per scheduled evaluation for opportunity-rate math (Solution 06 WS4). */
+export const scanEvaluationOutcomes = sqliteTable(
+  "scan_evaluation_outcomes",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id"),
+    groupKey: text("group_key").notNull(),
+    strategyId: text("strategy_id").notNull(),
+    symbol: text("symbol").notNull(),
+    timeframe: text("timeframe").notNull(),
+    evaluatedAt: text("evaluated_at").notNull(),
+    barWindowHash: text("bar_window_hash"),
+    storedBars: integer("stored_bars"),
+    minEvaluableBars: integer("min_evaluable_bars"),
+    outcome: text("outcome").notNull(),
+    dayKey: text("day_key").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => ({
+    sessionDayIdx: index("idx_scan_eval_session_day").on(
+      table.sessionId,
+      table.dayKey,
+    ),
+    groupDayIdx: index("idx_scan_eval_group_day").on(table.groupKey, table.dayKey),
+  }),
+);

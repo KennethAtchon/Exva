@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Launch Exva main process in headless mode (no BrowserWindow).
 set -euo pipefail
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 SUPPRESS="$HOME/.exva/suppress-headless"

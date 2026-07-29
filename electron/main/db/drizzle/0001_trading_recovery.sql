@@ -175,3 +175,21 @@ CREATE TABLE `backtest_equity_points` (
 	FOREIGN KEY (`run_id`) REFERENCES `backtest_runs`(`id`) ON UPDATE no action ON DELETE cascade
 );--> statement-breakpoint
 CREATE INDEX `idx_backtest_equity_points_run` ON `backtest_equity_points` (`run_id`,`ts`);
+--> statement-breakpoint
+CREATE TABLE `scan_evaluation_outcomes` (
+	`id` text PRIMARY KEY NOT NULL,
+	`session_id` text,
+	`group_key` text NOT NULL,
+	`strategy_id` text NOT NULL,
+	`symbol` text NOT NULL,
+	`timeframe` text NOT NULL,
+	`evaluated_at` text NOT NULL,
+	`bar_window_hash` text,
+	`stored_bars` integer,
+	`min_evaluable_bars` integer,
+	`outcome` text NOT NULL,
+	`day_key` text NOT NULL,
+	`created_at` text NOT NULL
+);--> statement-breakpoint
+CREATE INDEX `idx_scan_eval_session_day` ON `scan_evaluation_outcomes` (`session_id`,`day_key`);--> statement-breakpoint
+CREATE INDEX `idx_scan_eval_group_day` ON `scan_evaluation_outcomes` (`group_key`,`day_key`);

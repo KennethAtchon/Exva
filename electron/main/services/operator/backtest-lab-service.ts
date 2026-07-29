@@ -10,13 +10,17 @@ import type { BacktestRunsRepo } from "../../db/repositories/research/experiment
 import type { ExperienceExperimentsRepo } from "../../db/repositories/experiences/experience-experiments-repo";
 import type { EventBus } from "../infra/event-bus";
 import type { MarketDataService } from "../marketdata/market-data-service";
+import { purgedWalkForwardFolds } from "@electron/shared/quant/statistics";
 import {
+  foldIndexForBar,
   runBacktest,
   type BacktestCosts,
   type BacktestResult,
   type ExitPolicyConfig,
   type FoldConfig,
 } from "../backtest/replay-engine";
+import type { OhlcvBar } from "../broker/adapters/broker-adapter";
+import type { PortfolioTrade } from "../backtest/portfolio-replay-engine";
 import { PortfolioReplayEngine } from "../backtest/portfolio-replay-engine";
 import { persistPortfolioReplayDetail } from "../backtest/persist-portfolio-replay";
 import { getStrategyDefinitionRegistry } from "../strategies";
@@ -261,6 +265,27 @@ export class BacktestLabService {
           ? closed.reduce((sum, t) => sum + (t.returnBps ?? 0), 0) /
             closed.length
           : 0;
+      // The portfolio engine runs one continuous pass, so folds are assigned
+      // after the fact by entry timestamp. Reporting a single aggregate fold
+      // would make `requiredFolds` in the research contract unverifiable.
+      const foldOfTrade = assignPortfolioFolds({
+        trades: closed,
+        barsBySymbol: barsMap,
+        folds: input.folds,
+        purge: input.foldConfig?.purge ?? 1,
+      });
+      const foldTrades = closed.map((t) => ({
+        symbol: t.symbol,
+        side: t.side === "long" ? ("buy" as const) : ("sell" as const),
+        entryTs: t.entryTs,
+        exitTs: t.exitTs!,
+        entryPrice: t.entryPrice,
+        exitPrice: t.exitPrice!,
+        returnBps: t.returnBps ?? 0,
+        netReturnBps: t.returnBps ?? 0,
+        fold: foldOfTrade.get(t.id) ?? 0,
+        evidence: {},
+      }));
       result = {
         runHash: createHash("sha256")
           .update(`${specHash}:${datasetHash}:${portfolio.netPnlUsd}`)
@@ -268,32 +293,13 @@ export class BacktestLabService {
           .slice(0, 16),
         experienceId: input.experienceId,
         strategyId: input.strategyId,
-        trades: closed.map((t) => ({
-          symbol: t.symbol,
-          side: t.side === "long" ? ("buy" as const) : ("sell" as const),
-          entryTs: t.entryTs,
-          exitTs: t.exitTs!,
-          entryPrice: t.entryPrice,
-          exitPrice: t.exitPrice!,
-          returnBps: t.returnBps ?? 0,
-          netReturnBps: t.returnBps ?? 0,
-          fold: 0,
-          evidence: {},
-        })),
-        folds: [
-          {
-            fold: 0,
-            tradeCount: closed.length,
-            expectancyBps,
-            sharpe: 0,
-            maxDrawdownPct: portfolio.maxDrawdownPct,
-            winRate:
-              closed.length > 0
-                ? closed.filter((t) => t.realizedPnlUsd > 0).length /
-                  closed.length
-                : 0,
-          },
-        ],
+        trades: foldTrades,
+        folds: summarizePortfolioFolds(
+          foldTrades,
+          closed,
+          foldOfTrade,
+          Math.max(1, input.folds),
+        ),
         tradeCount: closed.length,
         expectancyBps,
         sharpe: 0,
@@ -381,7 +387,14 @@ export class BacktestLabService {
       pct: 100,
     });
 
-    return { run, result, determinismHash: contractHash };
+    return {
+      run,
+      result: {
+        ...result,
+        ...(portfolioExtras ?? {}),
+      },
+      determinismHash: contractHash,
+    };
   }
 
   /**
@@ -526,6 +539,87 @@ export class BacktestLabService {
   private emitProgress(progress: BacktestLabProgress): void {
     this.deps.eventBus.emit("backtest_progress", progress);
   }
+}
+
+/**
+ * Map each closed portfolio trade to a purged walk-forward test fold by the
+ * bar index of its entry. Trades that land in a train or purge segment have no
+ * fold and are excluded from fold metrics (they stay in the trade list).
+ */
+function assignPortfolioFolds(input: {
+  trades: PortfolioTrade[];
+  barsBySymbol: Map<string, OhlcvBar[]>;
+  folds: number;
+  purge: number;
+}): Map<string, number | null> {
+  const assignment = new Map<string, number | null>();
+  const foldsBySymbol = new Map<string, ReturnType<typeof purgedWalkForwardFolds>>();
+  const indexBySymbol = new Map<string, Map<string, number>>();
+
+  for (const [symbol, bars] of input.barsBySymbol) {
+    foldsBySymbol.set(
+      symbol,
+      purgedWalkForwardFolds(
+        bars.length,
+        Math.max(1, input.folds),
+        input.purge,
+      ),
+    );
+    indexBySymbol.set(symbol, new Map(bars.map((bar, i) => [bar.ts, i])));
+  }
+
+  for (const trade of input.trades) {
+    const barIndex = indexBySymbol.get(trade.symbol)?.get(trade.entryTs);
+    const folds = foldsBySymbol.get(trade.symbol);
+    if (barIndex === undefined || !folds) {
+      assignment.set(trade.id, null);
+      continue;
+    }
+    assignment.set(trade.id, foldIndexForBar(barIndex, folds));
+  }
+  return assignment;
+}
+
+/** `closed` and `foldTrades` are 1:1 in the same order, so zip by index. */
+function summarizePortfolioFolds(
+  foldTrades: BacktestResult["trades"],
+  closed: PortfolioTrade[],
+  foldOfTrade: Map<string, number | null>,
+  foldCount: number,
+): BacktestResult["folds"] {
+  const foldByIndex = closed.map((trade) => foldOfTrade.get(trade.id) ?? null);
+
+  return Array.from({ length: foldCount }, (_unused, fold) => {
+    const members = foldTrades.filter((_trade, i) => foldByIndex[i] === fold);
+    const wins = closed.filter(
+      (trade) => foldOfTrade.get(trade.id) === fold && trade.realizedPnlUsd > 0,
+    ).length;
+    const expectancyBps =
+      members.length > 0
+        ? members.reduce((sum, t) => sum + t.netReturnBps, 0) / members.length
+        : 0;
+    return {
+      fold,
+      tradeCount: members.length,
+      expectancyBps,
+      sharpe: 0,
+      maxDrawdownPct: foldMaxDrawdownPct(members),
+      winRate: members.length > 0 ? wins / members.length : 0,
+    };
+  });
+}
+
+/** Peak-to-trough of the fold's cumulative bps curve, as a fraction. */
+function foldMaxDrawdownPct(trades: BacktestResult["trades"]): number {
+  let cumulative = 0;
+  let peak = 0;
+  let maxDrawdown = 0;
+  for (const trade of trades) {
+    cumulative += trade.netReturnBps;
+    peak = Math.max(peak, cumulative);
+    maxDrawdown = Math.max(maxDrawdown, peak - cumulative);
+  }
+  return maxDrawdown / 10_000;
 }
 
 function verdictFromResult(result: BacktestResult): BacktestVerdict {

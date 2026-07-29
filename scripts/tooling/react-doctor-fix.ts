@@ -19,7 +19,7 @@ type FixRule = {
   apply(code: string): RuleResult;
 };
 
-const ROOT = path.join(import.meta.dir, "..");
+const ROOT = path.join(import.meta.dir, "..", "..");
 const DEFAULT_GLOB = "src/**/*.tsx";
 const SAFE_RULES: RuleName[] = [
   "no-tiny-text",

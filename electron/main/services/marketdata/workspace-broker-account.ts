@@ -3,7 +3,7 @@ import type { InstrumentClass } from "@/lib/types";
 export interface WorkspaceBrokerAccountRow {
   id: string;
   brokerType: string;
-  supportedInstrumentClasses: InstrumentClass[];
+  supportedInstrumentClasses: readonly InstrumentClass[];
 }
 
 function isCompatibleAccount(

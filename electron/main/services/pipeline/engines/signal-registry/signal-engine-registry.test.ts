@@ -30,12 +30,16 @@ describe("registerTradeSignalEngines", () => {
     registerTradeSignalEngines();
 
     const engine = requireEngine("rules-mean-reversion");
+    // 20 baseline bars (mean 100, std 1) then the bar under test. The baseline
+    // excludes the tested bar (P2-1), so it needs its own variance.
     const signal = engine.run(
       {
         symbol: "SPY",
         ohlcv: [
-          ...Array.from({ length: 19 }, () => ({ close: 100 })),
-          { close: 70 },
+          ...Array.from({ length: 20 }, (_, i) => ({
+            close: i % 2 === 0 ? 99 : 101,
+          })),
+          { close: 97 },
         ],
         zScoreEntry: -2,
       },

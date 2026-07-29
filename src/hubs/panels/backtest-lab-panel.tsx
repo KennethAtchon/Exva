@@ -331,22 +331,48 @@ export function BacktestLabPanel() {
         >
           <div className="p-4">
             {lastResult ? (
-              <pre className="m-0 whitespace-pre-wrap font-mono text-data text-text2">
-                {JSON.stringify(
-                  {
-                    tradeCount: lastResult.tradeCount,
-                    expectancyBps: lastResult.expectancyBps,
-                    sharpe: lastResult.sharpe,
-                    maxDrawdownPct: lastResult.maxDrawdownPct,
-                    costDragBps: lastResult.costDragBps,
-                    folds: lastResult.folds,
-                    experimentIds: lastResult.experimentIds,
-                    trials: lastResult.trials,
-                  },
-                  null,
-                  2,
-                )}
-              </pre>
+              <div className="grid gap-3">
+                {"netPnlUsd" in lastResult || "endingEquityUsd" in lastResult ? (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <Metric
+                      label="Net P&L $"
+                      value={fmt.usd(Number(lastResult.netPnlUsd ?? 0))}
+                    />
+                    <Metric
+                      label="Ending equity"
+                      value={fmt.usd(Number(lastResult.endingEquityUsd ?? 0))}
+                    />
+                    <Metric
+                      label="Max DD $"
+                      value={fmt.usd(Number(lastResult.maxDrawdownUsd ?? 0))}
+                    />
+                    <Metric
+                      label="Equity pts"
+                      value={String(lastResult.equityPointCount ?? 0)}
+                    />
+                  </div>
+                ) : null}
+                <pre className="m-0 whitespace-pre-wrap font-mono text-data text-text2">
+                  {JSON.stringify(
+                    {
+                      tradeCount: lastResult.tradeCount,
+                      expectancyBps: lastResult.expectancyBps,
+                      sharpe: lastResult.sharpe,
+                      maxDrawdownPct: lastResult.maxDrawdownPct,
+                      costDragBps: lastResult.costDragBps,
+                      netPnlUsd: lastResult.netPnlUsd,
+                      endingEquityUsd: lastResult.endingEquityUsd,
+                      maxDrawdownUsd: lastResult.maxDrawdownUsd,
+                      equityPointCount: lastResult.equityPointCount,
+                      folds: lastResult.folds,
+                      experimentIds: lastResult.experimentIds,
+                      trials: lastResult.trials,
+                    },
+                    null,
+                    2,
+                  )}
+                </pre>
+              </div>
             ) : (
               <EmptyState message="Run a backtest to see fold metrics here." />
             )}
@@ -401,8 +427,10 @@ export function BacktestLabPanel() {
                     </div>
                     <div className="font-mono text-micro text-text3">
                       {fmt.time(run.createdAt)} · trades{" "}
-                      {String(metrics.tradeCount ?? "—")} · sharpe{" "}
-                      {String(metrics.sharpe ?? "—")}
+                      {String(metrics.tradeCount ?? "—")}
+                      {typeof metrics.netPnlUsd === "number"
+                        ? ` · PnL ${fmt.usd(metrics.netPnlUsd)}`
+                        : ` · sharpe ${String(metrics.sharpe ?? "—")}`}
                     </div>
                   </div>
                   <Badge variant={selected ? "success" : "default"} size="sm">
@@ -444,6 +472,17 @@ function Field({
         {label}
       </span>
       {children}
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-sm border border-hairline bg-surface2 px-2 py-1.5">
+      <div className="font-mono text-micro uppercase tracking-wider text-text3">
+        {label}
+      </div>
+      <div className="font-mono text-label text-text1">{value}</div>
     </div>
   );
 }

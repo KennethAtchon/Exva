@@ -49,6 +49,7 @@ import { ResearchExperimentService } from "./research/research-experiment-servic
 import { WorkspacePreferencesRepo } from "../db/repositories/workspace/workspace-prefs-repo";
 import { LLMRuntime } from "./llm/index";
 import { HistoryProvisioningService } from "./marketdata/history-provisioning-service";
+import { ScheduledHistoryProvisioningService } from "./marketdata/scheduled-history-provisioning-service";
 import { CycleFunnelService } from "./orchestration/cycle-funnel-service";
 import { SignalCatchupService } from "./signals/signal-catchup-service";
 import { EdgarCandidateScreeningService } from "./signals/edgar-candidate-screening-service";
@@ -130,6 +131,10 @@ import {
 import { PaperScorecardService } from "./analytics/paper-scorecard-service";
 import { ExperienceScorecardService } from "./analytics/experience-scorecard-service";
 import { ResearchSummaryService } from "./analytics/research-summary-service";
+import {
+  OpportunityRateService,
+  mapInstrumentKindToOpportunity,
+} from "./analytics/opportunity-rate-service";
 import { ExperienceCapitalAllocator } from "./risk/experience-capital-allocator";
 import { ExperienceExperimentsRepo } from "../db/repositories/experiences/experience-experiments-repo";
 import { BriefingsRepo } from "../db/repositories/system/briefings-repo";
@@ -174,9 +179,13 @@ import { SessionInputConfigurationService } from "./session-inputs/session-input
 import { getStrategyDefinitionRegistry } from "./strategies/index";
 import { createSourceAdapterRegistry } from "./signals/adapters/source-adapter-registry";
 import { CikTickerCache } from "./signals/cache/cik-ticker-cache";
+import { ScanFunnelService } from "./scheduling/scan-funnel-service";
 import { ScheduleCoordinator } from "./scheduling/schedule-coordinator";
 import { SessionInputRuntimePlanner } from "./scheduling/session-input-runtime-planner";
-import { ScheduledStrategyExecutor } from "./scheduling/scheduled-strategy-executor";
+import {
+  ScheduledStrategyExecutor,
+  type ScheduledStrategyExecutorDeps,
+} from "./scheduling/scheduled-strategy-executor";
 import { getMarketCalendarRegistry } from "./scheduling/market-calendar-registry";
 import { SubscriptionFanoutResolver } from "./signals/subscription-fanout-resolver";
 import { AlphaSourceScanService } from "./signals/alpha-source-scan-service";
@@ -277,6 +286,10 @@ export interface AppServices {
   sourceDefinitionService: SourceDefinitionService;
   sessionInputConfiguration: SessionInputConfigurationService;
   scheduleCoordinator: ScheduleCoordinator;
+  /** Per-session read of why the last scan produced no decision. */
+  scanFunnel: ScanFunnelService;
+  /** Per-day setup rate and history-blocked rate for a session. */
+  opportunityRate: OpportunityRateService;
   alphaSourceScans: AlphaSourceScanService;
   // Finish-line 08 operator power tools
   paletteQuery: PaletteQueryService;
@@ -801,9 +814,11 @@ export async function createAppServices(app: App): Promise<AppServices> {
   );
 
   // Set after HistoricalBackfillService is constructed (below).
-  let provisionHistoryImpl:
-    | ((session: import("@/lib/types").WorkspaceSession) => Promise<void>)
-    | undefined;
+  const provisionHistoryRef: {
+    current?: (
+      session: import("@/lib/types").WorkspaceSession,
+    ) => Promise<void>;
+  } = {};
 
   const session = new SessionService({
     sessionRepo: repos.session,
@@ -818,7 +833,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     liveReadiness,
     clearOrderHalt: () => killSwitchRef?.clearHalt(),
     provisionHistory: async (s) => {
-      if (provisionHistoryImpl) await provisionHistoryImpl(s);
+      if (provisionHistoryRef.current) await provisionHistoryRef.current(s);
     },
   });
   pauseSessionForSupervisor = async (sessionId, reason) => {
@@ -934,6 +949,10 @@ export async function createAppServices(app: App): Promise<AppServices> {
   // these fail-loud hooks fire only at scan-tick runtime — set below.
   const sessionActivityTrackerRef: { current: SessionActivityTracker | null } =
     { current: null };
+  const opportunityRate = new OpportunityRateService(db);
+  const scheduledHistoryProvisioningRef: {
+    current?: ScheduledStrategyExecutorDeps["provisionHistory"];
+  } = {};
   const executor = new ScheduledStrategyExecutor({
     db,
     strategyRegistry,
@@ -947,6 +966,60 @@ export async function createAppServices(app: App): Promise<AppServices> {
       mapOhlcvTimeframe,
       marketDataProviderForBroker,
     }),
+    provisionHistory: (...args) => {
+      if (!scheduledHistoryProvisioningRef.current) {
+        throw new Error("Scheduled history provisioning is not initialized");
+      }
+      return scheduledHistoryProvisioningRef.current(...args);
+    },
+    getOptionChain: async (symbol, context) => {
+      const fanout = fanoutResolver.resolveScheduledFanout(
+        context?.subscriptionIds ?? [],
+      );
+      const sessionId = fanout[0]?.sessionId;
+      if (!sessionId) return [];
+      let adapter;
+      try {
+        ({ adapter } = await brokerRouting.resolveAdapter(
+          sessionId,
+          "options",
+        ));
+      } catch {
+        ({ adapter } = await brokerRouting.resolveAdapter(sessionId, "stock"));
+      }
+      const getChain = adapter.getOptionChain?.bind(adapter);
+      return getChain ? getChain(symbol) : [];
+    },
+    onEvaluations: (plan, instruments) => {
+      const fanout = fanoutResolver.resolveScheduledFanout(
+        plan.subscriptionIds,
+      );
+      // One scan group can serve several sessions (contention lanes share a
+      // group key). Attributing every evaluation to fanout[0] left the other
+      // sessions with an empty opportunity ledger, so record per session.
+      const sessionIds = [...new Set(fanout.map((f) => f.sessionId))];
+      const evaluatedAt = new Date().toISOString();
+      const rowsFor = (sessionId: string | null) =>
+        instruments.map((row) => ({
+          sessionId,
+          groupKey: plan.groupKey,
+          strategyId: plan.strategyId,
+          symbol: row.symbol,
+          timeframe: plan.analysisTimeframe,
+          evaluatedAt,
+          // Window identity, so a re-scan of the same bar is a repeat look
+          // rather than a fresh chance. Falls back to the newest bar seen.
+          barWindowHash: row.barWindowHash ?? row.newestBarTs ?? null,
+          storedBars: row.barsActual ?? null,
+          minEvaluableBars: row.barsRequired ?? null,
+          outcome: mapInstrumentKindToOpportunity(row.kind),
+        }));
+      opportunityRate.record(
+        sessionIds.length > 0
+          ? sessionIds.flatMap((sessionId) => rowsFor(sessionId))
+          : rowsFor(null),
+      );
+    },
     onBarsFailed: (plan, symbol, errorMessage) => {
       for (const { sessionId } of fanoutResolver.resolveScheduledFanout(
         plan.subscriptionIds,
@@ -982,10 +1055,15 @@ export async function createAppServices(app: App): Promise<AppServices> {
     },
   });
 
+  const scanFunnel = new ScanFunnelService({
+    db,
+    coordinator: scheduleCoordinator,
+    resolveScheduledFanout: (ids) => fanoutResolver.resolveScheduledFanout(ids),
+  });
+
   const planner = new SessionInputRuntimePlanner({ db, strategyRegistry });
   const plans = planner.buildPlans();
   scheduleCoordinator.reconcile(plans);
-  scheduleCoordinator.start();
 
   const alphaSourceScans = new AlphaSourceScanService({
     fundingRates: fundingRatesRepo,
@@ -1100,7 +1178,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
           signalSourcesRepo,
           signalRegistry,
           events: repos.events,
-          pauseSession: async (id, _reason) => {
+          pauseSession: async (id) => {
             const status = repos.session.getStatus(id);
             if (status !== "active" && status !== "attention_required") return;
             await session.pause(id);
@@ -1162,13 +1240,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
           "NOT_FOUND",
         );
       }
-      const account = repos.brokerAccounts.require(accountId);
-      if (account.brokerType !== "alpaca") {
-        throw new AppError(
-          "Historical backfill currently requires an Alpaca broker account",
-          "UNSUPPORTED_INSTRUMENT",
-        );
-      }
       return brokerRegistry.get(accountId);
     },
     normalizeWireSymbol: ({ symbol, instrumentClass, brokerType }) =>
@@ -1177,41 +1248,67 @@ export async function createAppServices(app: App): Promise<AppServices> {
         instrumentClass,
         brokerType,
       }),
+    marketDataProviderForBroker,
   });
   const historyProvisioning = new HistoryProvisioningService({
     marketData,
     backfill: historicalBackfill,
   });
+  const scheduledHistoryProvisioning = new ScheduledHistoryProvisioningService({
+    planner,
+    subscriptions: activitySubscriptionRepo,
+    instrumentSets: instrumentSetService,
+    strategies: strategyRegistry,
+    brokerRouting,
+    history: historyProvisioning,
+  });
+  scheduledHistoryProvisioningRef.current = async (
+    symbol,
+    timeframe,
+    instrumentClass,
+    contract,
+    context,
+  ) => {
+    const sessionId = fanoutResolver.resolveScheduledFanout(
+      context.subscriptionIds,
+    )[0]?.sessionId;
+    if (!sessionId) {
+      throw new Error(
+        `Scheduled history requires a session fanout target for ${symbol}`,
+      );
+    }
+    const brokerAccountId = brokerRouting.resolveBrokerAccountId(
+      sessionId,
+      instrumentClass,
+    );
+    const result = await historyProvisioning.ensure({
+      symbol,
+      instrumentClass,
+      timeframe,
+      contract,
+      brokerAccountId,
+    });
+    if (
+      result.kind === "unavailable" ||
+      result.storedBars < contract.minEvaluableBars
+    ) {
+      const reason =
+        result.kind === "satisfied"
+          ? `only ${result.storedBars} stored bars, need ${contract.minEvaluableBars}`
+          : result.reason;
+      throw new Error(
+        `Scheduled history unavailable for ${symbol} ${timeframe}: ${reason}`,
+      );
+    }
+  };
+  scheduleCoordinator.start();
   const sessionUptime = new SessionUptimeService(db);
   const signalCatchup = new SignalCatchupService({
     db,
     deliveryGate: () => true,
   });
-  provisionHistoryImpl = async (workspaceSession) => {
-    const assignments = repos.sessionBrokerAssignments.listAssignments(
-      workspaceSession.id,
-    );
-    const brokerAccountId = assignments[0]?.brokerAccountId;
-    if (!brokerAccountId) return;
-    const symbols = workspaceSession.instrumentScope
-      .split(/[\s,]+/)
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .slice(0, 20);
-    for (const symbol of symbols) {
-      const instrumentClass = workspaceSession.instrumentClasses[0] ?? "stock";
-      await historyProvisioning.ensure({
-        symbol,
-        instrumentClass,
-        timeframe: "15m",
-        contract: {
-          minEvaluableBars: 50,
-          preferredContextBars: 100,
-          warmupBars: 21,
-        },
-        brokerAccountId,
-      });
-    }
+  provisionHistoryRef.current = async (workspaceSession) => {
+    await scheduledHistoryProvisioning.ensureSession(workspaceSession.id);
     sessionUptime.heartbeat(workspaceSession.id);
   };
   // Catch-up prediction events that arrived before subscription (Solution 02 WS5).
@@ -1436,6 +1533,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sourceDefinitionService,
     sessionInputConfiguration,
     scheduleCoordinator,
+    scanFunnel,
+    opportunityRate,
     alphaSourceScans,
     paletteQuery,
     backtestLab,

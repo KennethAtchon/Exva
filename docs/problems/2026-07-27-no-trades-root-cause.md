@@ -526,7 +526,7 @@ stable anchors. Each is **Code-proven** unless noted.
 | P2-8  | AI spend precedes deterministic rejection and no budget cap is enforced before the call                                       | Cost is resolved post-hoc; July 27 spent research cost on OYCG/GRUSF/PEBO before correct vetoes [R6]               | High     | 07        |
 | P2-9  | `AlphaSourceScanService.start()` arms a 30-minute timer without an immediate tick, so a late boot loses a further full interval | `alpha-source-scan-service.ts:68-94`, `DEFAULT_INTERVAL_MS = 30 * 60_000` [C17]                                   | Medium   | 08        |
 | P2-10 | `no_signal_stale` measures age since session creation and lifetime step/delivery counts, so a session that goes quiet after one step never flags | `session-activity-tracker.ts:724-756` [C18]                                                                       | Medium   | 08        |
-| U4    | The app was not running for roughly a third of the eligible trading window, and the shipped autostart agent was never installed | Boot at `15:42Z` versus a `13:30Z` open; `scripts/install-launchd.sh` exists and is referenced by no runbook [C19] | Medium   | 08        |
+| U4    | The app was not running for roughly a third of the eligible trading window, and the shipped autostart agent was never installed | Boot at `15:42Z` versus a `13:30Z` open; `scripts/headless/install-launchd.sh` exists and is referenced by no runbook [C19] | Medium   | 08        |
 
 ### Correction to the superseded draft
 
@@ -546,7 +546,7 @@ unmeasured — see P2-10 and U4.
 
 [C18] `electron/main/services/sessions/session-activity-tracker.ts:724-756`.
 
-[C19] `scripts/install-launchd.sh`, `scripts/run-headless.sh`, `package.json` script `headless`.
+[C19] `scripts/headless/install-launchd.sh`, `scripts/headless/run.sh`, `package.json` script `headless`.
 
 [C20] `src/components/sessions/SessionInputEditor.tsx:377-390` — the template-catalog `.catch` that
 discards the error and renders a failure as an empty catalog (the concrete instance of P2-4).

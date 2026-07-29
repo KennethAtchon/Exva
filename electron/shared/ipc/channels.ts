@@ -255,6 +255,8 @@ export const channels = {
     monitoringHealth: "session-activity:monitoring-health",
     analytics: "session-activity:analytics",
     firstDivergence: "session-activity:first-divergence",
+    scanFunnel: "session-activity:scan-funnel",
+    opportunityRate: "session-activity:opportunity-rate",
   },
 } as const;
 

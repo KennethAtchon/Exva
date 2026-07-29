@@ -8,6 +8,10 @@ import {
 import type { LLMRunResult } from "../../llm/llm-types";
 import type { ProviderRegistry } from "../../llm/provider-registry";
 import { withLLMRetry } from "../../llm/runtime-retry";
+import {
+  nextFallbackHop,
+  resolveWorkerRoutes,
+} from "../../llm/ai-reliability";
 import { assembleTrace } from "./trace-assembler";
 import type { AIWorkerOutputSchema } from "../core/types";
 import { parseWorkerOutput } from "./worker-structured-output";
@@ -178,7 +182,10 @@ export async function runAIWorker<TOutput>(
     );
   }
 
-  const adapter = await deps.providerRegistry.get(workerExecConfig.providerKey);
+  let activeProviderKey = workerExecConfig.providerKey;
+  let activeModelId = workerExecConfig.modelId;
+  let adapter = await deps.providerRegistry.get(activeProviderKey);
+  let usedFallback = false;
 
   // Resolve prompt
   let promptMarkdown: string;
@@ -291,7 +298,7 @@ export async function runAIWorker<TOutput>(
     withLLMRetry(
       (signal) =>
         adapter.runAgent({
-          model: workerExecConfig.modelId,
+          model: activeModelId,
           role: phase,
           workerId: worker.id,
           workerName,
@@ -303,7 +310,7 @@ export async function runAIWorker<TOutput>(
           maxSteps: resolvedConfig.caps.maxSteps,
           spendLimitUsd: resolvedConfig.caps.spendLimitUsd,
           temperature: resolveTemperature(
-            workerExecConfig.modelId,
+            activeModelId,
             workerExecConfig.temperature,
           ),
           maxTokens:
@@ -315,7 +322,7 @@ export async function runAIWorker<TOutput>(
         }),
       {
         providerType: adapter.providerType,
-        modelId: workerExecConfig.modelId,
+        modelId: activeModelId,
         role: phase,
         workerId: worker.id,
         workerName: workerName ?? null,
@@ -330,7 +337,7 @@ export async function runAIWorker<TOutput>(
             trade_id: tradeId ?? null,
             cycle_id: cycleId ?? null,
             provider: adapter.providerType,
-            endpoint: workerExecConfig.modelId,
+            endpoint: activeModelId,
             call_type: "llm_attempt",
             credits_used: null,
             cost_usd: null,
@@ -348,6 +355,7 @@ export async function runAIWorker<TOutput>(
               status,
               retryable,
               durationMs,
+              usedFallback,
             },
             "LLM attempt recorded",
           );
@@ -356,7 +364,39 @@ export async function runAIWorker<TOutput>(
       { timeoutMs: resolvedConfig.retry.timeoutMs },
     );
 
-  let trace = await runAgent();
+  const runAgentWithOptionalFallback = async () => {
+    try {
+      return await runAgent();
+    } catch (err) {
+      if (usedFallback) throw err;
+      if (
+        !(err instanceof AppError) ||
+        err.code !== "PROVIDER_UNREACHABLE"
+      ) {
+        throw err;
+      }
+      const routes = resolveWorkerRoutes(phase);
+      const hop = nextFallbackHop(routes, activeProviderKey, activeModelId);
+      if (!hop) throw err;
+      logger.warn(
+        {
+          ...logCtx(),
+          fromProvider: activeProviderKey,
+          fromModel: activeModelId,
+          toProvider: hop.providerType,
+          toModel: hop.modelId,
+        },
+        "primary provider failed; trying one fallback hop",
+      );
+      usedFallback = true;
+      activeProviderKey = hop.providerType;
+      activeModelId = hop.modelId;
+      adapter = await deps.providerRegistry.get(activeProviderKey);
+      return await runAgent();
+    }
+  };
+
+  let trace = await runAgentWithOptionalFallback();
   const firstTrace = trace;
   let output: TOutput;
   let parseFallback = trace.parseFallback;
@@ -382,7 +422,7 @@ export async function runAIWorker<TOutput>(
         },
         "worker terminal output validation failed; retrying once",
       );
-      const retryTrace = await runAgent();
+      const retryTrace = await runAgentWithOptionalFallback();
       trace = {
         ...retryTrace,
         inputTokens: firstTrace.inputTokens + retryTrace.inputTokens,
@@ -401,8 +441,14 @@ export async function runAIWorker<TOutput>(
     }
     if ("needsRetry" in resolution) {
       throw new AppError(
-        `Worker ${worker.id} (phase ${phase}) did not submit valid output via ${terminalToolName} after retry.`,
-        "VALIDATION_FAILED",
+        `Worker ${worker.id} (phase ${phase}) did not submit valid output via ${terminalToolName} after repair.`,
+        "MODEL_OUTPUT_INVALID",
+        {
+          reasonCode: "model_output_invalid",
+          workerId: worker.id,
+          phase,
+          terminalToolName,
+        },
       );
     }
     output = resolution.output;
@@ -450,8 +496,8 @@ export async function runAIWorker<TOutput>(
     sessionId,
     tradeId: tradeId ?? null,
     cycleId: cycleId ?? null,
-    providerKey: workerExecConfig.providerKey,
-    modelId: workerExecConfig.modelId,
+    providerKey: activeProviderKey,
+    modelId: activeModelId,
     trace,
     outputJson: JSON.stringify(output),
     outputSchemaName: worker.outputSchema ? worker.id : null,
@@ -462,8 +508,8 @@ export async function runAIWorker<TOutput>(
   logger.info(
     {
       ...logCtx(),
-      providerKey: workerExecConfig.providerKey,
-      model: workerExecConfig.modelId,
+      providerKey: activeProviderKey,
+      model: activeModelId,
       finishReason: trace.finishReason,
       parseFallback,
       stepCount: trace.steps.length,

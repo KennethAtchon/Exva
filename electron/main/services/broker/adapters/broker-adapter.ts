@@ -170,6 +170,19 @@ export interface BrokerAdapter {
   prepareClientOrderId?(canonicalClientOrderId: string): string;
 
   /**
+   * Optional: list orders still resting at the venue. Used to reconcile after
+   * a submission timeout without placing a second blind order (Solution 01).
+   */
+  getOpenOrders?(): Promise<
+    Array<{
+      brokerOrderId: string;
+      clientOrderId: string;
+      status: "open";
+      remainingQty: number;
+    }>
+  >;
+
+  /**
    * Optional: look up an order by the exact wire client order ID (for
    * timeout-safe reconciliation without blind retry).
    */

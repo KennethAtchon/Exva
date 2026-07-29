@@ -151,7 +151,7 @@ export async function acquireInstanceLock(
       ) {
         return {
           ok: false,
-          reason: `Headless pid ${existing.pid} did not exit after SIGTERM. Run scripts/uninstall-launchd.sh or kill it, then retry.`,
+          reason: `Headless pid ${existing.pid} did not exit after SIGTERM. Run scripts/headless/uninstall-launchd.sh or kill it, then retry.`,
         };
       }
     } else if (existing.mode === mode) {

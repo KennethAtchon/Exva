@@ -16,7 +16,7 @@ function makePlan(
     strategyImplementationVersion: 1,
     instrumentSetId: "set-1",
     instrumentSetRevision: 1,
-    cadence: { kind: "interval", every: 15, unit: "minute" },
+    cadence: { kind: "interval", every: 15, unit: "minute", jitterPct: 0.05 },
     analysisTimeframe: "1h",
     marketCalendarId: "missing-calendar",
     strategyParameters: {},

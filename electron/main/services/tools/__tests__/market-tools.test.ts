@@ -164,7 +164,9 @@ describe("market-tools", () => {
       instrumentClass: "crypto",
     });
 
-    expect(getMarketSnapshot).toHaveBeenCalledWith("BTC-USD");
+    expect(getMarketSnapshot).toHaveBeenCalledWith("BTC-USD", {
+      predictionOutcome: null,
+    });
     expect(out).toMatchObject({
       symbol: "BITCOIN",
       canonicalSymbol: "BTC",

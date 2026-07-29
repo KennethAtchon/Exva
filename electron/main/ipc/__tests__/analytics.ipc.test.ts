@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { channels } from "@electron/shared/ipc/channels";
+import { listExperiences } from "../../experiences";
 import { createMinimalSession, insertTrade } from "../../db/test-fixtures";
 import {
   createIpcTestServices,
@@ -25,7 +26,7 @@ describe("analytics IPC", () => {
       scorecards: Array<{ experienceId: string; displayName: string }>;
     };
 
-    expect(result.scorecards).toHaveLength(6);
+    expect(result.scorecards).toHaveLength(listExperiences().length);
     expect(result.scorecards.map((item) => item.experienceId)).toContain(
       "edgar-catalyst",
     );

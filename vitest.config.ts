@@ -12,7 +12,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    globalSetup: ["./scripts/vitest-global-setup.ts"],
+    globalSetup: ["./scripts/test/vitest-global-setup.ts"],
     include: [
       "electron/main/**/*.test.ts",
       "electron/shared/**/*.test.ts",

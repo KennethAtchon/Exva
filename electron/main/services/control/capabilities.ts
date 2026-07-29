@@ -14,6 +14,12 @@ import {
   updateBrokerRouting,
 } from "./capabilities-brokers";
 import {
+  getOpportunityRate,
+  getPaperCertification,
+  getScanFunnel,
+  runPaperCertification,
+} from "./capabilities-diagnostics";
+import {
   flattenAll,
   getKillGauges,
   killSession,
@@ -540,6 +546,10 @@ export const CONTROL_CAPABILITIES: Capability<unknown>[] = [
   getDataCoverage,
   getProviderHealth,
   getBrokerRouting,
+  // read — no-trade diagnostics
+  getScanFunnel,
+  getOpportunityRate,
+  getPaperCertification,
   // mutating — core
   createSession,
   startSession,
@@ -551,6 +561,7 @@ export const CONTROL_CAPABILITIES: Capability<unknown>[] = [
   disableSignalSource,
   forceCloseTrade,
   runPeriodAutopsy,
+  runPaperCertification,
   // mutating — P0
   decideApprovalCap,
   pauseAllSessions,

@@ -14,14 +14,14 @@
  * Usage:
  *   bun run test:smoke              # critical tests + e2e launch + backtest
  *   bun run test:smoke:critical     # critical tests only
- *   bun run scripts/smoke-critical-path.ts --full-e2e
- *   bun run scripts/smoke-critical-path.ts --skip-backtest
+ *   bun run scripts/test/smoke-critical-path.ts --full-e2e
+ *   bun run scripts/test/smoke-critical-path.ts --skip-backtest
  */
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import path from "node:path";
 import { ensureHostNativeModules } from "./ensure-host-native-modules";
 
-const ROOT = path.join(import.meta.dir, "..");
+const ROOT = path.join(import.meta.dir, "..", "..");
 
 const CRITICAL_TESTS = [
   "electron/main/services/orchestration/__tests__/mock-trade-rehearsal.integration.test.ts",

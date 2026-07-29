@@ -4,12 +4,12 @@ set -euo pipefail
 
 LABEL="com.exva.headless"
 PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LOG_DIR="$HOME/.exva/logs"
 mkdir -p "$HOME/Library/LaunchAgents" "$LOG_DIR"
 
 # Prefer packaged Electron binary when present; otherwise bun headless entry.
-HEADLESS_CMD="$REPO_ROOT/scripts/run-headless.sh"
+HEADLESS_CMD="$REPO_ROOT/scripts/headless/run.sh"
 if [[ ! -x "$HEADLESS_CMD" ]]; then
   chmod +x "$HEADLESS_CMD" 2>/dev/null || true
 fi
@@ -57,4 +57,4 @@ launchctl kickstart -k "gui/$(id -u)/${LABEL}" 2>/dev/null || launchctl load "$P
 
 echo "Installed ${PLIST}"
 echo "Headless logs: ${LOG_DIR}/headless.*.log"
-echo "Uninstall with: bun run scripts/uninstall-launchd.sh"
+echo "Uninstall with: bash scripts/headless/uninstall-launchd.sh"

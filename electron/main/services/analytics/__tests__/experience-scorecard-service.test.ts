@@ -10,6 +10,7 @@ import {
   insertTrade,
 } from "../../../db/test-fixtures";
 import { createTestDb } from "../../../db/test-helpers";
+import { listExperiences } from "../../../experiences";
 import { ExperienceScorecardService } from "../experience-scorecard-service";
 
 function makeScorecardService(db: ReturnType<typeof createTestDb>) {
@@ -185,7 +186,7 @@ describe("ExperienceScorecardService.generateAll", () => {
     seedPaperExperienceTrades(db, "edgar-catalyst");
     const scorecards = makeScorecardService(db).generateAll();
 
-    expect(scorecards.length).toBe(6);
+    expect(scorecards.length).toBe(listExperiences().length);
     expect(scorecards.map((scorecard) => scorecard.experienceId)).toContain(
       "edgar-catalyst",
     );

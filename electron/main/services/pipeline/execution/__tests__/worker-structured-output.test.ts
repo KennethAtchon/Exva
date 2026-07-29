@@ -51,6 +51,23 @@ describe("parseWorkerOutput", () => {
     });
   });
 
+  it("throws MODEL_OUTPUT_INVALID when required fields cannot be substituted", () => {
+    const required = z.object({
+      pHat: z.number().min(0).max(1),
+    });
+    expect(() =>
+      parseWorkerOutput(
+        {
+          schema: required,
+          strict: true as const,
+          onValidationFailure: "retry_once" as const,
+        },
+        { reasoning: "forgot pHat" },
+        true,
+      ),
+    ).toThrow(/Model output invalid/);
+  });
+
   it("recovers a valid bare discovery candidate array before retrying", () => {
     const result = parseWorkerOutput(
       {

@@ -14,14 +14,14 @@ depends on any other work.
 shipped a LaunchAgent installer the entire time and no document has ever mentioned it:
 
 ```bash
-bash scripts/install-launchd.sh
+bash scripts/headless/install-launchd.sh
 launchctl print "gui/$(id -u)/com.exva.headless" | head -20
 tail -f ~/.exva/logs/headless.stdout.log
 ```
 
 Caveats, limits, and verification steps are in
 [Solution 08 Workstream 1](./08-uptime-and-scan-cadence.md). The short version: it runs at **login**,
-not at boot, and `scripts/run-headless.sh` already refuses to start when a GUI instance holds the lock.
+not at boot, and `scripts/headless/run.sh` already refuses to start when a GUI instance holds the lock.
 
 **2. Decide the AI provider route.** OpenRouter failed 67% of calls in a 15-minute window on July 27
 and Exva has no fallback route (verified: no fallback exists anywhere in `services/llm/`). Adding a
@@ -60,10 +60,10 @@ run.
 7. Confirm supported classes and current data entitlement.
 8. Assign the account to the certification and repaired rules sessions with conservative allocation.
 
-The seed path expects `ALPACA_SECRET_KEY`, as do `electron/main/config/env.ts:71`,
-`scripts/backfill-bars.ts:39`, and `scripts/prove-trade-loop.ts:84`. Only `scripts/cert-broker.ts:128`
-expects `ALPACA_API_SECRET`. Unify on `ALPACA_SECRET_KEY` — it is the majority and the one the app
-itself reads — before relying on certification scripts.
+The seed path expects `ALPACA_SECRET_KEY`, as do `electron/main/config/env.ts:71` and
+`scripts/test/prove-trade-loop.ts:84`. Only `scripts/broker/cert-broker.ts:128` expects
+`ALPACA_API_SECRET`. Unify on `ALPACA_SECRET_KEY` — it is the majority and the one the app itself
+reads — before relying on certification scripts.
 
 ### IEX Versus SIP
 

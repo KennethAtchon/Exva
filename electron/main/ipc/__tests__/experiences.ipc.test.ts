@@ -29,11 +29,11 @@ describe("experiences IPC", () => {
       acceptsScanHit: boolean;
     }>;
 
-    expect(experiences).toHaveLength(6);
     expect(experiences.map((item) => item.id).sort()).toEqual(
       [
         "edgar-catalyst",
         "options-flow-edge",
+        "paper-execution-canary",
         "prediction-event-edge",
         "rules-breakout",
         "rules-mean-reversion",

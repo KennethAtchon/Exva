@@ -3,7 +3,7 @@
  * One-command EDGAR drift backtest runner.
  * Writes JSON results under research/output/.
  *
- * Usage: bun run scripts/run-edgar-backtest.ts
+ * Usage: bun run scripts/research/run-edgar-backtest.ts
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -19,10 +19,10 @@ import {
   summarizeDriftFeatures,
   type FilingRecord,
   type OhlcvBar,
-} from "../electron/main/services/backtest/edgar-drift-backtest";
-import { EDGAR_RESEARCH_ITEM_CODES } from "../electron/shared/instruments/edgar-item-codes";
+} from "../../electron/main/services/backtest/edgar-drift-backtest";
+import { EDGAR_RESEARCH_ITEM_CODES } from "../../electron/shared/instruments/edgar-item-codes";
 
-const OUTPUT_DIR = join(import.meta.dir, "..", "research", "output");
+const OUTPUT_DIR = join(import.meta.dir, "..", "..", "research", "output");
 
 const SAMPLE_FILINGS: FilingRecord[] = [
   {

@@ -14,10 +14,10 @@ Implements: docs/engineering/CODING_GUIDELINES.md
 
 | File                           | Purpose                                                            |
 | ------------------------------ | ------------------------------------------------------------------ |
-| `scripts/install-launchd.sh`   | Installs `com.exva.headless` LaunchAgent, `RunAtLoad`, `KeepAlive` |
-| `scripts/uninstall-launchd.sh` | Removes it                                                         |
-| `scripts/run-headless.sh`      | Boots the main process with `EXVA_HEADLESS=1`, no BrowserWindow    |
-| `package.json` -> `headless`   | `bash scripts/run-headless.sh`                                     |
+| `scripts/headless/install-launchd.sh`   | Installs `com.exva.headless` LaunchAgent, `RunAtLoad`, `KeepAlive` |
+| `scripts/headless/uninstall-launchd.sh` | Removes it                                                         |
+| `scripts/headless/run.sh`      | Boots the main process with `EXVA_HEADLESS=1`, no BrowserWindow    |
+| `package.json` -> `headless`   | `bash scripts/headless/run.sh`                                     |
 
 `run-headless.sh` already handles the GUI/headless collision correctly: it exits early if
 `~/.exva/suppress-headless` exists or if `~/.exva/instance.lock` reports `"mode": "gui"`.
@@ -52,7 +52,7 @@ This is a user action with an exact command. It is the single cheapest recovery 
 the entire program.
 
 ```bash
-bash scripts/install-launchd.sh
+bash scripts/headless/install-launchd.sh
 launchctl print "gui/$(id -u)/com.exva.headless" | head -20   # verify loaded
 tail -f ~/.exva/logs/headless.stdout.log                       # verify booting
 ```

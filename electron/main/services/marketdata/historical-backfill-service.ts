@@ -5,7 +5,10 @@ import type {
 import { AppError } from "@electron/shared/infra/errors";
 import type { OhlcvBar } from "../broker/adapters/broker-adapter";
 import type { EventBus } from "../infra/event-bus";
-import type { MarketDataService } from "./market-data-service";
+import type {
+  MarketDataProviderId,
+  MarketDataService,
+} from "./market-data-service";
 
 export interface HistoricalBackfillInput {
   symbol: string;
@@ -40,6 +43,7 @@ export class HistoricalBackfillService {
         instrumentClass: InstrumentClass;
         brokerType: string;
       }) => string;
+      marketDataProviderForBroker: (brokerType: string) => MarketDataProviderId;
       sleep?: (ms: number) => Promise<void>;
     },
   ) {}
@@ -89,7 +93,7 @@ export class HistoricalBackfillService {
         input.instrumentClass,
         input.timeframe,
         bars,
-        "alpaca",
+        this.deps.marketDataProviderForBroker(adapter.brokerType),
       );
       chunks += 1;
       barsWritten += bars.length;

@@ -14,13 +14,16 @@ const FOUR_PHASES = ["technical", "fundamental", "review", "decision"] as const;
 function descriptor(
   overrides: Partial<PipelineDescriptor> = {},
 ): PipelineDescriptor {
+  const id = overrides.id ?? `test-${crypto.randomUUID()}`;
   return {
-    id: `test-${crypto.randomUUID()}`,
+    id,
     displayName: "Test pipeline",
     automation: "ai",
     phases: [...FOUR_PHASES],
     signalSources: [],
-    plan: { ...DEFAULT_TRADE_CYCLE, id: `plan-${crypto.randomUUID()}` },
+    // The store requires plan.id === descriptor.id, so it must track any
+    // id override rather than minting an independent one.
+    plan: { ...DEFAULT_TRADE_CYCLE, id },
     phaseWorkers: PIPELINE_WORKER_SETS.defaultTrade,
     ...overrides,
   };
