@@ -20,6 +20,12 @@ import type { TradingTimeframe } from "@electron/shared/domain/enums";
 import { cadenceLabel } from "@electron/shared/domain/experience-inputs/cadence";
 import { ShadcnSelect } from "@/components/custom-ui";
 import { cn } from "@/lib/utils";
+import {
+  asyncError,
+  asyncLoaded,
+  asyncLoading,
+  type AsyncResource,
+} from "@/lib/async-resource";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,12 +54,8 @@ export interface SessionInputEditorProps {
 const mergeReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
 
 type EditorState = {
-  templates: ExperienceTemplateSummary[];
-  templatesLoaded: boolean;
-  templateError: string | null;
-  options: TemplateConfigurationOptions | null;
-  optionsLoaded: boolean;
-  optionsError: string | null;
+  templates: AsyncResource<ExperienceTemplateSummary[]>;
+  options: AsyncResource<TemplateConfigurationOptions | null>;
   /** Active mode (event_source | scheduled_scan | manual). */
   mode: InputMode | null;
   /** Whether user chose a recommended profile (profileId) or "custom". */
@@ -362,12 +364,8 @@ export function SessionInputEditor({
   locked = false,
 }: SessionInputEditorProps) {
   const [state, dispatch] = useReducer(mergeReducer<EditorState>, {
-    templates: [],
-    templatesLoaded: false,
-    templateError: null,
-    options: null,
-    optionsLoaded: false,
-    optionsError: null,
+    templates: asyncLoading<ExperienceTemplateSummary[]>(),
+    options: asyncLoaded<TemplateConfigurationOptions | null>(null),
     mode: null,
     profileId: null,
   });
@@ -375,25 +373,22 @@ export function SessionInputEditor({
   // Load template catalog on mount
   useEffect(() => {
     let cancelled = false;
+    dispatch({ templates: asyncLoading<ExperienceTemplateSummary[]>() });
     void experienceCatalogApi
       .listTemplates()
       .then(({ templates }) => {
         if (cancelled) return;
-        dispatch({
-          templates,
-          templatesLoaded: true,
-          templateError: null,
-        });
+        dispatch({ templates: asyncLoaded<ExperienceTemplateSummary[]>(templates) });
       })
       .catch((err) => {
         if (cancelled) return;
         dispatch({
-          templates: [],
-          templatesLoaded: true,
-          templateError:
+          templates: asyncError<ExperienceTemplateSummary[]>(
             err instanceof Error
               ? err.message
               : "Failed to load templates.",
+            true,
+          ),
         });
       });
     return () => {
@@ -405,7 +400,7 @@ export function SessionInputEditor({
   useEffect(() => {
     if (!templateId) return;
     let cancelled = false;
-    dispatch({ options: null, optionsLoaded: false, optionsError: null });
+    dispatch({ options: asyncLoading<TemplateConfigurationOptions | null>() });
     void experienceCatalogApi
       .getConfigurationOptions({
         templateId,
@@ -423,21 +418,19 @@ export function SessionInputEditor({
               ? "event_source"
               : null;
         dispatch({
-          options,
-          optionsLoaded: true,
-          optionsError: null,
+          options: asyncLoaded<TemplateConfigurationOptions | null>(options),
           mode: autoMode,
         });
       })
       .catch((err) => {
         if (cancelled) return;
         dispatch({
-          options: null,
-          optionsLoaded: true,
-          optionsError:
+          options: asyncError<TemplateConfigurationOptions | null>(
             err instanceof Error
               ? err.message
               : "Failed to load configuration options.",
+            true,
+          ),
         });
       });
     return () => {
@@ -447,13 +440,12 @@ export function SessionInputEditor({
 
   // Derive active mode from current subscriptions when options are loaded
   useEffect(() => {
-    if (!state.optionsLoaded || !state.options) return;
+    if (state.options.status !== "loaded" || !state.options.value) return;
     const firstSub = subscriptions[0];
     if (firstSub) {
       dispatch({ mode: firstSub.mode as InputMode });
     } else {
-      // Auto-select mode when only one is available
-      const opts = state.options;
+      const opts = state.options.value;
       const derived: InputMode[] = [
         ...(opts.availableSourceDefinitions.length > 0
           ? ["event_source" as const]
@@ -466,19 +458,11 @@ export function SessionInputEditor({
         dispatch({ mode: derived[0] });
       }
     }
-  }, [state.optionsLoaded, state.options, subscriptions]);
+  }, [state.options, subscriptions]);
 
-  const {
-    templates,
-    templatesLoaded,
-    templateError,
-    options,
-    optionsLoaded,
-    optionsError,
-    mode,
-  } = state;
+  const { templates: templatesRes, options: optionsRes, mode } = state;
 
-  if (!templatesLoaded) {
+  if (templatesRes.status === "loading") {
     return (
       <div className="grid gap-2">
         {[0, 1].map((i) => (
@@ -491,13 +475,16 @@ export function SessionInputEditor({
     );
   }
 
-  if (templateError) {
+  if (templatesRes.status === "error") {
     return (
       <div className={hintClass} role="alert">
-        Could not load templates: {templateError}
+        Could not load templates: {templatesRes.message}
+        {templatesRes.retryable ? " (retry by reopening this editor.)" : ""}
       </div>
     );
   }
+
+  const templates = templatesRes.value;
 
   if (templates.length === 0) {
     return (
@@ -520,7 +507,7 @@ export function SessionInputEditor({
           onValueChange={(id) => {
             if (!id) return;
             onChange([]);
-            dispatch({ mode: null, options: null, optionsLoaded: false });
+            dispatch({ mode: null, options: asyncLoading<TemplateConfigurationOptions | null>() });
           }}
           options={templates.map((t) => ({
             value: t.templateId,
@@ -543,7 +530,7 @@ export function SessionInputEditor({
     );
   }
 
-  if (!optionsLoaded) {
+  if (optionsRes.status === "loading") {
     return (
       <div className="grid gap-3.5">
         {templatePicker}
@@ -559,17 +546,18 @@ export function SessionInputEditor({
     );
   }
 
-  if (optionsError) {
+  if (optionsRes.status === "error") {
     return (
       <div className="grid gap-3.5">
         {templatePicker}
         <div className="rounded-lg border border-error-border bg-error-dim px-3 py-2 text-caption text-error">
-          {optionsError}
+          Could not load configuration options: {optionsRes.message}
         </div>
       </div>
     );
   }
 
+  const options = optionsRes.value;
   if (!options) return null;
 
   const availableModes: InputMode[] = [

@@ -2,7 +2,9 @@ import type { AgentMessage, AgentRun } from "@/lib/types";
 import type { EngineInputBuilder } from "../../execution/input-builder-registry";
 import type { LLMRunResult } from "../../../llm/llm-types";
 import type { TradeSignal } from "@electron/shared/ai/trade-signals";
+import { tradeSignalSchema } from "@electron/shared/ai/trade-signals";
 import { createLogger } from "../../../infra/log";
+import { produceOptionsFlowSignal } from "../../../signals/options-flow-producer";
 
 const logger = createLogger("options-flow-input");
 
@@ -46,19 +48,65 @@ function syntheticDecisionRun(signal: TradeSignal): LLMRunResult<TradeSignal> {
   return { run, message, output: signal };
 }
 
+function toTradeSignal(
+  underlying: string,
+  produced: ReturnType<typeof produceOptionsFlowSignal>,
+  supportsMultileg: boolean,
+): TradeSignal {
+  if (produced.kind !== "setup") {
+    return tradeSignalSchema.parse({
+      symbol: underlying,
+      action: "skip",
+      executionStrategy: "options_flow",
+      entryPrice: null,
+      confidence: 0.2,
+      reasoning: produced.reason,
+    });
+  }
+
+  const { fact, spread, legs, contracts, maxDebitUsd, reason } = produced;
+  const primarySymbol = supportsMultileg
+    ? underlying
+    : spread.longLeg.symbol;
+
+  return tradeSignalSchema.parse({
+    symbol: primarySymbol,
+    action: fact.action,
+    executionStrategy: "options_flow",
+    entryPrice: Math.max(spread.netDebit, 0.01),
+    confidence: fact.strength,
+    strength: fact.strength,
+    reasoning: reason,
+    orderMetadata: {
+      instrumentClass: "options",
+      underlyingSymbol: underlying,
+      structure: "vertical",
+      longOcc: spread.longLeg.symbol,
+      shortOcc: spread.shortLeg.symbol,
+      legs,
+      contracts,
+      maxDebitUsd,
+      netDebit: spread.netDebit,
+      deterministicFact: fact,
+      supportsMultileg,
+    },
+  });
+}
+
 /**
- * Assembles the deterministic UOA detector input from the underlying's option
- * chain. v1 trades the underlying instrument on the aggregated flow read;
- * contract-level (defined-risk) execution via `selectOptionContract` is the
- * next phase. When the chain feed returns nothing, the detector skips with a
- * clear "no option volume" reason rather than fabricating a signal.
+ * Chain → UOA → vertical → TradeSignal (Solution 10 Tracer A).
+ * The engine is identity; this builder owns the composition.
  */
 export const optionsFlowInputBuilder: EngineInputBuilder = {
   id: "options-flow-input",
   async build({ planCtx: ctx }) {
+    const routeClass =
+      ctx.instrument.instrumentClass === "options"
+        ? "options"
+        : ctx.instrument.instrumentClass;
     const { adapter } = await ctx.services.brokerRouting.resolveAdapter(
       ctx.sessionId,
-      ctx.instrument.instrumentClass,
+      routeClass,
     );
     const underlying = ctx.instrument.symbol;
     const getOptionChain = adapter.getOptionChain?.bind(adapter);
@@ -72,36 +120,19 @@ export const optionsFlowInputBuilder: EngineInputBuilder = {
           symbol: underlying,
           brokerType: adapter.brokerType,
         },
-        "options-flow received an empty option chain; cycle will skip. Check the options data feed/entitlement.",
+        "options-flow received an empty option chain; cycle will skip.",
       );
     }
 
-    let callVolume = 0;
-    let putVolume = 0;
-    let callOpenInterest = 0;
-    let putOpenInterest = 0;
-    for (const c of chain) {
-      if (c.type === "call") {
-        callVolume += c.dayVolume;
-        callOpenInterest += c.openInterest;
-      } else {
-        putVolume += c.dayVolume;
-        putOpenInterest += c.openInterest;
-      }
-    }
+    const produced = produceOptionsFlowSignal({
+      underlyingSymbol: underlying,
+      chain,
+      sessionInputGroupKey: ctx.sessionId,
+    });
+    const supportsMultileg = adapter.capabilities?.supportsMultileg === true;
+    const signal = toTradeSignal(underlying, produced, supportsMultileg);
 
-    return {
-      task: {
-        underlyingSymbol: underlying,
-        callVolume,
-        putVolume,
-        callOpenInterest,
-        putOpenInterest,
-        ivPercentile: null,
-        volumeOiRatioThreshold: 2,
-        bullishSkewThreshold: 0.6,
-      },
-    };
+    return { task: signal };
   },
   applyOutput(state, output) {
     const signal = output as TradeSignal;

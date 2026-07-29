@@ -14,19 +14,36 @@ import { remapPredictionMetadataForOutcome } from "../utils";
 
 function resolvePredictionTradeFields(
   instrument: ResolvedInstrument,
+  signal?: TradeSignal,
 ): Pick<
   Trade,
   "instrumentDisplayName" | "predictionOutcome" | "instrumentMetadataJson"
 > {
   const instrumentDisplayName = instrument.instrumentDisplayName ?? null;
   const predictionOutcome = instrument.predictionOutcome ?? null;
-  const instrumentMetadataJson =
+  let instrumentMetadataJson =
     instrument.instrumentClass === "prediction_market"
       ? remapPredictionMetadataForOutcome(
           instrument.instrumentMetadataJson ?? null,
           predictionOutcome,
         )
       : (instrument.instrumentMetadataJson ?? null);
+
+  // Solution 10: persist options vertical legs on the trade for order-placer.
+  if (signal?.orderMetadata && Object.keys(signal.orderMetadata).length > 0) {
+    let base: Record<string, unknown> = {};
+    if (instrumentMetadataJson) {
+      try {
+        base = JSON.parse(instrumentMetadataJson) as Record<string, unknown>;
+      } catch {
+        base = {};
+      }
+    }
+    instrumentMetadataJson = JSON.stringify({
+      ...base,
+      ...signal.orderMetadata,
+    });
+  }
 
   return { instrumentDisplayName, predictionOutcome, instrumentMetadataJson };
 }
@@ -96,7 +113,7 @@ export function buildTradeFromDecision(
   const brokerAccountId = ctx.resolveBrokerAccountId(
     instrument.instrumentClass,
   );
-  const prediction = resolvePredictionTradeFields(instrument);
+  const prediction = resolvePredictionTradeFields(instrument, signal);
   const strategyCtx = ctx.deps.strategyContextService.get(ctx.sessionId);
   const execution = executionFieldsForSignal(
     ctx,
@@ -112,7 +129,10 @@ export function buildTradeFromDecision(
     instrumentDisplayName: prediction.instrumentDisplayName,
     predictionOutcome: prediction.predictionOutcome,
     instrumentMetadataJson: prediction.instrumentMetadataJson,
-    instrumentType: instrument.instrumentClass,
+    instrumentType:
+      signal.orderMetadata?.instrumentClass === "options"
+        ? "options"
+        : instrument.instrumentClass,
     side: execution.side,
     entry_price: execution.entry_price,
     position_size_usd: execution.position_size_usd,
@@ -146,7 +166,7 @@ export function createTradeFromDecision(
     instrument.instrumentClass,
   );
   const isTrade = signal.action !== "skip";
-  const prediction = resolvePredictionTradeFields(instrument);
+  const prediction = resolvePredictionTradeFields(instrument, signal);
   const strategyCtx = ctx.deps.strategyContextService.get(ctx.sessionId);
   const execution = executionFieldsForSignal(
     ctx,
@@ -162,7 +182,10 @@ export function createTradeFromDecision(
     instrumentDisplayName: prediction.instrumentDisplayName,
     predictionOutcome: prediction.predictionOutcome,
     instrumentMetadataJson: prediction.instrumentMetadataJson,
-    instrumentType: instrument.instrumentClass,
+    instrumentType:
+      signal.orderMetadata?.instrumentClass === "options"
+        ? "options"
+        : instrument.instrumentClass,
     side: execution.side,
     entry_price: execution.entry_price,
     position_size_usd: execution.position_size_usd,

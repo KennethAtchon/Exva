@@ -18,9 +18,13 @@ import {
   type FoldConfig,
 } from "../backtest/replay-engine";
 import { PortfolioReplayEngine } from "../backtest/portfolio-replay-engine";
+import { persistPortfolioReplayDetail } from "../backtest/persist-portfolio-replay";
 import { getStrategyDefinitionRegistry } from "../strategies";
 import { requireExperience } from "../../experiences";
 import { safeJsonParse } from "../infra/safe-json-parse";
+import type { DbClient } from "../../db/client";
+import type { PortfolioReplayResult } from "../backtest/portfolio-replay-engine";
+import type { BacktestRunSpecV2 as SpecV2 } from "@electron/shared/domain/backtest-v2";
 
 const ENGINE_VERSION_V2 = 2;
 
@@ -71,6 +75,7 @@ export class BacktestLabService {
       backtestRuns: BacktestRunsRepo;
       experienceExperiments: ExperienceExperimentsRepo;
       eventBus: EventBus;
+      db?: DbClient;
     },
   ) {}
 
@@ -170,6 +175,11 @@ export class BacktestLabService {
     } | null = null;
     let specHash: string | null = null;
     let datasetHash: string | null = null;
+    let portfolioDetail: {
+      spec: SpecV2;
+      portfolio: PortfolioReplayResult;
+      barsMap: Map<string, { length: number }>;
+    } | null = null;
 
     if (useV2) {
       const barsMap = new Map(
@@ -228,6 +238,16 @@ export class BacktestLabService {
         strategy,
         barsBySymbol: barsMap,
       });
+      portfolioDetail = {
+        spec,
+        portfolio,
+        barsMap: new Map(
+          [...barsMap.entries()].map(([symbol, bars]) => [
+            symbol,
+            { length: bars.length },
+          ]),
+        ),
+      };
       portfolioExtras = {
         netPnlUsd: portfolio.netPnlUsd,
         endingEquityUsd: portfolio.endingEquityUsd,
@@ -341,6 +361,18 @@ export class BacktestLabService {
       researchContractHash: contractHash,
     };
     this.deps.backtestRuns.insert(run);
+
+    if (useV2 && portfolioDetail && this.deps.db) {
+      persistPortfolioReplayDetail(this.deps.db, {
+        runId,
+        spec: portfolioDetail.spec,
+        specHash: specHash ?? run.contractHash,
+        datasetHash: datasetHash ?? run.contractHash,
+        researchContractHash: contractHash,
+        portfolio: portfolioDetail.portfolio,
+        barsBySymbol: portfolioDetail.barsMap,
+      });
+    }
 
     this.emitProgress({
       runId,

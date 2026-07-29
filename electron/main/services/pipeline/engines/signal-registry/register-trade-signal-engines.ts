@@ -12,7 +12,7 @@ import { computeTradeTradeExecutionProfile } from "../../../orchestration/trade-
 import { computeMeanReversionSignal } from "../../../signals/strategy/mean-reversion-signal";
 import { computeTrendFollowingSignal } from "../../../signals/strategy/trend-following-signal";
 import { computeBreakoutSignal } from "../../../signals/strategy/breakout-signal";
-import { computeOptionsFlowSignal } from "../../../signals/strategy/options-flow-signal";
+// options-flow engine is identity — composition lives in the input builder.
 
 export function registerTradeSignalEngines(): void {
   registerSignalEngine({
@@ -117,11 +117,12 @@ export function registerTradeSignalEngines(): void {
   });
 
   registerSignalEngine({
+    // Input builder owns chain→UOA→vertical composition (Solution 10).
     id: "options-flow",
     kind: "policy",
     inputSchema: z.any(),
     outputSchema: z.any(),
-    run: (input) => computeOptionsFlowSignal(input as never),
+    run: (input) => input as TradeSignal,
   });
 
   registerSignalEngine({

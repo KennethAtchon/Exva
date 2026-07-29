@@ -1692,3 +1692,119 @@ export const sessionUptimeDays = sqliteTable(
     ),
   }),
 );
+
+/** Normalized V2 backtest detail (Solution 03). */
+export const backtestRunSpecsV2 = sqliteTable("backtest_run_specs_v2", {
+  runId: text("run_id")
+    .primaryKey()
+    .references(() => backtestRuns.id, { onDelete: "cascade" }),
+  specJson: text("spec_json").notNull(),
+  specHash: text("spec_hash").notNull(),
+  datasetHash: text("dataset_hash").notNull(),
+  researchContractHash: text("research_contract_hash"),
+  createdAt: text("created_at").notNull(),
+});
+
+export const backtestDataInputs = sqliteTable(
+  "backtest_data_inputs",
+  {
+    id: text("id").primaryKey(),
+    runId: text("run_id")
+      .notNull()
+      .references(() => backtestRuns.id, { onDelete: "cascade" }),
+    symbol: text("symbol").notNull(),
+    timeframe: text("timeframe").notNull(),
+    provider: text("provider"),
+    rowCount: integer("row_count").notNull(),
+    windowStart: text("window_start").notNull(),
+    windowEnd: text("window_end").notNull(),
+    datasetHash: text("dataset_hash").notNull(),
+  },
+  (table) => ({
+    runIdx: index("idx_backtest_data_inputs_run").on(table.runId),
+  }),
+);
+
+export const backtestOrders = sqliteTable(
+  "backtest_orders",
+  {
+    id: text("id").primaryKey(),
+    runId: text("run_id")
+      .notNull()
+      .references(() => backtestRuns.id, { onDelete: "cascade" }),
+    ts: text("ts").notNull(),
+    symbol: text("symbol").notNull(),
+    side: text("side").notNull(),
+    quantity: real("quantity").notNull(),
+    status: text("status").notNull(),
+  },
+  (table) => ({
+    runIdx: index("idx_backtest_orders_run").on(table.runId, table.ts),
+  }),
+);
+
+export const backtestFills = sqliteTable(
+  "backtest_fills",
+  {
+    id: text("id").primaryKey(),
+    runId: text("run_id")
+      .notNull()
+      .references(() => backtestRuns.id, { onDelete: "cascade" }),
+    orderId: text("order_id").notNull(),
+    ts: text("ts").notNull(),
+    symbol: text("symbol").notNull(),
+    side: text("side").notNull(),
+    quantity: real("quantity").notNull(),
+    price: real("price").notNull(),
+    feeUsd: real("fee_usd").notNull().default(0),
+  },
+  (table) => ({
+    runIdx: index("idx_backtest_fills_run").on(table.runId, table.ts),
+  }),
+);
+
+export const backtestTradesV2 = sqliteTable(
+  "backtest_trades_v2",
+  {
+    id: text("id").primaryKey(),
+    runId: text("run_id")
+      .notNull()
+      .references(() => backtestRuns.id, { onDelete: "cascade" }),
+    symbol: text("symbol").notNull(),
+    side: text("side").notNull(),
+    entryTs: text("entry_ts").notNull(),
+    exitTs: text("exit_ts"),
+    entryPrice: real("entry_price").notNull(),
+    exitPrice: real("exit_price"),
+    quantity: real("quantity").notNull(),
+    realizedPnlUsd: real("realized_pnl_usd").notNull().default(0),
+    feesUsd: real("fees_usd").notNull().default(0),
+    returnBps: real("return_bps"),
+  },
+  (table) => ({
+    runIdx: index("idx_backtest_trades_v2_run").on(table.runId, table.entryTs),
+  }),
+);
+
+export const backtestEquityPoints = sqliteTable(
+  "backtest_equity_points",
+  {
+    id: text("id").primaryKey(),
+    runId: text("run_id")
+      .notNull()
+      .references(() => backtestRuns.id, { onDelete: "cascade" }),
+    ts: text("ts").notNull(),
+    cashUsd: real("cash_usd").notNull(),
+    grossMarketValueUsd: real("gross_market_value_usd").notNull(),
+    netMarketValueUsd: real("net_market_value_usd").notNull(),
+    realizedPnlUsd: real("realized_pnl_usd").notNull(),
+    unrealizedPnlUsd: real("unrealized_pnl_usd").notNull(),
+    feesUsd: real("fees_usd").notNull(),
+    equityUsd: real("equity_usd").notNull(),
+    drawdownUsd: real("drawdown_usd").notNull(),
+    drawdownPct: real("drawdown_pct").notNull(),
+  },
+  (table) => ({
+    runIdx: index("idx_backtest_equity_points_run").on(table.runId, table.ts),
+  }),
+);

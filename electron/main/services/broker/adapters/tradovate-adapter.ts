@@ -23,117 +23,70 @@ export type TradovateCredentials = {
   secret?: string;
 };
 
+const UNSUPPORTED_MESSAGE =
+  "BLOCKED: FUTURES_ADAPTER_SIMULATED — Tradovate adapter reports fabricated balance and cannot place, fill, or close. Use Mock paper for the local lifecycle sentinel only.";
+
 /**
- * Futures execution adapter (Phase 8).
- * v1: credential check + simulated fills for development.
+ * Futures adapter placeholder (Solution 10 Tracer B).
+ * Every mutating / balance method throws UNSUPPORTED so a fabricated
+ * $250k balance can never look like a healthy connection.
+ * Real Tradovate partner auth/data/orders is a separate project.
  */
 export class TradovateAdapter implements BrokerAdapter {
   readonly brokerType = "tradovate";
   readonly supportedInstrumentClasses =
     BROKER_SUPPORTED_INSTRUMENT_CLASSES.tradovate;
-  /**
-   * Not launch-capable: placeOrder/cancelOrder/closeOrder are stubbed and
-   * getPositions returns []. Live-readiness gate must block live sessions
-   * using this adapter until real Tradovate integration is built.
-   */
   readonly launchCapable = false;
 
   constructor(
     private readonly credentials: TradovateCredentials,
     readonly mode: "paper" | "live",
     readonly _interactionLogger?: BrokerInteractionLogger,
-  ) {}
+  ) {
+    void this.credentials;
+  }
 
   async testConnection(): Promise<ConnectionTestResult> {
-    const hasCreds =
-      (this.credentials.username && this.credentials.password) ||
-      (this.credentials.cid && this.credentials.secret);
-    if (!hasCreds) {
-      return {
-        ok: false,
-        message: "Tradovate username/password or cid/secret is required.",
-      };
-    }
+    logger.warn("tradovate testConnection refused — adapter is quarantined");
     return {
-      ok: true,
-      message: `Tradovate (${this.mode}) — credentials present (simulated connectivity)`,
-      account_balance: 250000,
+      ok: false,
+      message: UNSUPPORTED_MESSAGE,
     };
   }
 
   async getAccountBalance(): Promise<number> {
-    return 250000;
+    throw new AppError(UNSUPPORTED_MESSAGE, "UNSUPPORTED_INSTRUMENT");
   }
 
   async getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot> {
-    return {
-      instrumentSymbol,
-      price: this.stubPrice(instrumentSymbol),
-      timestamp: new Date().toISOString(),
-    };
+    void instrumentSymbol;
+    throw new AppError(UNSUPPORTED_MESSAGE, "UNSUPPORTED_INSTRUMENT");
   }
 
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
-    logger.info(
-      {
-        instrumentSymbol: order.instrumentSymbol,
-        side: order.side,
-        sizeUsd: order.sizeUsd,
-        instrumentType: order.instrumentType,
-        mode: this.mode,
-      },
-      "tradovate placeOrder: submitting order (simulated)",
+    logger.error(
+      { instrumentSymbol: order.instrumentSymbol, mode: this.mode },
+      "tradovate placeOrder refused — adapter is quarantined",
     );
-    if (order.instrumentType !== "futures") {
-      const err = new AppError(
-        "Tradovate adapter supports futures only",
-        "UNSUPPORTED_INSTRUMENT",
-      );
-      logger.error(
-        { err, instrumentType: order.instrumentType },
-        "tradovate placeOrder: unsupported instrument type",
-      );
-      throw err;
-    }
-    const result = {
-      brokerOrderId: `tv_sim_${crypto.randomUUID()}`,
-      filledAvgPrice: this.stubPrice(order.instrumentSymbol),
-    };
-    logger.info(
-      {
-        brokerOrderId: result.brokerOrderId,
-        filledAvgPrice: result.filledAvgPrice,
-      },
-      "tradovate placeOrder: simulated fill",
-    );
-    return result;
+    throw new AppError(UNSUPPORTED_MESSAGE, "UNSUPPORTED_INSTRUMENT");
   }
 
   async cancelOrder(brokerOrderId: string): Promise<void> {
-    logger.info({ brokerOrderId }, "tradovate cancelOrder: no-op (simulated)");
     void brokerOrderId;
+    throw new AppError(UNSUPPORTED_MESSAGE, "UNSUPPORTED_INSTRUMENT");
   }
 
   async getPositions(): Promise<BrokerPosition[]> {
-    return [];
+    throw new AppError(UNSUPPORTED_MESSAGE, "UNSUPPORTED_INSTRUMENT");
   }
 
   async closeOrder(orderId: string): Promise<CloseResult> {
-    logger.info({ orderId }, "tradovate closeOrder: no-op (simulated)");
-    return { brokerOrderId: orderId, realizedPnlUsd: 0 };
+    void orderId;
+    throw new AppError(UNSUPPORTED_MESSAGE, "UNSUPPORTED_INSTRUMENT");
   }
 
   async getOrderStatus(orderId: string): Promise<OrderStatus> {
-    return {
-      brokerOrderId: orderId,
-      status: "closed",
-      latestPrice: null,
-      realizedPnlUsd: 0,
-    };
-  }
-
-  private stubPrice(symbol: string): number {
-    const seed = [...symbol].reduce((s, c) => s + c.charCodeAt(0), 0);
-    return Number((5000 + (seed % 200)).toFixed(2));
+    void orderId;
+    throw new AppError(UNSUPPORTED_MESSAGE, "UNSUPPORTED_INSTRUMENT");
   }
 }

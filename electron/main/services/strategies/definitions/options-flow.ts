@@ -29,9 +29,8 @@ export const optionsFlowDefinition: StrategyDefinition<Parameters> = {
   supportedTimeframes: ["1h", "4h", "1d"] as const,
   minimumCadenceMs: 15 * 60 * 1000,
   requiredBarCount: 0,
-  // Blocked until Solution 10 chain→OCC→order composition exists.
-  // Bar-only evaluate() always returns null — not a runnable producer.
-  implementationStatus: "disabled",
+  // Forward-paper: pipeline producer reaches chains; bar-only evaluate stays null.
+  implementationStatus: "available",
   implementationVersion: 2,
   create(parameters: Parameters) {
     return createOptionsFlowStrategy(parameters);

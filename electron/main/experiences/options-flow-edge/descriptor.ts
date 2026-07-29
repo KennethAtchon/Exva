@@ -1,25 +1,23 @@
-import type { ExperienceDescriptor } from "../types";
-
 /**
  * Options Flow Edge v2 — UOA → defined-risk vertical spreads via Tradier
- * placeSpread. Evidence class: forward-paper (historical option chains out of
- * reach for honest backtest). UI must label paper evidence accordingly.
+ * placeSpread (or single OCC leg on Alpaca). Forward-paper until point-in-time
+ * chains exist for honest backtest (Solution 10 Tracer A).
  */
+import type { ExperienceDescriptor } from "../types";
+
 export const OPTIONS_FLOW_EDGE_EXPERIENCE: ExperienceDescriptor = {
   id: "options-flow-edge",
   displayName: "Options Flow Edge",
   description:
-    "BLOCKED: OPTIONS_PRODUCER_UNREACHABLE — scheduled options evaluator returns null; no option chain reaches the pipeline. Sentinel only until Solution 10.",
+    "FORWARD_PAPER: chain→UOA→OCC/vertical composition is live; historical option-chain backtests remain out of scope.",
   capabilities: {
     signalSourceTypes: [],
     brokerRequirement: "any_supported_class",
   },
   pipelineId: "options-flow-cycle",
-  /** Unreachable producer — not assignable to non-sentinel sessions. */
-  supportState: "blocked",
-  blockerCode: "OPTIONS_PRODUCER_UNREACHABLE",
+  supportState: "forward_paper_only",
   blockerMessage:
-    "Scheduled options evaluator returns null; no option chain reaches the pipeline.",
+    "Forward-paper only until point-in-time option chain snapshots exist for backtest.",
   defaultPresets: {
     posturePresetId: "manual_watchlist",
     rulesPresetId: "catalyst_entry",
@@ -41,7 +39,6 @@ export const OPTIONS_FLOW_EDGE_EXPERIENCE: ExperienceDescriptor = {
       maxDrawdownPct: 0.25,
       requiredFolds: 3,
     },
-    // Two legs: wider effective spread + commissions than underlying equity.
     costs: { spreadBps: 40, slippageBps: 15, commissionBps: 10 },
   },
   acceptsScanHit: true,

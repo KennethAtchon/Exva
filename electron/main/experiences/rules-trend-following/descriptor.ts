@@ -4,12 +4,16 @@ export const RULES_TREND_FOLLOWING_EXPERIENCE: ExperienceDescriptor = {
   id: "rules-trend-following",
   displayName: "Rules: Trend Following",
   description:
-    "Deterministic SMA-crossover trend entries on scheduled futures scans. No LLM calls.",
+    "BLOCKED: FUTURES_ADAPTER_SIMULATED — Tradovate cannot place/fill/close; use Mock paper for the local lifecycle sentinel only.",
   capabilities: {
     signalSourceTypes: [],
     brokerRequirement: "any_supported_class",
   },
   pipelineId: "rules-trend-following-cycle",
+  supportState: "blocked",
+  blockerCode: "FUTURES_ADAPTER_SIMULATED",
+  blockerMessage:
+    "Tradovate adapter is quarantined (throws UNSUPPORTED). Assign Mock paper to FUTURES-INTEGRATION-SENTINEL only.",
   defaultPresets: {
     posturePresetId: "manual_watchlist",
     rulesPresetId: "catalyst_entry",

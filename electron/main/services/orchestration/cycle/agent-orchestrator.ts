@@ -285,6 +285,27 @@ export class AgentOrchestrator {
           .add(async () => {
             const deliveryId = payload.deliveryId;
             const signalId = payload.signalId;
+
+            // Solution 05 P2-3: while market_closed dormant, quiet-complete
+            // deliveries — do not restart the selector just to re-hit hours.
+            if (this.ctx.marketClosedDormant) {
+              this.ctx.noteMarketClosedSkip();
+              deliveries.updateStatus(deliveryId, {
+                status: "dropped",
+                statusBucket: "dropped",
+                finishedAt: new Date().toISOString(),
+                dropReason: "market_hours_filtered",
+              });
+              this.deps.bus.emit("signal_delivery_updated", {
+                deliveryId,
+                sessionId: this.sessionId,
+                signalId,
+                status: "dropped",
+                statusBucket: "dropped",
+              });
+              return;
+            }
+
             deliveries.updateStatus(deliveryId, {
               status: "processing",
               statusBucket: "pending",

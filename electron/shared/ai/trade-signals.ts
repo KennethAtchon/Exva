@@ -84,6 +84,11 @@ export const tradeSignalSchema = z.object({
    */
   strength: z.number().min(0).max(1).optional(),
   reasoning: z.string().min(1),
+  /**
+   * Optional order handoff (Solution 10 options verticals).
+   * Carries OCC legs / max debit without a side channel.
+   */
+  orderMetadata: z.record(z.unknown()).optional(),
 });
 export type TradeSignal = z.infer<typeof tradeSignalSchema>;
 

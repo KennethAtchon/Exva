@@ -135,7 +135,7 @@ not an independent lane).
 | `EDGAR-CATALYST-PRIMARY`       | `edgar-catalyst`         | Alpaca paper     | After EDGAR early gates                          |
 | `POLYMARKET-EVENT-PRIMARY`     | `prediction-event-edge`  | Polymarket paper | After catch-up + AI repair                       |
 | `FUTURES-INTEGRATION-SENTINEL` | `rules-trend-following`  | Mock paper       | Stopped; `BLOCKED: FUTURES_ADAPTER_SIMULATED`    |
-| `OPTIONS-INTEGRATION-SENTINEL` | `options-flow-edge`      | Alpaca/Tradier   | Stopped; `BLOCKED: OPTIONS_PRODUCER_UNREACHABLE` |
+| `OPTIONS-INTEGRATION-SENTINEL` | `options-flow-edge`      | Alpaca/Tradier   | Forward-paper; chain→OCC→vertical live; no historical chains |
 
 Sentinels do not count toward working coverage. Do not start them by default.
 

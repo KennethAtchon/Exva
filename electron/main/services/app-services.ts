@@ -1141,6 +1141,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     backtestRuns: repos.backtestRuns,
     experienceExperiments: repos.experienceExperiments,
     eventBus,
+    db,
   });
   const historicalBackfill = new HistoricalBackfillService({
     marketData,

@@ -7,8 +7,31 @@ import {
 import {
   adapterSupportsOrder,
   liftBrokerOrderV1ToV2,
+  type OrderLeg,
 } from "../../../broker/order-contract-v2";
 import type { TradingCycleContext } from "../trading-cycle-context";
+
+function safeParseTradeOrderMetadata(
+  json: string | null | undefined,
+): {
+  legs?: OrderLeg[];
+  netDebit?: number;
+  underlyingSymbol?: string;
+  contracts?: number;
+} | null {
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json) as Record<string, unknown>;
+    return parsed as {
+      legs?: OrderLeg[];
+      netDebit?: number;
+      underlyingSymbol?: string;
+      contracts?: number;
+    };
+  } catch {
+    return null;
+  }
+}
 
 export async function placeRoutedOrder(
   ctx: TradingCycleContext,
@@ -83,6 +106,24 @@ export async function placeRoutedOrder(
   };
 
   const liftedOrder = liftBrokerOrderV1ToV2(v1Order);
+
+  // Solution 10: attach multi-leg OCC vertical when trade metadata carries legs.
+  const meta = safeParseTradeOrderMetadata(trade.instrumentMetadataJson);
+  if (meta?.legs && Array.isArray(meta.legs) && meta.legs.length >= 2) {
+    liftedOrder.legs = meta.legs as import("../../../broker/order-contract-v2").OrderLeg[];
+    if (typeof meta.netDebit === "number") {
+      liftedOrder.orderType = "limit";
+      liftedOrder.limitPrice = meta.netDebit;
+    }
+    if (typeof meta.underlyingSymbol === "string") {
+      liftedOrder.instrument.symbol = meta.underlyingSymbol;
+      liftedOrder.instrument.instrumentClass = "options";
+    }
+    if (typeof meta.contracts === "number" && meta.contracts >= 1) {
+      liftedOrder.quantity = { kind: "units", value: Math.floor(meta.contracts) };
+    }
+  }
+
   const support = adapterSupportsOrder(caps, liftedOrder);
   if (!support.ok) {
     ctx.deps.logger.warn(
@@ -117,10 +158,11 @@ export async function placeRoutedOrder(
 
   let result;
   try {
-    // Prefer v2 when the adapter implements it and advertises market orders;
-    // lift keeps market+notional shape so existing adapters/tests stay compatible.
     const placeV2 = adapter.placeOrderV2?.bind(adapter);
-    const useV2 = placeV2 != null && caps.orderTypes.includes("market");
+    const hasLegs = (liftedOrder.legs?.length ?? 0) >= 2;
+    const useV2 =
+      placeV2 != null &&
+      (hasLegs || caps.orderTypes.includes("market"));
     result = useV2
       ? await placeV2(liftedOrder)
       : await adapter.placeOrder(v1Order);

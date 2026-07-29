@@ -112,8 +112,13 @@ export class ScheduleCoordinator {
     if (this.running) return;
     this.running = true;
     for (const entry of this.groups.values()) {
-      this.arm(entry);
-      this.persistState(entry);
+      // Immediate first tick (Solution 08 WS2), then arm the cadence grid.
+      void this.fire(entry).finally(() => {
+        if (this.running && this.groups.has(entry.plan.groupKey)) {
+          this.arm(entry);
+          this.persistState(entry);
+        }
+      });
     }
   }
 

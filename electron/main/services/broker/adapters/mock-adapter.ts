@@ -26,6 +26,10 @@ import {
   type MockExecutionTier,
   type MockScenarioKind,
 } from "@electron/shared/domain/mock-scenario";
+import {
+  isContinuousFuturesRoot,
+  resolveFrontMonthContract,
+} from "../futures-front-month";
 
 const MOCK_CAPABILITIES: AdapterCapabilities = {
   ...DEFAULT_MARKET_ONLY_CAPABILITIES,
@@ -236,6 +240,17 @@ export class MockBrokerAdapter implements BrokerAdapter {
         "BROKER_UNKNOWN_SYMBOL",
         `Mock broker unknown symbol: ${order.instrumentSymbol}`,
       );
+    }
+
+    // Solution 10: continuous futures roots must roll explicitly.
+    if (
+      order.instrumentType === "futures" &&
+      isContinuousFuturesRoot(order.instrumentSymbol)
+    ) {
+      order = {
+        ...order,
+        instrumentSymbol: resolveFrontMonthContract(order.instrumentSymbol),
+      };
     }
 
     const kind = this.scenario.kind;
