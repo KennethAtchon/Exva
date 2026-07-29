@@ -176,24 +176,6 @@ export class SessionTemplateService {
       },
       selectorSettings: { aiPickerEnabled: selector.aiPickerEnabled },
       strategyContext,
-      strategy: {
-        strategyProfile: "custom",
-        maxPositionUsd: strategyContext.riskConfig.maxPositionUsd,
-        stopLossPct: strategyContext.riskConfig.stopLossPct ?? 0,
-        takeProfitPct: strategyContext.riskConfig.takeProfitPct ?? 0,
-        maxConcurrentTrades: strategyContext.riskConfig.maxConcurrentTrades,
-        researchDepth: "balanced",
-        dailyLossLimitUsd: strategyContext.riskConfig.dailyLossLimitUsd,
-        profitTargetUsd: strategyContext.riskConfig.profitTargetUsd,
-        maxAiSpendUsd: strategyContext.riskConfig.maxAiSpendUsd,
-        humanApprovalRequired: strategyContext.riskConfig.humanApprovalRequired,
-        primaryTradingTimeframe:
-          strategyContext.timeframe.primaryTradingTimeframe,
-        holdingStyle: strategyContext.timeframe.holdingStyle,
-        targetHoldDays: strategyContext.timeframe.targetHoldDays,
-        maxHoldDays: strategyContext.timeframe.maxHoldDays,
-        timeframeNotes: strategyContext.timeframe.timeframeNotes,
-      },
       brokerAssignments: this.deps.brokerAssignments.listAssignments(sessionId),
       brokerOverridesByInstrumentClass: Object.fromEntries(
         overrides.map((override) => [

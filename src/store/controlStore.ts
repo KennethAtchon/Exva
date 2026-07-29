@@ -54,7 +54,9 @@ export const useControlStore = create<ControlState>((set, get) => ({
     const previous = get().autoApproveTools;
     set({ autoApproveTools });
     try {
-      await api.patchWorkspacePreferences({ autoApproveAssistantTools: autoApproveTools });
+      await api.patchWorkspacePreferences({
+        autoApproveAssistantTools: autoApproveTools,
+      });
     } catch (error) {
       set({ autoApproveTools: previous });
       throw error;

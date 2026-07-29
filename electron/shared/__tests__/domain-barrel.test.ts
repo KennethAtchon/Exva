@@ -17,8 +17,7 @@ describe("domain.ts barrel exports", () => {
   const requiredSymbols = [
     "canTransition",
     "isSessionEditable",
-    "buildStrategyTimeframeContext",
-    "validateSessionStrategyTimeframeFields",
+    "timeframeConfigHoldMismatchWarning",
     "isSearchStyleSignalSourceType",
     "SIGNAL_SOURCE_CAPABILITIES",
     "extractSignalInstrumentClass",
@@ -35,8 +34,8 @@ describe("domain.ts barrel exports", () => {
   });
 
   it("matches key session exports", () => {
-    expect(barrel.buildStrategyTimeframeContext).toBe(
-      session.buildStrategyTimeframeContext,
+    expect(barrel.timeframeConfigHoldMismatchWarning).toBe(
+      session.timeframeConfigHoldMismatchWarning,
     );
   });
 

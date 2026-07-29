@@ -284,9 +284,9 @@ describe("ExitPolicyEvaluator — trailing_atr", () => {
 
 describe("ExitPolicyEvaluator — stopLossType=none", () => {
   it("skips exit math when entry or current price is zero/NaN", () => {
-    expect(
-      evaluator.evaluate(makeInput({ currentPrice: 0 })).shouldExit,
-    ).toBe(false);
+    expect(evaluator.evaluate(makeInput({ currentPrice: 0 })).shouldExit).toBe(
+      false,
+    );
     expect(
       evaluator.evaluate(
         makeInput({

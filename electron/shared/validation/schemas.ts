@@ -29,13 +29,6 @@ const sessionStatusSchema = z.enum([
   "stopped",
   "archived",
 ]);
-const researchDepthSchema = z.enum(["light", "balanced", "deep"]);
-const strategyProfileSchema = z.enum([
-  "passive_income",
-  "growth",
-  "conservative",
-  "custom",
-]);
 const researchPosturePresetIdSchema = z.enum([
   "edgar_catalyst",
   "earnings_event",
@@ -149,30 +142,6 @@ export const sessionCreateInputSchema = z.object({
   experienceId: z.string().min(1).default("edgar-catalyst"),
 });
 
-const sessionStrategyPayloadSchema = z.object({
-  strategyProfile: strategyProfileSchema,
-  maxPositionUsd: z.number().nonnegative(),
-  stopLossPct: z.number().nonnegative(),
-  takeProfitPct: z.number().nonnegative(),
-  maxConcurrentTrades: z.number().int().nonnegative(),
-  researchDepth: researchDepthSchema,
-  dailyLossLimitUsd: z.number().nonnegative(),
-  profitTargetUsd: z.number().nonnegative(),
-  maxAiSpendUsd: z.number().nonnegative(),
-  humanApprovalRequired: z.boolean(),
-  primaryTradingTimeframe: tradingTimeframeSchema.default("1d"),
-  holdingStyle: holdingStyleSchema.default("multi_day_swing"),
-  targetHoldDays: z
-    .union([z.number().nonnegative(), z.null()])
-    .optional()
-    .default(null),
-  maxHoldDays: z
-    .union([z.number().nonnegative(), z.null()])
-    .optional()
-    .default(null),
-  timeframeNotes: z.string().optional().default(""),
-});
-
 const sessionResearchPosturePayloadSchema = z.object({
   posturePresetId: researchPosturePresetIdSchema,
   processingMode: processingModeSchema,
@@ -254,31 +223,28 @@ export const sessionTemplatePayloadSchema = z.object({
     defaultSearchProviderId: z.string().nullable(),
   }),
   selectorSettings: z.object({ aiPickerEnabled: z.boolean() }),
-  strategyContext: z
-    .object({
-      researchPosture: sessionResearchPosturePayloadSchema.extend({
-        sessionId: z.string().min(1),
-        updatedAt: z.string().min(1),
-      }),
-      rules: sessionTradeRulesPayloadSchema.extend({
-        sessionId: z.string().min(1),
-        updatedAt: z.string().min(1),
-      }),
-      riskConfig: sessionRiskConfigPayloadSchema.extend({
-        sessionId: z.string().min(1),
-        updatedAt: z.string().min(1),
-      }),
-      timeframe: sessionTimeframeConfigPayloadSchema.extend({
-        sessionId: z.string().min(1),
-        updatedAt: z.string().min(1),
-      }),
-      aiSettings: sessionAiSettingsPayloadSchema.extend({
-        sessionId: z.string().min(1),
-        updatedAt: z.string().min(1),
-      }),
-    })
-    .optional(),
-  strategy: sessionStrategyPayloadSchema,
+  strategyContext: z.object({
+    researchPosture: sessionResearchPosturePayloadSchema.extend({
+      sessionId: z.string().min(1),
+      updatedAt: z.string().min(1),
+    }),
+    rules: sessionTradeRulesPayloadSchema.extend({
+      sessionId: z.string().min(1),
+      updatedAt: z.string().min(1),
+    }),
+    riskConfig: sessionRiskConfigPayloadSchema.extend({
+      sessionId: z.string().min(1),
+      updatedAt: z.string().min(1),
+    }),
+    timeframe: sessionTimeframeConfigPayloadSchema.extend({
+      sessionId: z.string().min(1),
+      updatedAt: z.string().min(1),
+    }),
+    aiSettings: sessionAiSettingsPayloadSchema.extend({
+      sessionId: z.string().min(1),
+      updatedAt: z.string().min(1),
+    }),
+  }),
   brokerAssignments: z.array(brokerAssignmentSchema),
   brokerOverridesByInstrumentClass: z
     .record(instrumentClassSchema, z.string())

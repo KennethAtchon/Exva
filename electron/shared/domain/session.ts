@@ -3,7 +3,6 @@ import type {
   HoldingStyle,
   ProcessingMode,
   ResearchCatalystMode,
-  ResearchDepth,
   ResearchEvidenceMode,
   ResearchFundamentalStrictness,
   ResearchPosturePresetId,
@@ -12,7 +11,6 @@ import type {
   StopLossType,
   StrategyEntryStyle,
   StrategyExitStyle,
-  StrategyProfile,
   StrategyScalingMode,
   StrategySideBias,
   TimeframePresetId,
@@ -22,25 +20,6 @@ import type {
 
 const TRADE_RULES_MARKDOWN_MAX_CHARS = 1_200;
 export const WORKER_GUIDANCE_MARKDOWN_MAX_CHARS = 1_200;
-
-export interface SessionStrategy {
-  sessionId: string;
-  strategyProfile: StrategyProfile;
-  maxPositionUsd: number;
-  stopLossPct: number;
-  takeProfitPct: number;
-  maxConcurrentTrades: number;
-  researchDepth: ResearchDepth;
-  dailyLossLimitUsd: number;
-  profitTargetUsd: number;
-  maxAiSpendUsd: number;
-  humanApprovalRequired: boolean;
-  primaryTradingTimeframe: TradingTimeframe;
-  holdingStyle: HoldingStyle;
-  targetHoldDays: number | null;
-  maxHoldDays: number | null;
-  timeframeNotes: string;
-}
 
 export interface SessionResearchPosture {
   sessionId: string;
@@ -275,45 +254,6 @@ export interface TradeRulesPreset {
   aiGuidance?: PresetAiGuidance;
 }
 
-/** Injected ahead of task-specific user prompts (Phase 7 orchestration). */
-export function buildStrategyTimeframeContext(s: SessionStrategy): string {
-  const lines = [
-    "## Session trading horizon (authoritative)",
-    `- Primary timeframe: ${s.primaryTradingTimeframe}`,
-    `- Holding style: ${s.holdingStyle}`,
-    s.targetHoldDays != null
-      ? `- Target hold: ~${s.targetHoldDays} calendar days`
-      : null,
-    s.maxHoldDays != null ? `- Max hold: ${s.maxHoldDays} calendar days` : null,
-    s.timeframeNotes.trim() ? `- Notes: ${s.timeframeNotes.trim()}` : null,
-  ].filter(Boolean) as string[];
-  return lines.join("\n");
-}
-
-export function validateSessionStrategyTimeframeFields(
-  s: SessionStrategy,
-): void {
-  if (!isTradingTimeframe(s.primaryTradingTimeframe)) {
-    throw new Error("Select a primary trading timeframe.");
-  }
-  if (!isHoldingStyle(s.holdingStyle)) {
-    throw new Error("Select a holding style.");
-  }
-  if (s.targetHoldDays != null && s.targetHoldDays < 0) {
-    throw new Error("Hold days cannot be negative.");
-  }
-  if (s.maxHoldDays != null && s.maxHoldDays < 0) {
-    throw new Error("Hold days cannot be negative.");
-  }
-  if (
-    s.targetHoldDays != null &&
-    s.maxHoldDays != null &&
-    s.maxHoldDays < s.targetHoldDays
-  ) {
-    throw new Error("Max hold must be greater than or equal to target hold.");
-  }
-}
-
 function validateSessionTimeframeConfigFields(
   timeframe: SessionTimeframeConfig,
 ): void {
@@ -336,14 +276,6 @@ function validateSessionTimeframeConfigFields(
   ) {
     throw new Error("Max hold must be greater than or equal to target hold.");
   }
-}
-
-/** Non-blocking UX hint: intraday intent with very slow primary bar. */
-export function timeframeHoldMismatchWarning(
-  s: SessionStrategy,
-): string | null {
-  void s;
-  return null;
 }
 
 export function timeframeConfigHoldMismatchWarning(

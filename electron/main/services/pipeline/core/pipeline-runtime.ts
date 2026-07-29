@@ -114,7 +114,9 @@ export class PipelineRuntime {
     this.deps.cyclePlanServices = cyclePlanServices;
   }
 
-  setWorkerProgressEmitter(emitter: AIPhaseWorkerProgressEmitter | undefined): void {
+  setWorkerProgressEmitter(
+    emitter: AIPhaseWorkerProgressEmitter | undefined,
+  ): void {
     this.deps.onWorkerProgress = emitter;
   }
 

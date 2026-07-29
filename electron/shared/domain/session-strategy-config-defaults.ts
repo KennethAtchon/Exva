@@ -9,25 +9,14 @@ import type {
   TimeframeSection,
   TradeRulesSection,
 } from "./session-strategy-config";
-import { SESSION_STRATEGY_CONFIG_SCHEMA_VERSION } from "./session-strategy-config";
+import {
+  SESSION_STRATEGY_CONFIG_SCHEMA_VERSION,
+  parseSessionStrategyConfigDoc,
+} from "./session-strategy-config";
 
-/** Defaults mirroring legacy strategy row + SessionRepo.create seed. */
 export const DEFAULT_STRATEGY_SECTION: StrategySection = {
   strategyProfile: "passive_income",
-  maxPositionUsd: 500,
-  stopLossPct: 2,
-  takeProfitPct: 4,
-  maxConcurrentTrades: 3,
   researchDepth: "balanced",
-  dailyLossLimitUsd: 200,
-  profitTargetUsd: 1000,
-  maxAiSpendUsd: 5,
-  humanApprovalRequired: false,
-  primaryTradingTimeframe: "1d",
-  holdingStyle: "multi_day_swing",
-  targetHoldDays: null,
-  maxHoldDays: null,
-  timeframeNotes: "",
 };
 
 /** Defaults mirroring legacy risk row defaults. */
@@ -137,4 +126,27 @@ export function defaultSessionStrategyConfigDoc(opts?: {
     ai: defaultAiSection(opts),
     selector: { ...DEFAULT_SELECTOR_SECTION },
   };
+}
+
+/** Build a validated initial doc for SessionRepo.create / experience bootstrap. */
+export function assembleInitialSessionStrategyConfigDoc(input: {
+  strategy?: Partial<SessionStrategyConfigDoc["strategy"]>;
+  risk: SessionStrategyConfigDoc["risk"];
+  timeframe: SessionStrategyConfigDoc["timeframe"];
+  tradeRules: SessionStrategyConfigDoc["tradeRules"];
+  researchPosture: SessionStrategyConfigDoc["researchPosture"];
+  ai: SessionStrategyConfigDoc["ai"];
+  selector?: Partial<SessionStrategyConfigDoc["selector"]>;
+}): SessionStrategyConfigDoc {
+  const base = defaultSessionStrategyConfigDoc();
+  return parseSessionStrategyConfigDoc({
+    schemaVersion: SESSION_STRATEGY_CONFIG_SCHEMA_VERSION,
+    strategy: { ...base.strategy, ...input.strategy },
+    risk: input.risk,
+    timeframe: input.timeframe,
+    tradeRules: input.tradeRules,
+    researchPosture: input.researchPosture,
+    ai: input.ai,
+    selector: { ...base.selector, ...input.selector },
+  });
 }

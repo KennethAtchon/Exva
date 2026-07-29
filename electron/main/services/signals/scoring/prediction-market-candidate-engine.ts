@@ -58,8 +58,7 @@ export async function fetchPredictionMarketCandidates(
     const yesMid = yes ? tokenPrice(yes) : null;
     // noMid retained only as fallback when Yes price is missing (rare).
     const noMid = no ? tokenPrice(no) : null;
-    const marketMidYes =
-      yesMid ?? (noMid != null ? 1 - noMid : null);
+    const marketMidYes = yesMid ?? (noMid != null ? 1 - noMid : null);
 
     const timeScore = resolutionTime
       ? predictionResolutionScore(resolutionTime)

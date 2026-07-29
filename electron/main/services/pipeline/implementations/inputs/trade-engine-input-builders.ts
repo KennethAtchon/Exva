@@ -30,13 +30,14 @@ import {
 } from "@electron/shared/quant/kelly";
 import { evaluateEdgeDecision } from "@electron/shared/quant/decision-gate";
 import { computeAtr } from "@electron/shared/quant/atr";
-import { DEFAULT_STRATEGY_SECTION } from "@electron/shared/domain/session-strategy-config-defaults";
 import { defaultCalibrationService } from "../../../signals/forecast/calibration-service";
 import { requireExperience } from "../../../../experiences/index";
 import { resolveRulesOhlcvRequest } from "./rules-ohlcv-timeframe";
 
 const logger = createLogger("trade-engine-input-builders");
 const FALLBACK_REWARD_RISK_RATIO = 1;
+/** Terminal stop when the session sets none and ATR derivation is unavailable. */
+const FALLBACK_STOP_LOSS_PCT = 2;
 
 /**
  * Pre-trade edge + execution-cost + capital-allocation analytics (P4/P5/P6).
@@ -361,7 +362,11 @@ export const riskGateInputBuilder: EngineInputBuilder = {
         const { timeframe, barCount } = resolveRulesOhlcvRequest(
           ctx.instrument.instrumentMetadataJson,
         );
-        const bars = await getOhlcv(wireSymbol, timeframe, Math.max(barCount, 15));
+        const bars = await getOhlcv(
+          wireSymbol,
+          timeframe,
+          Math.max(barCount, 15),
+        );
         const atr = computeAtr(bars);
         const referencePrice = state.quoteSnapshot?.price ?? bars.at(-1)?.close;
         if (
@@ -370,7 +375,9 @@ export const riskGateInputBuilder: EngineInputBuilder = {
           !Number.isFinite(referencePrice) ||
           referencePrice <= 0
         ) {
-          throw new Error("ATR derivation requires a positive ATR and reference price");
+          throw new Error(
+            "ATR derivation requires a positive ATR and reference price",
+          );
         }
         effectiveStopLossPct =
           (ctx.strategyContext.riskConfig.atrStopMultiplier * atr * 100) /
@@ -387,11 +394,11 @@ export const riskGateInputBuilder: EngineInputBuilder = {
           },
           "risk gate ATR stop derivation failed; using default stop",
         );
-        effectiveStopLossPct = DEFAULT_STRATEGY_SECTION.stopLossPct;
+        effectiveStopLossPct = FALLBACK_STOP_LOSS_PCT;
         derivation = "default_fallback";
       }
     } else {
-      effectiveStopLossPct = DEFAULT_STRATEGY_SECTION.stopLossPct;
+      effectiveStopLossPct = FALLBACK_STOP_LOSS_PCT;
       derivation = "default_fallback";
     }
     const effectiveTakeProfitPct =

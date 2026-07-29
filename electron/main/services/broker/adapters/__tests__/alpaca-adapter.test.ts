@@ -442,7 +442,9 @@ describe("AlpacaAdapter", () => {
     const bars = await adapter.getOhlcv("SPY", "1h", 21);
 
     expect(bars).toHaveLength(21);
-    expect(bars[0]?.ts).toBe(new Date(nowMs - 20 * 60 * 60 * 1000).toISOString());
+    expect(bars[0]?.ts).toBe(
+      new Date(nowMs - 20 * 60 * 60 * 1000).toISOString(),
+    );
     expect(bars[20]?.ts).toBe(new Date(nowMs).toISOString());
     expect(bars[20]?.close).toBe(185);
   });
@@ -512,7 +514,9 @@ describe("AlpacaAdapter", () => {
       const count = ageHours < 100 ? 8 : 21;
       return jsonResponse({
         bars: Array.from({ length: count }, (_, i) => ({
-          t: new Date(mondayClock().getTime() - i * 60 * 60 * 1000).toISOString(),
+          t: new Date(
+            mondayClock().getTime() - i * 60 * 60 * 1000,
+          ).toISOString(),
           o: 180,
           h: 186,
           l: 179,
@@ -740,14 +744,22 @@ describe("AlpacaAdapter money-field validation", () => {
       if (url.includes("page_token=next")) {
         return jsonResponse({
           bars: crypto
-            ? { "BTC/USD": [{ t: "2026-01-02T00:00:00Z", o: 2, h: 3, l: 1, c: 2, v: 20 }] }
+            ? {
+                "BTC/USD": [
+                  { t: "2026-01-02T00:00:00Z", o: 2, h: 3, l: 1, c: 2, v: 20 },
+                ],
+              }
             : [{ t: "2026-01-02T00:00:00Z", o: 2, h: 3, l: 1, c: 2, v: 20 }],
           next_page_token: null,
         });
       }
       return jsonResponse({
         bars: crypto
-          ? { "BTC/USD": [{ t: "2026-01-01T00:00:00Z", o: 1, h: 2, l: 0.5, c: 1, v: 10 }] }
+          ? {
+              "BTC/USD": [
+                { t: "2026-01-01T00:00:00Z", o: 1, h: 2, l: 0.5, c: 1, v: 10 },
+              ],
+            }
           : [{ t: "2026-01-01T00:00:00Z", o: 1, h: 2, l: 0.5, c: 1, v: 10 }],
         next_page_token: "next",
       });

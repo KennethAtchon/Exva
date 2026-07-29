@@ -32,8 +32,7 @@ describe("resolveWorkspaceBrokerAccountId", () => {
       brokerType: "alpaca",
       instrumentClass: "crypto",
       listAccounts: () => [alpacaA],
-      findAccount: (accountId) =>
-        accountId === alpacaA.id ? alpacaA : null,
+      findAccount: (accountId) => (accountId === alpacaA.id ? alpacaA : null),
       listGlobalDefaults: () => [],
     });
     expect(id).toBe("alpaca-a");

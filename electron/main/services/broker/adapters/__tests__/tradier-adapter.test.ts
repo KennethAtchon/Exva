@@ -76,9 +76,23 @@ describe("TradierAdapter money-field validation", () => {
       jsonResponse({
         history: {
           day: [
-            { date: "2026-07-01", open: 100, high: 101, low: 99, close: 100.5, volume: 10 },
+            {
+              date: "2026-07-01",
+              open: 100,
+              high: 101,
+              low: 99,
+              close: 100.5,
+              volume: 10,
+            },
             { date: "2026-07-02", open: null, high: 101, low: 99, close: 100 },
-            { date: "2026-07-03", open: 102, high: 103, low: 101, close: 102.5, volume: 0 },
+            {
+              date: "2026-07-03",
+              open: 102,
+              high: 103,
+              low: 101,
+              close: 102.5,
+              volume: 0,
+            },
           ],
         },
       }),

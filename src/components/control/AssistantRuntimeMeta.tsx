@@ -31,8 +31,8 @@ export function AssistantRuntimeMeta() {
               Bypass all questions
             </span>
             <span className="mt-0.5 block text-micro text-text3">
-              Auto-approve actions the assistant would normally pause to confirm.
-              Live (real-money) actions still ask.
+              Auto-approve actions the assistant would normally pause to
+              confirm. Live (real-money) actions still ask.
             </span>
           </span>
         </label>

@@ -84,4 +84,3 @@ describe("backfill → Backtest Lab composition", () => {
     expect(rerun.result.runHash).toBe(first.result.runHash);
   });
 });
-

@@ -4,18 +4,11 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import * as schema from "./schema";
 import { resolveMigrationsFolder } from "./migrations-folder";
 import { runSeed } from "./seed";
-import {
-  assertSessionStrategyConfigPreservation,
-  backfillSessionStrategyConfigs,
-} from "./session-strategy-config-backfill";
-import { dropLegacySessionConfigTables } from "./drop-legacy-session-config-tables";
 
 export interface RunMigrationsOptions {
   rebuildFromScratch?: boolean;
-  /** Override migrations folder (upgrade-fixture tests). */
+  /** Override migrations folder (tests). */
   migrationsFolder?: string;
-  /** Apply Drizzle SQL only; skip seed/backfill/drop (upgrade staging). */
-  drizzleOnly?: boolean;
 }
 
 function dropApplicationTables(sqlite: Database.Database): void {
@@ -50,15 +43,5 @@ export function runMigrations(
     migrationsFolder: options?.migrationsFolder ?? resolveMigrationsFolder(),
   });
 
-  if (options?.drizzleOnly) {
-    return;
-  }
-
   runSeed(db, { sqlite, db, dbPath: ":memory:" });
-  // 0009 + 0010: backfill, preserve assertions, and drop in one transaction.
-  sqlite.transaction(() => {
-    backfillSessionStrategyConfigs(sqlite);
-    assertSessionStrategyConfigPreservation(sqlite);
-    dropLegacySessionConfigTables(sqlite);
-  })();
 }

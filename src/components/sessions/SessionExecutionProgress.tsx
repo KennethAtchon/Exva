@@ -127,9 +127,8 @@ export function deriveProgress(
     stageLabel: isHoldingPosition
       ? `Holding position (${openTradeCount}) — waiting for exit`
       : meta.label,
-    activeRoleLabel: status === "running" || runningWorkers.length > 0
-      ? workerLabel
-      : null,
+    activeRoleLabel:
+      status === "running" || runningWorkers.length > 0 ? workerLabel : null,
     retryable: activeStep?.retryable ?? false,
     nextRetryAt: activeStep?.nextRetryAt ?? null,
     lastErrorCode: activeStep?.lastErrorCode ?? null,
@@ -220,7 +219,7 @@ export const SessionExecutionProgress = ({
     : "var(--color-orange)";
 
   return (
-      <div className="mb-1 mt-3">
+    <div className="mb-1 mt-3">
       <div className="mb-2 h-1 overflow-hidden rounded-full bg-surface3">
         <div
           className={cn(
@@ -345,7 +344,9 @@ export const SessionExecutionProgress = ({
   );
 };
 
-type WorkerBarStatus = NonNullable<SessionProgressState["workers"]>[number]["status"];
+type WorkerBarStatus = NonNullable<
+  SessionProgressState["workers"]
+>[number]["status"];
 
 function workerBarAppearance(status: WorkerBarStatus): {
   tone: string;

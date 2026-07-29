@@ -14,7 +14,10 @@ import { SessionInputSubscriptionRepo } from "../../session-inputs/session-input
 import { SourceDefinitionRepo } from "../../signals/source-definition-repo";
 import { SignalSourcesRepo } from "../../signals/repos/signal-sources-repo";
 import { EventBus } from "../../infra/event-bus";
-import { SessionActivityTracker, type SessionActivityTrackerDeps } from "../session-activity-tracker";
+import {
+  SessionActivityTracker,
+  type SessionActivityTrackerDeps,
+} from "../session-activity-tracker";
 import type { SessionActivityCondition } from "@electron/shared/domain/session-activity";
 
 const SESSION_ID = "session-1";
@@ -103,7 +106,10 @@ describe("SessionActivityTracker — input_source_dead journey", () => {
   let signalSourcesRepo: SignalSourcesRepo;
   let activityRepo: SessionActivityRepo;
   let tracker: SessionActivityTracker;
-  let notified: Array<{ sessionId: string; condition: SessionActivityCondition }>;
+  let notified: Array<{
+    sessionId: string;
+    condition: SessionActivityCondition;
+  }>;
   let registryStatus: "running" | null;
 
   beforeEach(() => {
@@ -135,7 +141,8 @@ describe("SessionActivityTracker — input_source_dead journey", () => {
 
     tracker = createTracker(db, {
       signalRegistry: {
-        status: () => (registryStatus ? { status: "running", lastError: null } : null),
+        status: () =>
+          registryStatus ? { status: "running", lastError: null } : null,
       },
       notify: (sessionId, condition) => notified.push({ sessionId, condition }),
     });
@@ -400,7 +407,9 @@ describe("SessionActivityTracker — event-driven conditions", () => {
       stage: "selector",
     });
     expect(
-      activityRepo.get(SESSION_ID)?.conditions.some((c) => c.kind === "cycle_running"),
+      activityRepo
+        .get(SESSION_ID)
+        ?.conditions.some((c) => c.kind === "cycle_running"),
     ).toBe(false);
 
     tracker.stop();
@@ -458,7 +467,10 @@ describe("SessionActivityTracker — event-driven conditions", () => {
     });
     expect(activityRepo.get(SESSION_ID)?.conditions).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ kind: "allocation_blocked", severity: "warn" }),
+        expect.objectContaining({
+          kind: "allocation_blocked",
+          severity: "warn",
+        }),
       ]),
     );
     tracker.stop();
@@ -486,7 +498,10 @@ describe("SessionActivityTracker — event-driven conditions", () => {
 
     expect(activityRepo.get(SESSION_ID)?.conditions).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ kind: "runtime_crash_loop", severity: "error" }),
+        expect.objectContaining({
+          kind: "runtime_crash_loop",
+          severity: "error",
+        }),
       ]),
     );
     expect(notified.some((c) => c.kind === "runtime_crash_loop")).toBe(true);

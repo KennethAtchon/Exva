@@ -10,7 +10,7 @@ import type {
   SessionStatus,
 } from "./enums";
 import type { MockExecutionTier, MockScenarioKind } from "./mock-scenario";
-import type { SessionStrategy, SessionStrategyContext } from "./session";
+import type { SessionStrategyContext } from "./session";
 
 export interface WorkspaceSession {
   id: string;
@@ -128,8 +128,7 @@ export interface SessionTemplatePayload {
   selectorSettings: {
     aiPickerEnabled: boolean;
   };
-  strategyContext?: SessionStrategyContext;
-  strategy: Omit<SessionStrategy, "sessionId">;
+  strategyContext: SessionStrategyContext;
   brokerAssignments: BrokerAssignment[];
   brokerOverridesByInstrumentClass: Partial<Record<InstrumentClass, string>>;
 }

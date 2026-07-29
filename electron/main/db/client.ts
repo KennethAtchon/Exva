@@ -6,7 +6,6 @@ import {
   type BetterSQLite3Database,
 } from "drizzle-orm/better-sqlite3";
 import { env } from "../config/env";
-import { backupBeforeMigration } from "../services/infra/db-backup";
 import * as schema from "./schema";
 import { runMigrations } from "./migrations";
 
@@ -23,23 +22,10 @@ export function resolveDbFilePath(userDataPath: string): string {
 export function createDbClient(userDataPath: string): DbClient {
   fs.mkdirSync(userDataPath, { recursive: true });
   const dbPath = resolveDbFilePath(userDataPath);
-  // Snapshot before any Drizzle migration mutates the daily DB.
-  // Existing DB + failed backup must abort before migration.
-  if (!env.isTest) {
-    const sourceExists = fs.existsSync(dbPath);
-    if (!sourceExists && env.dbPath?.trim()) {
-      throw new Error(
-        `EXVA_DB_PATH is set but database file is missing: ${dbPath}`,
-      );
-    }
-    if (sourceExists) {
-      const backup = backupBeforeMigration(dbPath);
-      if (!backup.ok) {
-        throw new Error(
-          `Pre-migration backup failed; refusing to migrate: ${backup.error ?? "unknown error"}`,
-        );
-      }
-    }
+  if (!env.isTest && !fs.existsSync(dbPath) && env.dbPath?.trim()) {
+    throw new Error(
+      `EXVA_DB_PATH is set but database file is missing: ${dbPath}`,
+    );
   }
   const sqlite = new BetterSqlite3(dbPath);
   sqlite.pragma("journal_mode = WAL");

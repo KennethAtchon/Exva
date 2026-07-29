@@ -444,9 +444,7 @@ export const StrategyConfig = ({
           !embedded && "hub-panel-body gap-5",
         )}
       >
-        {!embedded ? (
-          <Header loadWorkspaceView={loadWorkspaceView} />
-        ) : null}
+        {!embedded ? <Header loadWorkspaceView={loadWorkspaceView} /> : null}
         <EmptyState
           message="Strategy configuration is session-scoped. Focus a session from the list, then return here to configure AI phases, risk limits, and strategy behavior."
           actionLabel={onGoToSessions ? "Go to sessions" : undefined}
@@ -661,9 +659,7 @@ const renderStrategyConfigMainView = ({
           hasDirty && !isLocked && "pb-24",
         )}
       >
-        {!embedded ? (
-          <Header loadWorkspaceView={loadWorkspaceView} />
-        ) : null}
+        {!embedded ? <Header loadWorkspaceView={loadWorkspaceView} /> : null}
 
         {strategyErrors.length > 0 ? (
           <div className="rounded-sm border border-error-border bg-error-dim px-4 py-3 font-sans text-body text-error">

@@ -269,8 +269,7 @@ export class KalshiAdapter implements BrokerAdapter {
       price,
       bid: bid > 0 ? bid : undefined,
       ask: ask > 0 ? ask : undefined,
-      spreadPct:
-        bid > 0 && ask > 0 ? ((ask - bid) / price) * 100 : undefined,
+      spreadPct: bid > 0 && ask > 0 ? ((ask - bid) / price) * 100 : undefined,
       volume: m.volume,
       timestamp: new Date().toISOString(),
     };

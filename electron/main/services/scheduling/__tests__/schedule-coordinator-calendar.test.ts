@@ -64,9 +64,7 @@ describe("ScheduleCoordinator calendar misconfiguration", () => {
       resolveScheduledFanout: () => [],
     });
 
-    coordinator.reconcile([
-      makePlan({ marketCalendarId: "always-open" }),
-    ]);
+    coordinator.reconcile([makePlan({ marketCalendarId: "always-open" })]);
     await coordinator.fireNow("group-1");
 
     expect(execute).toHaveBeenCalledOnce();

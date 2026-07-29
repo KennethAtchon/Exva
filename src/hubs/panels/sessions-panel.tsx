@@ -341,7 +341,10 @@ const SessionListCard = ({
         <span>·</span>
         <span>{session.openTradeCount} open</span>
         {worstCondition ? (
-          <Badge variant={activityChipVariant(worstCondition.severity)} size="sm">
+          <Badge
+            variant={activityChipVariant(worstCondition.severity)}
+            size="sm"
+          >
             {worstCondition.kind.replace(/_/g, " ")}
           </Badge>
         ) : activity?.activity ? (
@@ -794,7 +797,10 @@ export const SessionsMasterDetail = ({
     }
 
     void refreshActivity();
-    const timer = window.setInterval(() => void refreshActivity(), ACTIVITY_POLL_MS);
+    const timer = window.setInterval(
+      () => void refreshActivity(),
+      ACTIVITY_POLL_MS,
+    );
     const onFocus = () => void refreshActivity();
     window.addEventListener("focus", onFocus);
     return () => {
@@ -1625,7 +1631,9 @@ const SessionActivityTab = ({ sessionId }: { sessionId: string }) => {
       {analytics ? <ActivityAnalyticsCard analytics={analytics} /> : null}
 
       <div className="flex flex-col gap-2">
-        <div className="font-sans text-label text-text1">Transition timeline</div>
+        <div className="font-sans text-label text-text1">
+          Transition timeline
+        </div>
         {transitions.map((entry, i) => (
           <div
             key={`${entry.updatedAt}-${i}`}

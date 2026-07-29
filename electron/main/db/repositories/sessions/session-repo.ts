@@ -31,7 +31,7 @@ import {
 } from "@electron/shared/presets";
 import { loadExperiencePresetBundle } from "../../../experiences/session-bootstrap";
 import { buildSessionStrategyConfigJson } from "../../../services/session/session-strategy-config";
-import { assembleInitialSessionStrategyConfigDoc } from "../../session-strategy-config-backfill";
+import { assembleInitialSessionStrategyConfigDoc } from "@electron/shared/domain/session-strategy-config-defaults";
 import {
   DEFAULT_RESEARCH_POSTURE_SECTION,
   DEFAULT_RISK_SECTION,
@@ -207,20 +207,7 @@ export class SessionRepo {
       const initialDoc = assembleInitialSessionStrategyConfigDoc({
         strategy: {
           strategyProfile: "passive_income",
-          maxPositionUsd: 500,
-          stopLossPct: 2,
-          takeProfitPct: 4,
-          maxConcurrentTrades: 3,
           researchDepth: "balanced",
-          dailyLossLimitUsd: 200,
-          profitTargetUsd: 1000,
-          maxAiSpendUsd: 5,
-          humanApprovalRequired: false,
-          primaryTradingTimeframe: "1d",
-          holdingStyle: "multi_day_swing",
-          targetHoldDays: null,
-          maxHoldDays: null,
-          timeframeNotes: "",
         },
         risk: {
           ...DEFAULT_RISK_SECTION,

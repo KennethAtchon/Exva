@@ -214,11 +214,6 @@ export function backupSqliteDb(options: {
   }
 }
 
-/** Run a backup before migrations; safe no-op when DB file does not exist yet. */
-export function backupBeforeMigration(sourcePath: string): BackupResult {
-  return backupSqliteDb({ sourcePath, trigger: "pre_migration" });
-}
-
 export interface RestoreResult {
   ok: boolean;
   backupPath: string;

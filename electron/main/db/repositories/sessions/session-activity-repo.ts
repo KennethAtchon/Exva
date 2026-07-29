@@ -39,15 +39,13 @@ export class SessionActivityRepo {
   }
 
   list(): SessionActivitySnapshot[] {
-    return this.db.db
-      .select()
-      .from(sessionActivity)
-      .all()
-      .map(toSnapshot);
+    return this.db.db.select().from(sessionActivity).all().map(toSnapshot);
   }
 
   /** Upserts current state and appends an immutable transition record. */
-  set(snapshot: Omit<SessionActivitySnapshot, "updatedAt">): SessionActivitySnapshot {
+  set(
+    snapshot: Omit<SessionActivitySnapshot, "updatedAt">,
+  ): SessionActivitySnapshot {
     const now = new Date().toISOString();
     const conditionsJson = JSON.stringify(snapshot.conditions);
 
@@ -79,10 +77,7 @@ export class SessionActivityRepo {
     return { ...snapshot, updatedAt: now };
   }
 
-  listTransitions(
-    sessionId: string,
-    limit = 50,
-  ): SessionActivitySnapshot[] {
+  listTransitions(sessionId: string, limit = 50): SessionActivitySnapshot[] {
     return this.db.db
       .select()
       .from(sessionActivityTransitions)

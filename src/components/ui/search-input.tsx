@@ -4,15 +4,38 @@ import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const sizeStyles = {
-  sm: { wrapper: "h-7", pl: "pl-7", pr: "pr-7", icon: 13, iconLeft: "left-2", text: "text-caption" },
-  md: { wrapper: "h-8", pl: "pl-8", pr: "pr-8", icon: 14, iconLeft: "left-2.5", text: "text-body" },
-  lg: { wrapper: "h-10", pl: "pl-9", pr: "pr-9", icon: 16, iconLeft: "left-3", text: "text-body" },
+  sm: {
+    wrapper: "h-7",
+    pl: "pl-7",
+    pr: "pr-7",
+    icon: 13,
+    iconLeft: "left-2",
+    text: "text-caption",
+  },
+  md: {
+    wrapper: "h-8",
+    pl: "pl-8",
+    pr: "pr-8",
+    icon: 14,
+    iconLeft: "left-2.5",
+    text: "text-body",
+  },
+  lg: {
+    wrapper: "h-10",
+    pl: "pl-9",
+    pr: "pr-9",
+    icon: 16,
+    iconLeft: "left-3",
+    text: "text-body",
+  },
 } as const;
 
 export type SearchInputSize = keyof typeof sizeStyles;
 
-export interface SearchInputProps
-  extends Omit<React.ComponentProps<"input">, "type" | "size"> {
+export interface SearchInputProps extends Omit<
+  React.ComponentProps<"input">,
+  "type" | "size"
+> {
   /** Visual size. Defaults to `md` (h-8) to match the app's Input primitive. */
   size?: SearchInputSize;
   /** Current value. Controlled — pair with `onChange` (or `onValueChange`). */

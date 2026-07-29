@@ -36,7 +36,12 @@ describe("createSessionRoutedGetBars", () => {
           text: async () => "",
         };
       }
-      return { ok: false, status: 404, json: async () => ({}), text: async () => "" };
+      return {
+        ok: false,
+        status: 404,
+        json: async () => ({}),
+        text: async () => "",
+      };
     });
   });
 

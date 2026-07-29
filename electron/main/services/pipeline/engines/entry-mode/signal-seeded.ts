@@ -75,9 +75,7 @@ const EMPTY_PREDICTION_METADATA = {
  * Entry-mode short-circuits finalizers, so this must copy them onto the
  * instrument or the edge gate / order placer will always fail.
  */
-function readPredictionMarketMetadata(
-  signalTrigger: SignalTrigger,
-): {
+function readPredictionMarketMetadata(signalTrigger: SignalTrigger): {
   predictionOutcome: "YES" | "NO" | null;
   instrumentMetadataJson: string | null;
 } {

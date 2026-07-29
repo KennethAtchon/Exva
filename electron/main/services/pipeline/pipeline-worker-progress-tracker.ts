@@ -24,7 +24,10 @@ export interface PipelineWorkerProgressSnapshot {
 }
 
 export class PipelineWorkerProgressTracker {
-  private readonly bySession = new Map<string, PipelineWorkerProgressSnapshot>();
+  private readonly bySession = new Map<
+    string,
+    PipelineWorkerProgressSnapshot
+  >();
   private unsubs: Array<() => void> = [];
 
   constructor(private readonly bus: EventBus) {}

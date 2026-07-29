@@ -122,41 +122,7 @@ export function assembleFullDocFromComponentPresets(ids: {
       timeframePresetId: timeframe.id,
       ...timeframe.values,
     }),
-    strategy: {
-      ...DEFAULT_STRATEGY_SECTION,
-      maxPositionUsd:
-        risk.values.maxPositionUsd ?? DEFAULT_STRATEGY_SECTION.maxPositionUsd,
-      stopLossPct:
-        risk.values.stopLossPct ?? DEFAULT_STRATEGY_SECTION.stopLossPct,
-      takeProfitPct:
-        risk.values.takeProfitPct ?? DEFAULT_STRATEGY_SECTION.takeProfitPct,
-      maxConcurrentTrades:
-        risk.values.maxConcurrentTrades ??
-        DEFAULT_STRATEGY_SECTION.maxConcurrentTrades,
-      dailyLossLimitUsd:
-        risk.values.dailyLossLimitUsd ??
-        DEFAULT_STRATEGY_SECTION.dailyLossLimitUsd,
-      profitTargetUsd:
-        risk.values.profitTargetUsd ?? DEFAULT_STRATEGY_SECTION.profitTargetUsd,
-      maxAiSpendUsd:
-        risk.values.maxAiSpendUsd ?? DEFAULT_STRATEGY_SECTION.maxAiSpendUsd,
-      humanApprovalRequired:
-        risk.values.humanApprovalRequired ??
-        DEFAULT_STRATEGY_SECTION.humanApprovalRequired,
-      primaryTradingTimeframe:
-        timeframe.values.primaryTradingTimeframe ??
-        DEFAULT_STRATEGY_SECTION.primaryTradingTimeframe,
-      holdingStyle:
-        timeframe.values.holdingStyle ?? DEFAULT_STRATEGY_SECTION.holdingStyle,
-      targetHoldDays:
-        timeframe.values.targetHoldDays ??
-        DEFAULT_STRATEGY_SECTION.targetHoldDays,
-      maxHoldDays:
-        timeframe.values.maxHoldDays ?? DEFAULT_STRATEGY_SECTION.maxHoldDays,
-      timeframeNotes:
-        timeframe.values.timeframeNotes ??
-        DEFAULT_STRATEGY_SECTION.timeframeNotes,
-    },
+    strategy: { ...DEFAULT_STRATEGY_SECTION },
   };
 
   return parseSessionStrategyConfigDoc(doc);

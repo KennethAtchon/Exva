@@ -59,9 +59,7 @@ export function computeSessionActivityAnalytics(
     const next = chronological[i + 1];
     const deltaMs =
       elapsedMs(row.updatedAt, next ? next.updatedAt : Date.now()) ?? 0;
-    const nextKinds = next
-      ? new Set(next.conditions.map((c) => c.kind))
-      : null;
+    const nextKinds = next ? new Set(next.conditions.map((c) => c.kind)) : null;
 
     for (const condition of row.conditions) {
       conditionFrequency[condition.kind] =

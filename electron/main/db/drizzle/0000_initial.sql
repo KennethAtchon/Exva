@@ -843,6 +843,7 @@ CREATE TABLE `signal_source_polls` (
 	`detected` integer DEFAULT 0 NOT NULL,
 	`passed` integer DEFAULT 0 NOT NULL,
 	`dropped` integer DEFAULT 0 NOT NULL,
+	`drop_reasons_json` text,
 	`errors_json` text DEFAULT '[]' NOT NULL,
 	`duration_ms` integer DEFAULT 0 NOT NULL,
 	`status` text NOT NULL,
@@ -980,6 +981,7 @@ CREATE TABLE `workspace_preferences` (
 	`default_model_provider_key` text DEFAULT '' NOT NULL,
 	`default_model_model_id` text DEFAULT '' NOT NULL,
 	`default_model_reasoning_level` text DEFAULT 'off' NOT NULL,
+	`auto_approve_assistant_tools` integer DEFAULT false NOT NULL,
 	`updated_at` text NOT NULL,
 	FOREIGN KEY (`default_search_provider_id`) REFERENCES `provider_accounts`(`id`) ON UPDATE no action ON DELETE set null
 );

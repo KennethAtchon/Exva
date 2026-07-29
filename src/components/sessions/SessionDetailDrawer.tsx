@@ -38,6 +38,10 @@ type InstrumentCacheView = {
 // SessionInfoGrid — metadata sections (Task Definition, Execution Setup, Risk Limits)
 // ---------------------------------------------------------------------------
 
+/** Unset stop/target means the risk gate derives one (ATR, else fallback). */
+const formatRiskPct = (pct: number | null): string =>
+  pct == null ? "auto" : `${pct}%`;
+
 const SessionInfoGrid = ({
   session,
   experienceDisplayName,
@@ -204,7 +208,7 @@ const SessionInfoGrid = ({
             label="Max position"
             value={
               payload
-                ? `$${payload.strategy.maxPositionUsd.toLocaleString()}`
+                ? `$${payload.strategyContext.riskConfig.maxPositionUsd.toLocaleString()}`
                 : loading
                   ? "…"
                   : "—"
@@ -214,7 +218,7 @@ const SessionInfoGrid = ({
             label="Stop / target"
             value={
               payload
-                ? `${payload.strategy.stopLossPct}% / ${payload.strategy.takeProfitPct}%`
+                ? `${formatRiskPct(payload.strategyContext.riskConfig.stopLossPct)} / ${formatRiskPct(payload.strategyContext.riskConfig.takeProfitPct)}`
                 : loading
                   ? "…"
                   : "—"
@@ -224,7 +228,7 @@ const SessionInfoGrid = ({
             label="Daily loss / profit"
             value={
               payload
-                ? `$${payload.strategy.dailyLossLimitUsd.toLocaleString()} / $${payload.strategy.profitTargetUsd.toLocaleString()}`
+                ? `$${payload.strategyContext.riskConfig.dailyLossLimitUsd.toLocaleString()} / $${payload.strategyContext.riskConfig.profitTargetUsd.toLocaleString()}`
                 : loading
                   ? "…"
                   : "—"

@@ -71,8 +71,7 @@ export function registerSessionHandlers(services: AppServices): void {
           (step) => step.status === "succeeded" || step.status === "skipped",
         ) &&
         monitoringStep?.status === "succeeded";
-      const workerProgress =
-        services.pipelineWorkerProgress.get(sessionId);
+      const workerProgress = services.pipelineWorkerProgress.get(sessionId);
       return {
         steps: steps.map((step) => ({
           stage: step.stage,

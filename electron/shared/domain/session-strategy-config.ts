@@ -119,24 +119,15 @@ const pipelinePhaseSchema = z.enum(
 const reasoningLevelSchema = z.enum(REASONING_LEVELS);
 const promptSourceSchema = z.enum(["default", "session_override"]);
 
-/** Strategy section fields (camelCase; was the old per-session strategy row). */
+/**
+ * Strategy section: posture only. Money and limits live in `risk`; horizon
+ * lives in `timeframe`. A field belongs to exactly one section — the executor
+ * and the UI must never be able to read different homes for the same value.
+ */
 export const strategySectionSchema = z
   .object({
     strategyProfile: strategyProfileSchema,
-    maxPositionUsd: z.number().nonnegative(),
-    stopLossPct: z.number().nonnegative(),
-    takeProfitPct: z.number().nonnegative(),
-    maxConcurrentTrades: z.number().int().nonnegative(),
     researchDepth: researchDepthSchema,
-    dailyLossLimitUsd: z.number().nonnegative(),
-    profitTargetUsd: z.number().nonnegative(),
-    maxAiSpendUsd: z.number().nonnegative(),
-    humanApprovalRequired: z.boolean(),
-    primaryTradingTimeframe: tradingTimeframeSchema,
-    holdingStyle: holdingStyleSchema,
-    targetHoldDays: z.number().nonnegative().nullable(),
-    maxHoldDays: z.number().nonnegative().nullable(),
-    timeframeNotes: z.string(),
   })
   .strict();
 
@@ -318,20 +309,7 @@ export interface SessionStrategyConfigDoc {
   schemaVersion: typeof SESSION_STRATEGY_CONFIG_SCHEMA_VERSION;
   strategy: {
     strategyProfile: StrategyProfile;
-    maxPositionUsd: number;
-    stopLossPct: number;
-    takeProfitPct: number;
-    maxConcurrentTrades: number;
     researchDepth: ResearchDepth;
-    dailyLossLimitUsd: number;
-    profitTargetUsd: number;
-    maxAiSpendUsd: number;
-    humanApprovalRequired: boolean;
-    primaryTradingTimeframe: TradingTimeframe;
-    holdingStyle: HoldingStyle;
-    targetHoldDays: number | null;
-    maxHoldDays: number | null;
-    timeframeNotes: string;
   };
   risk: {
     riskPresetId: RiskPresetId;

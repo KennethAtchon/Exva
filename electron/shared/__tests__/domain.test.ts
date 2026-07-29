@@ -1,36 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildStrategyTimeframeContext,
-  canTransition,
-  isSessionEditable,
-  timeframeHoldMismatchWarning,
-  validateSessionStrategyTimeframeFields,
-  type SessionStrategy,
-} from "../domain";
-
-function baseStrategy(
-  overrides: Partial<SessionStrategy> = {},
-): SessionStrategy {
-  return {
-    sessionId: "s1",
-    strategyProfile: "custom",
-    maxPositionUsd: 100,
-    stopLossPct: 2,
-    takeProfitPct: 4,
-    maxConcurrentTrades: 1,
-    researchDepth: "balanced",
-    dailyLossLimitUsd: 50,
-    profitTargetUsd: 200,
-    maxAiSpendUsd: 5,
-    humanApprovalRequired: false,
-    primaryTradingTimeframe: "1d",
-    holdingStyle: "multi_day_swing",
-    targetHoldDays: null,
-    maxHoldDays: null,
-    timeframeNotes: "",
-    ...overrides,
-  };
-}
+import { canTransition, isSessionEditable } from "../domain";
 
 describe("domain session helpers", () => {
   it("rejects illegal session transitions", () => {
@@ -62,52 +31,5 @@ describe("domain session helpers", () => {
     expect(isSessionEditable("paused")).toBe(false);
     expect(isSessionEditable("monitoring_only")).toBe(false);
     expect(isSessionEditable("archived")).toBe(false);
-  });
-
-  it("validates timeframe hold-day ordering", () => {
-    expect(() =>
-      validateSessionStrategyTimeframeFields(
-        baseStrategy({ targetHoldDays: 10, maxHoldDays: 5 }),
-      ),
-    ).toThrow(/Max hold/);
-    expect(() =>
-      validateSessionStrategyTimeframeFields(
-        baseStrategy({ targetHoldDays: -1 }),
-      ),
-    ).toThrow();
-  });
-
-  it("builds strategy timeframe context block", () => {
-    const text = buildStrategyTimeframeContext(
-      baseStrategy({
-        primaryTradingTimeframe: "4h",
-        holdingStyle: "weeks_position",
-        targetHoldDays: 14,
-        timeframeNotes: "No earnings week",
-      }),
-    );
-    expect(text).toContain("4h");
-    expect(text).toContain("weeks_position");
-    expect(text).toContain("14");
-    expect(text).toContain("No earnings week");
-  });
-
-  it("returns no mismatch warning for supported holding styles", () => {
-    expect(
-      timeframeHoldMismatchWarning(
-        baseStrategy({
-          holdingStyle: "multi_day_swing",
-          primaryTradingTimeframe: "30m",
-        }),
-      ),
-    ).toBeNull();
-    expect(
-      timeframeHoldMismatchWarning(
-        baseStrategy({
-          holdingStyle: "weeks_position",
-          primaryTradingTimeframe: "1d",
-        }),
-      ),
-    ).toBeNull();
   });
 });

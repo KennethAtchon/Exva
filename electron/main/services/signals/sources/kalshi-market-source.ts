@@ -340,7 +340,7 @@ export async function fetchKalshiMarkets(
     body &&
     typeof body === "object" &&
     Array.isArray((body as { markets?: unknown }).markets)
-      ? ((body as { markets: KalshiMarketRow[] }).markets)
+      ? (body as { markets: KalshiMarketRow[] }).markets
       : null;
   if (!markets) {
     throw new Error(

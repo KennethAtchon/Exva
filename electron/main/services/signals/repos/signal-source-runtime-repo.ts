@@ -15,7 +15,9 @@ import { safeJsonParse } from "../../infra/safe-json-parse";
 
 function parseErrors(json: string): string[] {
   const parsed = safeJsonParse<string[]>(json, undefined, "source-poll.errors");
-  return Array.isArray(parsed) ? parsed.filter((e) => typeof e === "string") : [];
+  return Array.isArray(parsed)
+    ? parsed.filter((e) => typeof e === "string")
+    : [];
 }
 
 function parseDropReasons(

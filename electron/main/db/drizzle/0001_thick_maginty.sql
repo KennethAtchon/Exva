@@ -1,1 +1,0 @@
-ALTER TABLE `workspace_preferences` ADD `auto_approve_assistant_tools` integer DEFAULT false NOT NULL;

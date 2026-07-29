@@ -35,11 +35,14 @@ export function resolveWorkspaceBrokerAccountId(input: {
 }): string | null {
   const preferredId = input
     .listGlobalDefaults()
-    .find((row) => row.instrumentClass === input.instrumentClass)
-    ?.defaultBrokerAccountId;
+    .find(
+      (row) => row.instrumentClass === input.instrumentClass,
+    )?.defaultBrokerAccountId;
   if (preferredId) {
     const preferred = input.findAccount(preferredId);
-    if (isCompatibleAccount(preferred, input.brokerType, input.instrumentClass)) {
+    if (
+      isCompatibleAccount(preferred, input.brokerType, input.instrumentClass)
+    ) {
       return preferred.id;
     }
   }

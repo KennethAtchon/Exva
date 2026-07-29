@@ -33,7 +33,9 @@ export function ScopeChip({
       .listSessions({ includeArchived: true, includeAllEnvironments: true })
       .then((result) => {
         if (cancelled) return;
-        const match = result.sessions.find((session) => session.id === sessionId);
+        const match = result.sessions.find(
+          (session) => session.id === sessionId,
+        );
         setResolvedName(match?.name ?? null);
       })
       .catch(() => {
@@ -55,8 +57,7 @@ export function ScopeChip({
   }
 
   const Icon = isSession ? Layers : Globe;
-  const title =
-    isSession && sessionId ? (resolvedName ?? sessionId) : label;
+  const title = isSession && sessionId ? (resolvedName ?? sessionId) : label;
   const showNamedSession = Boolean(isSession && resolvedName);
 
   return (

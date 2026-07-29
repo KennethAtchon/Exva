@@ -126,12 +126,12 @@ export class SignalService {
       return {
         ...source,
         runtimeStatus: runtime?.status ?? durable?.status ?? "idle",
-        runtimeLastError:
-          runtime?.lastError ?? durable?.lastError ?? null,
+        runtimeLastError: runtime?.lastError ?? durable?.lastError ?? null,
         attachedSessionCount: 0,
         attachedSessionNames: [] as string[],
         lastPollAt: snapshot?.lastPollAt ?? durable?.lastPollAt ?? null,
-        lastPollResult: snapshot?.lastPollResult ??
+        lastPollResult:
+          snapshot?.lastPollResult ??
           (durable
             ? {
                 detected: durable.detected,
