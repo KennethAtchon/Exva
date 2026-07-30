@@ -58,9 +58,23 @@ function logFatal(kind: string, reason: unknown): void {
   const err = reason instanceof Error ? reason : new Error(String(reason));
   if (logger) {
     logger.error({ err }, kind);
-    return;
+  } else {
+    console.error(kind, err);
   }
-  console.error(kind, err);
+  recordUnplannedStopsForActiveSessions();
+}
+
+function recordUnplannedStopsForActiveSessions(): void {
+  if (!services) return;
+  const active = services.repos.session
+    .list({ includeArchived: false })
+    .filter(
+      (session) =>
+        session.status === "active" || session.status === "attention_required",
+    );
+  for (const session of active) {
+    services.sessionUptime.recordUnplannedStop(session.id);
+  }
 }
 process.on("unhandledRejection", (reason) => {
   logFatal("unhandled promise rejection", reason);

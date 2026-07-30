@@ -25,6 +25,7 @@ function makeStrategyDef(
 ): StrategyDefinition<Record<string, unknown>> {
   return {
     id,
+    dataDriver: "ohlcv",
     parameterSchemaVersion: 1,
     parameterSchema: z.object({}).passthrough(),
     acceptedInstrumentClasses: ["stock"],

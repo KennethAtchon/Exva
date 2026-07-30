@@ -17,8 +17,8 @@ describe("effective-ai-phase-config", () => {
 
   it("resolves effective config with workers and engines for each stage", () => {
     const resolver = new AIPhaseConfigResolver({
-      getByPhase: vi.fn().mockReturnValue(null),
-      getWorker: vi.fn().mockReturnValue(null),
+      getAiPhase: vi.fn().mockReturnValue(null),
+      getAiPhaseWorker: vi.fn().mockReturnValue(null),
     } as never);
 
     const config = resolveEffectivePipelineConfig({

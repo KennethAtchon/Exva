@@ -17,6 +17,7 @@ type Parameters = z.infer<typeof parameterSchema>;
 
 export const trendFollowingDefinition: StrategyDefinition<Parameters> = {
   id: "trend-following",
+  dataDriver: "ohlcv",
   parameterSchemaVersion: 1,
   parameterSchema,
   acceptedInstrumentClasses: ["futures"] as const,

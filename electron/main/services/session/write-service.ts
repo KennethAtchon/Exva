@@ -12,6 +12,10 @@ import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session
 import type { BrokerRoutingRepo } from "../../db/repositories/brokers/broker-routing-repo";
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import { createLogger } from "../infra/log";
+import {
+  validateSessionWriteConfiguration,
+} from "./session-config-validation-builder";
+import { hasBlockingConfigIssues } from "./session-config-validation";
 
 const logger = createLogger("session-write-service");
 
@@ -264,6 +268,19 @@ export class SessionWriteService {
         `${experience.displayName} requires at least one broker account assigned.`,
         "VALIDATION_FAILED",
         { field: "brokerAssignments" },
+      );
+    }
+
+    const configIssues = validateSessionWriteConfiguration(input, {
+      instrumentClasses,
+      brokerAccounts: this.deps.brokerAccounts,
+    });
+    const blockingIssues = configIssues.filter((i) => i.severity === "block");
+    if (hasBlockingConfigIssues(configIssues)) {
+      throw new AppError(
+        blockingIssues.map((i) => i.message).join(" "),
+        "VALIDATION_FAILED",
+        { configIssues },
       );
     }
 

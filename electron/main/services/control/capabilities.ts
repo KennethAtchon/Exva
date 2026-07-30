@@ -18,6 +18,9 @@ import {
   getPaperCertification,
   getScanFunnel,
   runPaperCertification,
+  runAdapterCertificationCap,
+  getAdapterCertification,
+  getOneDayAcceptanceReport,
 } from "./capabilities-diagnostics";
 import {
   flattenAll,
@@ -550,6 +553,8 @@ export const CONTROL_CAPABILITIES: Capability<unknown>[] = [
   getScanFunnel,
   getOpportunityRate,
   getPaperCertification,
+  getAdapterCertification,
+  getOneDayAcceptanceReport,
   // mutating — core
   createSession,
   startSession,
@@ -562,6 +567,7 @@ export const CONTROL_CAPABILITIES: Capability<unknown>[] = [
   forceCloseTrade,
   runPeriodAutopsy,
   runPaperCertification,
+  runAdapterCertificationCap,
   // mutating — P0
   decideApprovalCap,
   pauseAllSessions,

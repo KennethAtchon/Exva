@@ -405,12 +405,8 @@ export class TradingCycleContext {
     });
     this.pruneFailureHistory();
 
-    const funnelOutcome =
-      input.outcome === "no_trade"
-        ? ("no_setup" as const)
-        : input.outcome === "bug"
-          ? ("failed" as const)
-          : ("rejected" as const);
+    const reasonCode = input.code ?? input.reasonCategory;
+    const funnelOutcome = mapNoTradeFunnelOutcome(input.outcome, reasonCode);
     this.deps.cycleFunnel?.record({
       cycleId: input.cycleId,
       sessionId: this.sessionId,
@@ -418,7 +414,7 @@ export class TradingCycleContext {
       originKind: "strategy",
       terminalStage: mapStageToFunnel(input.stage),
       outcome: funnelOutcome,
-      reasonCode: input.code ?? input.reasonCategory,
+      reasonCode,
       detailJson: JSON.stringify({ message: input.message }),
       occurredAt,
     });
@@ -501,6 +497,32 @@ export class TradingCycleContext {
       }
     }
   }
+}
+
+function mapNoTradeFunnelOutcome(
+  outcome: OrchestrationOutcome,
+  reasonCode: string,
+): import("@electron/shared/domain/cycle-funnel").CycleFunnelOutcome["outcome"] {
+  if (outcome === "bug") return "failed";
+  if (outcome !== "no_trade") return "rejected";
+  const upper = reasonCode.toUpperCase();
+  if (
+    upper === "INPUT_STALE" ||
+    reasonCode === "input_stale" ||
+    reasonCode.includes("stale")
+  ) {
+    return "input_stale";
+  }
+  if (
+    upper === "INPUT_INSUFFICIENT_HISTORY" ||
+    reasonCode === "input_insufficient_history" ||
+    reasonCode === "insufficient_bars" ||
+    reasonCode === "insufficient_history" ||
+    reasonCode.includes("insufficient")
+  ) {
+    return "input_insufficient_history";
+  }
+  return "no_setup";
 }
 
 function mapStageToFunnel(

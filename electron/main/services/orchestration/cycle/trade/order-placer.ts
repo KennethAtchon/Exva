@@ -9,6 +9,10 @@ import {
   liftBrokerOrderV1ToV2,
   type OrderLeg,
 } from "../../../broker/order-contract-v2";
+import {
+  assertOptionsEntitlements,
+  normalizeOptionsOrderShape,
+} from "../../../broker/options-entitlements-guard";
 import type { TradingCycleContext } from "../trading-cycle-context";
 
 function safeParseTradeOrderMetadata(
@@ -105,7 +109,7 @@ export async function placeRoutedOrder(
     clientOrderId,
   };
 
-  const liftedOrder = liftBrokerOrderV1ToV2(v1Order);
+  const liftedOrder = normalizeOptionsOrderShape(liftBrokerOrderV1ToV2(v1Order));
 
   // Solution 10: attach multi-leg OCC vertical when trade metadata carries legs.
   const meta = safeParseTradeOrderMetadata(trade.instrumentMetadataJson);
@@ -156,6 +160,37 @@ export async function placeRoutedOrder(
     });
   }
 
+  if (liftedOrder.instrument.instrumentClass === "options") {
+    try {
+      await assertOptionsEntitlements(adapter, liftedOrder);
+    } catch (err) {
+      ctx.deps.logger.warn(
+        {
+          sessionId: ctx.sessionId,
+          tradeId: trade.id,
+          brokerAccountId,
+          err,
+        },
+        "order skipped: options entitlements gate failed",
+      );
+      return null;
+    }
+  }
+
+  ctx.deps.orderIntents?.persist(adapter, {
+    sessionId: ctx.sessionId,
+    brokerAccountId,
+    canonicalClientOrderId: clientOrderId,
+    side: riskOrder.side,
+    symbol: wireSymbol,
+    notionalUsd: riskOrder.sizeUsd,
+    quantity:
+      liftedOrder.quantity.kind === "units"
+        ? liftedOrder.quantity.value
+        : undefined,
+    originKind: "strategy",
+  });
+
   let result;
   try {
     const placeV2 = adapter.placeOrderV2?.bind(adapter);
@@ -184,6 +219,12 @@ export async function placeRoutedOrder(
   if (trade.brokerAccountId !== brokerAccountId) {
     ctx.deps.tradesRepo.patchPendingExecution(trade.id, { brokerAccountId });
   }
+
+  ctx.deps.orderIntents?.acknowledge(
+    brokerAccountId,
+    clientOrderId,
+    result.brokerOrderId,
+  );
 
   ctx.deps.logger.info(
     {

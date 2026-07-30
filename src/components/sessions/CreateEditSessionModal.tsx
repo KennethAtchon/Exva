@@ -31,6 +31,13 @@ import {
 import { EXPERIENCE_HELP_IDS, type HelpGlossaryId } from "@/lib/help-glossary";
 import { cn } from "@/lib/utils";
 import {
+  asyncError,
+  asyncLoaded,
+  asyncLoading,
+  type AsyncResource,
+} from "@/lib/async-resource";
+import type { ExperienceSupportState } from "@electron/shared/ipc/dto";
+import {
   isSessionLaunchable,
   resolveSessionInstrumentClasses,
 } from "@electron/shared/instruments/experience-launchability";
@@ -49,16 +56,14 @@ const mergeReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
 
 type ModalDataState = {
   form: SessionCreateInput;
-  brokerAccounts: BrokerAccountWithState[];
-  searchProviderState: {
+  brokerAccounts: AsyncResource<BrokerAccountWithState[]>;
+  searchProviderState: AsyncResource<{
     providers: ProviderAccount[];
     workspaceDefaultSearchProviderId: string | null;
-  };
-  experiences: ExperienceSummary[];
-  experiencesLoaded: boolean;
+  }>;
+  experiences: AsyncResource<ExperienceSummary[]>;
   /** V2 experience catalog templates (may be empty if backend not yet ready). */
-  v2Templates: ExperienceTemplateSummary[];
-  v2TemplatesLoaded: boolean;
+  v2Templates: AsyncResource<ExperienceTemplateSummary[]>;
   /** Active V2 subscription drafts for the selected template. */
   v2Subscriptions: SessionInputSubscriptionDraft[];
   v2FieldErrors: FieldError[];
@@ -82,15 +87,13 @@ export const CreateEditSessionModal = ({
   const environmentMode = useWorkspaceStore((s) => s.environmentMode);
   const [data, dispatchData] = useReducer(mergeReducer<ModalDataState>, {
     form: defaultInput(),
-    brokerAccounts: [],
-    searchProviderState: {
-      providers: [],
-      workspaceDefaultSearchProviderId: null,
-    },
-    experiences: [],
-    experiencesLoaded: false,
-    v2Templates: [],
-    v2TemplatesLoaded: false,
+    brokerAccounts: asyncLoading<BrokerAccountWithState[]>(),
+    searchProviderState: asyncLoading<{
+      providers: ProviderAccount[];
+      workspaceDefaultSearchProviderId: string | null;
+    }>(),
+    experiences: asyncLoading<ExperienceSummary[]>(),
+    v2Templates: asyncLoading<ExperienceTemplateSummary[]>(),
     v2Subscriptions: [],
     v2FieldErrors: [],
     v2FieldWarnings: [],
@@ -165,34 +168,63 @@ export const CreateEditSessionModal = ({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    dispatchData({ experiences: asyncLoading<ExperienceSummary[]>() });
     void api
       .listExperiences()
       .then((experiences) => {
         if (cancelled) return;
-        dispatchData({ experiences, experiencesLoaded: true });
+        dispatchData({ experiences: asyncLoaded(experiences) });
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
-        dispatchData({ experiences: [], experiencesLoaded: true });
+        dispatchData({
+          experiences: asyncError<ExperienceSummary[]>(
+            err instanceof Error ? err.message : "Failed to load experiences.",
+            true,
+          ),
+        });
       });
     return () => {
       cancelled = true;
     };
   }, [open]);
 
-  // Load V2 experience catalog templates (graceful fallback if not yet wired)
+  const reloadV2Templates = () => {
+    dispatchData({ v2Templates: asyncLoading<ExperienceTemplateSummary[]>() });
+    void experienceCatalogApi
+      .listTemplates()
+      .then(({ templates }) => {
+        dispatchData({ v2Templates: asyncLoaded(templates) });
+      })
+      .catch((err) => {
+        dispatchData({
+          v2Templates: asyncError<ExperienceTemplateSummary[]>(
+            err instanceof Error ? err.message : "Failed to load templates.",
+            true,
+          ),
+        });
+      });
+  };
+
+  // Load V2 experience catalog templates
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    dispatchData({ v2Templates: asyncLoading<ExperienceTemplateSummary[]>() });
     void experienceCatalogApi
       .listTemplates()
       .then(({ templates }) => {
         if (cancelled) return;
-        dispatchData({ v2Templates: templates, v2TemplatesLoaded: true });
+        dispatchData({ v2Templates: asyncLoaded(templates) });
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
-        dispatchData({ v2Templates: [], v2TemplatesLoaded: true });
+        dispatchData({
+          v2Templates: asyncError<ExperienceTemplateSummary[]>(
+            err instanceof Error ? err.message : "Failed to load templates.",
+            true,
+          ),
+        });
       });
     return () => {
       cancelled = true;
@@ -249,15 +281,21 @@ export const CreateEditSessionModal = ({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    dispatchData({ brokerAccounts: asyncLoading<BrokerAccountWithState[]>() });
     void api
       .listBrokerAccountState()
       .then((response) => {
         if (cancelled) return;
-        dispatchData({ brokerAccounts: response });
+        dispatchData({ brokerAccounts: asyncLoaded(response) });
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
-        dispatchData({ brokerAccounts: [] });
+        dispatchData({
+          brokerAccounts: asyncError<BrokerAccountWithState[]>(
+            err instanceof Error ? err.message : "Failed to load brokers.",
+            true,
+          ),
+        });
       });
 
     return () => {
@@ -268,27 +306,36 @@ export const CreateEditSessionModal = ({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    dispatchData({
+      searchProviderState: asyncLoading<{
+        providers: ProviderAccount[];
+        workspaceDefaultSearchProviderId: string | null;
+      }>(),
+    });
     void Promise.all([api.listProviders(), api.getWorkspaceView()])
       .then(([providerResponse, workspaceView]) => {
         if (cancelled) return;
         dispatchData({
-          searchProviderState: {
+          searchProviderState: asyncLoaded({
             providers: providerResponse.providers.filter(
               (provider) =>
                 provider.category === "search" && provider.isConfigured,
             ),
             workspaceDefaultSearchProviderId:
               workspaceView.preferences.defaultSearchProviderId,
-          },
+          }),
         });
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
         dispatchData({
-          searchProviderState: {
-            providers: [],
-            workspaceDefaultSearchProviderId: null,
-          },
+          searchProviderState: asyncError<{
+            providers: ProviderAccount[];
+            workspaceDefaultSearchProviderId: string | null;
+          }>(
+            err instanceof Error ? err.message : "Failed to load providers.",
+            true,
+          ),
         });
       });
 
@@ -299,16 +346,33 @@ export const CreateEditSessionModal = ({
 
   const {
     form,
-    brokerAccounts,
-    experiences,
-    experiencesLoaded,
-    v2Templates,
-    v2TemplatesLoaded,
+    brokerAccounts: brokerAccountsResource,
+    experiences: experiencesResource,
+    v2Templates: v2TemplatesResource,
     v2Subscriptions,
     v2FieldErrors,
     v2FieldWarnings,
     v2UnvalidatedUniverse,
   } = data;
+
+  const brokerAccounts =
+    brokerAccountsResource.status === "loaded"
+      ? brokerAccountsResource.value
+      : [];
+  const experiences =
+    experiencesResource.status === "loaded" ? experiencesResource.value : [];
+  const v2Templates =
+    v2TemplatesResource.status === "loaded" ? v2TemplatesResource.value : [];
+  const v2TemplatesLoaded = v2TemplatesResource.status === "loaded";
+  const resourceErrors = [
+    brokerAccountsResource,
+    experiencesResource,
+    v2TemplatesResource,
+  ].filter(
+    (resource): resource is Extract<AsyncResource<unknown>, { status: "error" }> =>
+      resource.status === "error",
+  );
+  const hasResourceError = resourceErrors.length > 0;
 
   const assignedBrokerIds = useMemo(
     () =>
@@ -385,13 +449,18 @@ export const CreateEditSessionModal = ({
       ),
     [assignedActiveModeBrokers, form.brokerAssignments],
   );
+  const blockedExperienceSelected =
+    selectedExperience?.supportState === "blocked" &&
+    !isSentinelSessionName(form.name);
   const isValid =
     form.name.trim().length > 0 &&
     form.objective.trim().length > 0 &&
     v2Subscriptions.length > 0 &&
     v2FieldErrors.length === 0 &&
     effectiveInstrumentClasses.length > 0 &&
-    overAllocatedBrokerIds.size === 0;
+    overAllocatedBrokerIds.size === 0 &&
+    !hasResourceError &&
+    !blockedExperienceSelected;
 
   const setForm = (
     updater: (prev: SessionCreateInput) => SessionCreateInput,
@@ -431,6 +500,71 @@ export const CreateEditSessionModal = ({
               {templateWarnings.join(", ")}
             </div>
           ) : null}
+          {hasResourceError ? (
+            <div className={errorBannerClass}>
+              {resourceErrors.map((resource) => (
+                <div key={resource.message}>{resource.message}</div>
+              ))}
+              {resourceErrors.some((resource) => resource.retryable) ? (
+                <button
+                  type="button"
+                  className="mt-2 text-caption underline"
+                  onClick={() => {
+                    if (experiencesResource.status === "error") {
+                      dispatchData({
+                        experiences: asyncLoading<ExperienceSummary[]>(),
+                      });
+                      void api
+                        .listExperiences()
+                        .then((items) =>
+                          dispatchData({
+                            experiences: asyncLoaded(items),
+                          }),
+                        )
+                        .catch((err) =>
+                          dispatchData({
+                            experiences: asyncError<ExperienceSummary[]>(
+                              err instanceof Error
+                                ? err.message
+                                : "Failed to load experiences.",
+                              true,
+                            ),
+                          }),
+                        );
+                    }
+                    if (v2TemplatesResource.status === "error") {
+                      reloadV2Templates();
+                    }
+                    if (brokerAccountsResource.status === "error") {
+                      dispatchData({
+                        brokerAccounts:
+                          asyncLoading<BrokerAccountWithState[]>(),
+                      });
+                      void api
+                        .listBrokerAccountState()
+                        .then((items) =>
+                          dispatchData({
+                            brokerAccounts: asyncLoaded(items),
+                          }),
+                        )
+                        .catch((err) =>
+                          dispatchData({
+                            brokerAccounts: asyncError<BrokerAccountWithState[]>(
+                              err instanceof Error
+                                ? err.message
+                                : "Failed to load brokers.",
+                              true,
+                            ),
+                          }),
+                        );
+                    }
+                  }}
+                >
+                  Retry loading required resources
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {req.error ? (
             <div className={errorBannerClass}>{req.error}</div>
           ) : null}
@@ -442,7 +576,11 @@ export const CreateEditSessionModal = ({
                 caption="The operator-facing shell for this session."
               />
               <div className={sectionBodyClass}>
-                {experiencesLoaded && experiences.length > 0 ? (
+                {experiencesResource.status === "loading" ? (
+                  <div className={inlineHintClass}>Loading experiences…</div>
+                ) : null}
+                {experiencesResource.status === "loaded" &&
+                experiences.length > 0 ? (
                   <Field label="Experience" glossaryId="experience">
                     <ShadcnSelect
                       value={form.experienceId ?? experiences[0]?.id ?? ""}
@@ -458,12 +596,23 @@ export const CreateEditSessionModal = ({
                       }}
                       options={experiences.map((experience) => ({
                         value: experience.id,
-                        label: experience.displayName,
+                        label: `${experience.displayName} (${supportStateLabel(experience.supportState)})`,
                       }))}
                       disabled={Boolean(initialSession)}
                     />
                     {selectedExperience ? (
                       <div className={inlineHintClass}>
+                        <span
+                          className={cn(
+                            supportBadgeClass(selectedExperience.supportState),
+                            "mr-2 inline-block rounded px-1.5 py-0.5 text-caption font-medium",
+                          )}
+                        >
+                          {supportStateLabel(selectedExperience.supportState)}
+                        </span>
+                        {selectedExperience.blockerMessage ? (
+                          <span>{selectedExperience.blockerMessage} </span>
+                        ) : null}
                         Signal sources:{" "}
                         {selectedExperience.capabilities.signalSourceTypes.join(
                           ", ",
@@ -483,6 +632,12 @@ export const CreateEditSessionModal = ({
                         {initialSession
                           ? " Experience is fixed after session creation."
                           : null}
+                        {blockedExperienceSelected ? (
+                          <div className={warningTextClass}>
+                            Blocked experiences require a sentinel session name
+                            (for example FUTURES-INTEGRATION-SENTINEL).
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                   </Field>
@@ -890,6 +1045,35 @@ const Field = ({
     {children}
   </div>
 );
+
+function supportStateLabel(state: ExperienceSupportState): string {
+  switch (state) {
+    case "forward_paper_only":
+      return "forward paper only";
+    case "blocked":
+      return "blocked";
+    default:
+      return "available";
+  }
+}
+
+function supportBadgeClass(state: ExperienceSupportState): string {
+  switch (state) {
+    case "blocked":
+      return "bg-error-bg text-error-text";
+    case "forward_paper_only":
+      return "bg-warning-bg text-warning-text";
+    default:
+      return "bg-success-bg text-success-text";
+  }
+}
+
+function isSentinelSessionName(name: string): boolean {
+  const trimmed = name.trim().toUpperCase();
+  return (
+    trimmed.endsWith("-SENTINEL") || trimmed.includes("INTEGRATION-SENTINEL")
+  );
+}
 
 function defaultInput(): SessionCreateInput {
   return {

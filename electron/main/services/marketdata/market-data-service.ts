@@ -72,8 +72,16 @@ export class MarketDataService {
   private readonly freshness = new LiveBarFreshnessService();
   /** Last freshness decision for telemetry / funnel. */
   lastFreshnessDecision: FreshnessDecision | null = null;
-  /** Alpaca equity bars currently use IEX unless SIP entitlement is configured. */
-  readonly equityDataFeed: "iex" | "sip" = "iex";
+  /** Alpaca equity bars feed (IEX unless SIP entitlement detected). */
+  private _equityDataFeed: "iex" | "sip" = "iex";
+
+  get equityDataFeed(): "iex" | "sip" {
+    return this._equityDataFeed;
+  }
+
+  setEquityDataFeed(feed: "iex" | "sip"): void {
+    this._equityDataFeed = feed;
+  }
 
   constructor(private readonly db: DbClient) {}
 
@@ -202,7 +210,7 @@ export class MarketDataService {
   getCoverage(
     symbol: string,
     timeframe: string,
-  ): { firstTs: string; lastTs: string; provider: string } | null {
+  ): { firstTs: string; lastTs: string; provider: string; feed: string | null } | null {
     const row =
       this.db.db
         .select()
@@ -219,6 +227,7 @@ export class MarketDataService {
       firstTs: row.firstTs,
       lastTs: row.lastTs,
       provider: row.provider,
+      feed: row.feed ?? (row.provider === "alpaca" ? this._equityDataFeed : null),
     };
   }
 
@@ -228,6 +237,7 @@ export class MarketDataService {
     timeframe: string,
     bars: OhlcvBar[],
     provider: MarketDataProviderId,
+    feed?: "iex" | "sip" | null,
   ): void {
     if (bars.length === 0) return;
     const ingestedAt = new Date().toISOString();
@@ -256,6 +266,8 @@ export class MarketDataService {
     const firstTs = bars.reduce((min, b) => (b.ts < min ? b.ts : min), seed.ts);
     const lastTs = bars.reduce((max, b) => (b.ts > max ? b.ts : max), seed.ts);
     const existing = this.getCoverage(symbol, timeframe);
+    const resolvedFeed =
+      feed ?? (provider === "alpaca" ? this._equityDataFeed : null);
     this.db.db
       .insert(dataCoverage)
       .values({
@@ -284,6 +296,7 @@ export class MarketDataService {
             : lastTs
           : lastTs,
         provider,
+        feed: resolvedFeed,
         updatedAt: ingestedAt,
       })
       .onConflictDoUpdate({
@@ -300,6 +313,7 @@ export class MarketDataService {
               : lastTs
             : lastTs,
           provider,
+          feed: resolvedFeed,
           updatedAt: ingestedAt,
         },
       })

@@ -10,6 +10,7 @@ type Parameters = z.infer<typeof parameterSchema>;
 
 export const meanReversionDefinition: StrategyDefinition<Parameters> = {
   id: "mean-reversion",
+  dataDriver: "ohlcv",
   parameterSchemaVersion: 1,
   parameterSchema,
   acceptedInstrumentClasses: ["stock"] as const,

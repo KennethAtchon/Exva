@@ -7,7 +7,7 @@ This folder is where broker-specific APIs are forced into one shape. The rest of
 - `broker-adapter.ts` defines the contract. Every adapter must expose `brokerType`, `supportedInstrumentClasses`, `launchCapable`, `testConnection`, `placeOrder`, `cancelOrder`, `getPositions`, `getAccountBalance`, `getMarketSnapshot`, `getOrderStatus`, and `closeOrder`.
 - `AlpacaAdapter` is stock-only and launch-capable. It talks to Alpaca's paper or live REST API, places notional market orders, reads account value, fetches latest stock trades, and closes by flattening the filled order's symbol.
 - `CoinbaseAdvancedTradeAdapter` is crypto-only through CCXT's `coinbaseadvanced` exchange. It rejects paper mode because Coinbase Advanced Trade has no paper API in this adapter. It is not launch-capable yet because close/positions are not complete enough for live sessions.
-- `TradovateAdapter` is futures-only and currently a development adapter. It validates that credentials exist, returns simulated balances/prices/fills, and is marked not launch-capable.
+- `TradovateAdapter` is futures-only and **quarantined** — credentials are validated but trading methods throw `UNSUPPORTED` until a real API integration ships. It is marked not launch-capable.
 - `PolymarketAdapter` is prediction-market-only and also implements `MarketDiscoveryAdapter`. It uses the Polymarket CLOB client for authenticated trading and read-only market data, and uses metadata to identify the outcome token to buy or sell.
 - The `launchCapable` flag is part of the safety boundary. `LiveReadinessService` blocks live sessions when any assigned adapter reports `launchCapable = false`.
 - `MarketDiscoveryAdapter` is optional and currently used for adapters that can enumerate market candidates, such as Polymarket.

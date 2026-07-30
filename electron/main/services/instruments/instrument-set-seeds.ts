@@ -11,6 +11,37 @@ export const INSTRUMENT_SET_IDS = {
   OPTIONS_FLOW_STOCKS: "options-flow-stocks",
 } as const;
 
+/** Strategy definition IDs each set may be paired with at configuration time. */
+export const INSTRUMENT_SET_VALID_STRATEGY_IDS: Record<string, readonly string[]> =
+  {
+    [INSTRUMENT_SET_IDS.LIQUID_US_ETFS]: [
+      "mean-reversion",
+      "breakout",
+      "trend-following",
+    ],
+    [INSTRUMENT_SET_IDS.MAJOR_CRYPTO]: [
+      "mean-reversion",
+      "breakout",
+      "trend-following",
+      "funding-basis",
+    ],
+    [INSTRUMENT_SET_IDS.COMMODITIES_FRONT_MONTH]: ["trend-following"],
+    [INSTRUMENT_SET_IDS.OPTIONS_FLOW_STOCKS]: ["options-flow"],
+  };
+
+export function assertInstrumentSetStrategyCompatible(
+  setId: string,
+  strategyId: string,
+): { ok: true } | { ok: false; message: string } {
+  const allowed = INSTRUMENT_SET_VALID_STRATEGY_IDS[setId];
+  if (!allowed) return { ok: true };
+  if (allowed.includes(strategyId)) return { ok: true };
+  return {
+    ok: false,
+    message: `Instrument set '${setId}' does not support strategy '${strategyId}' (allowed: ${allowed.join(", ")}).`,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Seed
 // ---------------------------------------------------------------------------

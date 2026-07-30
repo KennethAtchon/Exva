@@ -23,6 +23,7 @@ type Parameters = z.infer<typeof parameterSchema>;
  */
 export const optionsFlowDefinition: StrategyDefinition<Parameters> = {
   id: "options-flow",
+  dataDriver: "option-chain",
   parameterSchemaVersion: 2,
   parameterSchema,
   acceptedInstrumentClasses: ["stock", "options"] as const,

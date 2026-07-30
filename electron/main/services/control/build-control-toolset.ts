@@ -26,15 +26,12 @@ export interface ControlToolRuntime {
   addAutoApproved(key: string): void;
 }
 
-/** True if this capability (or a legacy confirmClass key) was auto-approved. */
+/** True if this capability was auto-approved. */
 export function isCapabilityAutoApproved(
   autoApproved: Set<string>,
-  cap: Pick<Capability<unknown>, "key" | "confirmClass">,
+  cap: Pick<Capability<unknown>, "key">,
 ): boolean {
-  return (
-    autoApproved.has(cap.key) ||
-    (cap.confirmClass != null && autoApproved.has(cap.confirmClass))
-  );
+  return autoApproved.has(cap.key);
 }
 
 function summarizeResult(
@@ -190,8 +187,7 @@ async function runCapability(
     }
   }
 
-  // Mutating capabilities: gate unless auto-approved for this capability key
-  // (legacy confirmClass keys still match for older conversations).
+  // Mutating capabilities: gate unless auto-approved for this capability key.
   // liveRisk / alwaysConfirm / outOfScope always force confirm.
   const risk = cap.risk?.(input, rt.services) ?? null;
   const liveRisk = risk?.level === "live";

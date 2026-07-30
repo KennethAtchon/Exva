@@ -4,6 +4,7 @@
  */
 
 import type { ExperienceSupportState } from "../../experiences/types";
+import { assertInstrumentSetStrategyCompatible } from "../instruments/instrument-set-seeds";
 
 export type ConfigValidationSeverity = "block" | "warn";
 
@@ -26,6 +27,9 @@ export interface SessionConfigValidationInput {
   historyBarsRequired: number | null;
   duplicateScheduleGroup: boolean;
   isSentinelSession: boolean;
+  executionMode?: string;
+  instrumentSetId?: string | null;
+  strategyId?: string | null;
 }
 
 export function validateSessionConfiguration(
@@ -40,6 +44,33 @@ export function validateSessionConfiguration(
       message:
         input.blockerMessage ??
         `Experience ${input.experienceId} is blocked and sentinel-only.`,
+    });
+  }
+
+  if (
+    input.supportState === "forward_paper_only" &&
+    input.executionMode === "live_allowed" &&
+    !input.isSentinelSession
+  ) {
+    issues.push({
+      code: "FORWARD_PAPER_ONLY",
+      severity: "block",
+      message:
+        input.blockerMessage ??
+        `${input.experienceId} is forward-paper-only until options/futures proof completes.`,
+    });
+  }
+
+  if (
+    input.supportState === "forward_paper_only" &&
+    input.executionMode !== "live_allowed" &&
+    !input.isSentinelSession
+  ) {
+    issues.push({
+      code: "FORWARD_PAPER_ONLY",
+      severity: "warn",
+      message:
+        "Experience is forward-paper-only — live execution remains disabled until proof completes.",
     });
   }
 
@@ -95,6 +126,20 @@ export function validateSessionConfiguration(
       message:
         "Another session shares this schedule group — not an independent stress lane.",
     });
+  }
+
+  if (input.instrumentSetId && input.strategyId) {
+    const compat = assertInstrumentSetStrategyCompatible(
+      input.instrumentSetId,
+      input.strategyId,
+    );
+    if (!compat.ok) {
+      issues.push({
+        code: "SET_STRATEGY_INCOMPATIBLE",
+        severity: "block",
+        message: compat.message,
+      });
+    }
   }
 
   return issues;

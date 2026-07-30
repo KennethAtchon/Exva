@@ -32,70 +32,6 @@ function instrumentClassForKind(kind: MarketSignalKind): InstrumentClass {
   return "stock";
 }
 
-function defaultPayloadForKind(
-  kind: MarketSignalKind,
-  symbol: string,
-  now: string,
-): Record<string, unknown> {
-  switch (kind) {
-    case "manual":
-      return { note: "Dev Panel inject" };
-    case "filing":
-      return {
-        filingType: "8-K",
-        accessionNumber: `debug-${now}`,
-        itemCodes: ["8.01"],
-        companyName: symbol,
-        documentUrl: "https://www.sec.gov",
-        filedAt: now,
-      };
-    case "market_dislocation":
-      return {
-        marketId: `debug-${symbol}`,
-        question: `Debug dislocation for ${symbol}`,
-        outcome: "Yes",
-        marketMid: 0.42,
-        spreadBps: 100,
-        liquidityUsd: 10_000,
-        resolutionAt: now,
-        resolutionCriteria: "debug",
-        venue: "kalshi",
-        feeBps: 175,
-      };
-    case "flow_anomaly":
-      return {
-        underlying: symbol,
-        anomalyType: "volume_oi",
-        metric: 4,
-        baseline: 1,
-        direction: "bullish",
-      };
-    case "scan_hit":
-      return {
-        strategyId: "unusual-volume",
-        evidence: { rvol: 3, baselineVol: 1e6, priceBreakPct: 0.01 },
-        barWindowHash: "debug",
-        proposedAction: "buy",
-      };
-    case "news":
-      return {
-        headline: `Debug news for ${symbol}`,
-        url: "https://example.com/debug-news",
-        publishedAt: now,
-        sourceQuality: "wire",
-        tickersMentioned: [symbol],
-        polarityHint: "unclear",
-      };
-    case "calendar_event":
-      return {
-        eventType: "earnings",
-        scheduledAt: new Date(Date.now() + 36 * 3_600_000).toISOString(),
-        symbol,
-        title: `${symbol} earnings (debug)`,
-        source: "debug",
-      };
-  }
-}
 export class SignalService {
   constructor(
     private readonly sourcesRepo: SignalSourcesRepo,
@@ -309,26 +245,20 @@ export class SignalService {
     }
   }
 
-  /**
-   * Dev Panel typed injection. When kind/payload omitted, injects a manual SPY
-   * signal (legacy). Otherwise validates the payload against the kind schema.
-   */
+  /** Dev Panel typed injection validated against the signal-kind schema. */
   debugInjectSignal(
     sessionId: string,
-    opts?: {
-      kind?: MarketSignalKind;
-      payload?: Record<string, unknown>;
+    opts: {
+      kind: MarketSignalKind;
+      payload: Record<string, unknown>;
       symbol?: string;
     },
   ): void {
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
-    const kind = opts?.kind ?? "manual";
-    const symbol = opts?.symbol ?? (kind === "manual" ? "SPY" : "TEST");
-    const parsedPayload =
-      opts?.payload != null
-        ? payloadSchemaForKind(kind).parse(opts.payload)
-        : defaultPayloadForKind(kind, symbol, now);
+    const { kind } = opts;
+    const symbol = opts.symbol ?? (kind === "manual" ? "SPY" : "TEST");
+    const parsedPayload = payloadSchemaForKind(kind).parse(opts.payload);
     const dedupeKey = computeDedupeKey(kind, {
       debug: id,
       symbol,

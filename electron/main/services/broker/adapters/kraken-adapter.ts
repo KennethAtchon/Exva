@@ -165,7 +165,7 @@ export class KrakenAdapter implements BrokerAdapter {
   readonly supportedInstrumentClasses = [
     "crypto",
   ] as const satisfies readonly InstrumentClass[];
-  readonly launchCapable = true;
+  readonly launchCapable = false;
   readonly capabilities = KRAKEN_CAPABILITIES;
 
   private readonly credentials: KrakenCredentials;

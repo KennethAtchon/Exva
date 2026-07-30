@@ -225,8 +225,8 @@ export interface ExvaApi {
     ): Promise<{ ok: boolean; message: string }>;
     debugInjectSignal(
       sessionId: string,
-      opts?: {
-        kind?:
+      opts: {
+        kind:
           | "filing"
           | "market_dislocation"
           | "flow_anomaly"
@@ -234,7 +234,7 @@ export interface ExvaApi {
           | "news"
           | "calendar_event"
           | "manual";
-        payload?: Record<string, unknown>;
+        payload: Record<string, unknown>;
         symbol?: string;
       },
     ): Promise<{ ok: boolean }>;
@@ -837,13 +837,14 @@ export interface ExvaApi {
   };
   backtest: {
     listStrategies(): Promise<{
-      strategies: Array<{ id: string; status: string }>;
+      strategies: Array<{ id: string; status: string; dataDriver: string }>;
     }>;
     list(input?: {
       experienceId?: string;
       limit?: number;
     }): Promise<{ runs: unknown[] }>;
     get(input: { id: string }): Promise<{ run: unknown }>;
+    getDetail(input: { runId: string }): Promise<{ detail: unknown }>;
     run(input: unknown): Promise<unknown>;
     compare(input: { runIds: string[] }): Promise<unknown>;
     sweep(input: unknown): Promise<unknown>;

@@ -20,6 +20,7 @@ type Cell = {
   symbol: string;
   timeframe: string;
   provider: string;
+  feed?: string | null;
   freshness: "fresh" | "stale" | "dead" | "unknown";
   lagMs: number | null;
   gapCount: number;
@@ -230,7 +231,7 @@ function buildChecks(
       id: `fresh-${cell.symbol}-${cell.timeframe}`,
       name: `Freshness · ${cell.symbol}/${cell.timeframe}`,
       pass: freshPass,
-      detail: `${cell.freshness} · ${cell.provider} · ${cell.lastTs.slice(0, 16)}`,
+      detail: `${cell.freshness} · ${cell.provider}${cell.feed ? `/${cell.feed}` : ""} · ${cell.lastTs.slice(0, 16)}`,
     });
 
     const gapPass = cell.gapCount === 0;

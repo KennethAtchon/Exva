@@ -3,13 +3,13 @@ import type { AiPhaseConfigSource } from "../ai-phase-config-resolver";
 import { AIPhaseConfigResolver } from "../ai-phase-config-resolver";
 
 describe("AIPhaseConfigResolver", () => {
-  const getByPhase = vi.fn();
-  const getWorker = vi.fn();
-  const repo: AiPhaseConfigSource = { getByPhase, getWorker };
+  const getAiPhase = vi.fn();
+  const getAiPhaseWorker = vi.fn();
+  const repo: AiPhaseConfigSource = { getAiPhase, getAiPhaseWorker };
   const resolver = new AIPhaseConfigResolver(repo);
 
   it("falls back to defaults when session phase config is missing", () => {
-    getByPhase.mockReturnValue(null);
+    getAiPhase.mockReturnValue(null);
 
     expect(resolver.resolvePhaseConfig("s1", "technical")).toEqual({
       providerKey: "",
@@ -23,7 +23,7 @@ describe("AIPhaseConfigResolver", () => {
   });
 
   it("merges worker overrides onto phase config", () => {
-    getByPhase.mockReturnValue({
+    getAiPhase.mockReturnValue({
       providerKey: "anthropic",
       modelId: "claude-sonnet",
       temperature: 0.5,
@@ -32,7 +32,7 @@ describe("AIPhaseConfigResolver", () => {
       promptSource: "default",
       promptMarkdown: "phase prompt",
     } as never);
-    getWorker.mockReturnValue({
+    getAiPhaseWorker.mockReturnValue({
       providerKey: "openai",
       modelId: "gpt-4.1",
       promptMarkdown: "worker prompt",

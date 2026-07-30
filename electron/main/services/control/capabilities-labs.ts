@@ -319,6 +319,8 @@ export const getDataCoverage = defineCapability<Record<string, never>>({
         timeframe: c.timeframe,
         freshness: c.freshness,
         gapCount: c.gapCount,
+        provider: c.provider,
+        feed: c.feed,
       })),
     };
   },

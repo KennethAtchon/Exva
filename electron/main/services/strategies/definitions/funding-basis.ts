@@ -14,6 +14,7 @@ type Parameters = z.infer<typeof parameterSchema>;
 
 export const fundingBasisDefinition: StrategyDefinition<Parameters> = {
   id: "funding-basis",
+  dataDriver: "funding",
   parameterSchemaVersion: 1,
   parameterSchema,
   acceptedInstrumentClasses: ["crypto"] as const,

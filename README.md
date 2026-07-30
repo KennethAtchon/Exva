@@ -58,14 +58,14 @@ Useful commands:
 - `bun run db:reset` - reset the local dev database.
 - `bun run logs:clear` - clear local app logs under `~/.exva/logs`.
 
-## Important Docs
+## Documentation
 
-- `docs/engineering/README.md` - engineering docs index (logging, debugging, QA, e2e).
-- `docs/engineering/observability-guide.md` - telemetry contract, evidence bundle, failure matrix, and known gaps.
-- `docs/engineering/CODING_GUIDELINES.md` - coding conventions for this repo.
-- `docs/specs/index.md` - product and technical specs index.
-- `docs/plans/index.md` - active and historical plans.
-- `docs/reviews/index.md` - architecture and audit reviews.
+- [`docs/IMPLEMENTATION_BACKLOG.md`](docs/IMPLEMENTATION_BACKLOG.md) - the single active implementation tracker.
+- [`docs/engineering/README.md`](docs/engineering/README.md) - engineering guidance and operating procedures.
+- [`docs/prompts/`](docs/prompts/) - current operational prompts.
+- [`docs/reviews/prompt.md`](docs/reviews/prompt.md) - code-review procedure.
+- [`docs/USER_BLOCKED_CHECKLIST.md`](docs/USER_BLOCKED_CHECKLIST.md) - external prerequisites that code cannot complete.
+- [`docs/attic/`](docs/attic/) - historical plans, diagnoses, and review records.
 
 ## Current Architecture Notes
 

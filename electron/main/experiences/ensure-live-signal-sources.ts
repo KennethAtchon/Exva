@@ -5,7 +5,7 @@
  * `source_definitions` (source-definition-seeds.ts) are fanout metadata only —
  * nothing else converts them into a running poller. Without this, sessions
  * subscribed to e.g. edgar_8k or prediction_event never receive a signal
- * (see docs/reviews/2026-07-19-overnight-stress-session-review.md Bug 2).
+ * (see docs/attic/reviews/2026-07-19-overnight-stress-session-review.md Bug 2).
  */
 import type { SignalSourceRecord } from "@electron/shared/domain";
 import type { SignalSourcesRepo } from "../services/signals/repos/signal-sources-repo";

@@ -158,6 +158,7 @@ export class AlpacaAdapter implements BrokerAdapter {
   readonly capabilities = ALPACA_CAPABILITIES;
 
   private readonly baseUrl: string;
+  private cachedEquityFeed: "iex" | "sip" | null = null;
 
   /**
    * @param now Clock used to classify the current US trading session when
@@ -182,7 +183,15 @@ export class AlpacaAdapter implements BrokerAdapter {
         cash?: string;
         equity?: string;
         portfolio_value?: string;
+        trading_blocked?: boolean;
       }>("/v2/account");
+      if (account.trading_blocked === true) {
+        return {
+          ok: false,
+          message: "Alpaca account has trading_blocked=true",
+          account_balance: resolveAccountBalance(account),
+        };
+      }
       return {
         ok: true,
         message: `${this.credentials.mode === "paper" ? "Paper" : "Live"} Alpaca account connected`,
@@ -198,6 +207,61 @@ export class AlpacaAdapter implements BrokerAdapter {
             : "Unable to connect to Alpaca",
       };
     }
+  }
+
+  async getTradingEntitlements(): Promise<{
+    tradingBlocked: boolean;
+    buyingPower: number | null;
+    optionsApprovedLevel: number | null;
+    optionsTradingLevel: number | null;
+    optionsBuyingPower: number | null;
+    equityDataFeed: string | null;
+  }> {
+    const account = await this.request<{
+      trading_blocked?: boolean;
+      buying_power?: string;
+      options_approved_level?: number | string;
+      options_trading_level?: number | string;
+      options_buying_power?: string;
+    }>("/v2/account");
+    const num = (v: number | string | undefined): number | null => {
+      if (v == null) return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    return {
+      tradingBlocked: account.trading_blocked === true,
+      buyingPower: num(account.buying_power),
+      optionsApprovedLevel: num(account.options_approved_level),
+      optionsTradingLevel: num(account.options_trading_level),
+      optionsBuyingPower: num(account.options_buying_power),
+      equityDataFeed: await this.getEquityDataFeed(),
+    };
+  }
+
+  /** Detect SIP vs IEX by probing the data API once, then cache. */
+  async getEquityDataFeed(): Promise<"iex" | "sip"> {
+    if (this.cachedEquityFeed) return this.cachedEquityFeed;
+    try {
+      const params = new URLSearchParams({
+        feed: "sip",
+        timeframe: "1Day",
+        limit: "1",
+        start: new Date(Date.now() - 7 * 86_400_000).toISOString(),
+      });
+      const data = await this.dataRequest<{ bars?: unknown[] }>(
+        `/v2/stocks/SPY/bars?${params}`,
+      );
+      this.cachedEquityFeed =
+        Array.isArray(data.bars) && data.bars.length > 0 ? "sip" : "iex";
+    } catch {
+      this.cachedEquityFeed = "iex";
+    }
+    return this.cachedEquityFeed;
+  }
+
+  private async equityFeedParam(): Promise<Record<string, string>> {
+    return { feed: await this.getEquityDataFeed() };
   }
 
   async getAccountBalance(): Promise<number> {
@@ -261,7 +325,7 @@ export class AlpacaAdapter implements BrokerAdapter {
     if (isOptionWireSymbol(instrumentSymbol)) {
       return this.getOptionMarketSnapshot(instrumentSymbol);
     }
-    const params = new URLSearchParams({ feed: "iex" });
+    const params = new URLSearchParams(await this.equityFeedParam());
     const trade = await this.dataRequest<{
       trade?: { p?: number; t?: string };
     }>(
@@ -582,7 +646,7 @@ export class AlpacaAdapter implements BrokerAdapter {
         barCount,
         this.now(),
         multiplier,
-        { feed: "iex" },
+        await this.equityFeedParam(),
       );
       const data = await this.dataRequest<{ bars?: AlpacaBarWire[] }>(
         `/v2/stocks/${encodeURIComponent(instrumentSymbol)}/bars?${params}`,
@@ -599,11 +663,14 @@ export class AlpacaAdapter implements BrokerAdapter {
     const alpacaTimeframe = ALPACA_TIMEFRAME_MAP[timeframe] ?? "1Day";
     const bars: OhlcvBar[] = [];
     let nextPageToken: string | undefined;
+    const stockFeed = isCryptoWireSymbol(instrumentSymbol)
+      ? null
+      : await this.equityFeedParam();
 
     do {
       const extra: Record<string, string> = isCryptoWireSymbol(instrumentSymbol)
         ? { symbols: instrumentSymbol }
-        : { feed: "iex" };
+        : (stockFeed ?? { feed: "iex" });
       const params = buildAlpacaOhlcvRangeParams(
         alpacaTimeframe,
         window,

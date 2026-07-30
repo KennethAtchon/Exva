@@ -168,6 +168,32 @@ export class AIPhaseRunner {
     const workerResults: PhaseWorkerResult[] = [];
 
     for (const stage of input.plan.stages) {
+      if (stage.runDeterministic) {
+        const stageStartedAt = Date.now();
+        logger.info(
+          {
+            sessionId: input.sessionId,
+            phase: input.plan.phase,
+            cycleId: input.cycleId,
+            stageId: stage.id,
+            frontier: stage.frontier,
+          },
+          "phase deterministic stage start",
+        );
+        state = await stage.runDeterministic(ctx, state);
+        logger.info(
+          {
+            sessionId: input.sessionId,
+            phase: input.plan.phase,
+            cycleId: input.cycleId,
+            stageId: stage.id,
+            durationMs: Date.now() - stageStartedAt,
+          },
+          "phase deterministic stage complete",
+        );
+        continue;
+      }
+
       const workers = stage.resolveWorkers(ctx, state);
       if (workers.length === 0) {
         logger.info(

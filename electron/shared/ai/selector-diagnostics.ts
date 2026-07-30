@@ -29,6 +29,8 @@ export const selectorDiagnosticsSchema = z.object({
   acceptedCount: z.number(),
   rejected: z.array(candidateRejectionSchema),
   workerToolCoverage: z.array(workerToolCoverageSchema).optional(),
+  totalSpendUsd: z.number().optional(),
+  costPerAcceptedUsd: z.number().optional(),
 });
 
 function extractToolNamesFromTraces(

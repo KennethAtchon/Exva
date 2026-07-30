@@ -43,6 +43,7 @@ describe("ScheduledStrategyExecutor history provisioning", () => {
     const strategyRegistry = new StrategyDefinitionRegistry();
     strategyRegistry.register({
       id: "test-strategy",
+      dataDriver: "ohlcv",
       parameterSchemaVersion: 1,
       parameterSchema: z.object({}),
       acceptedInstrumentClasses: ["stock"],

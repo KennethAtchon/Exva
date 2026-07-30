@@ -299,9 +299,8 @@ export const debugInjectSignalSchema = z.object({
       "news",
       "calendar_event",
       "manual",
-    ])
-    .optional(),
-  payload: z.record(z.unknown()).optional(),
+    ]),
+  payload: z.record(z.unknown()),
   symbol: z.string().optional(),
 });
 export const sessionExecutionProgressSchema = z.object({

@@ -169,7 +169,6 @@ export class PaperCertificationService {
         .values({
           id: crypto.randomUUID(),
           sessionId: input.sessionId,
-          signalId: null,
           originKind: "certification",
           brokerAccountId: input.brokerAccountId,
           canonicalClientOrderId: entryClientOrderId,
@@ -181,6 +180,7 @@ export class PaperCertificationService {
           createdAt: armedAt,
           updatedAt: armedAt,
         })
+        .onConflictDoNothing()
         .run();
     });
 

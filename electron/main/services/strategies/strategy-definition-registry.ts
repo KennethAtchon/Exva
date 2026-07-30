@@ -5,8 +5,17 @@ import type {
 } from "@electron/shared/domain/enums";
 import type { DeterministicStrategy } from "../backtest/replay-engine";
 
+export type StrategyDataDriver =
+  | "ohlcv"
+  | "event-join"
+  | "funding"
+  | "venue-snapshot"
+  | "option-chain";
+
 export interface StrategyDefinition<TParameters = Record<string, unknown>> {
   id: string;
+  /** Required market-data driver; Backtest Lab only supports `ohlcv`. */
+  dataDriver: StrategyDataDriver;
   parameterSchemaVersion: number;
   /** Input may include defaults (ZodDefault); output is TParameters. */
   parameterSchema: z.ZodType<TParameters, z.ZodTypeDef, unknown>;

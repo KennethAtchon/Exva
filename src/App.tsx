@@ -421,7 +421,11 @@ export default function App() {
       scope: "dev",
       run: async () => {
         if (!focusedSessionId) return;
-        await api.debugInjectSignal(focusedSessionId);
+        await api.debugInjectSignal(focusedSessionId, {
+          kind: "manual",
+          payload: { note: "Command palette debug injection" },
+          symbol: "SPY",
+        });
       },
     },
   ];

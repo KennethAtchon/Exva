@@ -66,6 +66,7 @@ describe("backfill → Backtest Lab composition", () => {
       backtestRuns: new BacktestRunsRepo(db),
       experienceExperiments: new ExperienceExperimentsRepo(db),
       eventBus: new EventBus(),
+      db,
     });
     const runInput = {
       experienceId: "composition-lab",

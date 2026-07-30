@@ -12,18 +12,9 @@ describe("resolveSourceDefinitionId", () => {
     ).toBe(SOURCE_DEFINITION_IDS.EDGAR_8K_CATALYST);
   });
 
-  it("maps edgar experience source id", () => {
+  it("resolves active source types without source-id aliases", () => {
     expect(
-      resolveSourceDefinitionId("edgar-catalyst/edgar-8k-catalyst", "edgar_8k"),
-    ).toBe(SOURCE_DEFINITION_IDS.EDGAR_8K_CATALYST);
-  });
-
-  it("maps prediction experience source id", () => {
-    expect(
-      resolveSourceDefinitionId(
-        "prediction-event-edge/prediction-event-edge",
-        "prediction_event",
-      ),
+      resolveSourceDefinitionId("custom-prediction-source", "prediction_event"),
     ).toBe(SOURCE_DEFINITION_IDS.PREDICTION_EVENT_EDGE);
   });
 

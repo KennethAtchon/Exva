@@ -103,7 +103,7 @@ export class KalshiAdapter implements BrokerAdapter {
   readonly supportedInstrumentClasses = [
     "prediction_market",
   ] as const satisfies readonly InstrumentClass[];
-  readonly launchCapable = true;
+  readonly launchCapable = false;
   readonly capabilities = KALSHI_CAPABILITIES;
 
   private readonly baseUrl: string;

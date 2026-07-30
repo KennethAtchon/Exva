@@ -68,6 +68,11 @@ export interface WorkspaceViewResponse {
 
 import type { ExperienceCapabilities } from "@electron/shared/domain/experience";
 
+export type ExperienceSupportState =
+  | "available"
+  | "forward_paper_only"
+  | "blocked";
+
 export interface ExperienceSummary {
   id: string;
   displayName: string;
@@ -82,6 +87,10 @@ export interface ExperienceSummary {
   capabilities: ExperienceCapabilities;
   /** True for scan_hit experiences (rules/options); false for event-driven. */
   acceptsScanHit: boolean;
+  /** Producer reachability label (Solution 09). */
+  supportState: ExperienceSupportState;
+  blockerCode?: string | null;
+  blockerMessage?: string | null;
 }
 
 export interface ExperienceScorecardSummary {

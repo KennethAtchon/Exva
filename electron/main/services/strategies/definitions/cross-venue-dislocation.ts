@@ -19,6 +19,7 @@ type Parameters = z.infer<typeof parameterSchema>;
 
 export const crossVenueDislocationDefinition: StrategyDefinition<Parameters> = {
   id: "cross-venue-dislocation",
+  dataDriver: "venue-snapshot",
   parameterSchemaVersion: 1,
   parameterSchema,
   acceptedInstrumentClasses: ["prediction_market"] as const,

@@ -64,7 +64,7 @@ export class TradierAdapter implements BrokerAdapter {
     "stock",
     "options",
   ] as const satisfies readonly InstrumentClass[];
-  readonly launchCapable = true;
+  readonly launchCapable = false;
   readonly capabilities = TRADIER_CAPABILITIES;
 
   private readonly baseUrl: string;

@@ -110,7 +110,7 @@ export class PolymarketAdapter
    * getPositions returns [] (Polymarket does not expose an aggregate positions endpoint)
    * but exits are driven by individual order tracking in this app.
    */
-  readonly launchCapable = true;
+  readonly launchCapable = false;
   readonly capabilities = POLYMARKET_CAPABILITIES;
 
   private authClientPromise: Promise<ClobClient> | null = null;

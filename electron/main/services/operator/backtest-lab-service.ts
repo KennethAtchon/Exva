@@ -1,12 +1,17 @@
 import { createHash } from "node:crypto";
 import type { TradingTimeframe } from "@electron/shared/domain/enums";
-import type { BacktestRun, BacktestVerdict } from "@electron/shared/domain";
+import type {
+  BacktestRun,
+  ExperienceResearchContract,
+} from "@electron/shared/domain";
+import type { BacktestDataQualityReport } from "@electron/shared/domain/backtest-data-quality";
 import {
   DEFAULT_BACKTEST_V2_EXECUTION,
   DEFAULT_BACKTEST_V2_PORTFOLIO,
   type BacktestRunSpecV2,
 } from "@electron/shared/domain/backtest-v2";
 import type { BacktestRunsRepo } from "../../db/repositories/research/experiment-repos";
+import type { BacktestDetailRepo } from "../../db/repositories/research/backtest-detail-repo";
 import type { ExperienceExperimentsRepo } from "../../db/repositories/experiences/experience-experiments-repo";
 import type { EventBus } from "../infra/event-bus";
 import type { MarketDataService } from "../marketdata/market-data-service";
@@ -23,23 +28,36 @@ import type { OhlcvBar } from "../broker/adapters/broker-adapter";
 import type { PortfolioTrade } from "../backtest/portfolio-replay-engine";
 import { PortfolioReplayEngine } from "../backtest/portfolio-replay-engine";
 import { persistPortfolioReplayDetail } from "../backtest/persist-portfolio-replay";
+import { buildBacktestDataQualityReport } from "../backtest/build-data-quality-report";
+import {
+  backtestTradesToLabels,
+  evaluateBacktestPromotion,
+} from "../backtest/evaluate-backtest-promotion";
 import { getStrategyDefinitionRegistry } from "../strategies";
 import { requireExperience } from "../../experiences";
 import { safeJsonParse } from "../infra/safe-json-parse";
 import type { DbClient } from "../../db/client";
 import type { PortfolioReplayResult } from "../backtest/portfolio-replay-engine";
 import type { BacktestRunSpecV2 as SpecV2 } from "@electron/shared/domain/backtest-v2";
+import { hashResearchContract } from "../research/research-experiment-service";
 
 const ENGINE_VERSION_V2 = 2;
 
-/** Strategies that the V2 portfolio engine can drive today. */
-const V2_OHLCV_STRATEGY_IDS = new Set([
-  "mean-reversion",
-  "breakout",
-  "unusual-volume",
-  "trend-following",
-  "ny-range-breakout",
-]);
+const DEFAULT_LAB_CONTRACT: ExperienceResearchContract = {
+  hypothesis: "Backtest Lab default contract",
+  tradableUniverse: [],
+  instrumentClass: "stock",
+  signalTimestamp: "intraday",
+  label: { horizon: "1d", outcome: "net_return", benchmark: "SPY" },
+  validation: {
+    minOutOfSampleTrades: 20,
+    minNetExpectancyUsd: 0,
+    minLowerBoundSharpe: 0,
+    maxDrawdownPct: 0.5,
+    requiredFolds: 2,
+  },
+  costs: { spreadBps: 2, slippageBps: 2, commissionBps: 1 },
+};
 
 export interface BacktestLabRunInput {
   experienceId: string;
@@ -77,16 +95,25 @@ export class BacktestLabService {
     private readonly deps: {
       marketData: MarketDataService;
       backtestRuns: BacktestRunsRepo;
+      backtestDetail?: BacktestDetailRepo;
       experienceExperiments: ExperienceExperimentsRepo;
       eventBus: EventBus;
       db?: DbClient;
     },
   ) {}
 
-  listStrategies(): Array<{ id: string; status: string }> {
+  listStrategies(): Array<{
+    id: string;
+    status: string;
+    dataDriver: string;
+  }> {
     return getStrategyDefinitionRegistry()
       .list()
-      .map((d) => ({ id: d.id, status: d.implementationStatus }));
+      .map((d) => ({
+        id: d.id,
+        status: d.implementationStatus,
+        dataDriver: d.dataDriver,
+      }));
   }
 
   listRuns(experienceId?: string, limit = 50): BacktestRun[] {
@@ -100,6 +127,13 @@ export class BacktestLabService {
 
   getRun(id: string): BacktestRun | null {
     return this.deps.backtestRuns.getById(id);
+  }
+
+  getDetail(runId: string) {
+    if (!this.deps.backtestDetail) {
+      throw new Error("Backtest detail repo is not configured");
+    }
+    return this.deps.backtestDetail.getDetail(runId);
   }
 
   async run(input: BacktestLabRunInput): Promise<{
@@ -117,26 +151,51 @@ export class BacktestLabService {
 
     const registry = getStrategyDefinitionRegistry();
     const def = registry.require(input.strategyId);
+    if (def.dataDriver !== "ohlcv") {
+      throw new Error(
+        `Backtest Lab only supports OHLCV strategies (got dataDriver=${def.dataDriver} for ${input.strategyId}).`,
+      );
+    }
+
     const params = def.parameterSchema.parse(input.strategyParams ?? {});
     const strategy = def.create(params);
+    const researchContract = resolveResearchContract(input.experienceId);
 
-    const barsBySymbol: Record<
-      string,
-      Awaited<ReturnType<MarketDataService["getBars"]>>
-    > = {};
+    const barsBySymbol: Record<string, OhlcvBar[]> = {};
+    const qualityReports: BacktestDataQualityReport[] = [];
     const instrumentClass = input.instrumentClass ?? "stock";
+
     for (let i = 0; i < input.symbols.length; i++) {
       const symbol = input.symbols[i];
       if (!symbol) continue;
-      barsBySymbol[symbol] = await this.deps.marketData.getBars({
+      const coverage = this.deps.marketData.getCoverage(symbol, input.timeframe);
+      const bars = await this.deps.marketData.getBars({
         symbol,
         instrumentClass,
         timeframe: input.timeframe,
         window: { start: input.windowStart, end: input.windowEnd },
-        // An empty requested window makes any result meaningless. Historical
-        // population is an explicit operator action through backfill.
-        failOnGaps: true,
+        failOnGaps: false,
       });
+      const feed =
+        coverage?.provider === "alpaca"
+          ? this.deps.marketData.equityDataFeed
+          : null;
+      const report = buildBacktestDataQualityReport({
+        symbol,
+        timeframe: input.timeframe,
+        windowStart: input.windowStart,
+        windowEnd: input.windowEnd,
+        bars,
+        provider: coverage?.provider ?? null,
+        feed,
+      });
+      qualityReports.push(report);
+      if (!report.complete) {
+        throw new Error(
+          `Backtest blocked: incomplete data for ${symbol} (${report.blockers.join(", ")}). Backfill via Data Doctor before running.`,
+        );
+      }
+      barsBySymbol[symbol] = bars;
       this.emitProgress({
         runId,
         phase: "loading",
@@ -153,23 +212,13 @@ export class BacktestLabService {
     });
 
     const costs: BacktestCosts = {
-      spreadBps: input.costs?.spreadBps ?? 2,
-      feeBps: input.costs?.feeBps ?? 1,
-      slippageBps: input.costs?.slippageBps ?? 2,
+      spreadBps: input.costs?.spreadBps ?? researchContract.costs.spreadBps,
+      feeBps: input.costs?.feeBps ?? researchContract.costs.commissionBps,
+      slippageBps:
+        input.costs?.slippageBps ?? researchContract.costs.slippageBps,
     };
-    try {
-      const experience = requireExperience(input.experienceId);
-      const rc = experience.researchContract;
-      if (rc.costs) {
-        costs.spreadBps = input.costs?.spreadBps ?? rc.costs.spreadBps;
-        costs.feeBps = input.costs?.feeBps ?? rc.costs.commissionBps;
-        costs.slippageBps = input.costs?.slippageBps ?? rc.costs.slippageBps;
-      }
-    } catch {
-      // Experience may be a free-form lab id.
-    }
 
-    const useV2 = V2_OHLCV_STRATEGY_IDS.has(input.strategyId);
+    const useV2 = true;
     let result: BacktestResult;
     let portfolioExtras: {
       netPnlUsd: number;
@@ -186,9 +235,7 @@ export class BacktestLabService {
     } | null = null;
 
     if (useV2) {
-      const barsMap = new Map(
-        Object.entries(barsBySymbol).map(([symbol, bars]) => [symbol, bars]),
-      );
+      const barsMap = new Map(Object.entries(barsBySymbol));
       datasetHash = createHash("sha256")
         .update(
           [...barsMap.entries()]
@@ -265,9 +312,6 @@ export class BacktestLabService {
           ? closed.reduce((sum, t) => sum + (t.returnBps ?? 0), 0) /
             closed.length
           : 0;
-      // The portfolio engine runs one continuous pass, so folds are assigned
-      // after the fact by entry timestamp. Reporting a single aggregate fold
-      // would make `requiredFolds` in the research contract unverifiable.
       const foldOfTrade = assignPortfolioFolds({
         trades: closed,
         barsBySymbol: barsMap,
@@ -321,6 +365,16 @@ export class BacktestLabService {
       });
     }
 
+    const engineVersion = useV2 ? ENGINE_VERSION_V2 : 1;
+    const researchContractHash = hashResearchContract(researchContract);
+    const promotion = evaluateBacktestPromotion({
+      contract: researchContract,
+      labels: backtestTradesToLabels(result.trades, researchContract),
+      dataQuality: qualityReports,
+      engineVersion,
+      seed: seedFromRunId(runId),
+    });
+
     this.emitProgress({
       runId,
       phase: "persisting",
@@ -328,13 +382,11 @@ export class BacktestLabService {
       pct: 90,
     });
 
-    const contractHash = result.runHash;
-    const verdict = verdictFromResult(result);
     const run: BacktestRun = {
       id: runId,
       experienceId: input.experienceId,
       modelVersionId: null,
-      contractHash,
+      contractHash: result.runHash,
       windowStart: input.windowStart,
       windowEnd: input.windowEnd,
       foldConfigJson: JSON.stringify({
@@ -345,7 +397,7 @@ export class BacktestLabService {
         symbols: input.symbols,
         timeframe: input.timeframe,
         exitPolicy: input.exitPolicy ?? {},
-        engineVersion: useV2 ? ENGINE_VERSION_V2 : 1,
+        engineVersion,
       }),
       costModelJson: JSON.stringify(costs),
       metricsJson: JSON.stringify({
@@ -358,13 +410,21 @@ export class BacktestLabService {
         strategyId: result.strategyId,
         runHash: result.runHash,
         ...(portfolioExtras ?? {}),
+        promotion: {
+          promote: promotion.promote,
+          verdict: promotion.verdict,
+          failedCriteria: promotion.failedCriteria,
+          evidence: promotion.evidence,
+          criteria: promotion.criteria,
+          dataQuality: promotion.dataQuality,
+        },
       }),
-      verdict,
+      verdict: promotion.verdict,
       createdAt: new Date().toISOString(),
-      engineVersion: useV2 ? ENGINE_VERSION_V2 : 1,
+      engineVersion,
       specHash,
       datasetHash,
-      researchContractHash: contractHash,
+      researchContractHash,
     };
     this.deps.backtestRuns.insert(run);
 
@@ -374,7 +434,7 @@ export class BacktestLabService {
         spec: portfolioDetail.spec,
         specHash: specHash ?? run.contractHash,
         datasetHash: datasetHash ?? run.contractHash,
-        researchContractHash: contractHash,
+        researchContractHash,
         portfolio: portfolioDetail.portfolio,
         barsBySymbol: portfolioDetail.barsMap,
       });
@@ -393,7 +453,7 @@ export class BacktestLabService {
         ...result,
         ...(portfolioExtras ?? {}),
       },
-      determinismHash: contractHash,
+      determinismHash: result.runHash,
     };
   }
 
@@ -541,6 +601,19 @@ export class BacktestLabService {
   }
 }
 
+function resolveResearchContract(experienceId: string): ExperienceResearchContract {
+  try {
+    return requireExperience(experienceId).researchContract;
+  } catch {
+    return DEFAULT_LAB_CONTRACT;
+  }
+}
+
+function seedFromRunId(runId: string): number {
+  const hex = createHash("sha256").update(runId).digest("hex").slice(0, 8);
+  return Number.parseInt(hex, 16);
+}
+
 /**
  * Map each closed portfolio trade to a purged walk-forward test fold by the
  * bar index of its entry. Trades that land in a train or purge segment have no
@@ -620,11 +693,4 @@ function foldMaxDrawdownPct(trades: BacktestResult["trades"]): number {
     maxDrawdown = Math.max(maxDrawdown, peak - cumulative);
   }
   return maxDrawdown / 10_000;
-}
-
-function verdictFromResult(result: BacktestResult): BacktestVerdict {
-  if (result.tradeCount < 5) return "inconclusive";
-  if (result.expectancyBps > 0 && result.sharpe > 0) return "pass";
-  if (result.expectancyBps < 0) return "fail";
-  return "inconclusive";
 }

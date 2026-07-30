@@ -7,7 +7,7 @@ import { fetchPredictionMarketCandidates } from "../signals/scoring/prediction-m
  * Enumerates real, currently-live prediction-market candidates. Selector
  * discovery workers must call this before `get_quote` — otherwise weak
  * models invent plausible-looking symbols that never resolve
- * (docs/reviews/2026-07-19-overnight-stress-session-review.md Bug 4).
+ * (docs/attic/reviews/2026-07-19-overnight-stress-session-review.md Bug 4).
  */
 export function createPredictionMarketTools(deps: {
   sessionId: string;

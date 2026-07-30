@@ -25,6 +25,7 @@ import {
   summarizeSelectorOutput,
   type SelectorCandidate,
 } from "./selector.helpers";
+import { screenSelectorCandidatesBeforeVerification } from "./selector-pre-spend-screen";
 import { candidateIdentityKey } from "../../signals/scoring/selector-candidate-merger";
 import {
   candidateOutputSchema,
@@ -38,6 +39,7 @@ export type SelectorPlanState = {
   discoveryWorkerIds: string[];
   candidatesForVerification: SelectorCandidate[];
   verifiedCandidates: SelectorCandidate[];
+  preSpendRejectedCount: number;
 };
 
 const SEARCH_WEB_TOOL_CONFIG = {
@@ -203,6 +205,7 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
       discoveryWorkerIds: [],
       candidatesForVerification: [],
       verifiedCandidates: [],
+      preSpendRejectedCount: 0,
     };
   },
   stages: [
@@ -238,8 +241,44 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
       },
     },
     {
-      id: "verification",
+      id: "deterministic-screen",
       frontier: 1,
+      deterministicPredecessors: ["discovery"],
+      async runDeterministic(ctx, state) {
+        const failureHistory = (
+          (ctx.input.failureHistory as FailureHistoryEntry[] | undefined) ??
+          []
+        ).filter((entry) => entry.instrumentSymbol != null);
+        const screened = screenSelectorCandidatesBeforeVerification({
+          sessionId: ctx.sessionId,
+          instrumentClasses: ctx.instrumentClasses,
+          strategyContext: ctx.strategyContext,
+          brokerRouting: ctx.toolContext.brokerRouting,
+          failureHistory,
+          candidates: state.candidatesForVerification,
+        });
+        return {
+          ...state,
+          candidatesForVerification: screened.passed,
+          preSpendRejectedCount: screened.rejected.length,
+        };
+      },
+      resolveWorkers() {
+        return [];
+      },
+      buildTask() {
+        return {};
+      },
+      concurrency: 1,
+      toleratePartialFailure: true,
+      applyResults(_ctx, state) {
+        return state;
+      },
+    },
+    {
+      id: "verification",
+      frontier: 2,
+      deterministicPredecessors: ["discovery", "deterministic-screen"],
       resolveWorkers(_ctx, state) {
         return state.candidatesForVerification.flatMap((candidate) =>
           verificationWorkers(candidate),

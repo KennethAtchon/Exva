@@ -5,6 +5,10 @@ import type { TradeSignal } from "@electron/shared/ai/trade-signals";
 import { tradeSignalSchema } from "@electron/shared/ai/trade-signals";
 import { createLogger } from "../../../infra/log";
 import { produceOptionsFlowSignal } from "../../../signals/options-flow-producer";
+import {
+  readDeterministicFactFromCtx,
+  tradeSignalFromDeterministicFact,
+} from "./deterministic-fact-consume";
 
 const logger = createLogger("options-flow-input");
 
@@ -100,6 +104,13 @@ function toTradeSignal(
 export const optionsFlowInputBuilder: EngineInputBuilder = {
   id: "options-flow-input",
   async build({ planCtx: ctx }) {
+    const scheduledFact = readDeterministicFactFromCtx(ctx);
+    if (scheduledFact) {
+      return {
+        task: tradeSignalFromDeterministicFact(scheduledFact, "options_flow"),
+      };
+    }
+
     const routeClass =
       ctx.instrument.instrumentClass === "options"
         ? "options"

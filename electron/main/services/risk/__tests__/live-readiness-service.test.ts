@@ -60,6 +60,9 @@ function makeService(
     brokerAccountsRepo,
     sessionBrokerAssignmentsRepo,
     brokerRegistry,
+    { currentTier: vi.fn().mockReturnValue("live") } as never,
+    undefined,
+    undefined,
   );
 }
 
@@ -101,6 +104,62 @@ describe("LiveReadinessService.check", () => {
     expect(report.readyToStart).toBe(false);
     const failed = report.checks.find((c) => c.name === "broker_connected");
     expect(failed?.passed).toBe(false);
+  });
+
+  it("passes broker_launch_capable when persisted adapter cert succeeded", async () => {
+    const mockClient = {
+      db: {
+        update: vi.fn().mockReturnThis(),
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        run: vi.fn(),
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        get: vi
+          .fn()
+          .mockReturnValue({ liveReadinessAcknowledgedAt: "2026-01-01T00:00:00Z" }),
+      },
+    } as never;
+
+    const adapterCertification = {
+      isEffectivelyLaunchCapable: vi.fn().mockReturnValue(true),
+      getLatest: vi.fn(),
+    };
+
+    const svc = new LiveReadinessService(
+      mockClient,
+      {
+        requireById: vi.fn().mockReturnValue({
+          id: "s1",
+          executionMode: "live_allowed",
+          experienceId: "rules-mean-reversion",
+        }),
+      } as never,
+      {
+        find: vi.fn().mockReturnValue({
+          id: "broker-kraken",
+          mode: "live",
+          brokerType: "kraken",
+        }),
+      } as never,
+      {
+        listBrokerAccountIds: vi.fn().mockReturnValue(["broker-kraken"]),
+      } as never,
+      {
+        get: vi.fn().mockResolvedValue({
+          testConnection: vi.fn().mockResolvedValue({ ok: true, message: "ok" }),
+          launchCapable: false,
+        }),
+      } as never,
+      { currentTier: vi.fn().mockReturnValue("live") } as never,
+      undefined,
+      undefined,
+      adapterCertification as never,
+    );
+
+    const report = await svc.check("s1");
+    const launch = report.checks.find((c) => c.name === "broker_launch_capable");
+    expect(launch?.passed).toBe(true);
   });
 
   it("fails when no acknowledgement has been recorded", async () => {

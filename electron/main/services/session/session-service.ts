@@ -19,7 +19,7 @@ export class SessionService {
   // calls for the same session both read the stale pre-transition status and
   // both pass assertTransition — e.g. a pause() and a stop() racing produced
   // both "Session paused." and "Session stopped." events for one teardown
-  // (docs/reviews/2026-07-19-overnight-stress-session-review.md, secondary
+  // (docs/attic/reviews/2026-07-19-overnight-stress-session-review.md, secondary
   // problem 7). Chaining onto this map forces the second call to wait for
   // the first to commit its status before assertTransition runs.
   private readonly lifecycleLocks = new Map<string, Promise<unknown>>();

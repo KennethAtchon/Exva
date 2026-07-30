@@ -427,6 +427,8 @@ const exva: ExvaApi = {
     list: (input?: { experienceId?: string; limit?: number }) =>
       invoke(channels.backtest.list, input ?? {}),
     get: (input: { id: string }) => invoke(channels.backtest.get, input),
+    getDetail: (input: { runId: string }) =>
+      invoke(channels.backtest.getDetail, input),
     run: (input: unknown) => invoke(channels.backtest.run, input),
     compare: (input: { runIds: string[] }) =>
       invoke(channels.backtest.compare, input),

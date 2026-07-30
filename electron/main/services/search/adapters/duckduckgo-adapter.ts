@@ -117,7 +117,7 @@ function isRetryableStatus(status: number): boolean {
 /**
  * DuckDuckGo's unauthenticated HTML endpoint has no SLA and rate-limits
  * aggressively under concurrent worker load — the 2026-07-19 overnight
- * stress run saw a ~49% error rate here (docs/reviews/2026-07-19-overnight-
+  * stress run saw a ~49% error rate here (docs/attic/reviews/2026-07-19-overnight-
  * stress-session-review.md, secondary problem 9). A short retry with
  * backoff absorbs most transient 429/5xx blips before the caller falls back
  * to a different search provider.

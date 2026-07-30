@@ -4,6 +4,7 @@ import {
   isSearchStyleSignalSourceType,
   type SignalSourceType,
 } from "@electron/shared/domain";
+import { deterministicSignalFactV1Schema } from "@electron/shared/domain/deterministic-signal-fact";
 import { buildSignalInstrumentMetadataJson } from "@electron/shared/domain/signal-timing";
 import { isInstrumentClass } from "@electron/shared/instruments/instrument-classification";
 import { registerEngine, type EntryModeEngine } from "../registry";
@@ -51,6 +52,16 @@ function unitProbability(value: unknown): number | null {
   return Number.isFinite(n) && n > 0 && n < 1 ? n : null;
 }
 
+function readDeterministicFact(
+  payload: Record<string, unknown> | undefined,
+): Record<string, unknown> | null {
+  if (!payload?.deterministicFact) return null;
+  const parsed = deterministicSignalFactV1Schema.safeParse(
+    payload.deterministicFact,
+  );
+  return parsed.success ? (parsed.data as unknown as Record<string, unknown>) : null;
+}
+
 function readTimingMetadata(signalTrigger: SignalTrigger): string | null {
   const payload = signalTrigger.payloadJson;
   if (!payload) return null;
@@ -59,8 +70,15 @@ function readTimingMetadata(signalTrigger: SignalTrigger): string | null {
     pollCadence = payload.pollCadence;
   }
   const analysisTimeframe = optionalString(payload.analysisTimeframe) ?? null;
-  if (!pollCadence && !analysisTimeframe) return null;
-  return buildSignalInstrumentMetadataJson({ pollCadence, analysisTimeframe });
+  const fact = readDeterministicFact(payload);
+  if (!pollCadence && !analysisTimeframe && !fact) return null;
+  const base = buildSignalInstrumentMetadataJson({
+    pollCadence,
+    analysisTimeframe,
+  });
+  if (!fact) return base;
+  const fields = base ? (JSON.parse(base) as Record<string, unknown>) : {};
+  return JSON.stringify({ ...fields, deterministicFact: fact });
 }
 
 const EMPTY_PREDICTION_METADATA = {

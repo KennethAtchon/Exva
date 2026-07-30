@@ -187,6 +187,7 @@ export const channels = {
     run: "backtest:run",
     list: "backtest:list",
     get: "backtest:get",
+    getDetail: "backtest:get-detail",
     compare: "backtest:compare",
     sweep: "backtest:sweep",
     listStrategies: "backtest:list-strategies",
@@ -246,7 +247,6 @@ export const channels = {
   sessionInputs: {
     get: "session-inputs:get",
     replace: "session-inputs:replace",
-    migrate: "session-inputs:migrate",
   },
   sessionActivity: {
     list: "session-activity:list",

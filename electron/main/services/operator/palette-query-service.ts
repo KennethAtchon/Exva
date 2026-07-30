@@ -218,6 +218,7 @@ export function listCoverageSymbols(db: DbClient): Array<{
   firstTs: string;
   lastTs: string;
   provider: string;
+  feed: string | null;
 }> {
   return db.db
     .select({
@@ -226,6 +227,7 @@ export function listCoverageSymbols(db: DbClient): Array<{
       firstTs: dataCoverage.firstTs,
       lastTs: dataCoverage.lastTs,
       provider: dataCoverage.provider,
+      feed: dataCoverage.feed,
     })
     .from(dataCoverage)
     .orderBy(asc(dataCoverage.symbol), asc(dataCoverage.timeframe))

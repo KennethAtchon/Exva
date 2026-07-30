@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm";
 import type { DbClient } from "../../db/client";
 import { scheduleRuntimeStates } from "../../db/schema";
 import type { MarketSignal } from "@electron/shared/domain/market-signal";
-import { cadenceToMs } from "@electron/shared/domain/experience-inputs/cadence";
 import type { MarketCalendarRegistry } from "./market-calendar-registry";
+import { delayUntilNextGridMs } from "./schedule-grid";
 import type { ScheduledRuntimePlan } from "./session-input-runtime-planner";
 import {
   isAllInstrumentsUnevaluable,
@@ -60,6 +60,11 @@ export interface ScheduleCoordinatorDeps {
   onCalendarMisconfigured?: (
     plan: ScheduledRuntimePlan,
     errorMessage: string,
+  ) => void;
+  /** Called after a successful eligible scan (Solution 08). */
+  onEligibleScan?: (
+    plan: ScheduledRuntimePlan,
+    sessionIds: string[],
   ) => void;
 }
 
@@ -244,7 +249,11 @@ export class ScheduleCoordinator {
 
     let baseMs: number;
     try {
-      baseMs = cadenceToMs(entry.plan.cadence);
+      baseMs = delayUntilNextGridMs({
+        cadence: entry.plan.cadence,
+        analysisTimeframe: entry.plan.analysisTimeframe,
+        marketCalendarId: entry.plan.marketCalendarId,
+      });
     } catch {
       // Cron cadences aren't supported yet; skip.
       logger.warn(
@@ -350,6 +359,15 @@ export class ScheduleCoordinator {
         entry.lastSuccessAt = now;
         entry.consecutiveFailures = 0;
         entry.lastError = null;
+        const subscriptions = this.deps.resolveScheduledFanout(
+          entry.plan.subscriptionIds,
+        );
+        const sessionIds = [
+          ...new Set(subscriptions.map((sub) => sub.sessionId)),
+        ];
+        if (sessionIds.length > 0) {
+          this.deps.onEligibleScan?.(entry.plan, sessionIds);
+        }
       }
     } catch (err) {
       const now = new Date().toISOString();

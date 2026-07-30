@@ -44,10 +44,16 @@ describe("experiences IPC", () => {
     for (const experience of experiences) {
       expect(experience.id).toEqual(expect.any(String));
       expect(experience.pipelineId).toEqual(expect.any(String));
+      expect(experience.supportState).toEqual(
+        expect.stringMatching(/^(available|forward_paper_only|blocked)$/),
+      );
       const hasSignalSources =
         experience.capabilities.signalSourceTypes.length > 0;
       expect(hasSignalSources || experience.acceptsScanHit).toBe(true);
     }
+
+    const trend = experiences.find((e) => e.id === "rules-trend-following");
+    expect(trend?.supportState).toBe("blocked");
 
     const meanRev = experiences.find((e) => e.id === "rules-mean-reversion");
     expect(meanRev?.capabilities.signalSourceTypes).toEqual([]);

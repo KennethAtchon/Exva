@@ -8,6 +8,11 @@ import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import type { PaperCertificationRun } from "@electron/shared/domain/paper-certification";
 
+function formatEquityFeedLabel(feed: string | null | undefined): string {
+  if (!feed) return "IEX (default until SIP probe)";
+  return feed.toUpperCase();
+}
+
 export function PaperCertificationPanel(props: {
   sessionId: string;
   brokerAccountId: string;
@@ -16,6 +21,20 @@ export function PaperCertificationPanel(props: {
   const qc = useQueryClient();
   const [runId, setRunId] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const feedQuery = useQuery({
+    queryKey: ["paperCertFeed"],
+    queryFn: async () => {
+      const coverage = (await api.dataDoctorCoverage()) as {
+        cells: Array<{ symbol: string; feed?: string | null }>;
+      };
+      return (
+        coverage.cells.find((c) => c.symbol === "SPY")?.feed ??
+        coverage.cells.find((c) => c.feed)?.feed ??
+        null
+      );
+    },
+  });
 
   const runQuery = useQuery({
     queryKey: ["paperCertification", runId],
@@ -92,7 +111,7 @@ export function PaperCertificationPanel(props: {
         <dt>Mode</dt>
         <dd>paper_only</dd>
         <dt>Equity data feed</dt>
-        <dd>IEX (Alpaca paper default — not SIP)</dd>
+        <dd>{formatEquityFeedLabel(feedQuery.data)}</dd>
       </dl>
 
       {!confirmOpen ? (

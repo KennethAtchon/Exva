@@ -119,6 +119,20 @@ export interface BrokerAdapter {
   readonly capabilities?: AdapterCapabilities;
 
   testConnection(): Promise<ConnectionTestResult>;
+
+  /**
+   * Optional account entitlements for live readiness (Solution 04).
+   * Alpaca populates trading_blocked, buying power, options levels, feed.
+   */
+  getTradingEntitlements?(): Promise<{
+    tradingBlocked: boolean;
+    buyingPower: number | null;
+    optionsApprovedLevel: number | null;
+    optionsTradingLevel: number | null;
+    optionsBuyingPower: number | null;
+    equityDataFeed: string | null;
+  }>;
+
   placeOrder(order: BrokerOrder): Promise<BrokerOrderResult>;
   /**
    * Optional v2 placement. Adapters that implement this are preferred by

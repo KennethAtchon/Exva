@@ -14,6 +14,7 @@ type Parameters = z.infer<typeof parameterSchema>;
 
 export const breakoutDefinition: StrategyDefinition<Parameters> = {
   id: "breakout",
+  dataDriver: "ohlcv",
   parameterSchemaVersion: 1,
   parameterSchema,
   acceptedInstrumentClasses: ["crypto"] as const,

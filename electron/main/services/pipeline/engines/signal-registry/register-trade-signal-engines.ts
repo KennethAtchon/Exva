@@ -12,6 +12,7 @@ import { computeTradeTradeExecutionProfile } from "../../../orchestration/trade-
 import { computeMeanReversionSignal } from "../../../signals/strategy/mean-reversion-signal";
 import { computeTrendFollowingSignal } from "../../../signals/strategy/trend-following-signal";
 import { computeBreakoutSignal } from "../../../signals/strategy/breakout-signal";
+import { isPrecomputedTradeSignal } from "../../implementations/inputs/deterministic-fact-consume";
 // options-flow engine is identity — composition lives in the input builder.
 
 export function registerTradeSignalEngines(): void {
@@ -97,7 +98,10 @@ export function registerTradeSignalEngines(): void {
     kind: "policy",
     inputSchema: z.any(),
     outputSchema: z.any(),
-    run: (input) => computeMeanReversionSignal(input as never),
+    run: (input) => {
+      if (isPrecomputedTradeSignal(input)) return input;
+      return computeMeanReversionSignal(input as never);
+    },
   });
 
   registerSignalEngine({
@@ -105,7 +109,10 @@ export function registerTradeSignalEngines(): void {
     kind: "policy",
     inputSchema: z.any(),
     outputSchema: z.any(),
-    run: (input) => computeTrendFollowingSignal(input as never),
+    run: (input) => {
+      if (isPrecomputedTradeSignal(input)) return input;
+      return computeTrendFollowingSignal(input as never);
+    },
   });
 
   registerSignalEngine({
@@ -113,7 +120,10 @@ export function registerTradeSignalEngines(): void {
     kind: "policy",
     inputSchema: z.any(),
     outputSchema: z.any(),
-    run: (input) => computeBreakoutSignal(input as never),
+    run: (input) => {
+      if (isPrecomputedTradeSignal(input)) return input;
+      return computeBreakoutSignal(input as never);
+    },
   });
 
   registerSignalEngine({

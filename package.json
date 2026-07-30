@@ -31,6 +31,7 @@
     "db:backup": "bash scripts/db/backup.sh",
     "test": "vitest run",
     "cert:broker": "bun run scripts/broker/cert-broker.ts",
+    "acceptance:report": "bun run scripts/acceptance/one-day-report.ts",
     "test:smoke": "bun run scripts/test/smoke-critical-path.ts",
     "test:smoke:critical": "bun run scripts/test/smoke-critical-path.ts --critical-only",
     "test:watch": "vitest",

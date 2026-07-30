@@ -37,6 +37,7 @@ import {
   ModelVersionsRepo,
   PromotionDecisionsRepo,
 } from "../../db/repositories/research/experiment-repos";
+import { BacktestDetailRepo } from "../../db/repositories/research/backtest-detail-repo";
 import { SignalObservationService } from "../../services/research/signal-observation-service";
 import { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
 import { ExperienceExperimentsRepo } from "../../db/repositories/experiences/experience-experiments-repo";
@@ -424,8 +425,10 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     backtestLab: new BacktestLabService({
       marketData: new MarketDataService(db),
       backtestRuns: repos.backtestRuns,
+      backtestDetail: new BacktestDetailRepo(db),
       experienceExperiments: repos.experienceExperiments,
       eventBus,
+      db,
     }),
     historicalBackfill: {
       backfill: async () => ({ chunks: 0, barsWritten: 0 }),
@@ -497,6 +500,36 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
       reconcile: async () => {
         throw new Error("paperCertification stub");
       },
+    } as never,
+    adapterCertification: {
+      getLatest: () => null,
+      listRuns: () => [],
+      runForAccount: async () => {
+        throw new Error("adapterCertification stub");
+      },
+      isEffectivelyLaunchCapable: () => false,
+    } as never,
+    orderIntents: {
+      persist: () => null,
+      acknowledge: () => undefined,
+    } as never,
+    oneDayAcceptanceReport: {
+      generate: () => ({
+        sessionId: "stub",
+        dayKey: "2026-01-01",
+        generatedAt: new Date().toISOString(),
+        uptime: null,
+        setupRate: { included: false, eligibleEvaluations: 0, setups: 0, setupRate: 0, blockedByHistory: 0, blockedByHistoryRate: 0, repeatEvaluations: 0, expectedSetupsPerDay: 0 },
+        certification: { paperCertRunIds: [], adapterCertRunIds: [] },
+        freshInputs: { signalSources: [], edgarForm4Rows: 0 },
+        barsVsMin: { insufficientHistoryEvals: 0, totalEvals: 0 },
+        aiFailures: { totalCycles: 0, failedCycles: 0, failureRate: 0, topReasons: [] },
+        polymarketCatchUp: { polymarketSources: 0, consecutiveFailures: 0 },
+        orders: { placed: 0, filled: 0, closed: 0, certificationTrades: 0 },
+        sentinelBlockers: [],
+        scanFunnel: null,
+        opportunityRate: { total: 0, eligibleEvaluations: 0, repeatEvaluations: 0, setups: 0, setupRate: 0, blockedByHistory: 0, blockedByHistoryRate: 0, expectedSetupsPerDay: 0 },
+      }),
     } as never,
   };
 

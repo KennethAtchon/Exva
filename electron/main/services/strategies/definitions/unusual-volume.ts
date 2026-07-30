@@ -12,6 +12,7 @@ type Parameters = z.infer<typeof parameterSchema>;
 
 export const unusualVolumeDefinition: StrategyDefinition<Parameters> = {
   id: "unusual-volume",
+  dataDriver: "ohlcv",
   parameterSchemaVersion: 1,
   parameterSchema,
   acceptedInstrumentClasses: ["stock"] as const,

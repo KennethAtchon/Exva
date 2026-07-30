@@ -8,10 +8,7 @@ export type CapabilityKind = "read" | "mutating";
 export interface CapabilityContext {
   conversationId: string;
   scope: { kind: "workspace" | "session"; sessionId: string | null };
-  /**
-   * Capability keys pre-approved ("don't ask again") for this conversation.
-   * May also contain legacy confirmClass strings from older conversations.
-   */
+  /** Capability keys pre-approved ("don't ask again") for this conversation. */
   autoApproved: Set<string>;
 }
 
@@ -21,10 +18,7 @@ export interface Capability<Input = unknown> {
   /** Human label for ToolCallCard / ConfirmationCard headers. */
   label: string;
   kind: CapabilityKind;
-  /**
-   * Optional class for grouping related mutates. Auto-approve stores `key`;
-   * confirmClass remains a legacy fallback match for older conversations.
-   */
+  /** Optional class for grouping related mutates. */
   confirmClass?: string;
   /**
    * Forces confirmation even when the capability was auto-approved (trades, live broker).

@@ -7,6 +7,10 @@ import type { LLMRunResult } from "../../../llm/llm-types";
 import type { TradeSignal } from "@electron/shared/ai/trade-signals";
 import { edgeEstimateFromStrength } from "@electron/shared/quant/decision-gate";
 import { resolveRulesOhlcvRequest } from "./rules-ohlcv-timeframe";
+import {
+  readDeterministicFactFromCtx,
+  tradeSignalFromDeterministicFact,
+} from "./deterministic-fact-consume";
 import { createLogger } from "../../../infra/log";
 
 const logger = createLogger("rules-engine-input");
@@ -101,6 +105,13 @@ function persistRulesEdgeEstimate(
 export const rulesMeanReversionInputBuilder: EngineInputBuilder = {
   id: "rules-mean-reversion-input",
   async build({ planCtx: ctx }) {
+    const fact = readDeterministicFactFromCtx(ctx);
+    if (fact) {
+      return {
+        task: tradeSignalFromDeterministicFact(fact, "mean_reversion"),
+      };
+    }
+
     const { adapter } = await ctx.services.brokerRouting.resolveAdapter(
       ctx.sessionId,
       ctx.instrument.instrumentClass,
@@ -118,9 +129,6 @@ export const rulesMeanReversionInputBuilder: EngineInputBuilder = {
       ? await getOhlcv(wireSymbol, timeframe, barCount)
       : [];
     if (bars.length === 0) {
-      // An empty bar set is a data outage, not a healthy "no setup" — the
-      // engine will skip at confidence 0.2 ("insufficient bars"), which is
-      // indistinguishable from a real no-trade unless we say so loudly here.
       logger.warn(
         {
           sessionId: ctx.sessionId,

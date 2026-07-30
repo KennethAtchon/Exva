@@ -8,6 +8,7 @@ export * from "./domain/market-signal";
 export * from "./domain/mock-scenario";
 export * from "./domain/prediction-event-triggers";
 export * from "./domain/research-contract";
+export * from "./domain/backtest-data-quality";
 export * from "./domain/research-experiment";
 export * from "./domain/session";
 export * from "./domain/session-strategy-config";

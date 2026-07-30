@@ -48,7 +48,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
    * absent) — a single agent run can issue several requests across
    * tool-calling steps, so callers await + sum them all. Without requesting
    * `usage.include`, OpenRouter omits cost data and every run falls back to
-   * the pricing-table estimate (docs/reviews/2026-07-19-overnight-stress-
+    * the pricing-table estimate (docs/attic/reviews/2026-07-19-overnight-stress-
    * session-review.md, secondary problem 4).
    */
   private async createClient(

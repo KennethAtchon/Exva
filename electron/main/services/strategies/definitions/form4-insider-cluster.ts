@@ -15,6 +15,7 @@ type Parameters = z.infer<typeof parameterSchema>;
 
 export const form4InsiderClusterDefinition: StrategyDefinition<Parameters> = {
   id: "form4-insider-cluster",
+  dataDriver: "event-join",
   parameterSchemaVersion: 1,
   parameterSchema,
   acceptedInstrumentClasses: ["stock"] as const,

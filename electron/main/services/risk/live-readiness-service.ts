@@ -5,6 +5,8 @@ import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session
 import type { PaperScorecardService } from "../analytics/paper-scorecard-service";
 import type { ExperienceScorecardService } from "../analytics/experience-scorecard-service";
 import type { ResearchExperimentService } from "../research/research-experiment-service";
+import type { AdapterCertificationService } from "../broker/adapter-certification-service";
+import { adapterCertIsFresh } from "@electron/shared/domain/adapter-certification";
 import { requireExperience } from "../../experiences/index";
 import { eq } from "drizzle-orm";
 import type { DbClient } from "../../db/client";
@@ -40,9 +42,10 @@ export class LiveReadinessService {
     private readonly brokerAccountsRepo: BrokerAccountsRepo,
     private readonly sessionBrokerAssignmentsRepo: SessionBrokerAssignmentsRepo,
     private readonly brokerRegistry: BrokerRegistry,
+    private readonly researchExperiment: ResearchExperimentService,
     private readonly paperScorecard?: PaperScorecardService,
     private readonly experienceScorecard?: ExperienceScorecardService,
-    private readonly researchExperiment?: ResearchExperimentService,
+    private readonly adapterCertification?: AdapterCertificationService,
   ) {}
 
   async check(sessionId: string): Promise<LiveReadinessReport> {
@@ -122,6 +125,8 @@ export class LiveReadinessService {
 
     // Check 4b: ALL assigned brokers must be launch-capable adapters
     // (close/flatten and positions implemented against the real API).
+    // Non-Alpaca adapters with launchCapable=false may pass when adapter cert
+    // has succeeded (Solution 04).
     let brokerLaunchCapable = false;
     let nonLaunchAdapters: string[] = [];
     if (hasBrokerAssignment) {
@@ -129,7 +134,14 @@ export class LiveReadinessService {
         assignedIds.map(async (id) => {
           try {
             const adapter = await this.brokerRegistry.get(id);
-            return { id, capable: adapter.launchCapable };
+            const account = this.brokerAccountsRepo.find(id);
+            const certPassed =
+              this.adapterCertification?.isEffectivelyLaunchCapable(id) ??
+              false;
+            const effectiveCapable =
+              adapter.launchCapable ||
+              (certPassed && account?.brokerType !== "alpaca");
+            return { id, capable: effectiveCapable };
           } catch {
             return { id, capable: false };
           }
@@ -148,6 +160,69 @@ export class LiveReadinessService {
           ? `Broker adapter(s) not launch-capable: ${nonLaunchAdapters.join(", ")}`
           : "Broker adapter is not launch-capable"
         : undefined,
+    });
+
+    // Check 4c: Alpaca (and any adapter exposing entitlements) account honesty
+    let entitlementsOk = true;
+    let entitlementsMessage: string | undefined;
+    if (hasBrokerAssignment) {
+      const entitlementFailures: string[] = [];
+      for (const id of assignedIds) {
+        try {
+          const adapter = await this.brokerRegistry.get(id);
+          if (!adapter.getTradingEntitlements) continue;
+          const ent = await adapter.getTradingEntitlements();
+          if (ent.tradingBlocked) {
+            entitlementFailures.push(`${id}: trading_blocked`);
+          }
+          if (ent.buyingPower != null && ent.buyingPower <= 0) {
+            entitlementFailures.push(`${id}: buying_power<=0`);
+          }
+        } catch (err) {
+          entitlementFailures.push(
+            `${id}: entitlements_unavailable (${err instanceof Error ? err.message : String(err)})`,
+          );
+        }
+      }
+      entitlementsOk = entitlementFailures.length === 0;
+      entitlementsMessage = entitlementsOk
+        ? undefined
+        : `Account entitlement check failed: ${entitlementFailures.join("; ")}`;
+    }
+    checks.push({
+      name: "broker_account_entitlements",
+      passed: entitlementsOk,
+      requiresAck: false,
+      message: entitlementsMessage,
+    });
+
+    // Check 4d: non-Alpaca brokers require a fresh persisted adapter cert.
+    let adapterCertOk = true;
+    let adapterCertMessage: string | undefined;
+    if (hasBrokerAssignment && this.adapterCertification) {
+      const certFailures: string[] = [];
+      for (const id of assignedIds) {
+        const account = this.brokerAccountsRepo.find(id);
+        if (!account || account.brokerType === "alpaca") continue;
+        const latest = this.adapterCertification.getLatest(id);
+        if (!latest?.passed) {
+          certFailures.push(`${id}: no passing adapter cert`);
+          continue;
+        }
+        if (!adapterCertIsFresh(latest.certifiedAt)) {
+          certFailures.push(`${id}: adapter cert stale`);
+        }
+      }
+      adapterCertOk = certFailures.length === 0;
+      adapterCertMessage = adapterCertOk
+        ? undefined
+        : `Adapter certification required: ${certFailures.join("; ")}`;
+    }
+    checks.push({
+      name: "broker_capability_certified",
+      passed: adapterCertOk,
+      requiresAck: false,
+      message: adapterCertMessage,
     });
 
     // Check 5: paper scorecard meets promotion criteria (experience-level)
@@ -173,24 +248,21 @@ export class LiveReadinessService {
 
     // Check 5b: statistical promotion (P7 / remediation #8). The experience
     // must have cleared the statistical promotion gate to the "live" tier —
-    // not just the descriptive paper scorecard. Skipped when the research
-    // experiment loop is not wired (back-compat).
-    if (this.researchExperiment) {
-      const tier = this.researchExperiment.currentTier(session.experienceId);
-      const passed = tier === "live";
-      const contract = safeContract(session.experienceId);
-      checks.push({
-        name: "statistical_promotion",
-        passed,
-        requiresAck: false,
-        message: passed
-          ? undefined
-          : `Experience has not been statistically promoted to live (current tier: ${tier}).` +
-            (contract
-              ? ` Requires >= ${contract.validation.minOutOfSampleTrades} out-of-sample labeled opportunities with positive lower-bound expectancy.`
-              : ""),
-      });
-    }
+    // not just the descriptive paper scorecard.
+    const tier = this.researchExperiment.currentTier(session.experienceId);
+    const passed = tier === "live";
+    const contract = safeContract(session.experienceId);
+    checks.push({
+      name: "statistical_promotion",
+      passed,
+      requiresAck: false,
+      message: passed
+        ? undefined
+        : `Experience has not been statistically promoted to live (current tier: ${tier}).` +
+          (contract
+            ? ` Requires >= ${contract.validation.minOutOfSampleTrades} out-of-sample labeled opportunities with positive lower-bound expectancy.`
+            : ""),
+    });
 
     // Check 6: explicit user acknowledgement (requires all others to pass)
     const acknowledgedAt = this.getAcknowledgedAt(sessionId);

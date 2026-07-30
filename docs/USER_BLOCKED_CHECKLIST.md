@@ -1,10 +1,11 @@
 # User-Blocked Recovery Checklist
 
 > **Date:** 2026-07-29  
-> **Purpose:** Everything in `docs/problems` that **code cannot finish** — you must do these in settings / broker / OS.  
+> **Purpose:** External prerequisites that **code cannot finish** — complete these in settings, broker portals, or the OS.
 > **Not in this doc:** unfinished code work (that is being fixed in the app).
 
-Implements: docs/solutions/04-broker-account-setup.md, docs/solutions/07-ai-reliability-and-spend.md, docs/solutions/08-uptime-and-scan-cadence.md
+Related historical material is retained in `docs/attic/solutions/`.
+Ops acceptance IDs: [`plans/solutions/ops-and-decisions.md`](plans/solutions/ops-and-decisions.md).
 
 ---
 

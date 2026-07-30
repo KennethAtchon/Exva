@@ -70,6 +70,7 @@ describe("operator power tools (finish-line 08)", () => {
       backtestRuns: new BacktestRunsRepo(db),
       experienceExperiments: new ExperienceExperimentsRepo(db),
       eventBus: new EventBus(),
+      db,
     });
 
     const first = bars[0];

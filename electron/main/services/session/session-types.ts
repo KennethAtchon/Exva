@@ -104,6 +104,8 @@ export interface OrchestratorDeps {
   isOrderHalted?: () => boolean;
   /** Optional cycle funnel recorder (Solution 02 WS9 / 05). */
   cycleFunnel?: import("../orchestration/cycle-funnel-service").CycleFunnelService | null;
+  /** Optional durable order intent ledger (Solution 01 / 10). */
+  orderIntents?: import("../broker/order-intent-service").OrderIntentService | null;
   /** Optional EDGAR pre-AI screening (Solution 02 WS7). */
   edgarScreening?: import("../signals/edgar-candidate-screening-service").EdgarCandidateScreeningService | null;
 }

@@ -5,13 +5,6 @@ const KNOWN_DEFINITION_IDS = new Set<string>(
   Object.values(SOURCE_DEFINITION_IDS),
 );
 
-/** Experience-era source ids that map 1:1 onto seeded definitions. */
-const EXPERIENCE_SOURCE_ALIASES: Record<string, string> = {
-  "edgar-catalyst/edgar-8k-catalyst": SOURCE_DEFINITION_IDS.EDGAR_8K_CATALYST,
-  "prediction-event-edge/prediction-event-edge":
-    SOURCE_DEFINITION_IDS.PREDICTION_EVENT_EDGE,
-};
-
 /**
  * Resolve a live `signal_sources.id` + type to a V2 source definition id for
  * subscription fanout. Returns null when no definition applies (manual/unknown).
@@ -23,9 +16,6 @@ export function resolveSourceDefinitionId(
   if (KNOWN_DEFINITION_IDS.has(sourceId)) {
     return sourceId;
   }
-  const alias = EXPERIENCE_SOURCE_ALIASES[sourceId];
-  if (alias) return alias;
-
   if (sourceId.includes("mock") || sourceType === "mock") {
     return SOURCE_DEFINITION_IDS.MOCK_REHEARSAL;
   }

@@ -154,6 +154,16 @@ export const api = {
   ): Promise<
     import("@electron/shared/domain/cycle-funnel").CycleFunnelOutcome | null
   > => bridge().sessionActivity.firstDivergence({ sessionId }),
+  getScanFunnel: (
+    sessionId: string,
+  ): Promise<import("@electron/shared/domain/scan-funnel").ScanFunnelReport> =>
+    bridge().sessionActivity.scanFunnel({ sessionId }),
+  getOpportunityRate: (
+    sessionId: string,
+    day?: string,
+  ): Promise<
+    import("@electron/shared/domain/scan-funnel").OpportunityRateSummary
+  > => bridge().sessionActivity.opportunityRate({ sessionId, day }),
   retrySessionStep: (input: {
     sessionId: string;
     cycleId: string;
@@ -204,8 +214,8 @@ export const api = {
     bridge().session.instrumentCacheClear(sessionId),
   debugInjectSignal: (
     sessionId: string,
-    opts?: {
-      kind?:
+    opts: {
+      kind:
         | "filing"
         | "market_dislocation"
         | "flow_anomaly"
@@ -213,7 +223,7 @@ export const api = {
         | "news"
         | "calendar_event"
         | "manual";
-      payload?: Record<string, unknown>;
+      payload: Record<string, unknown>;
       symbol?: string;
     },
   ): Promise<{ ok: boolean }> =>
@@ -588,6 +598,7 @@ export const api = {
   backtestList: (input?: { experienceId?: string; limit?: number }) =>
     bridge().backtest.list(input),
   backtestGet: (id: string) => bridge().backtest.get({ id }),
+  backtestGetDetail: (runId: string) => bridge().backtest.getDetail({ runId }),
   backtestRun: (input: unknown) => bridge().backtest.run(input),
   backtestCompare: (runIds: string[]) => bridge().backtest.compare({ runIds }),
   backtestSweep: (input: unknown) => bridge().backtest.sweep(input),

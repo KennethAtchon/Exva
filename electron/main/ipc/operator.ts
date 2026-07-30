@@ -69,6 +69,16 @@ export function registerOperatorHandlers(services: AppServices): void {
 
   handle(
     ipcMain,
+    channels.backtest.getDetail,
+    ipcPayloadUnknownSchema,
+    async (payload) => {
+      const { runId } = z.object({ runId: z.string().min(1) }).parse(payload);
+      return { detail: services.backtestLab.getDetail(runId) };
+    },
+  );
+
+  handle(
+    ipcMain,
     channels.backtest.run,
     ipcPayloadUnknownSchema,
     async (payload) => {

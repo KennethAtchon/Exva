@@ -40,6 +40,7 @@ import {
   ModelVersionsRepo,
   PromotionDecisionsRepo,
 } from "../db/repositories/research/experiment-repos";
+import { BacktestDetailRepo } from "../db/repositories/research/backtest-detail-repo";
 import { SignalObservationService } from "./research/signal-observation-service";
 import { LabelBuilderService } from "./research/label-builder-service";
 import { LabelBuilderTicker } from "./research/label-builder-ticker";
@@ -51,6 +52,13 @@ import { LLMRuntime } from "./llm/index";
 import { HistoryProvisioningService } from "./marketdata/history-provisioning-service";
 import { ScheduledHistoryProvisioningService } from "./marketdata/scheduled-history-provisioning-service";
 import { CycleFunnelService } from "./orchestration/cycle-funnel-service";
+import { AdapterCertRepo } from "../db/repositories/brokers/adapter-cert-repo";
+import { AdapterCertificationService } from "./broker/adapter-certification-service";
+import { OrderIntentService } from "./broker/order-intent-service";
+import {
+  OneDayAcceptanceReportService,
+} from "./analytics/one-day-acceptance-report-service";
+import { isSentinelSessionName } from "./session/session-config-validation-builder";
 import { SignalCatchupService } from "./signals/signal-catchup-service";
 import { EdgarCandidateScreeningService } from "./signals/edgar-candidate-screening-service";
 import { SessionUptimeService } from "./session/session-uptime-service";
@@ -301,6 +309,9 @@ export interface AppServices {
   whatIfReplay: WhatIfReplayService;
   killSwitch: KillSwitchService;
   paperCertification: PaperCertificationService;
+  adapterCertification: AdapterCertificationService;
+  orderIntents: OrderIntentService;
+  oneDayAcceptanceReport: OneDayAcceptanceReportService;
   cycleFunnel: CycleFunnelService;
   sessionUptime: SessionUptimeService;
   refreshTelegramCreds: () => Promise<void>;
@@ -615,6 +626,13 @@ export async function createAppServices(app: App): Promise<AppServices> {
   // reason: killSwitch is constructed after orchestrator deps; order path reads via this ref
   let killSwitchRef: KillSwitchService | null = null;
   const cycleFunnel = new CycleFunnelService(db);
+  const adapterCertRepo = new AdapterCertRepo(db);
+  const adapterCertification = new AdapterCertificationService({
+    adapterCertRepo,
+    brokerAccountsRepo: repos.brokerAccounts,
+    brokerRegistry,
+  });
+  const orderIntents = new OrderIntentService(db);
   const edgarScreening = new EdgarCandidateScreeningService();
   const orchestratorDepsBase: OrchestratorDeps = {
     sessionRepo: repos.session,
@@ -654,6 +672,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     isOrderHalted: () => killSwitchRef?.isHalted() ?? false,
     cycleFunnel,
     edgarScreening,
+    orderIntents,
   };
 
   const runtimeManagerDeps: SessionRuntimeManagerDeps = {
@@ -808,9 +827,10 @@ export async function createAppServices(app: App): Promise<AppServices> {
     repos.brokerAccounts,
     repos.sessionBrokerAssignments,
     brokerRegistry,
+    researchExperiment,
     paperScorecard,
     experienceScorecard,
-    researchExperiment,
+    adapterCertification,
   );
 
   // Set after HistoricalBackfillService is constructed (below).
@@ -944,6 +964,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   );
 
   const calendarRegistry = getMarketCalendarRegistry();
+  const sessionUptime = new SessionUptimeService(db);
   const fanoutResolver = new SubscriptionFanoutResolver(db);
   // reason: sessionActivityTracker is constructed after signalRegistry, but
   // these fail-loud hooks fire only at scan-tick runtime — set below.
@@ -1053,6 +1074,11 @@ export async function createAppServices(app: App): Promise<AppServices> {
         );
       }
     },
+    onEligibleScan: (_plan, sessionIds) => {
+      for (const sessionId of sessionIds) {
+        sessionUptime.recordEligibleScan(sessionId);
+      }
+    },
   });
 
   const scanFunnel = new ScanFunnelService({
@@ -1060,6 +1086,44 @@ export async function createAppServices(app: App): Promise<AppServices> {
     coordinator: scheduleCoordinator,
     resolveScheduledFanout: (ids) => fanoutResolver.resolveScheduledFanout(ids),
   });
+
+  const oneDayAcceptanceReport = new OneDayAcceptanceReportService({
+    db,
+    sessionUptime,
+    opportunityRate,
+    scanFunnel,
+    adapterCertification,
+    listAssignedBrokerAccountIds: (sessionId) =>
+      repos.sessionBrokerAssignments.listBrokerAccountIds(sessionId),
+    isSentinelSession: (_sessionId, sessionName) =>
+      isSentinelSessionName(sessionName),
+    getSessionName: (sessionId) =>
+      repos.session.requireById(sessionId).name,
+    getExperienceSupportState: (experienceId) =>
+      requireExperience(experienceId).supportState ?? "available",
+    getExperienceBlocker: (experienceId) =>
+      requireExperience(experienceId).blockerMessage ?? null,
+  });
+
+  void (async () => {
+    for (const account of repos.brokerAccounts.list()) {
+      if (account.brokerType !== "alpaca") continue;
+      try {
+        const adapter = await brokerRegistry.get(account.id);
+        if (
+          "getEquityDataFeed" in adapter &&
+          typeof adapter.getEquityDataFeed === "function"
+        ) {
+          const feed = await adapter.getEquityDataFeed();
+          marketData.setEquityDataFeed(feed);
+          logger.info({ feed, accountId: account.id }, "resolved alpaca equity feed");
+          break;
+        }
+      } catch {
+        // best-effort at startup
+      }
+    }
+  })();
 
   const planner = new SessionInputRuntimePlanner({ db, strategyRegistry });
   const plans = planner.buildPlans();
@@ -1074,7 +1138,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     // Calling ingestScheduledGroupHit with an always-empty subscriber list
     // wrote a signal_events row on every hit only to immediately mark it
     // dropped_pre_fanout/no_subscribers forever — wasted writes and a
-    // misleading signal log (secondary problem 5, docs/reviews/
+    // misleading signal log (secondary problem 5, docs/attic/reviews/
     // 2026-07-19-overnight-stress-session-review.md). Log instead until
     // real subscriptions exist for these sources.
     emitSignals: async (signals, groupKey) => {
@@ -1217,6 +1281,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const backtestLab = new BacktestLabService({
     marketData,
     backtestRuns: repos.backtestRuns,
+    backtestDetail: new BacktestDetailRepo(db),
     experienceExperiments: repos.experienceExperiments,
     eventBus,
     db,
@@ -1302,7 +1367,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     }
   };
   scheduleCoordinator.start();
-  const sessionUptime = new SessionUptimeService(db);
   const signalCatchup = new SignalCatchupService({
     db,
     deliveryGate: () => true,
@@ -1545,6 +1609,9 @@ export async function createAppServices(app: App): Promise<AppServices> {
     whatIfReplay,
     killSwitch,
     paperCertification,
+    adapterCertification,
+    orderIntents,
+    oneDayAcceptanceReport,
     cycleFunnel,
     sessionUptime,
     refreshTelegramCreds: async () => {

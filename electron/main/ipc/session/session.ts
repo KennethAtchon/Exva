@@ -183,9 +183,8 @@ export function registerSessionHandlers(services: AppServices): void {
   handle(
     ipcMain,
     channels.session.create,
-    ipcPayloadUnknownSchema,
-    async (payload) => {
-      const input = sessionCreateInputSchema.parse(payload);
+    sessionCreateInputSchema,
+    async (input) => {
       assertExecutionModeMatchesWorkspace(services, input.executionMode);
       return services.sessionWrites.create(input);
     },
@@ -194,9 +193,8 @@ export function registerSessionHandlers(services: AppServices): void {
   handle(
     ipcMain,
     channels.session.update,
-    ipcPayloadUnknownSchema,
-    async (payload) => {
-      const { id, input } = sessionUpdateInputSchema.parse(payload);
+    sessionUpdateInputSchema,
+    async ({ id, input }) => {
       assertExecutionModeMatchesWorkspace(services, input.executionMode);
       return services.sessionWrites.update(id, input);
     },

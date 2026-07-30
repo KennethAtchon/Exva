@@ -85,7 +85,7 @@ function logFilePathFor(logDir: string, dateString: string): string {
  * The destination filename used to be computed once at process boot, so a
  * long-running process kept writing to the boot day's file forever — the
  * 7-day retention prune never applied to the active file (secondary problem
- * 8, docs/reviews/2026-07-19-overnight-stress-session-review.md). This
+ * 8, docs/attic/reviews/2026-07-19-overnight-stress-session-review.md). This
  * re-opens the underlying file destination whenever the local date changes.
  */
 export function createRotatingFileStream(logDir: string): {

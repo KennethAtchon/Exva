@@ -24,6 +24,12 @@ const selectorSubmissionBuilderEngine: FinalizerEngine<
       ctx.sessionId,
       ctx.services.brokerRouting,
     );
+    const totalSpendUsd = workerResults.reduce(
+      (sum, row) => sum + (row.result.run?.cost_usd ?? 0),
+      0,
+    );
+    const costPerAcceptedUsd =
+      accepted.length > 0 ? totalSpendUsd / accepted.length : undefined;
     return {
       ...buildInstrumentSelection(
         accepted,
@@ -35,6 +41,8 @@ const selectorSubmissionBuilderEngine: FinalizerEngine<
         acceptedCount: accepted.length,
         rejected: evaluationResult.rejected,
         workerToolCoverage: buildWorkerToolCoverage(workerResults),
+        totalSpendUsd,
+        costPerAcceptedUsd,
       },
     };
   },

@@ -15,6 +15,7 @@ describe("StrategyDefinitionRegistry", () => {
   ): StrategyDefinition<{ threshold: number }> {
     return {
       id,
+      dataDriver: "ohlcv",
       parameterSchemaVersion: 1,
       parameterSchema: z.object({ threshold: z.number().default(1) }),
       acceptedInstrumentClasses: ["stock"] as const,

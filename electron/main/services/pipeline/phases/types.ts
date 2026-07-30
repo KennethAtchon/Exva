@@ -45,6 +45,13 @@ export interface AIPhaseContext {
 interface AIWorkerBatch<TState> {
   id: string;
   frontier: number;
+  /** Declared deterministic stages that must run before this AI stage (Solution 07). */
+  deterministicPredecessors?: readonly string[];
+  /** Non-LLM stage hook — runs instead of worker execution when set. */
+  runDeterministic?: (
+    ctx: AIPhaseContext,
+    state: TState,
+  ) => TState | Promise<TState>;
   resolveWorkers(ctx: AIPhaseContext, state: TState): WorkerDefinition[];
   buildTask(
     ctx: AIPhaseContext,

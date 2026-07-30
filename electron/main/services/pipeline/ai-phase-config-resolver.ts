@@ -15,16 +15,10 @@ import {
 import type { WorkerExecConfig } from "./core/types";
 import type { SessionAiPhase } from "@electron/shared/ai/ai-phase";
 
-/** Narrow config source — SessionStrategyContextService or legacy repo adapter. */
+/** Narrow config source provided by SessionStrategyContextService. */
 export type AiPhaseConfigSource = {
-  getAiPhase?(sessionId: string, phase: PipelinePhase): SessionAiPhase | null;
-  getByPhase?(sessionId: string, phase: PipelinePhase): SessionAiPhase | null;
-  getAiPhaseWorker?(
-    sessionId: string,
-    phase: PipelinePhase,
-    workerId: string,
-  ): SessionAiPhaseWorker | null;
-  getWorker?(
+  getAiPhase(sessionId: string, phase: PipelinePhase): SessionAiPhase | null;
+  getAiPhaseWorker(
     sessionId: string,
     phase: PipelinePhase,
     workerId: string,
@@ -52,10 +46,7 @@ export class AIPhaseConfigResolver {
     sessionId: string,
     phase: PipelinePhase,
   ): ResolvedPhaseExecConfig {
-    const row =
-      this.source.getAiPhase?.(sessionId, phase) ??
-      this.source.getByPhase?.(sessionId, phase) ??
-      null;
+    const row = this.source.getAiPhase(sessionId, phase);
     return {
       providerKey: row?.providerKey ?? "",
       modelId: row?.modelId ?? "",
@@ -73,10 +64,11 @@ export class AIPhaseConfigResolver {
     workerId: string,
   ): ResolvedWorkerExecConfig {
     const phaseConfig = this.resolvePhaseConfig(sessionId, phase);
-    const workerOverride =
-      this.source.getAiPhaseWorker?.(sessionId, phase, workerId) ??
-      this.source.getWorker?.(sessionId, phase, workerId) ??
-      null;
+    const workerOverride = this.source.getAiPhaseWorker(
+      sessionId,
+      phase,
+      workerId,
+    );
     const promptMarkdown = workerOverride?.promptMarkdown?.trim()
       ? workerOverride.promptMarkdown
       : phaseConfig.promptMarkdown;

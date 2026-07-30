@@ -7,38 +7,33 @@ describe("isCapabilityAutoApproved", () => {
     expect(
       isCapabilityAutoApproved(approved, {
         key: "start_session",
-        confirmClass: "session_lifecycle",
       }),
     ).toBe(true);
     expect(
       isCapabilityAutoApproved(approved, {
         key: "pause_session",
-        confirmClass: "session_lifecycle",
       }),
     ).toBe(false);
   });
 
-  it("falls back to legacy confirmClass keys", () => {
+  it("does not approve a different capability in the same class", () => {
     const approved = new Set(["session_lifecycle"]);
     expect(
       isCapabilityAutoApproved(approved, {
         key: "start_session",
-        confirmClass: "session_lifecycle",
       }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isCapabilityAutoApproved(approved, {
         key: "create_session",
-        confirmClass: "session_lifecycle",
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("returns false when neither key nor class is approved", () => {
     expect(
       isCapabilityAutoApproved(new Set(["other_capability"]), {
         key: "start_session",
-        confirmClass: "session_lifecycle",
       }),
     ).toBe(false);
   });
@@ -47,7 +42,6 @@ describe("isCapabilityAutoApproved", () => {
     expect(
       isCapabilityAutoApproved(new Set(), {
         key: "start_session",
-        confirmClass: "session_lifecycle",
       }),
     ).toBe(false);
   });

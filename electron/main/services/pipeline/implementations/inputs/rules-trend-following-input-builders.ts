@@ -7,6 +7,10 @@ import type { LLMRunResult } from "../../../llm/llm-types";
 import type { TradeSignal } from "@electron/shared/ai/trade-signals";
 import { edgeEstimateFromStrength } from "@electron/shared/quant/decision-gate";
 import { resolveRulesOhlcvRequest } from "./rules-ohlcv-timeframe";
+import {
+  readDeterministicFactFromCtx,
+  tradeSignalFromDeterministicFact,
+} from "./deterministic-fact-consume";
 
 function syntheticDecisionRun(signal: TradeSignal): LLMRunResult<TradeSignal> {
   const runId = crypto.randomUUID();
@@ -51,6 +55,13 @@ function syntheticDecisionRun(signal: TradeSignal): LLMRunResult<TradeSignal> {
 export const rulesTrendFollowingInputBuilder: EngineInputBuilder = {
   id: "rules-trend-following-input",
   async build({ planCtx: ctx }) {
+    const fact = readDeterministicFactFromCtx(ctx);
+    if (fact) {
+      return {
+        task: tradeSignalFromDeterministicFact(fact, "trend_momentum"),
+      };
+    }
+
     const { adapter } = await ctx.services.brokerRouting.resolveAdapter(
       ctx.sessionId,
       ctx.instrument.instrumentClass,

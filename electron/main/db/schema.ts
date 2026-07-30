@@ -1099,6 +1099,8 @@ export const dataCoverage = sqliteTable(
     firstTs: text("first_ts").notNull(),
     lastTs: text("last_ts").notNull(),
     provider: text("provider").notNull(),
+    /** Alpaca equity feed label (iex | sip) when applicable. */
+    feed: text("feed"),
     updatedAt: text("updated_at").notNull(),
   },
   (table) => ({
@@ -1569,6 +1571,41 @@ export const paperCertificationRuns = sqliteTable(
     accountDayIdx: index("idx_paper_cert_account_armed").on(
       table.brokerAccountId,
       table.armedAt,
+    ),
+  }),
+);
+
+/** Latest adapter certification per broker account (Solution 04). */
+export const brokerAdapterCertStates = sqliteTable("broker_adapter_cert_states", {
+  brokerAccountId: text("broker_account_id")
+    .primaryKey()
+    .references(() => brokerAccounts.id, { onDelete: "cascade" }),
+  certRunId: text("cert_run_id").notNull(),
+  brokerType: text("broker_type").notNull(),
+  mode: text("mode").notNull(),
+  passed: integer("passed", { mode: "boolean" }).notNull(),
+  checksJson: text("checks_json").notNull(),
+  certifiedAt: text("certified_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const brokerAdapterCertRuns = sqliteTable(
+  "broker_adapter_cert_runs",
+  {
+    id: text("id").primaryKey(),
+    brokerAccountId: text("broker_account_id")
+      .notNull()
+      .references(() => brokerAccounts.id, { onDelete: "cascade" }),
+    brokerType: text("broker_type").notNull(),
+    mode: text("mode").notNull(),
+    passed: integer("passed", { mode: "boolean" }).notNull(),
+    checksJson: text("checks_json").notNull(),
+    certifiedAt: text("certified_at").notNull(),
+  },
+  (table) => ({
+    accountCertIdx: index("idx_adapter_cert_runs_account").on(
+      table.brokerAccountId,
+      table.certifiedAt,
     ),
   }),
 );

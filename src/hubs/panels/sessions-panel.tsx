@@ -45,6 +45,11 @@ import type {
   SessionActivitySnapshot,
 } from "@electron/shared/domain/session-activity";
 import type { SessionActivityAnalytics } from "@electron/shared/domain/session-activity-analytics";
+import type { CycleFunnelOutcome } from "@electron/shared/domain/cycle-funnel";
+import type {
+  OpportunityRateSummary,
+  ScanFunnelReport,
+} from "@electron/shared/domain/scan-funnel";
 import { MOCK_REHEARSAL_SIGNAL_SOURCE_ID } from "@electron/shared/instruments/mock-rehearsal";
 import { CreateEditSessionModal } from "@/components/sessions/CreateEditSessionModal";
 import { LiveReadinessModal } from "@/components/sessions/LiveReadinessModal";
@@ -1686,30 +1691,83 @@ function ActivityAnalyticsCard({
   );
 }
 
+function funnelHeadline(
+  scan: ScanFunnelReport | null,
+  divergence: CycleFunnelOutcome | null,
+): string | null {
+  const blocked = scan?.firstBlocked;
+  if (blocked) {
+    if (blocked.kind === "input_stale") return "NO TRADE: INPUT_STALE";
+    if (blocked.kind === "insufficient_bars")
+      return "NO TRADE: INPUT_INSUFFICIENT_HISTORY";
+    if (blocked.kind === "bars_failed" || blocked.kind === "evaluate_failed")
+      return "DEGRADED: PROVIDER_UNAVAILABLE";
+    if (blocked.kind === "empty_universe") return "BLOCKED: EMPTY_UNIVERSE";
+    if (blocked.kind === "no_setup") return "NO TRADE: NO_SETUP";
+  }
+  if (divergence) {
+    const code = divergence.reasonCode.toUpperCase();
+    if (
+      divergence.outcome === "input_stale" ||
+      code === "INPUT_STALE"
+    ) {
+      return "NO TRADE: INPUT_STALE";
+    }
+    if (
+      divergence.outcome === "input_insufficient_history" ||
+      code === "INPUT_INSUFFICIENT_HISTORY"
+    ) {
+      return "NO TRADE: INPUT_INSUFFICIENT_HISTORY";
+    }
+    if (code.includes("MARKET_CLOSED")) return "WAITING: MARKET_CLOSED";
+    if (code.includes("PROVIDER")) return "DEGRADED: PROVIDER_UNAVAILABLE";
+    if (divergence.outcome === "no_setup") return "NO TRADE: NO_SETUP";
+    return `NO TRADE: ${divergence.reasonCode}`;
+  }
+  return null;
+}
+
+const FUNNEL_STAGES = [
+  "inputs",
+  "fresh",
+  "signals",
+  "delivered",
+  "selected",
+  "researched",
+  "decided",
+  "risk-passed",
+  "approved",
+  "submitted",
+  "filled",
+] as const;
+
 const SessionActivityTab = ({ sessionId }: { sessionId: string }) => {
   const [transitions, setTransitions] = useState<SessionActivitySnapshot[]>([]);
   const [analytics, setAnalytics] = useState<SessionActivityAnalytics | null>(
     null,
   );
-  const [firstDivergence, setFirstDivergence] = useState<{
-    terminalStage: string;
-    outcome: string;
-    reasonCode: string;
-    occurredAt: string;
-  } | null>(null);
+  const [firstDivergence, setFirstDivergence] =
+    useState<CycleFunnelOutcome | null>(null);
+  const [scanFunnel, setScanFunnel] = useState<ScanFunnelReport | null>(null);
+  const [opportunityRate, setOpportunityRate] =
+    useState<OpportunityRateSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async (id: string) => {
     setLoading(true);
     try {
-      const [rows, stats, divergence] = await Promise.all([
+      const [rows, stats, divergence, scan, opp] = await Promise.all([
         api.listSessionActivityTransitions(id),
         api.getSessionActivityAnalytics(id),
         api.getCycleFunnelFirstDivergence(id),
+        api.getScanFunnel(id).catch(() => null),
+        api.getOpportunityRate(id).catch(() => null),
       ]);
       setTransitions(rows);
       setAnalytics(stats);
       setFirstDivergence(divergence);
+      setScanFunnel(scan);
+      setOpportunityRate(opp);
     } finally {
       setLoading(false);
     }
@@ -1723,10 +1781,22 @@ const SessionActivityTab = ({ sessionId }: { sessionId: string }) => {
     if (snapshot.sessionId === sessionId) void load(sessionId);
   });
 
-  if (loading && transitions.length === 0 && !firstDivergence) {
+  const headline = funnelHeadline(scanFunnel, firstDivergence);
+  const scanCounts = scanFunnel?.counts ?? {};
+
+  if (
+    loading &&
+    transitions.length === 0 &&
+    !firstDivergence &&
+    !scanFunnel
+  ) {
     return <div className="mt-4 px-1 text-body text-text3">Loading...</div>;
   }
-  if (transitions.length === 0 && !firstDivergence) {
+  if (
+    transitions.length === 0 &&
+    !firstDivergence &&
+    !scanFunnel
+  ) {
     return (
       <EmptyState
         title="No activity yet"
@@ -1738,20 +1808,63 @@ const SessionActivityTab = ({ sessionId }: { sessionId: string }) => {
 
   return (
     <div className="mt-4 flex flex-col gap-4 px-1 pb-5">
-      {firstDivergence ? (
-        <div className="grid gap-1 rounded-sm border border-border bg-surface p-3">
-          <div className="font-sans text-label text-text1">
-            First no-trade divergence
-          </div>
-          <div className="font-mono text-micro text-text2">
-            {firstDivergence.terminalStage} · {firstDivergence.outcome} ·{" "}
-            {firstDivergence.reasonCode}
-          </div>
+      <div className="grid gap-2 rounded-sm border border-border bg-surface p-3">
+        <div className="font-sans text-label text-text1">
+          {headline ?? "Funnel (no divergence yet)"}
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {FUNNEL_STAGES.map((stage) => {
+            const count =
+              stage === "inputs"
+                ? (scanCounts.signal ?? 0) +
+                  (scanCounts.no_setup ?? 0) +
+                  (scanCounts.insufficient_bars ?? 0) +
+                  (scanCounts.input_stale ?? 0) +
+                  (scanCounts.bars_failed ?? 0) +
+                  (scanCounts.evaluate_failed ?? 0)
+                : stage === "fresh"
+                  ? (scanCounts.signal ?? 0) + (scanCounts.no_setup ?? 0)
+                  : stage === "signals"
+                    ? (scanCounts.signal ?? 0)
+                    : firstDivergence?.terminalStage === stage.replace("-", "") ||
+                        firstDivergence?.terminalStage ===
+                          stage.replace("-passed", "")
+                      ? 1
+                      : 0;
+            return (
+              <span
+                key={stage}
+                className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-micro text-text2"
+              >
+                {stage}:{count}
+              </span>
+            );
+          })}
+        </div>
+        {scanFunnel?.firstBlocked ? (
           <div className="font-mono text-micro text-text3">
+            Scan block: {scanFunnel.firstBlocked.symbol} ·{" "}
+            {scanFunnel.firstBlocked.kind}
+            {scanFunnel.firstBlocked.barsActual != null
+              ? ` · bars ${scanFunnel.firstBlocked.barsActual}/${scanFunnel.firstBlocked.barsRequired ?? "?"}`
+              : ""}
+          </div>
+        ) : null}
+        {firstDivergence ? (
+          <div className="font-mono text-micro text-text2">
+            Cycle: {firstDivergence.terminalStage} · {firstDivergence.outcome} ·{" "}
+            {firstDivergence.reasonCode} ·{" "}
             {formatTimestamp(firstDivergence.occurredAt)}
           </div>
-        </div>
-      ) : null}
+        ) : null}
+        {opportunityRate ? (
+          <div className="font-mono text-micro text-text3">
+            Setup rate {opportunityRate.setupRate.toFixed(2)} · eligible{" "}
+            {opportunityRate.eligibleEvaluations} · blocked-by-history{" "}
+            {opportunityRate.blockedByHistory} ({opportunityRate.day})
+          </div>
+        ) : null}
+      </div>
       {analytics ? <ActivityAnalyticsCard analytics={analytics} /> : null}
 
       <div className="flex flex-col gap-2">

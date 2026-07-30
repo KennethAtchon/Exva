@@ -13,8 +13,8 @@ describe("PipelineRuntime", () => {
     return new PipelineRuntime({
       providerRegistry: {} as never,
       phaseConfigResolver: new AIPhaseConfigResolver({
-        getByPhase: vi.fn().mockReturnValue(null),
-        getWorker: vi.fn().mockReturnValue(null),
+        getAiPhase: vi.fn().mockReturnValue(null),
+        getAiPhaseWorker: vi.fn().mockReturnValue(null),
       } as never),
       strategyContextService: strategyContextService as never,
       sessionRepo: {
@@ -67,8 +67,8 @@ describe("PipelineRuntime", () => {
     const runtime = new PipelineRuntime({
       providerRegistry: {} as never,
       phaseConfigResolver: new AIPhaseConfigResolver({
-        getByPhase: vi.fn(),
-        getWorker: vi.fn(),
+        getAiPhase: vi.fn(),
+        getAiPhaseWorker: vi.fn(),
       } as never),
       strategyContextService: null,
       sessionRepo: { get: vi.fn(), requireById: vi.fn() } as never,

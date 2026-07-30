@@ -16,6 +16,9 @@ export function registerExperienceHandlers(services: AppServices): void {
       defaultPresets: experience.defaultPresets,
       capabilities: experience.capabilities,
       acceptsScanHit: experience.acceptsScanHit ?? false,
+      supportState: experience.supportState ?? "available",
+      blockerCode: experience.blockerCode ?? null,
+      blockerMessage: experience.blockerMessage ?? null,
     }));
   });
 }

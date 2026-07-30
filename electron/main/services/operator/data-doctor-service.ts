@@ -21,6 +21,7 @@ export interface CoverageCell {
   firstTs: string;
   lastTs: string;
   provider: string;
+  feed: string | null;
   lagMs: number | null;
   freshness: "fresh" | "stale" | "dead" | "unknown";
   gapCount: number;
@@ -69,8 +70,14 @@ export class DataDoctorService {
       else freshness = "dead";
 
       const gaps = this.detectGaps(row.symbol, row.timeframe);
+      const feed =
+        row.feed ??
+        (row.provider === "alpaca"
+          ? this.deps.marketData.equityDataFeed
+          : null);
       return {
         ...row,
+        feed,
         lagMs,
         freshness,
         gapCount: gaps.length,

@@ -13,6 +13,7 @@ type Parameters = z.infer<typeof parameterSchema>;
 
 export const nyRangeBreakoutDefinition: StrategyDefinition<Parameters> = {
   id: "ny-range-breakout",
+  dataDriver: "ohlcv",
   parameterSchemaVersion: 1,
   parameterSchema,
   acceptedInstrumentClasses: ["futures"] as const,

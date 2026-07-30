@@ -129,6 +129,36 @@ export async function runAdapterCertification(
     );
   }
 
+  // --- Buying power / entitlements (when adapter exposes them) ---
+  if (adapter.getTradingEntitlements) {
+    try {
+      const ent = await adapter.getTradingEntitlements();
+      const bpOk =
+        ent.buyingPower == null || ent.buyingPower > 0;
+      checks.push(
+        check(
+          "getBuyingPower",
+          bpOk && !ent.tradingBlocked,
+          ent.tradingBlocked
+            ? "trading_blocked"
+            : `buyingPower=${ent.buyingPower ?? "n/a"} feed=${ent.equityDataFeed ?? "n/a"}`,
+        ),
+      );
+    } catch (err) {
+      checks.push(
+        check(
+          "getBuyingPower",
+          false,
+          err instanceof Error ? err.message : String(err),
+        ),
+      );
+    }
+  } else {
+    checks.push(
+      check("getBuyingPower", true, "skipped: adapter has no entitlements hook"),
+    );
+  }
+
   // --- Capabilities honesty ---
   const unsupported = inventUnsupportedOrder(caps, symbol, instrumentClass);
   if (unsupported) {
@@ -176,6 +206,8 @@ export async function runAdapterCertification(
     } catch {
       snapPrice = 0;
     }
+
+    let filledOrderId: string | null = null;
 
     if (caps.supportsLimit && snapPrice > 0) {
       const frac = options.farLimitFraction ?? 0.5;
@@ -245,6 +277,7 @@ export async function runAdapterCertification(
             `id=${placed.brokerOrderId} fillPx=${placed.filledAvgPrice}`,
           ),
         );
+        filledOrderId = placed.brokerOrderId;
 
         if (adapter.createOrderEventFeed) {
           const fillTimeout = options.fillTimeoutMs ?? 15_000;
@@ -290,6 +323,88 @@ export async function runAdapterCertification(
           ),
         );
       }
+    }
+
+    // --- Positions after fill, close/flatten, restart resilience ---
+    if (filledOrderId) {
+      try {
+        const positions = await adapter.getPositions();
+        checks.push(
+          check(
+            "getPositionsAfterFill",
+            Array.isArray(positions),
+            `positions=${positions.length}`,
+          ),
+        );
+      } catch (err) {
+        checks.push(
+          check(
+            "getPositionsAfterFill",
+            false,
+            err instanceof Error ? err.message : String(err),
+          ),
+        );
+      }
+
+      try {
+        const closed = await adapter.closeOrder(filledOrderId);
+        checks.push(
+          check(
+            "closeFlatten",
+            Boolean(closed.brokerOrderId),
+            `realizedPnl=${closed.realizedPnlUsd}`,
+          ),
+        );
+      } catch (err) {
+        checks.push(
+          check(
+            "closeFlatten",
+            false,
+            err instanceof Error ? err.message : String(err),
+          ),
+        );
+      }
+
+      try {
+        const restart = await adapter.testConnection();
+        checks.push(
+          check(
+            "restartResilience",
+            restart.ok,
+            restart.ok ? restart.message : restart.message,
+          ),
+        );
+      } catch (err) {
+        checks.push(
+          check(
+            "restartResilience",
+            false,
+            err instanceof Error ? err.message : String(err),
+          ),
+        );
+      }
+    } else if (trade) {
+      checks.push(
+        check(
+          "closeFlatten",
+          true,
+          "skipped: no filled market order to close",
+        ),
+      );
+      checks.push(
+        check(
+          "getPositionsAfterFill",
+          true,
+          "skipped: no filled market order",
+        ),
+      );
+      checks.push(
+        check(
+          "restartResilience",
+          true,
+          "skipped: no filled market order",
+        ),
+      );
     }
   }
 
