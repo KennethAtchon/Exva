@@ -133,6 +133,14 @@ export interface BrokerAdapter {
     equityDataFeed: string | null;
   }>;
 
+  /**
+   * Optional equity data-feed entitlement, split by window because a plan can
+   * grant a delayed tape without granting the live one. `getEquityDataFeed` is
+   * the feed used for anything including the current minute.
+   */
+  getEquityDataFeed?(): Promise<"iex" | "sip">;
+  getEquityHistoricalDataFeed?(): Promise<"iex" | "sip">;
+
   placeOrder(order: BrokerOrder): Promise<BrokerOrderResult>;
   /**
    * Optional v2 placement. Adapters that implement this are preferred by

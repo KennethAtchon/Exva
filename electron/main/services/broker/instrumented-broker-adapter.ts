@@ -32,6 +32,9 @@ export const OPTIONAL_BROKER_METHODS = [
   "getOpenOrders",
   "prepareClientOrderId",
   "findOrderByClientOrderId",
+  "getTradingEntitlements",
+  "getEquityDataFeed",
+  "getEquityHistoricalDataFeed",
   "capabilities",
 ] as const;
 
@@ -166,6 +169,27 @@ export function createInstrumentedBrokerAdapter(
       traceBrokerInteraction(logger, "getOpenOrders", "open-orders", () =>
         getOpenOrders(),
       );
+  }
+
+  if (inner.getTradingEntitlements) {
+    const getTradingEntitlements = inner.getTradingEntitlements.bind(inner);
+    adapter.getTradingEntitlements = () =>
+      traceBrokerInteraction(
+        logger,
+        "getTradingEntitlements",
+        "account-entitlements",
+        () => getTradingEntitlements(),
+      );
+  }
+
+  if (inner.getEquityDataFeed) {
+    // Cached one-shot entitlement probes; the inner adapter already logs them.
+    adapter.getEquityDataFeed = inner.getEquityDataFeed.bind(inner);
+  }
+
+  if (inner.getEquityHistoricalDataFeed) {
+    adapter.getEquityHistoricalDataFeed =
+      inner.getEquityHistoricalDataFeed.bind(inner);
   }
 
   if (inner.prepareClientOrderId) {

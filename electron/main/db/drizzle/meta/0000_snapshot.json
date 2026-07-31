@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8a60f10a-54f8-46e8-a791-afadc16bf332",
+  "id": "10264617-0bf2-475c-86d7-9b947d4590b5",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_messages": {
@@ -131,12 +131,16 @@
       "indexes": {
         "idx_agent_messages_run": {
           "name": "idx_agent_messages_run",
-          "columns": ["agent_run_id"],
+          "columns": [
+            "agent_run_id"
+          ],
           "isUnique": false
         },
         "idx_agent_messages_trade": {
           "name": "idx_agent_messages_trade",
-          "columns": ["trade_id"],
+          "columns": [
+            "trade_id"
+          ],
           "isUnique": false
         }
       },
@@ -145,8 +149,12 @@
           "name": "agent_messages_agent_run_id_agent_runs_id_fk",
           "tableFrom": "agent_messages",
           "tableTo": "agent_runs",
-          "columnsFrom": ["agent_run_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "agent_run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -154,8 +162,12 @@
           "name": "agent_messages_session_id_sessions_id_fk",
           "tableFrom": "agent_messages",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -163,8 +175,12 @@
           "name": "agent_messages_trade_id_trades_id_fk",
           "tableFrom": "agent_messages",
           "tableTo": "trades",
-          "columnsFrom": ["trade_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "trade_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -273,7 +289,9 @@
       "indexes": {
         "idx_agent_runs_session": {
           "name": "idx_agent_runs_session",
-          "columns": ["session_id"],
+          "columns": [
+            "session_id"
+          ],
           "isUnique": false
         }
       },
@@ -282,8 +300,12 @@
           "name": "agent_runs_session_id_sessions_id_fk",
           "tableFrom": "agent_runs",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -291,8 +313,12 @@
           "name": "agent_runs_trade_id_trades_id_fk",
           "tableFrom": "agent_runs",
           "tableTo": "trades",
-          "columnsFrom": ["trade_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "trade_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -400,12 +426,16 @@
       "indexes": {
         "idx_api_call_log_session": {
           "name": "idx_api_call_log_session",
-          "columns": ["session_id"],
+          "columns": [
+            "session_id"
+          ],
           "isUnique": false
         },
         "idx_api_call_log_created": {
           "name": "idx_api_call_log_created",
-          "columns": ["created_at"],
+          "columns": [
+            "created_at"
+          ],
           "isUnique": false
         }
       },
@@ -414,8 +444,12 @@
           "name": "api_call_log_session_id_sessions_id_fk",
           "tableFrom": "api_call_log",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -423,8 +457,12 @@
           "name": "api_call_log_trade_id_trades_id_fk",
           "tableFrom": "api_call_log",
           "tableTo": "trades",
-          "columnsFrom": ["trade_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "trade_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -584,27 +622,37 @@
       "indexes": {
         "idx_autopsies_scope": {
           "name": "idx_autopsies_scope",
-          "columns": ["scope"],
+          "columns": [
+            "scope"
+          ],
           "isUnique": false
         },
         "idx_autopsies_trade": {
           "name": "idx_autopsies_trade",
-          "columns": ["trade_id"],
+          "columns": [
+            "trade_id"
+          ],
           "isUnique": false
         },
         "idx_autopsies_period_scope": {
           "name": "idx_autopsies_period_scope",
-          "columns": ["period_scope"],
+          "columns": [
+            "period_scope"
+          ],
           "isUnique": false
         },
         "idx_autopsies_session": {
           "name": "idx_autopsies_session",
-          "columns": ["session_id"],
+          "columns": [
+            "session_id"
+          ],
           "isUnique": false
         },
         "idx_autopsies_created": {
           "name": "idx_autopsies_created",
-          "columns": ["created_at"],
+          "columns": [
+            "created_at"
+          ],
           "isUnique": false
         }
       },
@@ -613,8 +661,12 @@
           "name": "autopsies_trade_id_trades_id_fk",
           "tableFrom": "autopsies",
           "tableTo": "trades",
-          "columnsFrom": ["trade_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "trade_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -622,8 +674,12 @@
           "name": "autopsies_session_id_sessions_id_fk",
           "tableFrom": "autopsies",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -756,22 +812,30 @@
       "indexes": {
         "idx_autopsy_lessons_autopsy": {
           "name": "idx_autopsy_lessons_autopsy",
-          "columns": ["autopsy_id"],
+          "columns": [
+            "autopsy_id"
+          ],
           "isUnique": false
         },
         "idx_autopsy_lessons_session": {
           "name": "idx_autopsy_lessons_session",
-          "columns": ["session_id"],
+          "columns": [
+            "session_id"
+          ],
           "isUnique": false
         },
         "idx_autopsy_lessons_status": {
           "name": "idx_autopsy_lessons_status",
-          "columns": ["status"],
+          "columns": [
+            "status"
+          ],
           "isUnique": false
         },
         "idx_autopsy_lessons_scope": {
           "name": "idx_autopsy_lessons_scope",
-          "columns": ["scope"],
+          "columns": [
+            "scope"
+          ],
           "isUnique": false
         }
       },
@@ -780,8 +844,12 @@
           "name": "autopsy_lessons_autopsy_id_autopsies_id_fk",
           "tableFrom": "autopsy_lessons",
           "tableTo": "autopsies",
-          "columnsFrom": ["autopsy_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "autopsy_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -789,8 +857,12 @@
           "name": "autopsy_lessons_trade_id_trades_id_fk",
           "tableFrom": "autopsy_lessons",
           "tableTo": "trades",
-          "columnsFrom": ["trade_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "trade_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -798,9 +870,470 @@
           "name": "autopsy_lessons_session_id_sessions_id_fk",
           "tableFrom": "autopsy_lessons",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "backtest_data_inputs": {
+      "name": "backtest_data_inputs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "run_id": {
+          "name": "run_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timeframe": {
+          "name": "timeframe",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "row_count": {
+          "name": "row_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "window_start": {
+          "name": "window_start",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "window_end": {
+          "name": "window_end",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "dataset_hash": {
+          "name": "dataset_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_backtest_data_inputs_run": {
+          "name": "idx_backtest_data_inputs_run",
+          "columns": [
+            "run_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "backtest_data_inputs_run_id_backtest_runs_id_fk": {
+          "name": "backtest_data_inputs_run_id_backtest_runs_id_fk",
+          "tableFrom": "backtest_data_inputs",
+          "tableTo": "backtest_runs",
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "backtest_equity_points": {
+      "name": "backtest_equity_points",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "run_id": {
+          "name": "run_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ts": {
+          "name": "ts",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cash_usd": {
+          "name": "cash_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "gross_market_value_usd": {
+          "name": "gross_market_value_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "net_market_value_usd": {
+          "name": "net_market_value_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "realized_pnl_usd": {
+          "name": "realized_pnl_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "unrealized_pnl_usd": {
+          "name": "unrealized_pnl_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fees_usd": {
+          "name": "fees_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "equity_usd": {
+          "name": "equity_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "drawdown_usd": {
+          "name": "drawdown_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "drawdown_pct": {
+          "name": "drawdown_pct",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_backtest_equity_points_run": {
+          "name": "idx_backtest_equity_points_run",
+          "columns": [
+            "run_id",
+            "ts"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "backtest_equity_points_run_id_backtest_runs_id_fk": {
+          "name": "backtest_equity_points_run_id_backtest_runs_id_fk",
+          "tableFrom": "backtest_equity_points",
+          "tableTo": "backtest_runs",
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "backtest_fills": {
+      "name": "backtest_fills",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "run_id": {
+          "name": "run_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ts": {
+          "name": "ts",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "side": {
+          "name": "side",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "price": {
+          "name": "price",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fee_usd": {
+          "name": "fee_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "idx_backtest_fills_run": {
+          "name": "idx_backtest_fills_run",
+          "columns": [
+            "run_id",
+            "ts"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "backtest_fills_run_id_backtest_runs_id_fk": {
+          "name": "backtest_fills_run_id_backtest_runs_id_fk",
+          "tableFrom": "backtest_fills",
+          "tableTo": "backtest_runs",
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "backtest_orders": {
+      "name": "backtest_orders",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "run_id": {
+          "name": "run_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ts": {
+          "name": "ts",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "side": {
+          "name": "side",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_backtest_orders_run": {
+          "name": "idx_backtest_orders_run",
+          "columns": [
+            "run_id",
+            "ts"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "backtest_orders_run_id_backtest_runs_id_fk": {
+          "name": "backtest_orders_run_id_backtest_runs_id_fk",
+          "tableFrom": "backtest_orders",
+          "tableTo": "backtest_runs",
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "backtest_run_specs_v2": {
+      "name": "backtest_run_specs_v2",
+      "columns": {
+        "run_id": {
+          "name": "run_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "spec_json": {
+          "name": "spec_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "spec_hash": {
+          "name": "spec_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "dataset_hash": {
+          "name": "dataset_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "research_contract_hash": {
+          "name": "research_contract_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "backtest_run_specs_v2_run_id_backtest_runs_id_fk": {
+          "name": "backtest_run_specs_v2_run_id_backtest_runs_id_fk",
+          "tableFrom": "backtest_run_specs_v2",
+          "tableTo": "backtest_runs",
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -881,6 +1414,34 @@
           "notNull": true,
           "autoincrement": false
         },
+        "engine_version": {
+          "name": "engine_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "spec_hash": {
+          "name": "spec_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "dataset_hash": {
+          "name": "dataset_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "research_contract_hash": {
+          "name": "research_contract_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "text",
@@ -892,11 +1453,133 @@
       "indexes": {
         "idx_backtest_runs_experience": {
           "name": "idx_backtest_runs_experience",
-          "columns": ["experience_id", "created_at"],
+          "columns": [
+            "experience_id",
+            "created_at"
+          ],
           "isUnique": false
         }
       },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "backtest_trades_v2": {
+      "name": "backtest_trades_v2",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "run_id": {
+          "name": "run_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "side": {
+          "name": "side",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entry_ts": {
+          "name": "entry_ts",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "exit_ts": {
+          "name": "exit_ts",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "entry_price": {
+          "name": "entry_price",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "exit_price": {
+          "name": "exit_price",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "realized_pnl_usd": {
+          "name": "realized_pnl_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "fees_usd": {
+          "name": "fees_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "return_bps": {
+          "name": "return_bps",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_backtest_trades_v2_run": {
+          "name": "idx_backtest_trades_v2_run",
+          "columns": [
+            "run_id",
+            "entry_ts"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "backtest_trades_v2_run_id_backtest_runs_id_fk": {
+          "name": "backtest_trades_v2_run_id_backtest_runs_id_fk",
+          "tableFrom": "backtest_trades_v2",
+          "tableTo": "backtest_runs",
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -1051,6 +1734,332 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "broker_adapter_cert_runs": {
+      "name": "broker_adapter_cert_runs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "broker_account_id": {
+          "name": "broker_account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "broker_type": {
+          "name": "broker_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "passed": {
+          "name": "passed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "checks_json": {
+          "name": "checks_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "certified_at": {
+          "name": "certified_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_adapter_cert_runs_account": {
+          "name": "idx_adapter_cert_runs_account",
+          "columns": [
+            "broker_account_id",
+            "certified_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "broker_adapter_cert_runs_broker_account_id_broker_accounts_id_fk": {
+          "name": "broker_adapter_cert_runs_broker_account_id_broker_accounts_id_fk",
+          "tableFrom": "broker_adapter_cert_runs",
+          "tableTo": "broker_accounts",
+          "columnsFrom": [
+            "broker_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "broker_adapter_cert_states": {
+      "name": "broker_adapter_cert_states",
+      "columns": {
+        "broker_account_id": {
+          "name": "broker_account_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cert_run_id": {
+          "name": "cert_run_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "broker_type": {
+          "name": "broker_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "passed": {
+          "name": "passed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "checks_json": {
+          "name": "checks_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "certified_at": {
+          "name": "certified_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "broker_adapter_cert_states_broker_account_id_broker_accounts_id_fk": {
+          "name": "broker_adapter_cert_states_broker_account_id_broker_accounts_id_fk",
+          "tableFrom": "broker_adapter_cert_states",
+          "tableTo": "broker_accounts",
+          "columnsFrom": [
+            "broker_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "broker_fills": {
+      "name": "broker_fills",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "order_intent_id": {
+          "name": "order_intent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "broker_order_id": {
+          "name": "broker_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "price": {
+          "name": "price",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fee_usd": {
+          "name": "fee_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "filled_at": {
+          "name": "filled_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_broker_fills_intent": {
+          "name": "idx_broker_fills_intent",
+          "columns": [
+            "order_intent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "broker_fills_order_intent_id_order_intents_id_fk": {
+          "name": "broker_fills_order_intent_id_order_intents_id_fk",
+          "tableFrom": "broker_fills",
+          "tableTo": "order_intents",
+          "columnsFrom": [
+            "order_intent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "broker_order_events": {
+      "name": "broker_order_events",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "order_intent_id": {
+          "name": "order_intent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "broker_order_id": {
+          "name": "broker_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "raw_status": {
+          "name": "raw_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "payload_json": {
+          "name": "payload_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'{}'"
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_broker_order_events_intent": {
+          "name": "idx_broker_order_events_intent",
+          "columns": [
+            "order_intent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "broker_order_events_order_intent_id_order_intents_id_fk": {
+          "name": "broker_order_events_order_intent_id_order_intents_id_fk",
+          "tableFrom": "broker_order_events",
+          "tableTo": "order_intents",
+          "columnsFrom": [
+            "order_intent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "broker_routing": {
       "name": "broker_routing",
       "columns": {
@@ -1075,8 +2084,12 @@
           "name": "broker_routing_default_broker_account_id_broker_accounts_id_fk",
           "tableFrom": "broker_routing",
           "tableTo": "broker_accounts",
-          "columnsFrom": ["default_broker_account_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "default_broker_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1148,12 +2161,17 @@
       "indexes": {
         "idx_calendar_events_scheduled": {
           "name": "idx_calendar_events_scheduled",
-          "columns": ["scheduled_at"],
+          "columns": [
+            "scheduled_at"
+          ],
           "isUnique": false
         },
         "idx_calendar_events_symbol_scheduled": {
           "name": "idx_calendar_events_symbol_scheduled",
-          "columns": ["symbol", "scheduled_at"],
+          "columns": [
+            "symbol",
+            "scheduled_at"
+          ],
           "isUnique": false
         }
       },
@@ -1233,12 +2251,17 @@
       "indexes": {
         "idx_capital_reservations_session": {
           "name": "idx_capital_reservations_session",
-          "columns": ["session_id", "status"],
+          "columns": [
+            "session_id",
+            "status"
+          ],
           "isUnique": false
         },
         "idx_capital_reservations_approval": {
           "name": "idx_capital_reservations_approval",
-          "columns": ["approval_id"],
+          "columns": [
+            "approval_id"
+          ],
           "isUnique": false
         }
       },
@@ -1247,8 +2270,12 @@
           "name": "capital_reservations_session_id_sessions_id_fk",
           "tableFrom": "capital_reservations",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1256,8 +2283,12 @@
           "name": "capital_reservations_approval_id_trade_approvals_id_fk",
           "tableFrom": "capital_reservations",
           "tableTo": "trade_approvals",
-          "columnsFrom": ["approval_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "approval_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1265,8 +2296,12 @@
           "name": "capital_reservations_trade_id_trades_id_fk",
           "tableFrom": "capital_reservations",
           "tableTo": "trades",
-          "columnsFrom": ["trade_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "trade_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1417,7 +2452,9 @@
       "indexes": {
         "idx_control_conversations_updated": {
           "name": "idx_control_conversations_updated",
-          "columns": ["updated_at"],
+          "columns": [
+            "updated_at"
+          ],
           "isUnique": false
         }
       },
@@ -1426,8 +2463,12 @@
           "name": "control_conversations_scope_session_id_sessions_id_fk",
           "tableFrom": "control_conversations",
           "tableTo": "sessions",
-          "columnsFrom": ["scope_session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "scope_session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1514,7 +2555,10 @@
       "indexes": {
         "idx_control_messages_conversation": {
           "name": "idx_control_messages_conversation",
-          "columns": ["conversation_id", "created_at"],
+          "columns": [
+            "conversation_id",
+            "created_at"
+          ],
           "isUnique": false
         }
       },
@@ -1523,8 +2567,12 @@
           "name": "control_messages_conversation_id_control_conversations_id_fk",
           "tableFrom": "control_messages",
           "tableTo": "control_conversations",
-          "columnsFrom": ["conversation_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "conversation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1625,12 +2673,16 @@
       "indexes": {
         "idx_control_tool_calls_conversation": {
           "name": "idx_control_tool_calls_conversation",
-          "columns": ["conversation_id"],
+          "columns": [
+            "conversation_id"
+          ],
           "isUnique": false
         },
         "idx_control_tool_calls_affected": {
           "name": "idx_control_tool_calls_affected",
-          "columns": ["affected_entity"],
+          "columns": [
+            "affected_entity"
+          ],
           "isUnique": false
         }
       },
@@ -1639,8 +2691,12 @@
           "name": "control_tool_calls_conversation_id_control_conversations_id_fk",
           "tableFrom": "control_tool_calls",
           "tableTo": "control_conversations",
-          "columnsFrom": ["conversation_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "conversation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1742,16 +2798,119 @@
       "indexes": {
         "idx_cross_venue_pair": {
           "name": "idx_cross_venue_pair",
-          "columns": ["polymarket_id", "kalshi_ticker"],
+          "columns": [
+            "polymarket_id",
+            "kalshi_ticker"
+          ],
           "isUnique": true
         },
         "idx_cross_venue_approved": {
           "name": "idx_cross_venue_approved",
-          "columns": ["approved"],
+          "columns": [
+            "approved"
+          ],
           "isUnique": false
         }
       },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "cycle_funnel_outcomes": {
+      "name": "cycle_funnel_outcomes",
+      "columns": {
+        "cycle_id": {
+          "name": "cycle_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "input_id": {
+          "name": "input_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "origin_kind": {
+          "name": "origin_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'strategy'"
+        },
+        "terminal_stage": {
+          "name": "terminal_stage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reason_code": {
+          "name": "reason_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "detail_json": {
+          "name": "detail_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'{}'"
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_cycle_funnel_session": {
+          "name": "idx_cycle_funnel_session",
+          "columns": [
+            "session_id",
+            "occurred_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "cycle_funnel_outcomes_session_id_sessions_id_fk": {
+          "name": "cycle_funnel_outcomes_session_id_sessions_id_fk",
+          "tableFrom": "cycle_funnel_outcomes",
+          "tableTo": "sessions",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -1801,6 +2960,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "feed": {
+          "name": "feed",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "text",
@@ -1812,7 +2978,10 @@
       "indexes": {
         "idx_data_coverage_symbol_tf": {
           "name": "idx_data_coverage_symbol_tf",
-          "columns": ["symbol", "timeframe"],
+          "columns": [
+            "symbol",
+            "timeframe"
+          ],
           "isUnique": true
         }
       },
@@ -1877,12 +3046,16 @@
       "indexes": {
         "idx_decision_traces_session": {
           "name": "idx_decision_traces_session",
-          "columns": ["session_id"],
+          "columns": [
+            "session_id"
+          ],
           "isUnique": false
         },
         "idx_decision_traces_trade": {
           "name": "idx_decision_traces_trade",
-          "columns": ["trade_id"],
+          "columns": [
+            "trade_id"
+          ],
           "isUnique": false
         }
       },
@@ -1891,8 +3064,12 @@
           "name": "decision_traces_session_id_sessions_id_fk",
           "tableFrom": "decision_traces",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1900,8 +3077,12 @@
           "name": "decision_traces_trade_id_trades_id_fk",
           "tableFrom": "decision_traces",
           "tableTo": "trades",
-          "columnsFrom": ["trade_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "trade_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2028,7 +3209,9 @@
       "indexes": {
         "idx_equity_snapshots_ts": {
           "name": "idx_equity_snapshots_ts",
-          "columns": ["ts"],
+          "columns": [
+            "ts"
+          ],
           "isUnique": false
         }
       },
@@ -2100,22 +3283,31 @@
       "indexes": {
         "idx_events_session_id": {
           "name": "idx_events_session_id",
-          "columns": ["session_id"],
+          "columns": [
+            "session_id"
+          ],
           "isUnique": false
         },
         "idx_events_cycle_id": {
           "name": "idx_events_cycle_id",
-          "columns": ["cycle_id"],
+          "columns": [
+            "cycle_id"
+          ],
           "isUnique": false
         },
         "idx_events_created_at": {
           "name": "idx_events_created_at",
-          "columns": ["created_at"],
+          "columns": [
+            "created_at"
+          ],
           "isUnique": false
         },
         "idx_events_session_created": {
           "name": "idx_events_session_created",
-          "columns": ["session_id", "created_at"],
+          "columns": [
+            "session_id",
+            "created_at"
+          ],
           "isUnique": false
         }
       },
@@ -2124,8 +3316,12 @@
           "name": "events_session_id_sessions_id_fk",
           "tableFrom": "events",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -2133,8 +3329,12 @@
           "name": "events_trade_id_trades_id_fk",
           "tableFrom": "events",
           "tableTo": "trades",
-          "columnsFrom": ["trade_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "trade_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2216,7 +3416,10 @@
       "indexes": {
         "idx_experience_experiments_experience": {
           "name": "idx_experience_experiments_experience",
-          "columns": ["experience_id", "created_at"],
+          "columns": [
+            "experience_id",
+            "created_at"
+          ],
           "isUnique": false
         }
       },
@@ -2296,7 +3499,10 @@
       "indexes": {
         "idx_experience_input_profiles_template": {
           "name": "idx_experience_input_profiles_template",
-          "columns": ["template_id", "template_version"],
+          "columns": [
+            "template_id",
+            "template_version"
+          ],
           "isUnique": false
         }
       },
@@ -2410,7 +3616,10 @@
       "indexes": {
         "idx_experience_template_revisions_status": {
           "name": "idx_experience_template_revisions_status",
-          "columns": ["template_id", "status"],
+          "columns": [
+            "template_id",
+            "status"
+          ],
           "isUnique": false
         }
       },
@@ -2419,15 +3628,22 @@
           "name": "experience_template_revisions_template_id_experience_templates_id_fk",
           "tableFrom": "experience_template_revisions",
           "tableTo": "experience_templates",
-          "columnsFrom": ["template_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "experience_template_revisions_template_id_version_pk": {
-          "columns": ["template_id", "version"],
+          "columns": [
+            "template_id",
+            "version"
+          ],
           "name": "experience_template_revisions_template_id_version_pk"
         }
       },
@@ -2594,7 +3810,10 @@
         },
         "idx_form4_ticker_filed": {
           "name": "idx_form4_ticker_filed",
-          "columns": ["ticker", "filed_at"],
+          "columns": [
+            "ticker",
+            "filed_at"
+          ],
           "isUnique": false
         }
       },
@@ -2652,12 +3871,19 @@
       "indexes": {
         "idx_funding_rates_venue_symbol_ts": {
           "name": "idx_funding_rates_venue_symbol_ts",
-          "columns": ["venue", "symbol", "ts"],
+          "columns": [
+            "venue",
+            "symbol",
+            "ts"
+          ],
           "isUnique": true
         },
         "idx_funding_rates_symbol_ts": {
           "name": "idx_funding_rates_symbol_ts",
-          "columns": ["symbol", "ts"],
+          "columns": [
+            "symbol",
+            "ts"
+          ],
           "isUnique": false
         }
       },
@@ -2708,14 +3934,21 @@
       "indexes": {
         "idx_instrument_set_members_set_rev": {
           "name": "idx_instrument_set_members_set_rev",
-          "columns": ["set_id", "set_revision"],
+          "columns": [
+            "set_id",
+            "set_revision"
+          ],
           "isUnique": false
         }
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "instrument_set_members_set_id_set_revision_canonical_id_pk": {
-          "columns": ["set_id", "set_revision", "canonical_id"],
+          "columns": [
+            "set_id",
+            "set_revision",
+            "canonical_id"
+          ],
           "name": "instrument_set_members_set_id_set_revision_canonical_id_pk"
         }
       },
@@ -2778,7 +4011,10 @@
       "indexes": {
         "idx_instrument_set_revisions_status": {
           "name": "idx_instrument_set_revisions_status",
-          "columns": ["set_id", "status"],
+          "columns": [
+            "set_id",
+            "status"
+          ],
           "isUnique": false
         }
       },
@@ -2787,15 +4023,22 @@
           "name": "instrument_set_revisions_set_id_instrument_sets_id_fk",
           "tableFrom": "instrument_set_revisions",
           "tableTo": "instrument_sets",
-          "columnsFrom": ["set_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "set_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "instrument_set_revisions_set_id_revision_pk": {
-          "columns": ["set_id", "revision"],
+          "columns": [
+            "set_id",
+            "revision"
+          ],
           "name": "instrument_set_revisions_set_id_revision_pk"
         }
       },
@@ -2971,7 +4214,10 @@
       "indexes": {
         "idx_model_versions_experience": {
           "name": "idx_model_versions_experience",
-          "columns": ["experience_id", "created_at"],
+          "columns": [
+            "experience_id",
+            "created_at"
+          ],
           "isUnique": false
         }
       },
@@ -3071,16 +4317,183 @@
       "indexes": {
         "idx_ohlcv_bars_symbol_tf_ts": {
           "name": "idx_ohlcv_bars_symbol_tf_ts",
-          "columns": ["symbol", "timeframe", "ts"],
+          "columns": [
+            "symbol",
+            "timeframe",
+            "ts"
+          ],
           "isUnique": true
         },
         "idx_ohlcv_bars_symbol_tf": {
           "name": "idx_ohlcv_bars_symbol_tf",
-          "columns": ["symbol", "timeframe"],
+          "columns": [
+            "symbol",
+            "timeframe"
+          ],
           "isUnique": false
         }
       },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "order_intents": {
+      "name": "order_intents",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "signal_id": {
+          "name": "signal_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "origin_kind": {
+          "name": "origin_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'strategy'"
+        },
+        "broker_account_id": {
+          "name": "broker_account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "canonical_client_order_id": {
+          "name": "canonical_client_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "wire_client_order_id": {
+          "name": "wire_client_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "side": {
+          "name": "side",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "notional_usd": {
+          "name": "notional_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "broker_order_id": {
+          "name": "broker_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_order_intents_client": {
+          "name": "idx_order_intents_client",
+          "columns": [
+            "broker_account_id",
+            "canonical_client_order_id"
+          ],
+          "isUnique": true
+        },
+        "idx_order_intents_wire": {
+          "name": "idx_order_intents_wire",
+          "columns": [
+            "broker_account_id",
+            "wire_client_order_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "order_intents_session_id_sessions_id_fk": {
+          "name": "order_intents_session_id_sessions_id_fk",
+          "tableFrom": "order_intents",
+          "tableTo": "sessions",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "order_intents_broker_account_id_broker_accounts_id_fk": {
+          "name": "order_intents_broker_account_id_broker_accounts_id_fk",
+          "tableFrom": "order_intents",
+          "tableTo": "broker_accounts",
+          "columnsFrom": [
+            "broker_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -3131,9 +4544,181 @@
           "name": "paper_balances_account_id_broker_accounts_id_fk",
           "tableFrom": "paper_balances",
           "tableTo": "broker_accounts",
-          "columnsFrom": ["account_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "paper_certification_runs": {
+      "name": "paper_certification_runs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "broker_account_id": {
+          "name": "broker_account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'SPY'"
+        },
+        "notional_usd": {
+          "name": "notional_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 10
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entry_client_order_id": {
+          "name": "entry_client_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entry_wire_client_order_id": {
+          "name": "entry_wire_client_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "entry_broker_order_id": {
+          "name": "entry_broker_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "exit_client_order_id": {
+          "name": "exit_client_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "exit_wire_client_order_id": {
+          "name": "exit_wire_client_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "exit_broker_order_id": {
+          "name": "exit_broker_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "filled_quantity": {
+          "name": "filled_quantity",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "failure_code": {
+          "name": "failure_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "failure_message": {
+          "name": "failure_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "armed_at": {
+          "name": "armed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_paper_cert_account_armed": {
+          "name": "idx_paper_cert_account_armed",
+          "columns": [
+            "broker_account_id",
+            "armed_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "paper_certification_runs_session_id_sessions_id_fk": {
+          "name": "paper_certification_runs_session_id_sessions_id_fk",
+          "tableFrom": "paper_certification_runs",
+          "tableTo": "sessions",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "paper_certification_runs_broker_account_id_broker_accounts_id_fk": {
+          "name": "paper_certification_runs_broker_account_id_broker_accounts_id_fk",
+          "tableFrom": "paper_certification_runs",
+          "tableTo": "broker_accounts",
+          "columnsFrom": [
+            "broker_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -3242,7 +4827,10 @@
       "indexes": {
         "idx_paper_positions_account_open": {
           "name": "idx_paper_positions_account_open",
-          "columns": ["account_id", "open"],
+          "columns": [
+            "account_id",
+            "open"
+          ],
           "isUnique": false
         }
       },
@@ -3251,8 +4839,12 @@
           "name": "paper_positions_account_id_broker_accounts_id_fk",
           "tableFrom": "paper_positions",
           "tableTo": "broker_accounts",
-          "columnsFrom": ["account_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3324,7 +4916,10 @@
       "indexes": {
         "idx_promotion_decisions_experience": {
           "name": "idx_promotion_decisions_experience",
-          "columns": ["experience_id", "decided_at"],
+          "columns": [
+            "experience_id",
+            "decided_at"
+          ],
           "isUnique": false
         }
       },
@@ -3443,7 +5038,10 @@
       "indexes": {
         "idx_research_summaries_period": {
           "name": "idx_research_summaries_period",
-          "columns": ["period", "created_at"],
+          "columns": [
+            "period",
+            "created_at"
+          ],
           "isUnique": false
         }
       },
@@ -3506,6 +5104,124 @@
         }
       },
       "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "scan_evaluation_outcomes": {
+      "name": "scan_evaluation_outcomes",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "group_key": {
+          "name": "group_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "strategy_id": {
+          "name": "strategy_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timeframe": {
+          "name": "timeframe",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "evaluated_at": {
+          "name": "evaluated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "bar_window_hash": {
+          "name": "bar_window_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "stored_bars": {
+          "name": "stored_bars",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "min_evaluable_bars": {
+          "name": "min_evaluable_bars",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "day_key": {
+          "name": "day_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_scan_eval_session_day": {
+          "name": "idx_scan_eval_session_day",
+          "columns": [
+            "session_id",
+            "day_key"
+          ],
+          "isUnique": false
+        },
+        "idx_scan_eval_group_day": {
+          "name": "idx_scan_eval_group_day",
+          "columns": [
+            "group_key",
+            "day_key"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -3648,8 +5364,12 @@
           "name": "session_activity_session_id_sessions_id_fk",
           "tableFrom": "session_activity",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3701,7 +5421,10 @@
       "indexes": {
         "idx_session_activity_transitions_session": {
           "name": "idx_session_activity_transitions_session",
-          "columns": ["session_id", "created_at"],
+          "columns": [
+            "session_id",
+            "created_at"
+          ],
           "isUnique": false
         }
       },
@@ -3710,8 +5433,12 @@
           "name": "session_activity_transitions_session_id_sessions_id_fk",
           "tableFrom": "session_activity_transitions",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3752,8 +5479,12 @@
           "name": "session_broker_assignments_session_id_sessions_id_fk",
           "tableFrom": "session_broker_assignments",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3761,15 +5492,22 @@
           "name": "session_broker_assignments_broker_account_id_broker_accounts_id_fk",
           "tableFrom": "session_broker_assignments",
           "tableTo": "broker_accounts",
-          "columnsFrom": ["broker_account_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "broker_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "session_broker_assignments_session_id_broker_account_id_pk": {
-          "columns": ["session_id", "broker_account_id"],
+          "columns": [
+            "session_id",
+            "broker_account_id"
+          ],
           "name": "session_broker_assignments_session_id_broker_account_id_pk"
         }
       },
@@ -3804,7 +5542,10 @@
       "indexes": {
         "idx_session_broker_override": {
           "name": "idx_session_broker_override",
-          "columns": ["session_id", "instrument_class"],
+          "columns": [
+            "session_id",
+            "instrument_class"
+          ],
           "isUnique": false
         }
       },
@@ -3813,8 +5554,12 @@
           "name": "session_broker_routing_overrides_session_id_sessions_id_fk",
           "tableFrom": "session_broker_routing_overrides",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3822,15 +5567,22 @@
           "name": "session_broker_routing_overrides_broker_account_id_broker_accounts_id_fk",
           "tableFrom": "session_broker_routing_overrides",
           "tableTo": "broker_accounts",
-          "columnsFrom": ["broker_account_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "broker_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "session_broker_routing_overrides_session_id_instrument_class_pk": {
-          "columns": ["session_id", "instrument_class"],
+          "columns": [
+            "session_id",
+            "instrument_class"
+          ],
           "name": "session_broker_routing_overrides_session_id_instrument_class_pk"
         }
       },
@@ -3951,17 +5703,27 @@
       "indexes": {
         "idx_ses_steps_session_cycle": {
           "name": "idx_ses_steps_session_cycle",
-          "columns": ["session_id", "cycle_id"],
+          "columns": [
+            "session_id",
+            "cycle_id"
+          ],
           "isUnique": false
         },
         "idx_ses_steps_session_status": {
           "name": "idx_ses_steps_session_status",
-          "columns": ["session_id", "status"],
+          "columns": [
+            "session_id",
+            "status"
+          ],
           "isUnique": false
         },
         "ux_ses_steps_session_cycle_stage": {
           "name": "ux_ses_steps_session_cycle_stage",
-          "columns": ["session_id", "cycle_id", "stage"],
+          "columns": [
+            "session_id",
+            "cycle_id",
+            "stage"
+          ],
           "isUnique": true
         }
       },
@@ -3970,8 +5732,12 @@
           "name": "session_execution_steps_session_id_sessions_id_fk",
           "tableFrom": "session_execution_steps",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4130,17 +5896,25 @@
       "indexes": {
         "idx_session_input_subscriptions_session": {
           "name": "idx_session_input_subscriptions_session",
-          "columns": ["session_id"],
+          "columns": [
+            "session_id"
+          ],
           "isUnique": false
         },
         "idx_session_input_subscriptions_source": {
           "name": "idx_session_input_subscriptions_source",
-          "columns": ["source_definition_id", "enabled"],
+          "columns": [
+            "source_definition_id",
+            "enabled"
+          ],
           "isUnique": false
         },
         "idx_session_input_subscriptions_set": {
           "name": "idx_session_input_subscriptions_set",
-          "columns": ["instrument_set_id", "enabled"],
+          "columns": [
+            "instrument_set_id",
+            "enabled"
+          ],
           "isUnique": false
         }
       },
@@ -4149,8 +5923,12 @@
           "name": "session_input_subscriptions_session_id_sessions_id_fk",
           "tableFrom": "session_input_subscriptions",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4233,8 +6011,12 @@
           "name": "session_instrument_cache_session_id_sessions_id_fk",
           "tableFrom": "session_instrument_cache",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4242,8 +6024,12 @@
           "name": "session_instrument_cache_selector_agent_run_id_agent_runs_id_fk",
           "tableFrom": "session_instrument_cache",
           "tableTo": "agent_runs",
-          "columnsFrom": ["selector_agent_run_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "selector_agent_run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -4364,17 +6150,24 @@
       "indexes": {
         "idx_ssd_session": {
           "name": "idx_ssd_session",
-          "columns": ["session_id"],
+          "columns": [
+            "session_id"
+          ],
           "isUnique": false
         },
         "idx_ssd_status": {
           "name": "idx_ssd_status",
-          "columns": ["session_id", "status_bucket"],
+          "columns": [
+            "session_id",
+            "status_bucket"
+          ],
           "isUnique": false
         },
         "idx_ssd_subscription": {
           "name": "idx_ssd_subscription",
-          "columns": ["subscription_id"],
+          "columns": [
+            "subscription_id"
+          ],
           "isUnique": false
         }
       },
@@ -4383,8 +6176,12 @@
           "name": "session_signal_deliveries_session_id_sessions_id_fk",
           "tableFrom": "session_signal_deliveries",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4392,8 +6189,12 @@
           "name": "session_signal_deliveries_signal_event_id_signal_events_id_fk",
           "tableFrom": "session_signal_deliveries",
           "tableTo": "signal_events",
-          "columnsFrom": ["signal_event_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "signal_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4492,8 +6293,12 @@
           "name": "session_strategy_configs_session_id_sessions_id_fk",
           "tableFrom": "session_strategy_configs",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4558,11 +6363,113 @@
       "indexes": {
         "session_templates_name_unique": {
           "name": "session_templates_name_unique",
-          "columns": ["name"],
+          "columns": [
+            "name"
+          ],
           "isUnique": true
         }
       },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "session_uptime_days": {
+      "name": "session_uptime_days",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "day_key": {
+          "name": "day_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "eligible_window_minutes": {
+          "name": "eligible_window_minutes",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "live_minutes": {
+          "name": "live_minutes",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "coverage_pct": {
+          "name": "coverage_pct",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "first_eligible_scan_at": {
+          "name": "first_eligible_scan_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "minutes_late_at_open": {
+          "name": "minutes_late_at_open",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "unplanned_stops": {
+          "name": "unplanned_stops",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "idx_session_uptime_day": {
+          "name": "idx_session_uptime_day",
+          "columns": [
+            "session_id",
+            "day_key"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "session_uptime_days_session_id_sessions_id_fk": {
+          "name": "session_uptime_days_session_id_sessions_id_fk",
+          "tableFrom": "session_uptime_days",
+          "tableTo": "sessions",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -4699,12 +6606,16 @@
       "indexes": {
         "idx_sessions_status": {
           "name": "idx_sessions_status",
-          "columns": ["status"],
+          "columns": [
+            "status"
+          ],
           "isUnique": false
         },
         "idx_sessions_is_focused": {
           "name": "idx_sessions_is_focused",
-          "columns": ["is_focused"],
+          "columns": [
+            "is_focused"
+          ],
           "isUnique": false
         }
       },
@@ -4713,8 +6624,12 @@
           "name": "sessions_default_search_provider_id_provider_accounts_id_fk",
           "tableFrom": "sessions",
           "tableTo": "provider_accounts",
-          "columnsFrom": ["default_search_provider_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "default_search_provider_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -4815,12 +6730,16 @@
       "indexes": {
         "idx_signal_dead_letters_session": {
           "name": "idx_signal_dead_letters_session",
-          "columns": ["session_id"],
+          "columns": [
+            "session_id"
+          ],
           "isUnique": false
         },
         "idx_signal_dead_letters_signal_event": {
           "name": "idx_signal_dead_letters_signal_event",
-          "columns": ["signal_event_id"],
+          "columns": [
+            "signal_event_id"
+          ],
           "isUnique": false
         }
       },
@@ -4829,8 +6748,12 @@
           "name": "signal_dead_letters_session_id_sessions_id_fk",
           "tableFrom": "signal_dead_letters",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4838,8 +6761,12 @@
           "name": "signal_dead_letters_signal_event_id_signal_events_id_fk",
           "tableFrom": "signal_dead_letters",
           "tableTo": "signal_events",
-          "columnsFrom": ["signal_event_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "signal_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4996,23 +6923,34 @@
       "indexes": {
         "idx_signal_events_source": {
           "name": "idx_signal_events_source",
-          "columns": ["source_id"],
+          "columns": [
+            "source_id"
+          ],
           "isUnique": false
         },
         "idx_signal_events_accession": {
           "name": "idx_signal_events_accession",
-          "columns": ["source_id", "accession_number"],
+          "columns": [
+            "source_id",
+            "accession_number"
+          ],
           "isUnique": true,
           "where": "\"signal_events\".\"accession_number\" is not null"
         },
         "idx_signal_events_dedupe": {
           "name": "idx_signal_events_dedupe",
-          "columns": ["source_id", "dedupe_key"],
+          "columns": [
+            "source_id",
+            "dedupe_key"
+          ],
           "isUnique": true
         },
         "idx_signal_events_origin": {
           "name": "idx_signal_events_origin",
-          "columns": ["origin_kind", "origin_id"],
+          "columns": [
+            "origin_kind",
+            "origin_id"
+          ],
           "isUnique": false
         }
       },
@@ -5115,15 +7053,23 @@
           "name": "signal_labels_observation_id_signal_observations_id_fk",
           "tableFrom": "signal_labels",
           "tableTo": "signal_observations",
-          "columnsFrom": ["observation_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "observation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "signal_labels_observation_id_horizon_benchmark_pk": {
-          "columns": ["observation_id", "horizon", "benchmark"],
+          "columns": [
+            "observation_id",
+            "horizon",
+            "benchmark"
+          ],
           "name": "signal_labels_observation_id_horizon_benchmark_pk"
         }
       },
@@ -5271,17 +7217,24 @@
       "indexes": {
         "idx_signal_observations_experience": {
           "name": "idx_signal_observations_experience",
-          "columns": ["experience_id", "event_time"],
+          "columns": [
+            "experience_id",
+            "event_time"
+          ],
           "isUnique": false
         },
         "idx_signal_observations_session": {
           "name": "idx_signal_observations_session",
-          "columns": ["session_id"],
+          "columns": [
+            "session_id"
+          ],
           "isUnique": false
         },
         "idx_signal_observations_label_ready": {
           "name": "idx_signal_observations_label_ready",
-          "columns": ["label_ready_at"],
+          "columns": [
+            "label_ready_at"
+          ],
           "isUnique": false
         }
       },
@@ -5290,8 +7243,12 @@
           "name": "signal_observations_session_id_sessions_id_fk",
           "tableFrom": "signal_observations",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -5396,7 +7353,10 @@
       "indexes": {
         "idx_signal_source_polls_source_polled": {
           "name": "idx_signal_source_polls_source_polled",
-          "columns": ["source_id", "polled_at"],
+          "columns": [
+            "source_id",
+            "polled_at"
+          ],
           "isUnique": false
         }
       },
@@ -5405,8 +7365,12 @@
           "name": "signal_source_polls_source_id_signal_sources_id_fk",
           "tableFrom": "signal_source_polls",
           "tableTo": "signal_sources",
-          "columnsFrom": ["source_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "source_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -5521,8 +7485,12 @@
           "name": "signal_source_runtime_states_source_id_signal_sources_id_fk",
           "tableFrom": "signal_source_runtime_states",
           "tableTo": "signal_sources",
-          "columnsFrom": ["source_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "source_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -5638,15 +7606,22 @@
           "name": "source_definition_revisions_source_definition_id_source_definitions_id_fk",
           "tableFrom": "source_definition_revisions",
           "tableTo": "source_definitions",
-          "columnsFrom": ["source_definition_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "source_definition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "source_definition_revisions_source_definition_id_revision_pk": {
-          "columns": ["source_definition_id", "revision"],
+          "columns": [
+            "source_definition_id",
+            "revision"
+          ],
           "name": "source_definition_revisions_source_definition_id_revision_pk"
         }
       },
@@ -5855,7 +7830,10 @@
       "indexes": {
         "idx_approvals_session": {
           "name": "idx_approvals_session",
-          "columns": ["session_id", "status"],
+          "columns": [
+            "session_id",
+            "status"
+          ],
           "isUnique": false
         }
       },
@@ -5864,8 +7842,12 @@
           "name": "trade_approvals_session_id_sessions_id_fk",
           "tableFrom": "trade_approvals",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -5873,8 +7855,12 @@
           "name": "trade_approvals_trade_id_trades_id_fk",
           "tableFrom": "trade_approvals",
           "tableTo": "trades",
-          "columnsFrom": ["trade_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "trade_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -6147,6 +8133,14 @@
           "notNull": false,
           "autoincrement": false
         },
+        "origin_kind": {
+          "name": "origin_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'strategy'"
+        },
         "created_at": {
           "name": "created_at",
           "type": "text",
@@ -6158,32 +8152,47 @@
       "indexes": {
         "idx_trades_session_id": {
           "name": "idx_trades_session_id",
-          "columns": ["session_id"],
+          "columns": [
+            "session_id"
+          ],
           "isUnique": false
         },
         "idx_trades_status": {
           "name": "idx_trades_status",
-          "columns": ["status"],
+          "columns": [
+            "status"
+          ],
           "isUnique": false
         },
         "idx_trades_instrument": {
           "name": "idx_trades_instrument",
-          "columns": ["instrument_symbol", "broker_account_id", "status"],
+          "columns": [
+            "instrument_symbol",
+            "broker_account_id",
+            "status"
+          ],
           "isUnique": false
         },
         "idx_trades_opened_at": {
           "name": "idx_trades_opened_at",
-          "columns": ["opened_at"],
+          "columns": [
+            "opened_at"
+          ],
           "isUnique": false
         },
         "idx_trades_closed_at": {
           "name": "idx_trades_closed_at",
-          "columns": ["closed_at"],
+          "columns": [
+            "closed_at"
+          ],
           "isUnique": false
         },
         "idx_trades_status_opened": {
           "name": "idx_trades_status_opened",
-          "columns": ["status", "opened_at"],
+          "columns": [
+            "status",
+            "opened_at"
+          ],
           "isUnique": false
         }
       },
@@ -6192,8 +8201,12 @@
           "name": "trades_session_id_sessions_id_fk",
           "tableFrom": "trades",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -6201,8 +8214,12 @@
           "name": "trades_broker_account_id_broker_accounts_id_fk",
           "tableFrom": "trades",
           "tableTo": "broker_accounts",
-          "columnsFrom": ["broker_account_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "broker_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -6298,8 +8315,12 @@
           "name": "workspace_preferences_default_search_provider_id_provider_accounts_id_fk",
           "tableFrom": "workspace_preferences",
           "tableTo": "provider_accounts",
-          "columnsFrom": ["default_search_provider_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "default_search_provider_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }

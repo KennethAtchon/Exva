@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1785166952702,
+      "when": 1785398936911,
       "tag": "0000_initial",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1785320000000,
-      "tag": "0001_trading_recovery",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1785400000000,
-      "tag": "0002_phase4_cert_feed",
       "breakpoints": true
     }
   ]

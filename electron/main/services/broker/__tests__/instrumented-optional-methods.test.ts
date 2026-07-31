@@ -50,6 +50,16 @@ describe("createInstrumentedBrokerAdapter", () => {
       getOpenOrders: async () => [],
       prepareClientOrderId: (id: string) => id.slice(0, 48),
       findOrderByClientOrderId: async () => null,
+      getTradingEntitlements: async () => ({
+        tradingBlocked: false,
+        buyingPower: 1,
+        optionsApprovedLevel: 3,
+        optionsTradingLevel: 3,
+        optionsBuyingPower: 1,
+        equityDataFeed: "iex",
+      }),
+      getEquityDataFeed: async () => "iex" as const,
+      getEquityHistoricalDataFeed: async () => "sip" as const,
     } as unknown as BrokerAdapter;
 
     const apiCallLogRepo = {

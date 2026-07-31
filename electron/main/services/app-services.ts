@@ -1110,17 +1110,20 @@ export async function createAppServices(app: App): Promise<AppServices> {
       if (account.brokerType !== "alpaca") continue;
       try {
         const adapter = await brokerRegistry.get(account.id);
-        if (
-          "getEquityDataFeed" in adapter &&
-          typeof adapter.getEquityDataFeed === "function"
-        ) {
-          const feed = await adapter.getEquityDataFeed();
-          marketData.setEquityDataFeed(feed);
-          logger.info({ feed, accountId: account.id }, "resolved alpaca equity feed");
-          break;
-        }
-      } catch {
-        // best-effort at startup
+        if (!adapter.getEquityDataFeed) continue;
+        const feed = await adapter.getEquityDataFeed();
+        const historicalFeed = await adapter.getEquityHistoricalDataFeed?.();
+        marketData.setEquityDataFeed(feed);
+        logger.info(
+          { feed, historicalFeed, accountId: account.id },
+          "resolved alpaca equity feed",
+        );
+        break;
+      } catch (err) {
+        logger.warn(
+          { err, accountId: account.id },
+          "could not resolve alpaca equity feed; live bars stay on iex",
+        );
       }
     }
   })();

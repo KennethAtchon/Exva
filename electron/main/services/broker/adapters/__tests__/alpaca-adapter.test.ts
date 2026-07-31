@@ -39,6 +39,15 @@ describe("AlpacaAdapter", () => {
           buying_power: "20000",
         });
       }
+      // Free-plan Alpaca: SIP covers aged data only, so any SIP request that
+      // touches the last 15 minutes is refused. Emulated here because it is the
+      // entitlement shape feed selection has to survive.
+      if (url.includes("feed=sip") && url.includes("/latest")) {
+        return jsonResponse(
+          { message: "subscription does not permit querying recent SIP data" },
+          403,
+        );
+      }
       if (url.includes("/trades/latest")) {
         return jsonResponse({
           trade: { p: 185.25, t: "2026-06-13T12:00:00Z" },
@@ -416,6 +425,47 @@ describe("AlpacaAdapter", () => {
     expect(ageMs).toBeGreaterThan(24 * 60 * 60 * 1000);
   });
 
+  // Regression: entitlement was probed once against a week-old bar, which
+  // succeeds on the free plan's delayed SIP tape. The account was then labelled
+  // SIP and every latest-trade request went out as feed=sip — a hard 403 on the
+  // live price path. Aged and recent entitlement are separate facts.
+  it("keeps recent requests on IEX while aged ranges use delayed SIP", async () => {
+    const adapter = new AlpacaAdapter(credentials, regularHoursClock);
+
+    const snapshot = await adapter.getMarketSnapshot("SPY");
+    const urlsFor = (needle: string) =>
+      fetchMock.mock.calls
+        .map(([url]) => String(url))
+        .filter((url) => url.includes(needle));
+
+    expect(snapshot.price).toBe(185.25);
+    expect(urlsFor("/v2/stocks/SPY/trades/latest")).toEqual([
+      // The SIP probe, refused, then the real request on the granted tape.
+      expect.stringContaining("feed=sip"),
+      expect.stringContaining("feed=iex"),
+    ]);
+
+    fetchMock.mockClear();
+    const nowMs = regularHoursClock().getTime();
+    await adapter.getOhlcvRange("SPY", "15m", {
+      startIso: new Date(nowMs - 10 * 86_400_000).toISOString(),
+      endIso: new Date(nowMs - 86_400_000).toISOString(),
+    });
+    for (const url of urlsFor("/v2/stocks/SPY/bars")) {
+      expect(url).toContain("feed=sip");
+    }
+
+    // A range running up to "now" is not aged, so it must not ask for SIP.
+    fetchMock.mockClear();
+    await adapter.getOhlcvRange("SPY", "15m", {
+      startIso: new Date(nowMs - 86_400_000).toISOString(),
+      endIso: new Date(nowMs).toISOString(),
+    });
+    for (const url of urlsFor("/v2/stocks/SPY/bars")) {
+      expect(url).toContain("feed=iex");
+    }
+  });
+
   it("returns the most recent bars when Alpaca pages newest-first", async () => {
     const nowMs = regularHoursClock().getTime();
     fetchMock.mockImplementation(async (url: string) => {
@@ -774,9 +824,12 @@ describe("AlpacaAdapter money-field validation", () => {
       "2026-01-01T00:00:00Z",
       "2026-01-02T00:00:00Z",
     ]);
-    expect(fetchMock.mock.calls[0]?.[0]).toContain("/v2/stocks/SPY/bars?");
-    expect(fetchMock.mock.calls[0]?.[0]).toContain("sort=asc");
-    expect(fetchMock.mock.calls[1]?.[0]).toContain("page_token=next");
+    // calls[0] is the one-shot SIP entitlement probe; the range pages follow.
+    const rangeCalls = fetchMock.mock.calls
+      .map(([url]) => String(url))
+      .filter((url) => url.includes("sort=asc"));
+    expect(rangeCalls[0]).toContain("/v2/stocks/SPY/bars?");
+    expect(rangeCalls[1]).toContain("page_token=next");
 
     fetchMock.mockClear();
     const cryptoBars = await adapter.getOhlcvRange("BTC/USD", "15m", {

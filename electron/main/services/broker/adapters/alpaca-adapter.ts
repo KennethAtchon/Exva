@@ -41,6 +41,14 @@ const logger = createLogger("alpaca-adapter");
 
 const ALPACA_DATA_URL = "https://data.alpaca.markets";
 
+/**
+ * Alpaca's free plan grants SIP on data older than 15 minutes only: aged bar
+ * requests succeed on `feed=sip`, while anything touching the last 15 minutes
+ * is rejected with 403 "subscription does not permit querying recent SIP data".
+ * Entitlement therefore has to be resolved per window, not once per account.
+ */
+const SIP_REALTIME_DELAY_MS = 15 * 60_000;
+
 /** Poll a freshly-placed order this many times before declaring no fill. */
 const FILL_POLL_ATTEMPTS = 3;
 const FILL_POLL_INTERVAL_MS = 500;
@@ -158,7 +166,8 @@ export class AlpacaAdapter implements BrokerAdapter {
   readonly capabilities = ALPACA_CAPABILITIES;
 
   private readonly baseUrl: string;
-  private cachedEquityFeed: "iex" | "sip" | null = null;
+  private cachedRealtimeFeed: "iex" | "sip" | null = null;
+  private cachedHistoricalFeed: "iex" | "sip" | null = null;
 
   /**
    * @param now Clock used to classify the current US trading session when
@@ -239,29 +248,64 @@ export class AlpacaAdapter implements BrokerAdapter {
     };
   }
 
-  /** Detect SIP vs IEX by probing the data API once, then cache. */
+  /**
+   * Feed for requests that must include the current minute (latest trade, live
+   * bars). Probed once against a `/latest` endpoint, because that is the window
+   * the free plan withholds — see SIP_REALTIME_DELAY_MS.
+   */
   async getEquityDataFeed(): Promise<"iex" | "sip"> {
-    if (this.cachedEquityFeed) return this.cachedEquityFeed;
-    try {
-      const params = new URLSearchParams({
-        feed: "sip",
-        timeframe: "1Day",
-        limit: "1",
-        start: new Date(Date.now() - 7 * 86_400_000).toISOString(),
-      });
-      const data = await this.dataRequest<{ bars?: unknown[] }>(
-        `/v2/stocks/SPY/bars?${params}`,
-      );
-      this.cachedEquityFeed =
-        Array.isArray(data.bars) && data.bars.length > 0 ? "sip" : "iex";
-    } catch {
-      this.cachedEquityFeed = "iex";
-    }
-    return this.cachedEquityFeed;
+    this.cachedRealtimeFeed ??= await this.probeSipFeed<{
+      trade?: { p?: number };
+    }>(
+      "/v2/stocks/SPY/trades/latest?feed=sip",
+      (data) => typeof data.trade?.p === "number",
+    );
+    return this.cachedRealtimeFeed;
   }
 
-  private async equityFeedParam(): Promise<Record<string, string>> {
-    return { feed: await this.getEquityDataFeed() };
+  /**
+   * Feed for windows that end before the SIP delay. Probed separately from
+   * {@link getEquityDataFeed} because an account can be entitled to aged SIP
+   * and not recent SIP.
+   */
+  async getEquityHistoricalDataFeed(): Promise<"iex" | "sip"> {
+    const end = new Date(this.now().getTime() - SIP_REALTIME_DELAY_MS);
+    const params = new URLSearchParams({
+      feed: "sip",
+      timeframe: "1Day",
+      limit: "1",
+      start: new Date(end.getTime() - 7 * 86_400_000).toISOString(),
+      end: end.toISOString(),
+    });
+    this.cachedHistoricalFeed ??= await this.probeSipFeed<{ bars?: unknown[] }>(
+      `/v2/stocks/SPY/bars?${params}`,
+      (data) => Array.isArray(data.bars) && data.bars.length > 0,
+    );
+    return this.cachedHistoricalFeed;
+  }
+
+  private async probeSipFeed<T>(
+    path: string,
+    hasData: (data: T) => boolean,
+  ): Promise<"iex" | "sip"> {
+    try {
+      // 403 is the documented answer for "not entitled to this window".
+      return hasData(await this.dataRequest<T>(path, [403])) ? "sip" : "iex";
+    } catch (err) {
+      logger.debug({ err, path }, "alpaca sip probe rejected; using iex");
+      return "iex";
+    }
+  }
+
+  private async equityFeedParam(
+    scope: "realtime" | "historical",
+  ): Promise<Record<string, string>> {
+    return {
+      feed:
+        scope === "historical"
+          ? await this.getEquityHistoricalDataFeed()
+          : await this.getEquityDataFeed(),
+    };
   }
 
   async getAccountBalance(): Promise<number> {
@@ -325,7 +369,7 @@ export class AlpacaAdapter implements BrokerAdapter {
     if (isOptionWireSymbol(instrumentSymbol)) {
       return this.getOptionMarketSnapshot(instrumentSymbol);
     }
-    const params = new URLSearchParams(await this.equityFeedParam());
+    const params = new URLSearchParams(await this.equityFeedParam("realtime"));
     const trade = await this.dataRequest<{
       trade?: { p?: number; t?: string };
     }>(
@@ -646,7 +690,8 @@ export class AlpacaAdapter implements BrokerAdapter {
         barCount,
         this.now(),
         multiplier,
-        await this.equityFeedParam(),
+        // Windows always end at "now", so only the realtime entitlement applies.
+        await this.equityFeedParam("realtime"),
       );
       const data = await this.dataRequest<{ bars?: AlpacaBarWire[] }>(
         `/v2/stocks/${encodeURIComponent(instrumentSymbol)}/bars?${params}`,
@@ -665,7 +710,12 @@ export class AlpacaAdapter implements BrokerAdapter {
     let nextPageToken: string | undefined;
     const stockFeed = isCryptoWireSymbol(instrumentSymbol)
       ? null
-      : await this.equityFeedParam();
+      : await this.equityFeedParam(
+          Date.parse(window.endIso) <=
+            this.now().getTime() - SIP_REALTIME_DELAY_MS
+            ? "historical"
+            : "realtime",
+        );
 
     do {
       const extra: Record<string, string> = isCryptoWireSymbol(instrumentSymbol)
@@ -871,8 +921,11 @@ export class AlpacaAdapter implements BrokerAdapter {
     return this.fetchWithAuth(this.baseUrl, path, init);
   }
 
-  private async dataRequest<T>(path: string): Promise<T> {
-    return this.fetchWithAuth(ALPACA_DATA_URL, path);
+  private async dataRequest<T>(
+    path: string,
+    expectedStatuses?: readonly number[],
+  ): Promise<T> {
+    return this.fetchWithAuth(ALPACA_DATA_URL, path, {}, expectedStatuses);
   }
 
   /**
@@ -1258,6 +1311,12 @@ export class AlpacaAdapter implements BrokerAdapter {
     baseUrl: string,
     path: string,
     init: RequestInit = {},
+    /**
+     * Statuses the caller is deliberately probing for. Still recorded as failed
+     * interactions and still thrown — only the console level drops to debug, so
+     * an expected 403 does not read as a broker outage.
+     */
+    expectedStatuses: readonly number[] = [],
   ): Promise<T> {
     const method = init.method ?? "GET";
     const httpEndpoint = `${method.toUpperCase()} ${path}`;
@@ -1306,7 +1365,10 @@ export class AlpacaAdapter implements BrokerAdapter {
         "BROKER_ERROR",
         { status: response.status },
       );
-      logger.error(
+      const logNonOk = expectedStatuses.includes(response.status)
+        ? logger.debug.bind(logger)
+        : logger.error.bind(logger);
+      logNonOk(
         {
           err,
           method,

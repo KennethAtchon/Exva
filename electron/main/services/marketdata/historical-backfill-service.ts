@@ -26,6 +26,7 @@ type RangeAdapter = {
     timeframe: TradingTimeframe,
     window: { startIso: string; endIso: string },
   ) => Promise<OhlcvBar[]>;
+  getEquityHistoricalDataFeed?: () => Promise<"iex" | "sip">;
 };
 
 /**
@@ -75,6 +76,12 @@ export class HistoricalBackfillService {
       instrumentClass: input.instrumentClass,
       brokerType: adapter.brokerType,
     });
+    // Aged equity ranges can come off a different tape than live bars (delayed
+    // SIP vs IEX), so label the rows with the feed that actually served them.
+    const feed =
+      input.instrumentClass === "stock"
+        ? ((await adapter.getEquityHistoricalDataFeed?.()) ?? null)
+        : null;
     let chunkStart = start;
     let chunks = 0;
     let barsWritten = 0;
@@ -94,6 +101,7 @@ export class HistoricalBackfillService {
         input.timeframe,
         bars,
         this.deps.marketDataProviderForBroker(adapter.brokerType),
+        feed,
       );
       chunks += 1;
       barsWritten += bars.length;
