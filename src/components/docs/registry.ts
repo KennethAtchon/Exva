@@ -60,7 +60,7 @@ const DOC_PAGES: DocPageDefinition[] = [
   {
     slug: "architecture",
     title: "System architecture",
-    description: "Electron layout, main-process services, and data flow.",
+    description: "Desktop app layout, main-process services, and data flow.",
     category: "Architecture",
     order: 30,
     related: ["signal-architecture", "pipeline"],

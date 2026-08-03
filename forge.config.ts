@@ -9,14 +9,28 @@ import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-nati
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
-    extraResource: ["electron/main/db/drizzle"],
+    name: "Exva",
+    executableName: "Exva",
+    appBundleId: "app.exva.desktop",
+    icon: "assets/icon",
+    extraResource: [
+      "electron/main/db/drizzle",
+      "assets/icon.png",
+      "assets/icon-dock.png",
+    ],
   },
   rebuildConfig: {},
   makers: [
-    new MakerSquirrel({}),
+    new MakerSquirrel({
+      setupIcon: "assets/icon.ico",
+    }),
     new MakerZIP({}, ["darwin"]),
     new MakerRpm({}),
-    new MakerDeb({}),
+    new MakerDeb({
+      options: {
+        icon: "assets/icon.png",
+      },
+    }),
   ],
   plugins: [
     new AutoUnpackNativesPlugin({}),

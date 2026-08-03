@@ -1,6 +1,6 @@
 # Exva
 
-Local-first autonomous trading desktop app built with Electron, React, TypeScript, and SQLite. The renderer stays sandboxed, the main process owns all broker/search/LLM work, and secrets stay in the OS keychain.
+Local-first autonomous trading desktop app built with React, TypeScript, and SQLite. The renderer stays sandboxed, the main process owns all broker/search/LLM work, and secrets stay in the OS keychain.
 
 ## What It Does
 
@@ -38,7 +38,7 @@ flowchart LR
 
 ## Quick Start
 
-Prereqs: Bun `1.3.11+`, native build tooling for Electron modules, and a machine that can build `better-sqlite3`.
+Prereqs: Bun `1.3.11+`, native build tooling for desktop native modules, and a machine that can build `better-sqlite3`.
 
 ```bash
 bun install
@@ -47,7 +47,7 @@ bun run start
 
 Useful commands:
 
-- `bun run start` - launch the Electron app.
+- `bun run start` - launch the Exva desktop app.
 - `bun run dev:debug` - launch with debug logging.
 - `bun run typecheck` - TypeScript check.
 - `bun run test` - Vitest suite.

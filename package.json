@@ -1,5 +1,6 @@
 {
   "name": "exva",
+  "productName": "Exva",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -37,7 +38,9 @@
     "test:watch": "vitest",
     "backtest:edgar": "bun run scripts/research/run-edgar-backtest.ts",
     "test:e2e": "playwright test",
-    "prepare": "husky",
+    "prepare": "husky && bun run branding:rebrand-runtime",
+    "branding:rebrand-runtime": "bun run scripts/branding/rebrand-electron-runtime.ts",
+    "branding:icons": "swift scripts/branding/render-macos-icon.swift .",
     "doctor": "react-doctor",
     "doctor:scan": "bunx react-doctor . --verbose",
     "doctor:fix:safe": "bun run scripts/tooling/react-doctor-fix.ts --safe",

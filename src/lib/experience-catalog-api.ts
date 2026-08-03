@@ -19,7 +19,7 @@ function bridge() {
     !window.exva
   ) {
     throw new Error(
-      "EXVA bridge unavailable. Run `bun run dev` / `bun run start` (Electron host).",
+      "EXVA bridge unavailable. Run `bun run dev` / `bun run start` (Exva desktop host).",
     );
   }
   return window.exva;

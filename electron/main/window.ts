@@ -1,6 +1,7 @@
 import { BrowserWindow, shell } from "electron";
 import path from "node:path";
 import type { AppServices } from "./services/app-services";
+import { resolveAppIconPath } from "./app-icon";
 import { recordRuntimeDiagnostic } from "./services/infra/runtime-diagnostics";
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
@@ -9,6 +10,7 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 export async function createMainWindow(
   services: AppServices,
 ): Promise<BrowserWindow> {
+  const icon = resolveAppIconPath() ?? undefined;
   const window = new BrowserWindow({
     width: 1440,
     height: 960,
@@ -16,6 +18,7 @@ export async function createMainWindow(
     minHeight: 400,
     show: false,
     title: "Exva",
+    ...(icon ? { icon } : {}),
     webPreferences: {
       preload: path.join(__dirname, "index.js"),
       nodeIntegration: false,

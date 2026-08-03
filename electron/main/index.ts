@@ -4,6 +4,7 @@ import { registerIpcHandlers } from "./ipc/register";
 import { createLogger } from "./services/infra/log";
 import { createAppServices, type AppServices } from "./services/app-services";
 import { ShutdownCoordinator } from "./services/session/shutdown-coordinator";
+import { applyProcessIcon } from "./app-icon";
 import { createMainWindow } from "./window";
 import { env } from "./config/env";
 import {
@@ -21,6 +22,16 @@ let shutdownCoordinator: ShutdownCoordinator | null = null;
 // async sonic-boom and surfaces as an uncaught "sonic boom is not ready yet".
 let logger: ReturnType<typeof createLogger> | null = null;
 
+// Product identity. Dev dock/bundle name comes from
+// scripts/branding/rebrand-electron-runtime.ts (Electron.app → Exva.app).
+app.setName("Exva");
+if (process.platform === "darwin") {
+  app.setAboutPanelOptions({
+    applicationName: "Exva",
+    applicationVersion: app.getVersion(),
+    copyright: "Exva",
+  });
+}
 app.disableHardwareAcceleration();
 
 app.on("render-process-gone", (_event, webContents, details) => {
@@ -152,6 +163,7 @@ app.whenReady().then(async () => {
         "headless mode: skipping BrowserWindow; supervisor + nightly jobs running",
       );
     } else {
+      applyProcessIcon();
       await createMainWindow(services);
       const coldStartMs = Date.now() - bootStartedAt;
       bootLogger.info(

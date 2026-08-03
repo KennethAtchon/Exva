@@ -5,22 +5,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { NAV_ITEMS, NAV_PRIMARY_IDS, type PageKey } from "@/lib/nav";
+import { ExvaLogo } from "@/components/brand/ExvaLogo";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
-
-const ExvaGlyph = () => (
-  <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden>
-    <path
-      d="M11 2L20 7V15L11 20L2 15V7L11 2Z"
-      className="fill-text1"
-      opacity="0.9"
-    />
-    <path
-      d="M11 6.5L15.5 9.25V14.5L11 17.25L6.5 14.5V9.25L11 6.5Z"
-      className="fill-bg"
-    />
-  </svg>
-);
 
 type RailProps = {
   activePage: PageKey;
@@ -50,7 +37,7 @@ export function Rail({
       aria-label="Main navigation"
     >
       <div className="flex h-contextbar items-center justify-center border-b border-hairline">
-        <ExvaGlyph />
+        <ExvaLogo size={28} alt="" />
         <span className="sr-only">exva</span>
       </div>
 

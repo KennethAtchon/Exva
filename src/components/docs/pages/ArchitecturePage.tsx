@@ -11,10 +11,10 @@ export function ArchitecturePage() {
   return (
     <>
       <DocParagraph>
-        Exva runs as an Electron desktop app. The renderer (React UI) talks to
-        the main process over typed IPC. The main process owns session
-        orchestration, signal polling, the AI pipeline, broker routing, and
-        local SQLite persistence.
+        Exva is a local desktop app. The renderer (React UI) talks to the main
+        process over typed IPC. The main process owns session orchestration,
+        signal polling, the AI pipeline, broker routing, and local SQLite
+        persistence.
       </DocParagraph>
       <DocHeading id="system-overview" level={2}>
         System overview

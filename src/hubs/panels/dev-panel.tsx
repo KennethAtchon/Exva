@@ -2246,7 +2246,7 @@ export const DevPanel = ({
         const res = await developerApi()?.getSettings();
         if (res) dispatchUi({ effectiveLogLevel: res.effectiveLogLevel });
       } catch {
-        /* developer settings unavailable outside Electron host */
+        /* developer settings unavailable outside Exva desktop host */
       }
     })();
   }, []);

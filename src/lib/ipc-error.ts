@@ -8,7 +8,7 @@ export type FormattedIpcError = {
 };
 
 /**
- * Normalize Electron IPC invoke failures. Main attaches `.code` via `toIpcError`;
+ * Normalize desktop IPC invoke failures. Main attaches `.code` via `toIpcError`;
  * without it we still avoid `[object Object]` toasts.
  */
 export function formatIpcError(error: unknown): FormattedIpcError {

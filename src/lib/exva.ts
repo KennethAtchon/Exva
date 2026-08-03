@@ -65,7 +65,7 @@ const hasExva =
 function bridge() {
   if (!hasExva) {
     throw new Error(
-      "EXVA bridge unavailable. Run `bun run dev` / `bun run start` (Electron host) instead of the renderer-only dev server.",
+      "EXVA bridge unavailable. Run `bun run dev` / `bun run start` (Exva desktop host) instead of the renderer-only dev server.",
     );
   }
   const exva = window.exva;

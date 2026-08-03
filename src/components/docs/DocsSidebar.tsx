@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
+import { ExvaLogo } from "@/components/brand/ExvaLogo";
 import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/ui";
 import {
@@ -167,8 +168,11 @@ export function DocsSidebar() {
   return (
     <aside className="flex w-[240px] shrink-0 flex-col border-r border-border bg-surface">
       <div className="px-4 pb-4 pt-5">
-        <div className="text-micro font-semibold uppercase tracking-[0.14em] text-text3">
-          Documentation
+        <div className="flex items-center gap-2">
+          <ExvaLogo size={22} />
+          <div className="text-micro font-semibold uppercase tracking-[0.14em] text-text3">
+            Documentation
+          </div>
         </div>
         <SearchInput
           value={query}
