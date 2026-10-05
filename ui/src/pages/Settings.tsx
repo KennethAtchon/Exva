@@ -19,16 +19,10 @@ import { usd } from "../format.ts";
 export const AI_PROVIDERS: { value: AiProvider; label: string; baseUrl: string; model: string }[] =
   [
     {
-      value: "deepseek",
-      label: "DeepSeek (V4.1 Flash)",
-      baseUrl: "https://api.deepseek.com",
-      model: "deepseek-flash",
-    },
-    {
       value: "openrouter",
-      label: "OpenRouter",
+      label: "OpenRouter (DeepSeek V4.1 Flash)",
       baseUrl: "https://openrouter.ai/api/v1",
-      model: "deepseek/deepseek-v4-flash",
+      model: "deepseek/deepseek-v4.1-flash",
     },
     { value: "custom", label: "Other OpenAI-compatible", baseUrl: "", model: "" },
   ];
@@ -238,7 +232,7 @@ function AiSettings({ settings }: { settings: Settings }) {
             type="password"
             value={key}
             onChange={(e) => setKey(e.target.value)}
-            placeholder={settings.ai.hasKey ? "••••••••" : "sk-…"}
+            placeholder={settings.ai.hasKey ? "••••••••" : "sk-or-…"}
             autoComplete="off"
           />
         </Field>
@@ -289,7 +283,7 @@ function AiSettings({ settings }: { settings: Settings }) {
         </Field>
         <Field
           label="Output $ / million tokens"
-          hint="Defaults are DeepSeek's peak rates (off-peak is half), so the budget errs on the safe side."
+          hint="Only used if the provider doesn't report each call's cost. OpenRouter does."
         >
           <NumberInput
             value={ai.outputPricePerM}

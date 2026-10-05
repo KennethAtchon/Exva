@@ -3,25 +3,25 @@ import type { AiProvider, Settings } from "@shared/types.ts";
 import type { SecretsFile } from "../config.ts";
 import type { Store } from "../store/store.ts";
 
-/** Base URL and model per provider. DeepSeek V4.1 Flash is served as "deepseek-flash". */
+/** Base URL and model per provider. DeepSeek V4.1 Flash, through OpenRouter, is the default. */
 export const AI_PRESETS: Record<AiProvider, { baseUrl: string; model: string }> = {
-  deepseek: { baseUrl: "https://api.deepseek.com", model: "deepseek-flash" },
-  openrouter: { baseUrl: "https://openrouter.ai/api/v1", model: "deepseek/deepseek-v4-flash" },
-  custom: { baseUrl: "https://api.deepseek.com", model: "deepseek-flash" },
+  openrouter: { baseUrl: "https://openrouter.ai/api/v1", model: "deepseek/deepseek-v4.1-flash" },
+  custom: { baseUrl: "https://openrouter.ai/api/v1", model: "deepseek/deepseek-v4.1-flash" },
 };
 
 type Stored = Omit<Settings, "ai"> & { ai: Omit<Settings["ai"], "hasKey"> };
 
-// DeepSeek peak-hour rates, so the budget errs on the safe side (off-peak is half).
+// OpenRouter's DeepSeek V4.1 Flash rates. OpenRouter reports the exact cost of every call, which is
+// what gets logged; these prices are only used when a provider doesn't.
 export const DEFAULT_SETTINGS: Stored = {
   onboarded: false,
   killSwitch: false,
   ai: {
-    provider: "deepseek",
-    ...AI_PRESETS.deepseek,
-    inputPricePerM: 0.3,
-    cachedInputPricePerM: 0.006,
-    outputPricePerM: 1.2,
+    provider: "openrouter",
+    ...AI_PRESETS.openrouter,
+    inputPricePerM: 0.15,
+    cachedInputPricePerM: 0.003,
+    outputPricePerM: 0.6,
     dailyBudgetUsd: 2,
     journalHour: 8,
   },

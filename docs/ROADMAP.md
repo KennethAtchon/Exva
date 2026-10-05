@@ -5,7 +5,7 @@ The redesign's full rationale is in git history: `git show b6d30fd:docs/REDESIGN
 Each phase ends with a check **you** perform on your own computer, not just "tests pass". Code
 items marked done are implemented and covered by `bun run verify` and `bun run test:e2e`. The
 checks marked ☐ need real Alpaca paper keys and your eyes; the build environment has no access to
-Alpaca or DeepSeek.
+Alpaca or OpenRouter.
 
 ## Phase 0: Reset ✔
 
@@ -60,7 +60,8 @@ Alpaca or DeepSeek.
 
 ## Phase 5: AI ✔ code, ☐ your check
 
-- [x] DeepSeek V4.1 Flash client: validated JSON with one repair, cost logging, persisted daily budget.
+- [x] DeepSeek V4.1 Flash client via OpenRouter: validated JSON with one repair, logs OpenRouter's
+  per-call cost, persisted daily budget.
 - [x] AI Analyst strategy with a "Trading style" field; `low_confidence` and `ai_failed` reason codes.
 - [x] Explain, morning Journal (with a no-AI fallback), capped and cached AI backtests, read-only Assistant with proposal buttons.
 - ☐ **Your check:** an AI Analyst bot on 5 symbols runs a full market day plus a crypto night with zero bot crashes; every AI decision shows its reasoning; spend stays under budget; the journal arrives in the morning.

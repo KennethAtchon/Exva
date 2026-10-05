@@ -38,7 +38,7 @@ const STARTERS = [
     strategyId: "ai-analyst",
     symbols: ["AAPL", "MSFT", "NVDA", "AMZN", "META"],
     timeframe: "1h" as const,
-    note: "DeepSeek decides once per hour on five megacaps. Needs the AI key.",
+    note: "DeepSeek V4.1 Flash decides once per hour on five megacaps. Needs the OpenRouter key.",
   },
 ];
 
@@ -166,20 +166,20 @@ export function Onboarding() {
           )}
           {step === 1 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-medium">Connect DeepSeek (optional)</h2>
+              <h2 className="text-lg font-medium">Connect OpenRouter (optional)</h2>
               <p className="text-sm text-ink2">
-                Powers the AI Analyst bot, the morning journal and "Explain". DeepSeek V4.1 Flash
-                costs well under a cent per decision.
+                Powers the AI Analyst bot, the morning journal and "Explain" with DeepSeek V4.1
+                Flash, which costs well under a cent per decision.
               </p>
               <Field
-                label="DeepSeek API key"
-                hint="From platform.deepseek.com → API keys. You can add it later in Settings."
+                label="OpenRouter API key"
+                hint="From openrouter.ai → Keys. You can add it later in Settings."
               >
                 <Input
                   type="password"
                   value={aiKey}
                   onChange={(e) => setAiKey(e.target.value)}
-                  placeholder="sk-…"
+                  placeholder="sk-or-…"
                   autoComplete="off"
                 />
               </Field>

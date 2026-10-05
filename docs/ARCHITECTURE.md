@@ -18,7 +18,7 @@ flowchart LR
         BARS[BarStore]
         ORD[Orders]
         BRK[AlpacaBroker / SimBroker]
-        AI[AI client: DeepSeek]
+        AI[AI client: OpenRouter]
         DB[(SQLite)]
     end
     WIN -- loads UI from --> API
@@ -110,10 +110,13 @@ proves the live scheduler and the backtester make identical decisions on the sam
 
 ## AI (`engine/src/ai/`)
 
-- One OpenAI-compatible client, defaulting to **DeepSeek V4.1 Flash** (`deepseek-flash` at
-  `https://api.deepseek.com`). JSON answers are validated with zod, with one repair attempt that
-  feeds back the validation errors. Every call is stored in `ai_calls` with tokens and cost (default
-  prices are DeepSeek's peak rates). The daily budget is enforced from that table before any request.
+- One OpenAI-compatible client, defaulting to **DeepSeek V4.1 Flash on OpenRouter**
+  (`deepseek/deepseek-v4.1-flash` at `https://openrouter.ai/api/v1`). On OpenRouter it asks for
+  low-effort thinking that isn't sent back, with token headroom for it. JSON answers are validated
+  with zod, with one repair attempt that feeds back the validation errors. Every call is stored in
+  `ai_calls` with tokens and cost: the cost OpenRouter reports for the call, or tokens × the prices
+  in Settings for providers that don't report one. The daily budget is enforced from that table
+  before any request.
 - **AI Analyst** strategy: one call per check. The context is built only from closed bars and the
   position, so it is replayable. Backtests cache answers by context hash and cap paid calls per run.
 - **Journal** (daily, with a no-AI fallback), **Explain** (cached per decision), **Assistant**
@@ -146,8 +149,8 @@ Enforced by `scripts/budget.ts` in `bun run verify`. Raising one needs a reason 
 
 ## Choices made while building (versus the original plan)
 
-- **AI provider:** DeepSeek V4.1 Flash instead of Claude (owner's choice, for cost). Any
-  OpenAI-compatible provider can be configured in Settings.
+- **AI provider:** DeepSeek V4.1 Flash through OpenRouter instead of Claude (owner's choice, for
+  cost). Any OpenAI-compatible provider can be configured in Settings.
 - **Tests:** `bun test` instead of Vitest, because the engine uses `bun:sqlite`.
 - **Lint/format:** Biome (one tool) instead of ESLint + Prettier.
 - **Routing:** wouter (tiny) instead of TanStack Router.

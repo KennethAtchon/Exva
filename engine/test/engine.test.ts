@@ -236,7 +236,7 @@ describe("API", () => {
     ).json as { ai: Record<string, unknown> };
     expect(s.ai.hasKey).toBe(true);
     expect(JSON.stringify(s)).not.toContain("sk-123");
-    expect(s.ai.model).toBe("deepseek-flash");
+    expect(s.ai.model).toBe("deepseek/deepseek-v4.1-flash");
     const status = (await call("POST", "/api/kill-switch", { on: true })).json as {
       killSwitch: boolean;
       health: string;

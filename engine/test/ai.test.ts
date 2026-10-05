@@ -40,7 +40,7 @@ const buyJson = JSON.stringify({
 });
 
 describe("AI client", () => {
-  test("valid JSON is returned, logged with DeepSeek token pricing", async () => {
+  test("valid JSON is returned, priced from tokens when the provider reports no cost", async () => {
     const { engine, srv } = engineWithAi(() => [200, completion(buyJson)]);
     const res = await engine.ai.json({
       purpose: "analyst",
@@ -54,11 +54,48 @@ describe("AI client", () => {
     expect(body.response_format).toEqual({ type: "json_object" });
     expect(srv.requests[0]!.path).toBe("/chat/completions");
     expect(srv.requests[0]!.headers.get("authorization")).toBe("Bearer sk-test");
-    // 800 miss x $0.30/M + 200 hit x $0.006/M + 100 out x $1.20/M
+    expect(body.reasoning).toBeUndefined(); // OpenRouter-only parameter
+    // 800 uncached x $0.15/M + 200 cached x $0.003/M + 100 out x $0.60/M
     expect(engine.store.getAiCall(res.callId)?.costUsd).toBeCloseTo(
-      (800 * 0.3 + 200 * 0.006 + 100 * 1.2) / 1e6,
+      (800 * 0.15 + 200 * 0.003 + 100 * 0.6) / 1e6,
       10,
     );
+  });
+
+  test("by default it calls DeepSeek V4.1 Flash on OpenRouter and logs OpenRouter's cost", async () => {
+    const sent: { url: string; body: Record<string, unknown> }[] = [];
+    const engine = new Engine({
+      home: mkdtempSync(join(tmpdir(), "exva-ai-")),
+      dbFile: ":memory:",
+      clock: new SimClock(T0),
+      provider: new SyntheticData(new UsEquityCalendar()),
+      fetch: (async (url: string, init: RequestInit) => {
+        sent.push({ url, body: JSON.parse(String(init.body)) });
+        const usage = {
+          prompt_tokens: 1000,
+          completion_tokens: 300,
+          prompt_tokens_details: { cached_tokens: 200 },
+          completion_tokens_details: { reasoning_tokens: 200 },
+          cost: 0.000321,
+        };
+        return Response.json(completion(buyJson, undefined, usage as never));
+      }) as unknown as typeof fetch,
+    });
+    engine.settings.patch({ aiApiKey: "sk-or-test" });
+    const res = await engine.ai.json({
+      purpose: "analyst",
+      messages: [{ role: "user", content: "x" }],
+      maxTokens: 400,
+      promptVersion: "v1",
+      schema: analystOutputSchema,
+    });
+    expect(sent[0]?.url).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(sent[0]?.body.model).toBe("deepseek/deepseek-v4.1-flash");
+    expect(sent[0]?.body.reasoning).toEqual({ effort: "low", exclude: true });
+    expect(sent[0]?.body.max_tokens).toBe(2_400); // thinking gets headroom
+    const call = engine.store.getAiCall(res.callId);
+    expect(call?.costUsd).toBe(0.000321);
+    expect(call?.cachedTokens).toBe(200);
   });
 
   test("invalid output gets one repair attempt with the validation errors", async () => {
@@ -101,7 +138,7 @@ describe("AI client", () => {
       200,
       completion(buyJson, undefined, {
         prompt_tokens: 0,
-        completion_tokens: 2_000_000,
+        completion_tokens: 4_000_000,
         prompt_cache_hit_tokens: 0,
         prompt_cache_miss_tokens: 0,
       }),

@@ -1,5 +1,6 @@
-// OpenAI-compatible chat client (DeepSeek by default). Every call is logged with tokens and cost;
-// every structured answer is schema-validated with one repair attempt; failures are AiError.
+// OpenAI-compatible chat client (DeepSeek V4.1 Flash on OpenRouter by default). Every call is logged
+// with tokens and cost; every structured answer is schema-validated with one repair attempt;
+// failures are AiError.
 import type { Settings } from "@shared/types.ts";
 import type { z } from "zod";
 import type { Clock } from "../core/clock.ts";
@@ -49,6 +50,13 @@ interface Usage {
 }
 
 export const promptVersion = (text: string) => sha256(text).slice(0, 12);
+
+/**
+ * On OpenRouter: brief thinking, not sent back (answers carry their own short reasoning field).
+ * Thinking counts against max_tokens, so it gets headroom on top of the answer's budget.
+ */
+const OPENROUTER_REASONING = { effort: "low", exclude: true };
+const REASONING_HEADROOM = 2_000;
 
 export class AiClient {
   constructor(
@@ -107,13 +115,15 @@ export class AiClient {
       });
       return cost;
     };
+    const openRouter = isOpenRouter(cfg.baseUrl);
     const body: Record<string, unknown> = {
       model: cfg.model,
       messages: o.messages,
-      max_tokens: o.maxTokens ?? 800,
+      max_tokens: (o.maxTokens ?? 800) + (openRouter ? REASONING_HEADROOM : 0),
       temperature: 0.2,
       stream: false,
     };
+    if (openRouter) body.reasoning = OPENROUTER_REASONING;
     if (o.json) body.response_format = { type: "json_object" };
     if (o.tools?.length) body.tools = o.tools;
     let res: Response;
@@ -217,6 +227,15 @@ export class AiClient {
         1e6,
       8,
     );
+  }
+}
+
+function isOpenRouter(baseUrl: string): boolean {
+  try {
+    const host = new URL(baseUrl).hostname;
+    return host === "openrouter.ai" || host.endsWith(".openrouter.ai");
+  } catch {
+    return false;
   }
 }
 

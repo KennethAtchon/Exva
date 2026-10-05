@@ -4,7 +4,8 @@ A desktop app that runs **paper-trading bots** on your Alpaca account around the
 bot is doing and **why it did or didn't trade**, and lets you test any strategy on history before you
 run it.
 
-- **Bots:** EMA Crossover, RSI Dip Buyer, Donchian Breakout, AI Analyst (DeepSeek V4.1 Flash), and a
+- **Bots:** EMA Crossover, RSI Dip Buyer, Donchian Breakout, AI Analyst (DeepSeek V4.1 Flash via
+  OpenRouter), and a
   Heartbeat test bot that proves the whole pipeline in minutes.
 - **Receipts:** every time a bar closes, each bot records one decision per symbol: BUY, SELL, HOLD,
   SKIP or ERROR, with the numbers it compared ("RSI(2) 11.8, buys below 10").
@@ -22,7 +23,7 @@ bun install
 bun run start        # builds the UI and opens the desktop app, which starts the engine
 ```
 
-First run walks you through: Alpaca paper keys (or the simulator) → optional DeepSeek key → a
+First run walks you through: Alpaca paper keys (or the simulator) → optional OpenRouter key → a
 Heartbeat test bot (first trade within ~10 minutes) → starter bots.
 
 Other ways to run:
@@ -62,7 +63,8 @@ bot came to trading. Common answers:
 ## Where things live
 
 - `~/.exva/exva.db`: the database (bots, decisions, orders, trades, backtests).
-- `~/.exva/secrets.json`: API keys (permissions 0600, never in the database or the repo).
+- `~/.exva/secrets.json`: API keys: Alpaca paper and OpenRouter (permissions 0600, never in the
+  database or the repo).
 - `~/.exva/engine.json`: how the desktop app and CLI find a running engine.
 
 ## For developers

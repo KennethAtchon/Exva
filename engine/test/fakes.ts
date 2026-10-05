@@ -32,7 +32,7 @@ export function fakeServer(
   return { url: `http://127.0.0.1:${server.port}`, requests, stop: () => server.stop(true) };
 }
 
-/** OpenAI-style chat completion body with DeepSeek usage fields. */
+/** OpenAI-style chat completion body (usage fields as DeepSeek reports them; no cost field). */
 export function completion(
   content: string | null,
   toolCalls?: unknown[],

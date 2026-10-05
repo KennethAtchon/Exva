@@ -64,7 +64,7 @@ export const settingsPatchSchema = z.object({
   onboarded: z.boolean().optional(),
   ai: z
     .object({
-      provider: z.enum(["deepseek", "openrouter", "custom"]),
+      provider: z.enum(["openrouter", "custom"]),
       baseUrl: z.string().url(),
       model: z.string().min(1),
       inputPricePerM: z.number().min(0),

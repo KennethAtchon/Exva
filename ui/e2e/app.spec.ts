@@ -48,8 +48,8 @@ test("the kill switch stops all trading and can be resumed", async ({ page }) =>
   await expect(page.getByRole("button", { name: "■ Stop all" })).toBeVisible();
 });
 
-test("settings default to DeepSeek V4.1 Flash", async ({ page }) => {
+test("settings default to DeepSeek V4.1 Flash on OpenRouter", async ({ page }) => {
   await page.goto("/settings");
-  await expect(page.locator('input[value="deepseek-flash"]')).toBeVisible();
-  await expect(page.locator('input[value="https://api.deepseek.com"]')).toBeVisible();
+  await expect(page.locator('input[value="deepseek/deepseek-v4.1-flash"]')).toBeVisible();
+  await expect(page.locator('input[value="https://openrouter.ai/api/v1"]')).toBeVisible();
 });

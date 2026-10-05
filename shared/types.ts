@@ -266,7 +266,7 @@ export interface Backtest {
   error: string | null;
 }
 
-export type AiProvider = "deepseek" | "openrouter" | "custom";
+export type AiProvider = "openrouter" | "custom";
 export interface Settings {
   onboarded: boolean;
   killSwitch: boolean;
