@@ -60,6 +60,7 @@ Useful commands:
 
 ## Documentation
 
+- [`docs/REDESIGN.md`](docs/REDESIGN.md) - **proposed v2 redesign plan** (rebuild around one engine, one receipt per check, six screens).
 - [`docs/IMPLEMENTATION_BACKLOG.md`](docs/IMPLEMENTATION_BACKLOG.md) - the single active implementation tracker.
 - [`docs/engineering/README.md`](docs/engineering/README.md) - engineering guidance and operating procedures.
 - [`docs/prompts/`](docs/prompts/) - current operational prompts.
