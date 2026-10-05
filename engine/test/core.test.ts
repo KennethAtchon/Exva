@@ -64,6 +64,11 @@ describe("calendar", () => {
     expect(nextCheckTime(cal, ["SPY"], "15m", fridayClose)).toBe(etToEpoch(2026, 1, 20, 9, 45)); // Mon is MLK
     expect(nextCheckTime(cal, ["BTC/USD"], "15m", fridayClose)).toBe(fridayClose + 900_000);
   });
+  test("a stock bot checked just before the open runs at the day's first bar", () => {
+    const at = (h: number, m: number) => etToEpoch(2026, 10, 5, h, m);
+    expect(nextCheckTime(cal, ["SPY"], "5m", at(9, 27))).toBe(at(9, 35));
+    expect(nextCheckTime(cal, ["SPY"], "15m", at(9, 20))).toBe(at(9, 45));
+  });
 });
 
 describe("runner", () => {
@@ -101,6 +106,7 @@ describe("runner", () => {
       orders,
       brokerFor: () => sim,
       accountMode: () => "sim",
+      marketOpen: () => true,
       ai: null,
       clock: env.clock,
       events: nullSink,

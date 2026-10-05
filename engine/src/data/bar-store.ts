@@ -14,6 +14,7 @@ export interface BarFeed {
 
 export class BarStore implements BarFeed {
   private inflight = new Map<string, Promise<void>>();
+  private readonly tailChecked = new Map<string, number>();
 
   constructor(
     private readonly store: Store,
@@ -57,19 +58,29 @@ export class BarStore implements BarFeed {
     const provider = this.provider();
     if (!provider) return;
     const tf = TIMEFRAME_MS[timeframe];
-    const slack = 3 * DAY;
+    const slack = 3 * DAY; // a range can start on a weekend or holiday with no bars
     for (const s of symbols) {
       const feed = this.feedFor(s);
       const first = this.store.firstBarTs(s, timeframe, feed);
       const last = this.store.lastBarTs(s, timeframe, feed);
-      if (first === null || last === null || first > from + slack || last < to - slack - tf) {
-        if (first !== null && last !== null && first <= from + slack) {
-          await this.fetchAndStore(provider, [s], timeframe, last + tf, to);
-        } else {
-          await this.fetchAndStore(provider, [s], timeframe, from, to);
-        }
+      if (first === null || last === null || first > from + slack) {
+        await this.fetchAndStore(provider, [s], timeframe, from, to);
+        continue;
+      }
+      // The tail: anything after the last stored bar, unless that was already asked for up to `to`.
+      const key = `${s}|${timeframe}|${feed}`;
+      if (last + 2 * tf <= to && (this.tailChecked.get(key) ?? 0) < to) {
+        await this.fetchAndStore(provider, [s], timeframe, last + tf, to);
+        this.tailChecked.set(key, Math.min(to, this.clock.now()));
       }
     }
+  }
+
+  /** Forget stored bars for a symbol (after a stock split) so they are fetched again, adjusted. */
+  forget(symbol: string): void {
+    this.store.deleteBars(symbol);
+    for (const k of [...this.tailChecked.keys()])
+      if (k.startsWith(`${symbol}|`)) this.tailChecked.delete(k);
   }
 
   private fetchAndStore(

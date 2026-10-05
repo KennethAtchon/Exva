@@ -181,6 +181,11 @@ export class UsEquityCalendar {
   }
 }
 
+/** Can this symbol be traded at `ts`? Crypto always; stocks during regular hours. */
+export function marketOpenFor(calendar: UsEquityCalendar, symbol: string, ts: number): boolean {
+  return assetClassOf(symbol) === "crypto" || calendar.isOpen(ts);
+}
+
 /** Is a bar of this symbol that closes at T a moment the bot should check? */
 export function isCheckTime(calendar: UsEquityCalendar, symbol: string, closeTs: number): boolean {
   return assetClassOf(symbol) === "crypto" || calendar.isTickTime(closeTs);
@@ -199,7 +204,7 @@ export function nextCheckTime(
   if (anyCrypto) return t;
   for (let i = 0; i < 2000; i++) {
     if (calendar.isTickTime(t)) return t;
-    const open = calendar.nextOpen(t);
+    const open = calendar.nextOpen(t - 1); // t may be exactly today's open
     if (open === null) return null;
     t = Math.max(t + tf, Math.floor(open / tf) * tf + tf);
   }

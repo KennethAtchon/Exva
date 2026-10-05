@@ -19,7 +19,7 @@ import { Orders } from "./broker/orders.ts";
 import { Brokers } from "./broker/registry.ts";
 import type { PriceSource } from "./broker/sim.ts";
 import { paths, SecretsFile, VERSION } from "./config.ts";
-import { nextCheckTime, UsEquityCalendar } from "./core/calendar.ts";
+import { marketOpenFor, nextCheckTime, UsEquityCalendar } from "./core/calendar.ts";
 import { type Clock, FastClock, realClock } from "./core/clock.ts";
 import { EventBus } from "./core/events.ts";
 import { Runner } from "./core/runner.ts";
@@ -108,6 +108,7 @@ export class Engine {
       brokerFor: (id) => this.brokers.get(id),
       clock: this.clock,
       events: this.events,
+      marketOpen: (symbol, ts) => marketOpenFor(this.calendar, symbol, ts),
     });
     this.ai = new AiClient({
       store: this.store,
@@ -122,6 +123,7 @@ export class Engine {
       orders: this.orders,
       brokerFor: (id) => this.brokers.get(id),
       accountMode: (id) => this.brokers.mode(id),
+      marketOpen: (symbol, ts) => marketOpenFor(this.calendar, symbol, ts),
       ai: new LiveAnalyst({ ai: this.ai, store: this.store, clock: this.clock }),
       clock: this.clock,
       events: this.events,
@@ -162,11 +164,14 @@ export class Engine {
         return bar ? { price: bar.o, ts: bar.ts } : null;
       },
       lastClose: (symbol, now) => {
+        // The bar that closed most recently, whichever timeframe it belongs to.
+        let best: { close: number; c: number } | null = null;
         for (const tf of ["5m", "15m", "1h"] as const) {
           const bar = this.bars.closedBars(symbol, tf, now, 1)[0];
-          if (bar) return bar.c;
+          const close = bar ? bar.ts + TIMEFRAME_MS[tf] : 0;
+          if (bar && (!best || close > best.close)) best = { close, c: bar.c };
         }
-        return null;
+        return best?.c ?? null;
       },
     };
   }
@@ -270,9 +275,28 @@ export class Engine {
     return { bot, warnings: this.botWarnings(bot) };
   }
 
+  /** Symbols where the bot holds a position or has an order working. */
+  private busySymbols(botId: string): Set<string> {
+    const busy = new Set(this.store.listTrades({ botId, status: "open" }).map((t) => t.symbol));
+    for (const o of this.store.activeOrders()) if (o.botId === botId) busy.add(o.symbol);
+    return busy;
+  }
+
   updateBot(id: string, patch: Partial<BotInput>): { bot: Bot; warnings: string[] } {
     const cur = this.getBot(id);
     const v = this.validate({ ...cur, ...patch, backtestId: patch.backtestId ?? cur.backtestId });
+    const busy = this.busySymbols(id);
+    if (busy.size && v.accountId !== cur.accountId) {
+      throw new InputError(
+        `${cur.name} holds ${[...busy].join(", ")} on its current account. Stop it with "close positions" before moving it.`,
+      );
+    }
+    const dropped = [...busy].filter((s) => !v.symbols.includes(s));
+    if (dropped.length) {
+      throw new InputError(
+        `${cur.name} still holds ${dropped.join(", ")}. Keep the symbol until that position is closed.`,
+      );
+    }
     const bot: Bot = {
       ...cur,
       ...v,
@@ -286,9 +310,9 @@ export class Engine {
 
   deleteBot(id: string): void {
     const bot = this.getBot(id);
-    if (this.store.listTrades({ botId: id, status: "open" }).length) {
+    if (this.busySymbols(id).size) {
       throw new InputError(
-        `${bot.name} still holds positions. Stop it with "close positions" first.`,
+        `${bot.name} still holds positions or has orders working. Stop it with "close positions" first.`,
       );
     }
     this.store.deleteBot(id);
@@ -344,31 +368,51 @@ export class Engine {
     return started;
   }
 
+  /**
+   * Stopping cancels the bot's working entry orders. With `closePositions`, everything it holds is
+   * sold at market (stocks outside market hours sell at the next open).
+   */
   async stopBot(id: string, closePositions = false): Promise<Bot> {
     const bot = this.getBot(id);
     const stopped: Bot = { ...bot, status: "stopped", updatedAt: this.clock.now() };
     this.store.saveBot(stopped);
     this.events.emit({ type: "bot", data: stopped });
-    let closed = 0;
+    const canceled = await this.orders.cancelWorking(id, "buy");
+    const notes: string[] = [];
+    if (canceled) notes.push(`canceled ${canceled} working order(s)`);
     if (closePositions) {
+      let closing = 0;
+      const waiting: string[] = [];
       for (const t of this.store.listTrades({ botId: id, status: "open" })) {
-        if (this.store.activeOrderFor(id, t.symbol)) continue;
-        await this.orders.submit({
+        if (this.store.activeOrderFor(id, t.symbol)) {
+          waiting.push(t.symbol);
+          continue;
+        }
+        const qty = await this.orders.sellableQty(t);
+        if (qty <= 0) {
+          this.orders.closeOutside(t, this.clock.now());
+          continue;
+        }
+        const order = await this.orders.submit({
           bot,
           symbol: t.symbol,
           side: "sell",
-          qty: t.qty - t.exitQty,
+          qty,
           refTs: this.clock.now(),
           decisionId: null,
           reason: "manual_close",
         });
-        closed++;
+        if (order.status === "rejected") notes.push(`${t.symbol} sell rejected: ${order.error}`);
+        else closing++;
       }
+      if (closing) notes.push(`closing ${closing} position(s)`);
+      if (waiting.length)
+        notes.push(`${waiting.join(", ")} still has an order working; stop again to close it`);
     }
     this.events.event(
       "info",
       "bot_stopped",
-      `Stopped ${bot.name}${closed ? `, closing ${closed} position(s)` : ""}`,
+      `Stopped ${bot.name}${notes.length ? `: ${notes.join("; ")}` : ""}`,
       { botId: id },
     );
     return stopped;

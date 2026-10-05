@@ -22,6 +22,9 @@ Alpaca or DeepSeek.
 - [x] Heartbeat strategy, Simulator, order sync, position reconcile, restart recovery, sleep gaps.
 - [x] CLI: `run`, `status`, `decisions`, `trades`, `doctor`, `paper-smoke`, account and bot commands.
 - [x] Regression test: a filled entry order leaves the position open (v1's lost-trade bug).
+- [x] Review hardening (`engine/test/safety.test.ts`): positions sold outside Exva, stock splits, stuck
+  and vanished orders, guards that count working orders, account locks, independent bot checks,
+  safe bot edits/stops/deletes.
 - ☐ **Your check:**
   1. `bun run exva account add-alpaca --key … --secret …`, then `bun run exva doctor` → all ✓.
   2. `bun run exva paper-smoke` → a $10 BTC/USD round trip, visible on app.alpaca.markets with the same client order ids.

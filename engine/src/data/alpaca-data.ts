@@ -57,7 +57,7 @@ export class AlpacaData implements BarProvider {
     if (stocks.length) {
       if (!this.opts.keys())
         throw new DataError("Stock data needs an Alpaca account. Add your paper keys in Settings.");
-      const extra = { feed: this.opts.stockFeed(), adjustment: "raw" };
+      const extra = { feed: this.opts.stockFeed(), adjustment: "split" };
       await this.paged("/v2/stocks/bars", stocks, timeframe, from, to, extra, out);
     }
     return out;

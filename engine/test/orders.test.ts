@@ -4,21 +4,23 @@ import type { Broker, BrokerOrder, OrderRequest } from "../src/broker/types.ts";
 import { SimClock } from "../src/core/clock.ts";
 import { nullSink } from "../src/core/events.ts";
 import { BrokerRejected, BrokerUnavailable } from "../src/errors.ts";
-import { Store } from "../src/store/store.ts";
+import { type OrderRow, Store } from "../src/store/store.ts";
 import { bot, T0 } from "./helpers.ts";
 
 /** Behaves like Alpaca: a filled entry order simply reports status "filled". */
 class FakeAlpaca implements Broker {
   readonly kind = "alpaca" as const;
   orders = new Map<string, BrokerOrder>();
-  mode: "ok" | "timeout" | "reject" = "ok";
+  mode: "ok" | "timeout" | "reject" | "lost" = "ok";
   positionQty = 0;
+  canceled: string[] = [];
 
   async account() {
     return { equity: 100_000, cash: 100_000, buyingPower: 100_000, mode: "paper" as const };
   }
   async submit(req: OrderRequest): Promise<BrokerOrder> {
     if (this.mode === "reject") throw new BrokerRejected("Alpaca: insufficient qty");
+    if (this.mode === "lost") throw new BrokerUnavailable("connection reset"); // never arrived
     const o: BrokerOrder = {
       brokerOrderId: `alp-${this.orders.size + 1}`,
       clientOrderId: req.clientOrderId,
@@ -36,7 +38,11 @@ class FakeAlpaca implements Broker {
   async getByClientId(cid: string) {
     return this.orders.get(cid) ?? null;
   }
-  async cancel() {}
+  async cancel(id: string) {
+    this.canceled.push(id);
+    const o = [...this.orders.values()].find((x) => x.brokerOrderId === id);
+    if (o && o.status === "submitted") o.status = "canceled";
+  }
   async positions() {
     return this.positionQty ? [{ symbol: "BTCUSD", qty: this.positionQty, avgPrice: 0 }] : [];
   }
@@ -59,6 +65,7 @@ describe("order lifecycle", () => {
   let store: Store;
   let broker: FakeAlpaca;
   let orders: Orders;
+  let clock: SimClock;
   const b = bot();
 
   beforeEach(() => {
@@ -73,10 +80,11 @@ describe("order lifecycle", () => {
     });
     store.saveBot(b);
     broker = new FakeAlpaca();
+    clock = new SimClock(T0);
     orders = new Orders({
       store,
       brokerFor: () => broker,
-      clock: new SimClock(T0),
+      clock,
       events: nullSink,
     });
   });
@@ -174,5 +182,99 @@ describe("order lifecycle", () => {
     expect(o.status).toBe("rejected");
     expect(o.error).toContain("insufficient qty");
     expect(store.activeOrders().length).toBe(0);
+  });
+
+  test("a fill reported without a price waits for the next poll instead of being lost", async () => {
+    const o = await buy();
+    broker.fill(o.clientOrderId, 0.01, 0); // filled_avg_price not published yet
+    await orders.sync();
+    expect(store.getOrder(o.id)?.status).toBe("submitted");
+    expect(store.getOrder(o.id)?.filledQty).toBe(0);
+    expect(store.openTrade(b.id, "BTC/USD")).toBeNull();
+    broker.fill(o.clientOrderId, 0.01, 100_000);
+    await orders.sync();
+    expect(store.getOrder(o.id)?.status).toBe("filled");
+    expect(store.openTrade(b.id, "BTC/USD")?.qty).toBeCloseTo(0.01, 10);
+  });
+
+  test("a finished order never moves back to working", async () => {
+    const o = await buy();
+    broker.fill(o.clientOrderId, 0.01, 100_000);
+    await orders.sync();
+    // A stale or out-of-order broker response.
+    orders.apply(store.getOrder(o.id) as OrderRow, {
+      brokerOrderId: "alp-1",
+      clientOrderId: o.clientOrderId,
+      status: "submitted",
+      filledQty: 0.01,
+      avgFillPrice: 100_000,
+    });
+    expect(store.getOrder(o.id)?.status).toBe("filled");
+    expect(store.activeOrders().length).toBe(0);
+  });
+
+  test("orders the broker can't find are written off after two minutes", async () => {
+    const known = await buy();
+    broker.orders.delete(known.clientOrderId); // acknowledged, then gone (e.g. account reset)
+    broker.mode = "lost";
+    const lost = await buy(); // never reached the broker
+    expect(lost.status).toBe("submit_unknown");
+    clock.set(T0 + 60_000);
+    await orders.sync();
+    expect(store.activeOrders().length).toBe(2); // a short grace period
+    clock.set(T0 + 130_000);
+    await orders.sync();
+    expect(store.getOrder(known.id)?.status).toBe("canceled");
+    expect(store.getOrder(lost.id)?.status).toBe("rejected");
+  });
+
+  test("a market order still working after 30 minutes of open market is canceled once", async () => {
+    const o = await buy();
+    clock.set(T0 + 29 * 60_000);
+    await orders.sync();
+    expect(broker.canceled).toEqual([]);
+    clock.set(T0 + 31 * 60_000);
+    await orders.sync();
+    expect(broker.canceled).toEqual(["alp-1"]);
+    await orders.sync();
+    expect(store.getOrder(o.id)?.status).toBe("canceled");
+    expect(broker.canceled.length).toBe(1);
+  });
+
+  test("a stock order queued while the market is closed is not treated as stuck", async () => {
+    const queued = new Orders({
+      store,
+      brokerFor: () => broker,
+      clock,
+      events: nullSink,
+      marketOpen: () => false,
+    });
+    await buy();
+    clock.set(T0 + 8 * 3_600_000);
+    await queued.sync();
+    expect(broker.canceled).toEqual([]);
+  });
+
+  test("exits sell what the broker holds; a position the broker no longer has is closed", async () => {
+    const entry = await buy();
+    broker.fill(entry.clientOrderId, 0.01, 100_000);
+    await orders.sync();
+    const trade = store.openTrade(b.id, "BTC/USD");
+    if (!trade) throw new Error("no trade");
+    broker.positionQty = 0.009975; // the buy fee was taken in coin
+    expect(await orders.sellableQty(trade)).toBeCloseTo(0.009975, 10);
+    broker.positionQty = 0; // sold in Alpaca's dashboard
+    expect(await orders.sellableQty(trade)).toBe(0);
+    const closed = orders.closeOutside(trade, T0 + 5_000);
+    expect(closed.status).toBe("closed");
+    expect(closed.exitReason).toBe("closed_outside_exva");
+    expect(closed.pnlUsd).toBeNull();
+    expect(store.openTrade(b.id, "BTC/USD")).toBeNull();
+  });
+
+  test("cancelWorking cancels a bot's working entry orders", async () => {
+    const o = await buy();
+    expect(await orders.cancelWorking(b.id, "buy")).toBe(1);
+    expect(store.getOrder(o.id)?.status).toBe("canceled");
   });
 });

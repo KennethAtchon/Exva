@@ -80,6 +80,25 @@ describe("Alpaca broker", () => {
     });
   });
 
+  test("done_for_day is still working; crypto sells carry Alpaca's estimated fee", async () => {
+    let raw: Record<string, unknown> = rawOrder({ status: "done_for_day", filled_qty: "0" });
+    const srv = fakeServer(() => [200, raw]);
+    stop = srv.stop;
+    const b = new AlpacaBroker({ keys, baseUrl: srv.url });
+    expect((await b.getOrder("b-1"))?.status).toBe("submitted");
+    raw = rawOrder({
+      status: "filled",
+      symbol: "BTC/USD",
+      side: "sell",
+      asset_class: "crypto",
+      filled_qty: "0.01",
+      filled_avg_price: "100000",
+    });
+    expect((await b.getOrder("b-1"))?.fee).toBeCloseTo(2.5, 8);
+    raw = { ...raw, symbol: "SPY", asset_class: "us_equity" };
+    expect((await b.getOrder("b-1"))?.fee).toBeUndefined();
+  });
+
   test("unknown client order id is null; 4xx is a rejection; 5xx is retryable", async () => {
     let status = 404;
     const srv = fakeServer(() => [

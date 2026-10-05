@@ -21,15 +21,21 @@ export interface GuardInput {
   now: number;
   killSwitch: boolean;
   accountMode: "paper" | "sim";
+  /** Is this symbol's market open right now (always true for crypto)? */
+  marketOpen: boolean;
   broker: Broker;
   store: Store;
   lastPrice: (symbol: string) => number | null;
 }
 
-/** First failing guard wins. Exits (sells) are only stopped by the kill switch, mode and working orders. */
+/**
+ * First failing guard wins. Exits (sells) are only stopped by the kill switch, mode, market hours and
+ * working orders. Entry orders still working count as positions, so parallel checks can't overshoot.
+ */
 export async function checkGuards(g: GuardInput): Promise<Block | null> {
   if (g.killSwitch) return { code: "kill_switch" };
   if (g.accountMode !== "paper" && g.accountMode !== "sim") return { code: "paper_only" };
+  if (!g.marketOpen) return { code: "market_closed" };
   const working = g.store.activeOrderFor(g.bot.id, g.symbol);
   if (working)
     return {
@@ -40,13 +46,18 @@ export async function checkGuards(g: GuardInput): Promise<Block | null> {
   if (g.side === "sell") return g.trade ? null : { code: "no_position" };
 
   if (g.trade) return { code: "already_in_position" };
-  const others = g.store
-    .openTradesOnAccountSymbol(g.bot.accountId, g.symbol)
-    .filter((t) => t.botId !== g.bot.id);
-  if (others.length) return { code: "symbol_owned_by_other_bot" };
+  const buys = g.store.activeOrders(g.bot.accountId).filter((o) => o.side === "buy");
+  const others =
+    g.store
+      .openTradesOnAccountSymbol(g.bot.accountId, g.symbol)
+      .some((t) => t.botId !== g.bot.id) ||
+    buys.some((o) => o.symbol === g.symbol && o.botId !== g.bot.id);
+  if (others) return { code: "symbol_owned_by_other_bot" };
   const open = g.store.listTrades({ botId: g.bot.id, status: "open" });
-  if (open.length >= g.bot.risk.maxPositions) {
-    return { code: "max_positions", values: { open: open.length, max: g.bot.risk.maxPositions } };
+  const held = new Set(open.map((t) => t.symbol));
+  for (const o of buys) if (o.botId === g.bot.id) held.add(o.symbol);
+  if (held.size >= g.bot.risk.maxPositions) {
+    return { code: "max_positions", values: { open: held.size, max: g.bot.risk.maxPositions } };
   }
   const limit = g.bot.risk.dailyLossLimitUsd;
   if (limit > 0) {

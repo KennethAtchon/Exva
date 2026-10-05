@@ -24,7 +24,7 @@ Defined once, with the text the UI shows, in `shared/reasons.ts`.
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | BUY / SELL | `signal`, `stop_loss`, `take_profit`, `max_hold`                                                                                                                                                 |
 | HOLD       | `no_signal`, `low_confidence`                                                                                                                                                                     |
-| SKIP       | `kill_switch`, `paper_only`, `order_pending`, `already_in_position`, `no_position`, `symbol_owned_by_other_bot`, `max_positions`, `insufficient_buying_power`, `daily_loss_limit`, `ai_budget_exhausted`, `stale_data`, `insufficient_history` |
+| SKIP       | `kill_switch`, `paper_only`, `order_pending`, `already_in_position`, `no_position`, `position_gone`, `market_closed`, `check_overrun`, `symbol_owned_by_other_bot`, `max_positions`, `insufficient_buying_power`, `daily_loss_limit`, `ai_budget_exhausted`, `stale_data`, `insufficient_history` |
 | ERROR      | `data_fetch_failed`, `broker_rejected`, `broker_unavailable`, `ai_failed`, `strategy_error`                                                                                                     |
 
 ## Words that are gone (and what replaced them)

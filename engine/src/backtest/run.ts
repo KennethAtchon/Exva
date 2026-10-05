@@ -14,7 +14,7 @@ import type {
 import { assetClassOf, TIMEFRAME_MS } from "@shared/types.ts";
 import { Orders } from "../broker/orders.ts";
 import { type PriceSource, SimBroker } from "../broker/sim.ts";
-import { isCheckTime, type UsEquityCalendar } from "../core/calendar.ts";
+import { isCheckTime, marketOpenFor, type UsEquityCalendar } from "../core/calendar.ts";
 import { type Clock, SimClock } from "../core/clock.ts";
 import { type EventSink, nullSink } from "../core/events.ts";
 import { Runner } from "../core/runner.ts";
@@ -145,7 +145,14 @@ export async function runBacktest(
     slippageBps: spec.slippageBps,
     feeBps: spec.feeBps,
   });
-  const orders = new Orders({ store: mem, brokerFor: () => sim, clock, events: nullSink });
+  const marketOpen = (symbol: string, ts: number) => marketOpenFor(deps.calendar, symbol, ts);
+  const orders = new Orders({
+    store: mem,
+    brokerFor: () => sim,
+    clock,
+    events: nullSink,
+    marketOpen,
+  });
   const ai = strategy.usesAi ? (deps.ai?.(clock) ?? null) : null;
   const events: EventSink = deps.onDecision
     ? { emit: (m) => m.type === "decision" && deps.onDecision?.(m.data), event() {} }
@@ -156,6 +163,7 @@ export async function runBacktest(
     orders,
     brokerFor: () => sim,
     accountMode: () => "sim",
+    marketOpen,
     ai,
     clock,
     events,

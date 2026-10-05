@@ -56,6 +56,8 @@ bot came to trading. Common answers:
 - **SKIP, stale data:** the data feed had no bar (common for thin stocks on the free IEX feed).
 - **ERROR:** the message says what failed and what to do.
 - **"Exva wasn't running from 02:10 to 02:40":** the computer slept. A closed laptop lid sleeps it.
+- **SKIP, position gone:** the shares or coins were sold outside Exva (e.g. in Alpaca's dashboard), so
+  Exva closed its record of the position without a P&L and the bot carries on.
 
 ## Where things live
 
@@ -66,7 +68,7 @@ bot came to trading. Common answers:
 ## For developers
 
 ```bash
-bun run verify       # typecheck, lint, 53 engine tests, size budgets, UI build
+bun run verify       # typecheck, lint, 76 engine tests, size budgets, UI build
 bun run test:e2e     # Playwright against a demo engine
 bun run dev:ui       # Vite with hot reload (EXVA_TOKEN=… points it at a running engine)
 ```

@@ -22,6 +22,20 @@ export const REASONS = {
   paper_only: { kind: "skip", text: "Account is not a paper or simulator account" },
   order_pending: { kind: "skip", text: "An order for this symbol is still working" },
   already_in_position: { kind: "skip", text: "Already holding this symbol" },
+  position_gone: {
+    kind: "skip",
+    text: "The broker no longer holds this position",
+    hint: "It was sold outside Exva (or the paper account was reset). Exva closed its record without P&L.",
+  },
+  market_closed: {
+    kind: "skip",
+    text: "The market closed before the order could be sent",
+  },
+  check_overrun: {
+    kind: "skip",
+    text: "Skipped: the previous check was still running",
+    hint: "Use fewer symbols or a longer timeframe for this bot.",
+  },
   no_position: { kind: "skip", text: "Nothing to sell" },
   symbol_owned_by_other_bot: {
     kind: "skip",

@@ -8,9 +8,11 @@ import type { EventSink } from "../core/events.ts";
 import { BrokerRejected } from "../errors.ts";
 import type { OrderRow, Store } from "../store/store.ts";
 import { errorMessage, newId, round } from "../util.ts";
-import type { Broker, BrokerOrder } from "./types.ts";
+import { type Broker, type BrokerOrder, symbolKey } from "./types.ts";
 
 const DUST = 0.01; // an exit that leaves <1% of the position (e.g. crypto fees taken in coin) closes it
+const LOST_MS = 120_000; // an order the broker can't find after this long is written off
+const STUCK_MS = 30 * 60_000; // a market order still unfilled after this long is canceled
 
 export interface SubmitInput {
   bot: Bot;
@@ -26,14 +28,29 @@ export interface SubmitInput {
 }
 
 export class Orders {
+  private readonly cancelAsked = new Set<string>();
+
   constructor(
     private readonly d: {
       store: Store;
       brokerFor: (accountId: string) => Broker;
       clock: Clock;
       events: EventSink;
+      /** Market hours; stock orders queued while the market is closed are not "stuck". */
+      marketOpen?: (symbol: string, ts: number) => boolean;
     },
   ) {}
+
+  /** Working for 30 minutes of open market without filling. */
+  private stuck(order: OrderRow, now: number): boolean {
+    const open = this.d.marketOpen ?? (() => true);
+    return (
+      now - order.createdAt > STUCK_MS &&
+      open(order.symbol, now) &&
+      open(order.symbol, now - STUCK_MS) &&
+      !this.cancelAsked.has(order.id)
+    );
+  }
 
   async submit(input: SubmitInput): Promise<OrderRow> {
     const { store, clock } = this.d;
@@ -96,11 +113,27 @@ export class Orders {
         const b = order.brokerOrderId
           ? await broker.getOrder(order.brokerOrderId)
           : await broker.getByClientId(order.clientOrderId);
-        if (b) this.apply(order, b);
-        else if (clock.now() - order.createdAt > 120_000 && order.status !== "submitted") {
+        const age = clock.now() - order.createdAt;
+        if (b) {
+          this.apply(order, b);
+          if (!isTerminal(b.status) && this.stuck(order, clock.now())) {
+            this.cancelAsked.add(order.id);
+            await broker.cancel(b.brokerOrderId);
+            this.d.events.event(
+              "warn",
+              "order_stuck",
+              `A ${order.side} order for ${order.symbol} was still unfilled after 30 minutes, so Exva canceled it`,
+              { orderId: order.id, botId: order.botId },
+            );
+          }
+        } else if (age > LOST_MS) {
+          // Never acknowledged → it never arrived. Acknowledged but now unknown → the broker dropped it.
+          const known = Boolean(order.brokerOrderId);
           store.updateOrder(
             order.id,
-            { status: "rejected", error: "The order never reached the broker" },
+            known
+              ? { status: "canceled", error: "The broker no longer has this order" }
+              : { status: "rejected", error: "The order never reached the broker" },
             clock.now(),
           );
           this.d.events.emit({ type: "order", data: store.getOrder(order.id) as OrderRow });
@@ -109,6 +142,58 @@ export class Orders {
         // Broker unreachable: try again on the next sync.
       }
     }
+  }
+
+  /** Cancel a bot's working orders (stop, delete). Returns how many were asked to cancel. */
+  async cancelWorking(botId: string, side?: Side): Promise<number> {
+    const working = this.d.store
+      .activeOrders()
+      .filter((o) => o.botId === botId && (!side || o.side === side));
+    for (const order of working) {
+      const broker = this.d.brokerFor(order.accountId);
+      const id =
+        order.brokerOrderId ??
+        (await broker.getByClientId(order.clientOrderId).catch(() => null))?.brokerOrderId;
+      if (id) await broker.cancel(id).catch(() => {});
+    }
+    if (working.length) await this.sync().catch(() => {});
+    return working.length;
+  }
+
+  /**
+   * How much of an open trade can be sold. Crypto fees taken in coin leave the broker holding a bit
+   * less than the fills add up to, so the broker's position caps it. 0 means the broker holds none.
+   */
+  async sellableQty(trade: Trade): Promise<number> {
+    const remaining = trade.qty - trade.exitQty;
+    const broker = this.d.brokerFor(trade.accountId);
+    if (broker.kind === "sim") return remaining;
+    const pos = (await broker.positions()).find(
+      (p) => symbolKey(p.symbol) === symbolKey(trade.symbol),
+    );
+    return pos && pos.qty > 0 ? Math.min(remaining, pos.qty) : 0;
+  }
+
+  /** The broker holds none of this position any more (sold in the broker's own app): close it. */
+  closeOutside(trade: Trade, ts: number): Trade {
+    const closed: Trade = {
+      ...trade,
+      status: "closed",
+      closedAt: ts,
+      exitReason: "closed_outside_exva",
+      pnlUsd: null,
+      pnlPct: null,
+    };
+    this.d.store.saveTrade(closed);
+    const bot = this.d.store.getBot(trade.botId);
+    this.d.events.event(
+      "warn",
+      "position_gone",
+      `${bot?.name ?? "A bot"} held ${round(trade.qty - trade.exitQty, 6)} ${trade.symbol} but the account has none. Exva closed the position without a P&L; it was probably sold outside Exva.`,
+      { tradeId: trade.id, botId: trade.botId },
+    );
+    this.d.events.emit({ type: "trade", data: closed });
+    return closed;
   }
 
   apply(order: OrderRow, b: BrokerOrder): void {
@@ -131,23 +216,30 @@ export class Orders {
           ts: b.filledAt ?? clock.now(),
         };
       }
-      const statusChanged =
-        current.status !== b.status || current.brokerOrderId !== b.brokerOrderId;
+      // A finished order never goes back to working, and a fill the broker reports without a price
+      // keeps the order working so the next poll records it.
+      const unpriced = b.filledQty > prevQty + 1e-12 && !fill;
+      const status =
+        unpriced || (isTerminal(current.status) && !isTerminal(b.status))
+          ? current.status
+          : b.status;
+      const recorded = fill !== null && store.insertFill(fill);
+      const statusChanged = current.status !== status || current.brokerOrderId !== b.brokerOrderId;
       store.updateOrder(
         order.id,
         {
           brokerOrderId: b.brokerOrderId,
-          status: b.status,
-          filledQty: Math.max(prevQty, b.filledQty),
-          avgFillPrice: b.avgFillPrice ?? current.avgFillPrice,
+          status,
+          filledQty: recorded ? b.filledQty : prevQty,
+          avgFillPrice: recorded ? b.avgFillPrice : current.avgFillPrice,
           error: b.error ?? current.error,
         },
         clock.now(),
       );
-      const trade = fill && store.insertFill(fill) ? this.applyFill(current, fill) : null;
-      if (b.status === "filled" && current.side === "sell")
+      const trade = recorded && fill ? this.applyFill(current, fill) : null;
+      if (status === "filled" && current.side === "sell")
         this.finishExit(current, b.filledAt ?? clock.now());
-      return { statusChanged, trade, fill };
+      return { statusChanged, trade, fill: recorded ? fill : null };
     });
     if (changed.statusChanged || changed.fill) {
       const saved = store.getOrder(order.id) as OrderRow;

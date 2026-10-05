@@ -9,9 +9,17 @@ import type { Broker, BrokerAccount, BrokerOrder, BrokerPosition, OrderRequest }
 
 export const ALPACA_PAPER_URL = "https://paper-api.alpaca.markets";
 
+// Alpaca charges crypto fees but doesn't report them on the order. Buys pay in coin (the position is
+// smaller than the fill, which the exit's sell size absorbs); sells pay in dollars, estimated here at
+// the entry-tier taker rate.
+const CRYPTO_SELL_FEE = 0.0025;
+
 interface RawOrder {
   id: string;
   client_order_id: string;
+  symbol?: string;
+  side?: string;
+  asset_class?: string;
   status: string;
   filled_qty: string | null;
   filled_avg_price: string | null;
@@ -26,24 +34,28 @@ export function mapAlpacaStatus(status: string): OrderStatus {
     case "partially_filled":
       return "partially_filled";
     case "canceled":
-    case "done_for_day":
       return "canceled";
     case "expired":
       return "expired";
     case "rejected":
       return "rejected";
     default:
-      return "submitted"; // new, accepted, pending_new, held, calculated, pending_cancel, replaced, ...
+      return "submitted"; // new, accepted, pending_new, held, done_for_day (resumes), pending_cancel, ...
   }
 }
 
 function mapOrder(o: RawOrder): BrokerOrder {
+  const filledQty = Number(o.filled_qty ?? 0);
+  const avgFillPrice = o.filled_avg_price ? Number(o.filled_avg_price) : null;
+  const crypto = o.asset_class === "crypto" || assetClassOf(o.symbol ?? "") === "crypto";
+  const cryptoSell = o.side === "sell" && crypto;
   return {
     brokerOrderId: o.id,
     clientOrderId: o.client_order_id,
     status: mapAlpacaStatus(o.status),
-    filledQty: Number(o.filled_qty ?? 0),
-    avgFillPrice: o.filled_avg_price ? Number(o.filled_avg_price) : null,
+    filledQty,
+    avgFillPrice,
+    fee: cryptoSell && avgFillPrice ? filledQty * avgFillPrice * CRYPTO_SELL_FEE : undefined,
     filledAt: o.filled_at
       ? Date.parse(o.filled_at)
       : o.updated_at

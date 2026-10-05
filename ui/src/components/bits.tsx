@@ -189,7 +189,13 @@ export function TradesTable({
                 </td>
                 <td className="py-2 pr-3 text-right">{num(t.entryPrice)}</td>
                 <td className="py-2 pr-3 text-right">
-                  {open ? num(t.lastPrice) : num(t.exitPrice)}
+                  {open ? (
+                    num(t.lastPrice)
+                  ) : t.exitReason === "closed_outside_exva" ? (
+                    <span className="font-sans text-xs text-warn">sold outside Exva</span>
+                  ) : (
+                    num(t.exitPrice)
+                  )}
                 </td>
                 <td className={cx("py-2 pr-3 text-right", pnlColor(pnl))}>
                   {usd(pnl, true)} {!open && <span className="text-ink3">{pct(t.pnlPct)}</span>}

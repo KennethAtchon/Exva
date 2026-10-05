@@ -239,6 +239,9 @@ export class Store {
   }
 
   // ---- bars ----
+  deleteBars(symbol: string): void {
+    this.db.query("DELETE FROM bars WHERE symbol = ?").run(symbol);
+  }
   upsertBars(symbol: string, timeframe: string, feed: string, bars: Bar[]): void {
     const stmt = this.db.query(
       `INSERT INTO bars (symbol, timeframe, feed, ts, o, h, l, c, v) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)

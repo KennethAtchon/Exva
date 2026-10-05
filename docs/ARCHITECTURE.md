@@ -53,8 +53,11 @@ one Decision (a unique index on `decisions(bot_id, symbol, bar_ts)` makes it ide
 2. Closed bars from the BarStore. Missing latest bar → `SKIP stale_data`. Too little history → `SKIP insufficient_history`.
 3. Exits for an open position: stop-loss / take-profit against the bar's low/high, max hold in bars.
 4. Otherwise `strategy.decide()`. `hold` → `HOLD no_signal` (or `low_confidence`), with the numbers.
-5. Guards (`core/guards.ts`). The first failure → `SKIP <guard>`.
-6. Submit the order (`broker/orders.ts`). Rejected → `ERROR broker_rejected`.
+5. Guards (`core/guards.ts`). The first failure → `SKIP <guard>`. Entry orders still working count
+   as positions. Guards and submission run one at a time per account, so two parallel checks can't
+   both pass the same limit.
+6. Submit the order (`broker/orders.ts`). Rejected → `ERROR broker_rejected`. An exit when the
+   broker holds none of the position → the position is closed in Exva and `SKIP position_gone`.
 7. Any exception becomes a readable `ERROR` decision (`core/decision.ts`), never a crash.
 
 Backtests (`engine/src/backtest/run.ts`) replay history through this same Runner with a simulated
@@ -64,11 +67,17 @@ proves the live scheduler and the backtester make identical decisions on the sam
 ## Scheduler (`engine/src/core/scheduler.ts`)
 
 - Wakes at each bar close plus 5 s, fetches the closed bar (retrying up to 60 s), checks every due bot.
+  Bots run independently, so a slow one (AI calls, a late bar) can't make the others miss a bar; if
+  a bot's previous check is still running, its next bar records `SKIP check_overrun`. A symbol whose
+  data fails gets its own `ERROR`; the bot's other symbols still run. A bot stopped or edited while
+  its bars load uses the new settings (or doesn't run).
 - Stock symbols are only checked while the market is open (computed NYSE calendar, replaced by
   Alpaca's official calendar when an Alpaca account exists). Crypto runs 24/7.
 - Every 3 s: order sync. Every 60 s: engine heartbeat (records **sleep gaps**) and position
-  reconcile against the broker (records **position drift**). Every 5 min: equity snapshots. Daily:
-  the journal.
+  reconcile against the broker. Reconcile closes a position the broker no longer holds (missing on
+  two checks a minute apart), applies a **stock split** (share count and cost basis both changed;
+  bars are reloaded split-adjusted), and otherwise records **position drift**. Every 5 min: equity
+  snapshots. Daily: the journal.
 - After a restart, running bots **resume automatically** once orders and positions are reconciled.
 
 ## Data (`engine/src/data/`)
@@ -77,7 +86,7 @@ proves the live scheduler and the backtester make identical decisions on the sam
   `(symbol, timeframe, feed, ts)`, `ts` is the integer bar start, writes are upserts, and only closed
   bars are stored.
 - Provider: Alpaca Market Data (crypto needs no keys; stocks need an Alpaca account, IEX free or SIP
-  paid). Demo mode and tests use a deterministic synthetic market (`data/synthetic.ts`).
+  paid, split-adjusted). Demo mode and tests use a deterministic synthetic market (`data/synthetic.ts`).
 
 ## Orders and positions (`engine/src/broker/`)
 
@@ -85,9 +94,17 @@ proves the live scheduler and the backtester make identical decisions on the sam
   submit is looked up by that id, never resent.
 - Fills are the change in the broker's cumulative filled quantity, so polling and restarts can't
   double-count. A filled entry opens a position; only filled sell quantity closes it.
-- One bot per symbol per account (a guard enforces it). Exits sell what the bot holds, capped at the
-  broker's position (crypto fees are taken in coin). A filled exit that leaves under 1% dust closes
-  the trade.
+- A finished order never moves back to working, and a fill reported without a price waits for the
+  next poll. An order the broker can't find after 2 minutes is written off (`rejected` if it never
+  arrived, `canceled` if the broker dropped it). A market order still working after 30 minutes of
+  open market is canceled.
+- One bot per symbol per account (a guard enforces it, counting working orders). Exits sell what the
+  bot holds, capped at the broker's position (crypto buy fees are taken in coin; crypto sell fees are
+  recorded at Alpaca's 0.25% taker rate because Alpaca doesn't report them). A filled exit that leaves
+  under 1% dust closes the trade.
+- Stopping a bot cancels its working entry orders; "close positions" also sells what it holds. A bot
+  can't be moved to another account, drop a symbol it holds, or be deleted while it holds positions
+  or has orders working.
 - `SimBroker` fills market orders at the open of the first bar at or after the decision, with
   slippage and fees. Live simulator accounts use 5-minute bars for fills.
 
