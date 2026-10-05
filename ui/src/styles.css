@@ -1,0 +1,58 @@
+@import "@fontsource/instrument-sans/400.css";
+@import "@fontsource/instrument-sans/500.css";
+@import "@fontsource/instrument-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "tailwindcss";
+
+/* Terminal Ledger: bone on ink. Colors and type scale live here and nowhere else. */
+@theme {
+  --color-bg: #131311;
+  --color-surface: #191917;
+  --color-surface2: #1f1f1c;
+  --color-surface3: #2a2a26;
+  --color-line: #2b2b26;
+  --color-hair: #232320;
+  --color-ink: #e8e6dd;
+  --color-ink2: #98968b;
+  --color-ink3: #605e53;
+  --color-up: #4ade80;
+  --color-down: #f4655f;
+  --color-warn: #e9b44c;
+  --color-info: #7eb3e8;
+  --color-ai: #b49fe8;
+  --color-busy: #ef8e51;
+  --font-sans: "Instrument Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --text-label: 0.6875rem;
+  --text-label--letter-spacing: 0.06em;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgb(232 230 221 / 0.2);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-surface3) transparent;
+}
+
+input,
+select,
+textarea {
+  color-scheme: dark;
+}

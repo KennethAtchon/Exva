@@ -234,7 +234,7 @@ function serveUi(req: Request, opts: ApiOptions): Response {
     return new Response(Bun.file(file));
   const html = readFileSync(join(dir, "index.html"), "utf8").replace(
     "</head>",
-    `<script>window.__EXVA__=${JSON.stringify({ token: opts.token })}</script></head>`,
+    `<meta name="exva-token" content="${opts.token}"></head>`,
   );
   return new Response(html, {
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },

@@ -207,6 +207,10 @@ export class Engine {
       });
     }
     this.brokers.invalidate(id);
+    if (!existing && input.broker === "sim") {
+      const cash = input.startingCash ?? 100_000;
+      this.store.insertEquity(id, { ts: this.clock.now(), equity: cash, cash });
+    }
     return this.store.getAccount(id, this.hasKeys) as Account;
   }
 
@@ -474,13 +478,15 @@ export class Engine {
     const s = this.settings.get();
     const accounts = this.store.listAccounts(this.hasKeys).map((a) => {
       const last = this.store.equitySeries(a.id, now - 15 * 60_000, now).at(-1);
-      const ok = Boolean(last) && (a.broker === "sim" || a.hasKeys);
-      const message =
-        !a.hasKeys && a.broker === "alpaca"
-          ? "No API keys"
-          : last
-            ? "Connected"
-            : "No response in 15 min";
+      if (a.broker === "sim") {
+        // The simulator is local and always reachable; before its first snapshot it holds its starting cash.
+        const equity =
+          last?.equity ?? this.store.equitySeries(a.id, 0, now).at(-1)?.equity ?? a.startingCash;
+        const sim = { id: a.id, name: a.name, broker: a.broker, ok: true, message: "Simulator" };
+        return { ...sim, equity, cash: last?.cash ?? equity };
+      }
+      const ok = Boolean(last) && a.hasKeys;
+      const message = !a.hasKeys ? "No API keys" : last ? "Connected" : "No response in 15 min";
       return {
         id: a.id,
         name: a.name,
