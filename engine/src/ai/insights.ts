@@ -271,18 +271,16 @@ async function runTool(
     case "get_status":
       return engine.status();
     case "list_bots":
-      return engine
-        .listBots()
-        .map((b) => ({
-          id: b.id,
-          name: b.name,
-          strategy: b.strategyId,
-          symbols: b.symbols,
-          timeframe: b.timeframe,
-          status: b.status,
-          params: b.params,
-          today: engine.summary(b.id).counts,
-        }));
+      return engine.listBots().map((b) => ({
+        id: b.id,
+        name: b.name,
+        strategy: b.strategyId,
+        symbols: b.symbols,
+        timeframe: b.timeframe,
+        status: b.status,
+        params: b.params,
+        today: engine.summary(b.id).counts,
+      }));
     case "get_bot_summary":
       return engine.summary(findBot(engine, args.bot).id);
     case "get_decisions": {

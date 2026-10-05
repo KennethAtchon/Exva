@@ -4,7 +4,7 @@ import { existsSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { reasonText } from "@shared/reasons.ts";
 import { backtestInputSchema, botInputSchema } from "@shared/schemas.ts";
-import type { Bot, Timeframe } from "@shared/types.ts";
+import type { Bot, BotSummary, Status, Timeframe } from "@shared/types.ts";
 import { startApi } from "./api/server.ts";
 import { DEFAULT_PORT, paths, readEngineFile } from "./config.ts";
 import { UsEquityCalendar } from "./core/calendar.ts";
@@ -12,7 +12,7 @@ import { AlpacaData } from "./data/alpaca-data.ts";
 import { SyntheticData } from "./data/synthetic.ts";
 import { Engine } from "./engine.ts";
 import { STRATEGIES } from "./strategies/index.ts";
-import { errorMessage, fmtNum, hhmm, round, usd } from "./util.ts";
+import { errorMessage, fmtNum, hhmm, usd } from "./util.ts";
 
 const args = process.argv.slice(2);
 const command = args[0] ?? "help";
@@ -75,7 +75,7 @@ async function run() {
       process.exit(0);
     }
   }
-  const engine = new Engine({ demo });
+  const engine = new Engine({ demo, resetDemo: demo });
   const token = process.env.EXVA_TOKEN ?? crypto.randomUUID();
   const uiDir = flag("ui") ?? process.env.EXVA_UI_DIR ?? join(import.meta.dir, "../../ui/dist");
   const server = startApi(engine, { port, token, uiDir });
@@ -96,8 +96,21 @@ async function run() {
   process.on("SIGTERM", shutdown);
 }
 
-function status(engine: Engine) {
-  const s = engine.status();
+/** Ask the running engine (its clock and broker checks are the truth); fall back to reading the database. */
+async function status(engine: Engine) {
+  const running = readEngineFile(paths().engineFile);
+  const api = async <T>(path: string): Promise<T> => {
+    const res = await fetch(`http://127.0.0.1:${running?.port}${path}`, {
+      headers: { authorization: `Bearer ${running?.token}` },
+    });
+    return (await res.json()) as T;
+  };
+  const live = running ? await api<Status>("/api/status").catch(() => null) : null;
+  const s = live ?? engine.status();
+  const bots = live ? await api<Bot[]>("/api/bots") : engine.listBots();
+  const summaryOf = (id: string) =>
+    live ? api<BotSummary>(`/api/bots/${id}/summary`) : Promise.resolve(engine.summary(id));
+  if (!live) console.log("(engine not running; showing stored data)");
   console.log(`Health: ${s.health.toUpperCase()}${s.killSwitch ? "  (KILL SWITCH ON)" : ""}`);
   for (const a of s.accounts)
     console.log(
@@ -112,8 +125,8 @@ function status(engine: Engine) {
   );
   for (const g of s.sleepGaps) console.log(`  ! Not running ${when(g.from)} → ${when(g.to)}`);
   console.log("");
-  for (const bot of engine.listBots()) {
-    const sum = engine.summary(bot.id);
+  for (const bot of bots) {
+    const sum = await summaryOf(bot.id);
     console.log(
       `${bot.status === "running" ? "●" : "○"} ${bot.name}  (${bot.strategyId}, ${bot.symbols.join(" ")}, ${bot.timeframe})`,
     );

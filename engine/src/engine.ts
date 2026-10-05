@@ -38,6 +38,8 @@ const DAY = 86_400_000;
 export interface EngineOptions {
   home?: string;
   demo?: boolean;
+  /** Start the demo from a fresh database (only `exva run --demo` does this). */
+  resetDemo?: boolean;
   dbFile?: string;
   clock?: Clock;
   provider?: BarProvider;
@@ -67,7 +69,10 @@ export class Engine {
   constructor(o: EngineOptions = {}) {
     const p = paths(o.home);
     this.mode = o.demo ? "demo" : "live";
-    if (o.demo && !o.dbFile && existsSync(p.demoDb)) rmSync(p.demoDb);
+    if (o.demo && o.resetDemo && !o.dbFile) {
+      for (const f of [p.demoDb, `${p.demoDb}-wal`, `${p.demoDb}-shm`])
+        if (existsSync(f)) rmSync(f);
+    }
     this.store = Store.open(o.dbFile ?? (o.demo ? p.demoDb : p.db));
     this.secrets = new SecretsFile(o.demo ? `${p.home}/demo-secrets.json` : p.secrets);
     this.settings = new SettingsService(this.store, this.secrets);
