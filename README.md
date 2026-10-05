@@ -1,83 +1,80 @@
 # Exva
 
-Local-first autonomous trading desktop app built with React, TypeScript, and SQLite. The renderer stays sandboxed, the main process owns all broker/search/LLM work, and secrets stay in the OS keychain.
+A desktop app that runs **paper-trading bots** on your Alpaca account around the clock, shows what every
+bot is doing and **why it did or didn't trade**, and lets you test any strategy on history before you
+run it.
 
-## What It Does
+- **Bots:** EMA Crossover, RSI Dip Buyer, Donchian Breakout, AI Analyst (DeepSeek V4.1 Flash via
+  OpenRouter), and a
+  Heartbeat test bot that proves the whole pipeline in minutes.
+- **Receipts:** every time a bar closes, each bot records one decision per symbol: BUY, SELL, HOLD,
+  SKIP or ERROR, with the numbers it compared ("RSI(2) 11.8, buys below 10").
+- **Lab:** backtests run through the exact code that trades live: dollar P&L, equity and drawdown,
+  trades on a chart, and "create bot from this run".
+- **Paper only.** Exva cannot place live orders.
 
-- Manages multiple trading sessions with their own strategy, risk, broker assignments, and AI settings.
-- Runs a structured AI pipeline: selector -> technical -> fundamental -> review -> decision.
-- Applies deterministic validation, risk, allocation, and order-policy gates before any order is sent.
-- Persists runs, traces, approvals, trades, and replay data locally for observability and debugging.
+## Run it
 
-## Repo Map
-
-- `src/` - React renderer UI, Zustand stores, TanStack Query, typed client wrapper.
-- `electron/main/` - IPC handlers, services, runtime lifecycle, broker/search/LLM integrations, SQLite access.
-- `electron/preload/` - typed `window.exva` bridge.
-- `electron/shared/` - contracts shared by main and renderer.
-- `docs/` - architecture docs, usage guides, plans, reviews, and engineering notes.
-
-## Runtime Shape
-
-```mermaid
-flowchart LR
-    UI[Renderer UI] --> PRELOAD[Preload bridge]
-    PRELOAD --> IPC[IPC handlers]
-    IPC --> SRM[SessionRuntimeManager]
-    SRM --> ORCH[AgentOrchestrator]
-    ORCH --> PIPE[PipelineRuntime]
-    PIPE --> LLM[LLMRuntime]
-    PIPE --> SIGNAL[Signal engines]
-    ORCH --> RISK[Risk and policy gates]
-    ORCH --> BROKER[Broker services]
-    PIPE --> DB[(SQLite)]
-    BROKER --> DB
-    LLM --> PROVIDERS[LLM providers]
-    BROKER --> EXTERNAL[Broker APIs]
-```
-
-## Quick Start
-
-Prereqs: Bun `1.3.11+`, native build tooling for desktop native modules, and a machine that can build `better-sqlite3`.
+Requirements: macOS or Linux, [Bun](https://bun.sh) 1.3+, and an [Alpaca](https://alpaca.markets)
+account for its free paper-trading keys (crypto works with the built-in simulator even without keys).
 
 ```bash
 bun install
-bun run start
+bun run start        # builds the UI and opens the desktop app, which starts the engine
 ```
 
-Useful commands:
+First run walks you through: Alpaca paper keys (or the simulator) → optional OpenRouter key → a
+Heartbeat test bot (first trade within ~10 minutes) → starter bots.
 
-- `bun run start` - launch the Exva desktop app.
-- `bun run dev:debug` - launch with debug logging.
-- `bun run typecheck` - TypeScript check.
-- `bun run test` - Vitest suite.
-- `bun run lint` - ESLint.
-- `bun run check` - typecheck + lint + format + Knip + tests + mock trade-loop proof.
-- `bun run package` - package the app.
-- `bun run make` - build platform installers.
-- `bun run db:reset` - reset the local dev database.
-- `bun run logs:clear` - clear local app logs under `~/.exva/logs`.
+Other ways to run:
 
-## Documentation
+```bash
+bun run engine       # headless engine; open the printed http://127.0.0.1:7420/?token=… link in a browser
+bun run demo         # demo: simulator + synthetic market + a clock running 60× fast; no keys needed
+```
 
-- [`docs/REDESIGN.md`](docs/REDESIGN.md) - **proposed v2 redesign plan** (rebuild around one engine, one receipt per check, six screens).
-- [`docs/IMPLEMENTATION_BACKLOG.md`](docs/IMPLEMENTATION_BACKLOG.md) - the single active implementation tracker.
-- [`docs/engineering/README.md`](docs/engineering/README.md) - engineering guidance and operating procedures.
-- [`docs/prompts/`](docs/prompts/) - current operational prompts.
-- [`docs/reviews/prompt.md`](docs/reviews/prompt.md) - code-review procedure.
-- [`docs/USER_BLOCKED_CHECKLIST.md`](docs/USER_BLOCKED_CHECKLIST.md) - external prerequisites that code cannot complete.
-- [`docs/attic/`](docs/attic/) - historical plans, diagnoses, and review records.
+## Command line
 
-## Current Architecture Notes
+```bash
+bun run exva status                          # health and today's numbers for every bot
+bun run exva decisions --bot "ETF Dip Buyer" # the receipts, newest first
+bun run exva trades
+bun run exva doctor                          # checks keys, broker and data; places nothing
+bun run exva paper-smoke                     # one real $10 BTC/USD paper round trip
+bun run exva backtest ema-cross BTC/USD,ETH/USD 15m --days 90
+bun run exva account add-alpaca --key PK… --secret …
+bun run exva bot create --strategy rsi-dip --symbols SPY,QQQ --timeframe 15m --start
+bun run exva kill        # kill switch on (bun run exva kill off to resume)
+```
 
-- The renderer never talks to SQLite, brokers, search providers, or LLM providers directly.
-- Session runtimes are owned in the main process by `SessionRuntimeManager`.
-- The LLM layer (`electron/main/services/llm/`) is separate from the pipeline layer (`electron/main/services/pipeline/`).
-- Worker prompts are bundled in code via `electron/main/services/pipeline/worker-prompts.ts`; prompt assembly happens in `pipeline/prompting/worker-prompt-builder.ts`.
-- Replays and analytics are separate services, not bolted onto the live orchestration loop.
+## When a bot doesn't trade
 
-## Development Notes
+Open the bot. The **Why no trades today?** card counts every check by reason and shows the closest the
+bot came to trading. Common answers:
 
-- Bun is the package manager for this repo. Do not reintroduce npm or pnpm lockfiles.
-- Logs are written to stdout and local daily files; see `docs/engineering/logging-guide.md`.
-- If you are tracing runtime behavior, start with `docs/engineering/debugging-guide.md` and the Dev Panel flows.
+- **HOLD, no signal:** working as designed, the market didn't meet the condition. Try looser settings in the Lab.
+- **Sleeping until 9:30 ET:** stock symbols only trade during market hours. Nights and weekends are crypto-only.
+- **SKIP, stale data:** the data feed had no bar (common for thin stocks on the free IEX feed).
+- **ERROR:** the message says what failed and what to do.
+- **"Exva wasn't running from 02:10 to 02:40":** the computer slept. A closed laptop lid sleeps it.
+- **SKIP, position gone:** the shares or coins were sold outside Exva (e.g. in Alpaca's dashboard), so
+  Exva closed its record of the position without a P&L and the bot carries on.
+
+## Where things live
+
+- `~/.exva/exva.db`: the database (bots, decisions, orders, trades, backtests).
+- `~/.exva/secrets.json`: API keys: Alpaca paper and OpenRouter (permissions 0600, never in the
+  database or the repo).
+- `~/.exva/engine.json`: how the desktop app and CLI find a running engine.
+
+## For developers
+
+```bash
+bun run verify       # typecheck, lint, 76 engine tests, size budgets, UI build
+bun run test:e2e     # Playwright against a demo engine
+bun run dev:ui       # Vite with hot reload (EXVA_TOKEN=… points it at a running engine)
+```
+
+Read [`CLAUDE.md`](CLAUDE.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md),
+[`docs/GLOSSARY.md`](docs/GLOSSARY.md) and [`docs/ROADMAP.md`](docs/ROADMAP.md) before changing
+anything. The previous version (v1) is in git history at commit `b6d30fd`.

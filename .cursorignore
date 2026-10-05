@@ -1,3 +1,0 @@
-# Archived plans/reviews — keep for history but exclude from default agent context.
-docs/attic/**
-!docs/attic/README.md

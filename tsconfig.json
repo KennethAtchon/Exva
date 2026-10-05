@@ -1,38 +1,26 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "useDefineForClassFields": true,
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "skipLibCheck": true,
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["bun"],
     "jsx": "react-jsx",
     "strict": true,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "exactOptionalPropertyTypes": false,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
     "paths": {
-      "*": ["./*"],
-      "@/*": ["./src/*"],
-      "@electron/*": ["./electron/*"],
-      "@main/*": ["./electron/main/*"],
-      "@shared/*": ["./electron/shared/*"]
+      "@shared/*": ["./shared/*"]
     }
   },
-  "include": [
-    "src",
-    "electron",
-    "drizzle.config.ts",
-    "forge.config.ts",
-    "vite.config.ts",
-    "vite.*.config.ts",
-    "vitest.config.ts"
-  ]
+  "include": ["engine", "shared", "ui", "desktop/src", "scripts", "types.d.ts"],
+  "exclude": ["node_modules", "ui/dist", "desktop/dist"]
 }
