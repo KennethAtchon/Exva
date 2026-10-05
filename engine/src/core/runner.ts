@@ -45,6 +45,15 @@ export class Runner {
     return decision;
   }
 
+  /** Record a failure that happened before the tick could run (e.g. market data unreachable). */
+  recordError(bot: Bot, symbol: string, barClose: number, err: unknown): Decision | null {
+    if (this.d.store.hasDecision(bot.id, symbol, barClose)) return null;
+    const decision = new DecisionBuilder(bot, symbol, barClose, this.d.clock.now()).fromError(err);
+    if (!this.d.store.insertDecision(decision)) return null;
+    this.d.events.emit({ type: "decision", data: decision });
+    return decision;
+  }
+
   private async evaluate(
     bot: Bot,
     symbol: string,

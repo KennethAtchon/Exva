@@ -495,6 +495,19 @@ export class Store {
       .all(...orderIds) as Fill[];
   }
 
+  /** Fills on a symbol (optionally one bot) with their side, for chart markers. */
+  fillsForSymbol(
+    symbol: string,
+    from: number,
+    to: number,
+    botId?: string,
+  ): (Fill & { side: string; botId: string })[] {
+    const sql = `SELECT f.*, o.side AS side, o.bot_id AS botId FROM fills f JOIN orders o ON o.id = f.order_id
+      WHERE o.symbol = ? AND f.ts >= ? AND f.ts <= ? ${botId ? "AND o.bot_id = ?" : ""} ORDER BY f.ts`;
+    const args: (string | number)[] = botId ? [symbol, from, to, botId] : [symbol, from, to];
+    return this.db.query(sql).all(...args) as (Fill & { side: string; botId: string })[];
+  }
+
   // ---- trades (an open trade is the position) ----
   openTrade(botId: string, symbol: string): Trade | null {
     const r = this.db
